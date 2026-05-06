@@ -7,153 +7,128 @@
 #include <ArduinoJson.h>
 
 // ======================== CẤU HÌNH ========================
-
-// --- WiFi ---
 const char* WIFI_SSID     = "tinhvdth";
 const char* WIFI_PASSWORD = "123456789tt";
-
-// --- Edge Backend ---
 const char* EDGE_API_URL  = "http://192.168.0.157:5001";
 const char* API_ENDPOINT  = "/api/telemetry/navigation";
 
-// --- Pin cho Motor L298N (ESP8266) ---
+// --- Cấu hình chân Pin (ESP8266) ---
 #define L298N_ENA  15  // D8 (PWM)
 #define L298N_IN1  16  // D0
 #define L298N_IN2  13  // D7
-
-// --- Pin cho Encoder ---
 #define ENC_A      14  // D5
 #define ENC_B      12  // D6
 
-// --- Pin cho Nút nhấn ---
-#define BTN_ON_OFF 0   // D3
-#define BTN_DIR    2   // D4
+// Chuyển nút Bật/Tắt sang D4, bỏ D3
+#define BTN_POWER  2   // D4
 
 // --- Thông số hệ thống ---
 const unsigned long SEND_INTERVAL_MS = 1000;
-const float PULSES_PER_REV = 330.0; // Thay đổi theo motor của bạn
+const float PULSES_PER_REV = 330.0; 
 
-// ======================== KHAI BÁO BIẾN ========================
-
+// ======================== BIẾN TOÀN CỤC ========================
 Adafruit_MPU6050 mpu;
-
-// Cảm biến & Lọc
 float pitch = 0, roll = 0;
 unsigned long last_sensor_time = 0;
 unsigned long last_send_time = 0;
 
-// Trạng thái Motor
-bool isRunning = false;
-bool isForward = true;
-int motorSpeed = 150; // Tốc độ 0-255
+// Biến trạng thái motor
+volatile bool isRunning = false;
+volatile unsigned long last_debounce_power = 0;
 volatile long pulse_count = 0;
+
+int motorSpeed = 255; 
 float current_rpm = 0;
 
-// Đếm thống kê
-unsigned long send_count = 0;
-unsigned long fail_count = 0;
+// ======================== CÁC HÀM NGẮT (ISR) ========================
 
-// ======================== HÀM NGẮT ENCODER ========================
-
+// Ngắt đọc Encoder
 void IRAM_ATTR encoder_isr() {
   if (digitalRead(ENC_B) == LOW) pulse_count++;
   else pulse_count--;
 }
 
-// ======================== SETUP ========================
+// Ngắt nút Bật/Tắt trên chân D4
+void IRAM_ATTR power_isr() {
+  unsigned long now = millis();
+  // Chống nhiễu nút nhấn (Debounce) 250ms
+  if (now - last_debounce_power > 250) {
+    isRunning = !isRunning;
+    last_debounce_power = now;
+  }
+}
+
+// ======================== KHỞI TẠO (SETUP) ========================
 
 void setup() {
   Serial.begin(115200);
   delay(1000);
-  Serial.println("\n========================================");
-  Serial.println("   MPU6050 + Motor Control (ESP8266)");
-  Serial.println("========================================");
+  Serial.println("\n--- HE THONG KHOI TẠO (NUT D4: ON/OFF) ---");
 
-  // --- Khởi tạo Motor & Nút nhấn ---
-  analogWriteRange(255); // Đưa dải PWM về 0-255
+  // Cấu hình Motor
+  analogWriteRange(255);
   pinMode(L298N_ENA, OUTPUT);
   pinMode(L298N_IN1, OUTPUT);
   pinMode(L298N_IN2, OUTPUT);
   
-  pinMode(BTN_ON_OFF, INPUT_PULLUP);
-  pinMode(BTN_DIR, INPUT_PULLUP);
+  // Cấu hình Nút bấm trên chân D4 với ngắt
+  pinMode(BTN_POWER, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(BTN_POWER), power_isr, FALLING);
 
-  // --- Khởi tạo Encoder ---
+  // Cấu hình Encoder với ngắt
   pinMode(ENC_A, INPUT_PULLUP);
   pinMode(ENC_B, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(ENC_A), encoder_isr, RISING);
 
-  // --- Khởi tạo MPU6050 ---
+  // Khởi tạo cảm biến MPU6050
   if (!mpu.begin()) {
-    Serial.println("[LỖI] Không tìm thấy MPU6050!");
-    while (1) { delay(10); }
+    Serial.println("[LOI] Khong tim thay MPU6050!");
+    while (1) delay(10);
   }
-  mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
-  mpu.setGyroRange(MPU6050_RANGE_500_DEG);
-  mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
-
+  
   last_sensor_time = millis();
   connectToWiFi();
 }
 
-// ======================== LOOP ========================
-
+// ======================== VÒNG LẶP (LOOP) ========================
 void loop() {
-  // 1. Xử lý nút nhấn
-  handleButtons();
-
-  // 2. Cập nhật trạng thái Motor
-  updateMotor();
-
-  // 3. Đọc cảm biến Pitch/Roll
+  // ƯU TIÊN 1: Luôn cập nhật trạng thái motor ngay đầu vòng lặp
+  updateMotor(); 
+  
+  // ƯU TIÊN 2: Đọc cảm biến liên tục
   readAndFilterSensor();
 
-  // 4. Gửi dữ liệu theo chu kỳ
+  // Xử lý gửi dữ liệu telemetry
   if (millis() - last_send_time >= SEND_INTERVAL_MS) {
-    float dt = (millis() - last_send_time) / 1000.0;
+    last_send_time = millis();
     
-    // Tính RPM
+    // Tính toán RPM
     noInterrupts();
     long pulses = pulse_count;
     pulse_count = 0;
     interrupts();
+    float dt = SEND_INTERVAL_MS / 1000.0;
     current_rpm = (pulses / PULSES_PER_REV) * (60.0 / dt);
 
-    last_send_time = millis();
+    // In ra Serial để bạn theo dõi
+    Serial.printf("[DEBUG] P: %.2f | RPM: %.1f | Motor: %s\n", 
+                  pitch - 0.68, current_rpm, isRunning ? "ON" : "OFF");
 
-    float final_pitch = pitch - 0.68;
-    float final_roll  = roll - 0.11;
-
-    Serial.printf("[DATA] P: %.2f | R: %.2f | RPM: %.1f | Mode: %s\n", 
-                  final_pitch, final_roll, current_rpm, isRunning ? "RUN" : "STOP");
-
-    sendToEdge(final_pitch, final_roll, current_rpm);
-  }
-
-  delay(10); // Đảm bảo loop chạy mượt
-}
-
-// ======================== ĐIỀU KHIỂN MOTOR & NÚT ========================
-
-void handleButtons() {
-  // Nút Bật/Tắt
-  if (digitalRead(BTN_ON_OFF) == LOW) {
-    delay(50); // Debounce
-    if (digitalRead(BTN_ON_OFF) == LOW) {
-      isRunning = !isRunning;
-      while(digitalRead(BTN_ON_OFF) == LOW); // Chờ nhả nút
+    // CHỈ GỬI DỮ LIỆU NẾU ĐÃ CÓ WIFI
+    // Nếu không có WiFi, lệnh này sẽ bị bỏ qua, không gây treo máy
+    if (WiFi.status() == WL_CONNECTED) {
+      sendToEdge(pitch - 0.68, roll - 0.11, current_rpm);
+    } else {
+      Serial.println("[WiFi] Khong co ket noi - Dang chay offline...");
+      // Thử kết nối lại một cách lặng lẽ, không dùng vòng lặp while gây treo
+      WiFi.begin(WIFI_SSID, WIFI_PASSWORD); 
     }
   }
-
-  // Nút Đảo chiều
-  if (digitalRead(BTN_DIR) == LOW) {
-    delay(50);
-    if (digitalRead(BTN_DIR) == LOW) {
-      isForward = !isForward;
-      while(digitalRead(BTN_DIR) == LOW);
-    }
-  }
+  
+  delay(10); 
 }
+
+// ======================== HÀM BỔ TRỢ ========================
 
 void updateMotor() {
   if (!isRunning) {
@@ -163,41 +138,11 @@ void updateMotor() {
     return;
   }
 
-  if (isForward) {
-    digitalWrite(L298N_IN1, HIGH);
-    digitalWrite(L298N_IN2, LOW);
-  } else {
-    digitalWrite(L298N_IN1, LOW);
-    digitalWrite(L298N_IN2, HIGH);
-  }
+  // Luôn quay cố định một chiều (IN1: HIGH, IN2: LOW)
+  digitalWrite(L298N_IN1, HIGH);
+  digitalWrite(L298N_IN2, LOW);
   analogWrite(L298N_ENA, motorSpeed);
 }
-
-// ======================== KẾT NỐI WIFI ========================
-
-void connectToWiFi() {
-  Serial.print("[WiFi] Đang kết nối tới ");
-  Serial.println(WIFI_SSID);
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 40) {
-    delay(500); Serial.print("."); attempts++;
-  }
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\n[OK] WiFi đã kết nối! IP: " + WiFi.localIP().toString());
-  }
-}
-
-void checkWiFiConnection() {
-  if (WiFi.status() != WL_CONNECTED) {
-    WiFi.disconnect();
-    WiFi.reconnect();
-    delay(2000);
-  }
-}
-
-// ======================== ĐỌC & LỌC CẢM BIẾN ========================
 
 void readAndFilterSensor() {
   unsigned long current_time = millis();
@@ -208,44 +153,60 @@ void readAndFilterSensor() {
   sensors_event_t a, g, temp;
   mpu.getEvent(&a, &g, &temp);
 
+  // Tính Pitch/Roll từ gia tốc kế
   float accel_pitch = atan2(a.acceleration.x, sqrt(a.acceleration.y * a.acceleration.y + a.acceleration.z * a.acceleration.z)) * 180.0 / PI;
   float accel_roll = atan2(a.acceleration.y, sqrt(a.acceleration.x * a.acceleration.x + a.acceleration.z * a.acceleration.z)) * 180.0 / PI;
 
+  // Bộ lọc bù (Complementary Filter)
   pitch = 0.96 * (pitch + (g.gyro.y * 180.0 / PI) * dt) + 0.04 * accel_pitch;
   roll  = 0.96 * (roll  + (g.gyro.x * 180.0 / PI) * dt) + 0.04 * accel_roll;
 }
-
-// ======================== GỬI LÊN EDGE BACKEND ========================
-
+// Cập nhật lại hàm gửi dữ liệu để tránh chờ đợi quá lâu
 void sendToEdge(float pitch_val, float roll_val, float speed_val) {
-  if (WiFi.status() != WL_CONNECTED) {
-    checkWiFiConnection();
-    if (WiFi.status() != WL_CONNECTED) return;
-  }
-
   WiFiClient client;
   HTTPClient http;
-  String url = String(EDGE_API_URL) + API_ENDPOINT;
   
-  http.begin(client, url);
-  http.addHeader("Content-Type", "application/json");
+  // Thiết lập thời gian chờ (timeout) ngắn (ví dụ 200ms) 
+  // để nếu server lỗi thì thoát ra ngay
+  http.setTimeout(200); 
+  
+  String url = String(EDGE_API_URL) + API_ENDPOINT;
+  if (http.begin(client, url)) {
+    http.addHeader("Content-Type", "application/json");
 
-  JsonDocument doc;
-  doc["pitch"] = pitch_val;
-  doc["roll"] = roll_val;
-  doc["speed"] = speed_val; // Gửi kèm tốc độ RPM
-  doc["headingTrue"] = 0;
-  doc["depth"] = 0;
+    JsonDocument doc;
+    doc["pitch"] = pitch_val;
+    doc["roll"] = roll_val;
+    doc["speed"] = speed_val;
 
-  String jsonString;
-  serializeJson(doc, jsonString);
+    String jsonString;
+    serializeJson(doc, jsonString);
 
-  int httpCode = http.POST(jsonString);
-  if (httpCode > 0) {
-    if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_CREATED) send_count++;
-    else fail_count++;
-  } else {
-    fail_count++;
+    // Gửi POST
+    int httpCode = http.POST(jsonString);
+    
+    if (httpCode > 0) {
+      // Serial.printf("[HTTP] Code: %d\n", httpCode);
+    }
+    http.end();
   }
-  http.end();
+}
+// Chỉnh lại hàm connectToWiFi để không bị kẹt vĩnh viễn lúc khởi động
+void connectToWiFi() {
+  Serial.print("[WiFi] Dang ket noi");
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  
+  int timeout = 0;
+  // Chỉ chờ tối đa 10 giây, nếu không được thì bỏ qua để vào loop chạy motor
+  while (WiFi.status() != WL_CONNECTED && timeout < 20) {
+    delay(500);
+    Serial.print(".");
+    timeout++;
+  }
+  
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\n[OK] WiFi Connected!");
+  } else {
+    Serial.println("\n[TIMEOUT] WiFi kẹt - Chạy chế độ Offline.");
+  }
 }

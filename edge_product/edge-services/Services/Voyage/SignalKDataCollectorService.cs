@@ -258,6 +258,7 @@ public class SignalKDataCollectorService : BackgroundService
                     RunningHours = UnitConversionHelper.SecondsToHours(engineData.RunningHours?.Value ?? 0),
                     StartCount = 0,
                     AlarmStatus = 0,
+                    IsRunning = engineData.Revolutions?.Value > 0,
                     IsSynced = false,
                     CreatedAt = DateTime.UtcNow
                 };

@@ -125,6 +125,33 @@ namespace ProductApi.Controllers
 
                 var avgSpeedKn = speedCount > 0 ? totalSpeed / speedCount : 0;
 
+                // Lấy trạng thái động cơ mới nhất của tàu
+                object? engineStatus = null;
+                try
+                {
+                    var latestEngine = await _dbContext.EngineData
+                        .AsNoTracking()
+                        .Where(e => e.OriginNode == originNode)
+                        .OrderByDescending(e => e.Timestamp)
+                        .FirstOrDefaultAsync();
+
+                    if (latestEngine != null)
+                    {
+                        engineStatus = new
+                        {
+                            timestamp = latestEngine.Timestamp,
+                            engineId = latestEngine.EngineId,
+                            rpm = latestEngine.Rpm,
+                            isRunning = latestEngine.IsRunning,
+                            loadPercent = latestEngine.LoadPercent
+                        };
+                    }
+                }
+                catch
+                {
+                    // Không làm hỏng response nếu có lỗi khi query engine
+                }
+
                 return Ok(new
                 {
                     latest = latest != null ? new
@@ -158,7 +185,9 @@ namespace ProductApi.Controllers
                         totalPoints,
                         distanceNm = Math.Round(distanceNm, 1),
                         avgSpeedKn = Math.Round(avgSpeedKn, 1)
-                    }
+                    },
+
+                    engine = engineStatus
                 });
             }
             catch (Exception ex)

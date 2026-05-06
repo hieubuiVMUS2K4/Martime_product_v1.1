@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Tooltip, Polyline, useMap } from 'react-leaflet';
+import { useNavigate } from 'react-router-dom';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import plannedRouteData from '../../assets/planned-route.json';
@@ -27,10 +28,26 @@ export interface GpsPoint {
 export interface VesselTrackData {
   id: string;
   name: string;
+  imo?: string;
   color: string;
   position: GpsPoint;
   route: GpsPoint[];
   dashArray?: string; // e.g. "2,4" or "5,8"
+  // Thông tin bổ sung
+  captainName?: string;
+  engineRunning?: boolean;
+  destination?: string;
+  eta?: string;
+  flag?: string;
+  vesselType?: string;
+  draught?: number;
+  destLat?: number;
+  destLon?: number;
+  // Thông tin chuyến đi
+  departurePort?: string;
+  arrivalPort?: string;
+  atd?: string; // actual time of departure
+  ata?: string; // actual time of arrival
 }
 
 /** Props cho VesselMap component */
@@ -53,47 +70,31 @@ interface VesselMapProps {
   onVesselSelect?: (vesselId: string) => void;
 }
 
-/** SVG hình thuyền — nhìn từ trên xuống, mũi nhọn hướng lên để hiển thị hướng đi */
-const shipSvg = `<svg width="26" height="26" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Mũi tàu nhọn (hướng đi) -->
-  <path d="M50 2 L60 28 L55 30 L50 25 L45 30 L40 28 Z" fill="white"/>
-  <!-- Thân tàu hình thoi -->
-  <path d="M40 28 L20 45 Q15 55 18 65 L30 75 Q40 80 50 80 Q60 80 70 75 L82 65 Q85 55 80 45 L60 28 Z" fill="white"/>
-  <!-- Boong tàu -->
-  <path d="M38 32 L22 48 Q18 56 22 64 L32 72 Q40 76 50 76 Q60 76 68 72 L78 64 Q82 56 78 48 L62 32 Z" fill="rgba(255,255,255,0.5)"/>
-  <!-- Đài chỉ huy -->
-  <rect x="42" y="30" width="16" height="14" rx="2" fill="white" stroke="rgba(0,0,0,0.2)" stroke-width="1"/>
-  <!-- Cột radar -->
-  <line x1="50" y1="28" x2="50" y2="6" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
-  <line x1="44" y1="10" x2="56" y2="10" stroke="white" stroke-width="1.2" stroke-linecap="round"/>
-  <!-- Cửa sổ cabin -->
-  <rect x="45" y="33" width="4" height="3" rx="1" fill="rgba(0,0,0,0.2)"/>
-  <rect x="51" y="33" width="4" height="3" rx="1" fill="rgba(0,0,0,0.2)"/>
-  <!-- Đường nước -->
-  <path d="M18 68 Q30 64 50 66 Q70 68 82 66" stroke="rgba(255,255,255,0.6)" stroke-width="1.5" fill="none"/>
+/** SVG hình mũi tên điều hướng (như AIS marker) */
+const shipSvg = `<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <path d="M12 2L4 20L12 17L20 20L12 2Z" fill="currentColor" stroke="rgba(0,0,0,0.5)" stroke-width="1.5" stroke-linejoin="round"/>
 </svg>`;
 
-/** Tạo icon tàu với màu tùy chỉnh và hướng đi (courseOverGround) */
+/** Tạo icon tàu dạng mũi tên với màu tùy chỉnh và hướng đi */
 function makeShipIcon(color: string, course?: number) {
   const rotation = course != null ? course : 0;
   return new L.DivIcon({
-    className: 'vessel-marker',
+    className: 'vessel-marker-arrow',
     html: `<div style="
-      width: 36px; height: 36px;
-      background: ${color};
-      border: 3px solid white;
-      border-radius: 50%;
-      box-shadow: 0 3px 10px rgba(0,0,0,0.3), 0 0 0 2px ${color}33;
+      width: 24px; height: 24px;
+      color: ${color};
       display: flex;
       align-items: center;
       justify-content: center;
       transform: rotate(${rotation}deg);
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
     ">
       ${shipSvg}
     </div>`,
-    iconSize: [36, 36],
-    iconAnchor: [18, 18],
-    popupAnchor: [0, -22],
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+    popupAnchor: [0, -12],
+    tooltipAnchor: [12, 0],
   });
 }
 
@@ -211,6 +212,7 @@ export const VesselMap: React.FC<VesselMapProps> = ({
   onVesselSelect,
 }) => {
   const isMulti = vessels && vessels.length > 0;
+  const navigate = useNavigate();
 
   // Single mode
   const defaultCenter: [number, number] = !isMulti && currentPosition
@@ -292,60 +294,133 @@ export const VesselMap: React.FC<VesselMapProps> = ({
                   smoothFactor={1} 
                 />
               )}
-              {/* Marker with auto-open tooltip chứa đầy đủ thông tin */}
+              {/* Marker với popup chuyên nghiệp (giống AIS) */}
               {hasPos && (
                 <Marker
                   position={[v.position.latitude, v.position.longitude]}
                   icon={makeShipIcon(vColor, v.position.courseOverGround)}
                   eventHandlers={{
                     click: () => onVesselSelect?.(v.id),
+                    mouseover: (e) => e.target.openPopup(),
                   }}
                 >
-                  {/* Tooltip permanent — tự động hiện thông tin đầy đủ, không cần click */}
-                  <Tooltip permanent direction="top" offset={[0, -12]}>
-                    <div
-                      className="text-sm min-w-[220px] rounded-lg shadow-xl border bg-white"
-                      style={{ borderColor: vColor, borderWidth: '1.5px' }}
-                    >
-                      {/* Header */}
-                      <div
-                        className="font-bold text-base px-3 py-2 rounded-t-lg flex items-center justify-between"
-                        style={{ backgroundColor: vColor, color: 'white' }}
+                  <Popup className="ais-popup" minWidth={340} maxWidth={340} autoPanPadding={[50,50]}>
+                    <div className="w-[340px] font-sans" style={{ margin: '-14px -22px -14px -21px' }}>
+                      {/* ── Header gradient ── */}
+                      <div 
+                        className="px-4 py-3 flex items-center gap-3"
+                        style={{ background: `linear-gradient(135deg, ${vColor}, ${vColor}dd)` }}
                       >
-                        <span>🚢 {v.name}</span>
-                      </div>
-                      {/* Body */}
-                      <div className="px-3 py-2 space-y-1.5">
-                        <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-                          <span className="text-gray-500 text-xs">Latitude:</span>
-                          <span className="font-mono text-sm font-semibold">{v.position.latitude.toFixed(6)}°</span>
-                          <span className="text-gray-500 text-xs">Longitude:</span>
-                          <span className="font-mono text-sm font-semibold">{v.position.longitude.toFixed(6)}°</span>
-                          {v.position.speedOverGround != null && (
-                            <>
-                              <span className="text-gray-500 text-xs">Speed:</span>
-                              <span className="font-semibold text-sm">{v.position.speedOverGround.toFixed(1)} kn</span>
-                            </>
-                          )}
-                          {v.position.courseOverGround != null && (
-                            <>
-                              <span className="text-gray-500 text-xs">Course:</span>
-                              <span className="font-semibold text-sm">{v.position.courseOverGround.toFixed(1)}°</span>
-                            </>
-                          )}
-                          {v.position.timestamp && (
-                            <>
-                              <span className="text-gray-500 text-xs">Time (UTC):</span>
-                              <span className="text-sm">{new Date(v.position.timestamp).toLocaleTimeString('en-GB')}</span>
-                            </>
-                          )}
+                        <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 shadow-inner">
+                          <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2L4 20L8 19.5L12 17L16 19.5L20 20L12 2Z"/>
+                          </svg>
                         </div>
-                        <div className="text-xs text-gray-400 pt-1.5 border-t border-gray-100">
-                          Route: {vDashArray} • {vRoute.length} waypoints
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-base text-white truncate">{v.name}</h3>
+                          <div className="flex items-center gap-2 text-white/80 text-[10px]">
+                            {v.imo && <span>IMO {v.imo}</span>}
+                            {v.vesselType && <><span>•</span><span>{v.vesselType}</span></>}
+                            {v.flag && <><span>•</span><span>Flag: {v.flag}</span></>}
+                          </div>
+                        </div>
+                        <div className="flex-shrink-0">
+                          <div className={`w-3 h-3 rounded-full ${v.engineRunning ? 'bg-green-400 animate-ping' : 'bg-gray-400'} shadow-lg`} />
+                        </div>
+                      </div>
+
+                      {/* ── Body ── */}
+                      <div className="px-4 pt-3 pb-2 space-y-3">
+                        {/* Hàng 1: Trạng thái động cơ + Thuyền trưởng + Hướng đi */}
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="bg-gray-50 rounded-lg p-2 text-center">
+                            <div className="flex items-center justify-center gap-1 text-gray-500 text-[9px] uppercase font-semibold mb-1">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                              Engine
+                            </div>
+                            <span className={`text-xs font-bold ${v.engineRunning ? 'text-green-600' : 'text-gray-500'}`}>
+                              {v.engineRunning ? '● Running' : '○ Stopped'}
+                            </span>
+                          </div>
+                          <div className="bg-gray-50 rounded-lg p-2 text-center">
+                            <div className="flex items-center justify-center gap-1 text-gray-500 text-[9px] uppercase font-semibold mb-1">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                              Captain
+                            </div>
+                            <span className="text-xs font-bold text-gray-700 truncate block">{v.captainName || '—'}</span>
+                          </div>
+                          <div className="bg-gray-50 rounded-lg p-2 text-center">
+                            <div className="flex items-center justify-center gap-1 text-gray-500 text-[9px] uppercase font-semibold mb-1">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+                              Course
+                            </div>
+                            <span className="text-xs font-bold text-gray-700">{v.position.courseOverGround?.toFixed(0) || '—'}°</span>
+                          </div>
+                        </div>
+
+                        {/* Progress bar hành trình (nếu có destination) */}
+                        {v.departurePort && v.arrivalPort && (
+                          <div className="space-y-1.5">
+                            <div className="flex justify-between text-[10px] text-gray-500 uppercase font-semibold">
+                              <span>{v.departurePort}</span>
+                              <span>{v.arrivalPort}</span>
+                            </div>
+                            <div className="relative h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                              <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all" style={{ width: v.position.speedOverGround ? `${Math.min(v.position.speedOverGround * 6, 100)}%` : '30%' }} />
+                              <div className="absolute -top-2 right-0 w-0 h-0 border-t-[4px] border-b-[4px] border-l-[6px] border-t-transparent border-b-transparent border-l-emerald-500" />
+                            </div>
+                            <div className="flex justify-between text-[10px]">
+                              <span className="text-gray-400">ATD: {v.atd || '—'}</span>
+                              <span className="text-gray-400">ETA: {v.eta || '—'}</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Hàng 2: Thông số kỹ thuật */}
+                        <div className="grid grid-cols-4 gap-2 text-center border-t border-gray-100 pt-3">
+                          <div>
+                            <p className="text-[9px] text-gray-400 uppercase">Speed</p>
+                            <p className="text-sm font-bold text-gray-800 font-mono">{v.position.speedOverGround?.toFixed(1) || '0.0'}</p>
+                            <p className="text-[9px] text-gray-400">knots</p>
+                          </div>
+                          <div>
+                            <p className="text-[9px] text-gray-400 uppercase">Lat</p>
+                            <p className="text-sm font-bold text-gray-800 font-mono">{v.position.latitude.toFixed(3)}°</p>
+                            <p className="text-[9px] text-gray-400">N</p>
+                          </div>
+                          <div>
+                            <p className="text-[9px] text-gray-400 uppercase">Lon</p>
+                            <p className="text-sm font-bold text-gray-800 font-mono">{v.position.longitude.toFixed(3)}°</p>
+                            <p className="text-[9px] text-gray-400">E</p>
+                          </div>
+                          <div>
+                            <p className="text-[9px] text-gray-400 uppercase">Draught</p>
+                            <p className="text-sm font-bold text-gray-800 font-mono">{v.draught?.toFixed(1) || '—'}</p>
+                            <p className="text-[9px] text-gray-400">m</p>
+                          </div>
+                        </div>
+
+                        {/* Hàng 3: Timestamp */}
+                        <div className="flex items-center justify-between border-t border-gray-100 pt-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                            <span className="text-[10px] text-gray-500">
+                              {v.position.timestamp 
+                                ? new Date(v.position.timestamp).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+                                : 'N/A'}
+                            </span>
+                          </div>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); navigate(`/vessels/${v.id}`); }}
+                            className="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold px-3 py-1.5 rounded-md transition flex items-center gap-1 shadow-sm"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            View Details
+                          </button>
                         </div>
                       </div>
                     </div>
-                  </Tooltip>
+                  </Popup>
                 </Marker>
               )}
             </React.Fragment>
@@ -356,12 +431,12 @@ export const VesselMap: React.FC<VesselMapProps> = ({
         {!isMulti && currentPosition && currentPosition.latitude && currentPosition.longitude && (
           <Marker
             position={[currentPosition.latitude, currentPosition.longitude]}
-            icon={makeShipIcon('#ef4444', currentPosition.courseOverGround)}
+            icon={makeShipIcon('#3b82f6', currentPosition.courseOverGround)}
           >
-            <Popup>
-              <div className="text-sm min-w-[220px]">
-                <div className="font-bold text-base mb-2 pb-2 border-b">🚢 Vessel Position</div>
-                <div className="space-y-2">
+            <Popup className="ais-popup" minWidth={300} autoPanPadding={[50,50]}>
+              <div className="w-[300px] font-sans !m-0" style={{ margin: '-13px -20px -13px -19px' }}>
+                <div className="font-bold text-base px-3 py-2 border-b bg-gray-50 rounded-t-lg">🚢 Vessel Position</div>
+                <div className="p-3 space-y-2 text-sm">
                   <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-gray-700">
                     <span className="text-gray-500 text-xs">Latitude:</span>
                     <span className="font-mono text-sm">{currentPosition.latitude.toFixed(6)}°</span>
@@ -377,18 +452,6 @@ export const VesselMap: React.FC<VesselMapProps> = ({
                       <>
                         <span className="text-gray-500 text-xs">Course Over Ground:</span>
                         <span className="font-semibold text-sm">{currentPosition.courseOverGround.toFixed(1)}°</span>
-                      </>
-                    )}
-                    {currentPosition.timestamp && (
-                      <>
-                        <span className="text-gray-500 text-xs">Time (UTC):</span>
-                        <span className="text-sm">{new Date(currentPosition.timestamp).toLocaleTimeString('en-GB')}</span>
-                      </>
-                    )}
-                    {currentPosition.satellitesUsed != null && (
-                      <>
-                        <span className="text-gray-500 text-xs">Satellites:</span>
-                        <span className="text-sm">{currentPosition.satellitesUsed}</span>
                       </>
                     )}
                   </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Ship, ArrowLeft, Save, Loader2, AlertCircle, ChevronDown } from 'lucide-react';
+import { Ship, ArrowLeft, Save, Loader2, AlertCircle, ChevronDown, Navigation, Wind, Activity, Users, Anchor } from 'lucide-react';
 import { ENV } from '../../config/env';
 import { VesselCrewTab } from '../../components/vessel-detail/VesselCrewTab';
 import { BasicDataTab } from '../../components/vessel-detail/BasicDataTab';
@@ -13,6 +13,7 @@ import { InsuranceTab } from '../../components/vessel-detail/InsuranceTab';
 import { RadioCommTab } from '../../components/vessel-detail/RadioCommTab';
 import { TanksCargoTab } from '../../components/vessel-detail/TanksCargoTab';
 import { VesselCertificateTab } from '../../components/vessel-detail/VesselCertificateTab';
+import { VesselOverviewTab } from '../../components/vessel-detail/VesselOverviewTab';
 import { useToast } from '../../components/common/Toast';
 import './VesselDetailPage.css';
 
@@ -184,11 +185,15 @@ interface Vessel {
   // Sync metadata
   lastEdgeSyncAt?: string;
   lastShoreSyncAt?: string;
+  
+  // Thông tin thuyền trưởng
+  masterName?: string;
 }
 
-type TabId = 'basic-data' | 'dimensions' | 'machinery' | 'shipowner' | 'charterer' | 'class-flag-state' | 'insurance' | 'radio-comm' | 'tanks-cargo' | 'certificates' | 'crew';
+type TabId = 'overview' | 'basic-data' | 'dimensions' | 'machinery' | 'shipowner' | 'charterer' | 'class-flag-state' | 'insurance' | 'radio-comm' | 'tanks-cargo' | 'certificates' | 'crew';
 
 const TABS: { id: TabId; label: string; edgeSource: boolean }[] = [
+  { id: 'overview',         label: 'Tổng quan',          edgeSource: false },
   { id: 'basic-data',       label: 'Basic Data',        edgeSource: true },
   { id: 'dimensions',       label: 'Dimensions',         edgeSource: true },
   { id: 'machinery',        label: 'Machinery',          edgeSource: true },
@@ -204,6 +209,10 @@ const TABS: { id: TabId; label: string; edgeSource: boolean }[] = [
 
 // Grouped menus — giống TopNav PMS / Vật tư
 const TAB_GROUPS: { label: string; items: TabId[] }[] = [
+  {
+    label: 'Tổng quan',
+    items: ['overview'],
+  },
   {
     label: 'Thuyền viên',
     items: ['crew'],
@@ -257,7 +266,7 @@ export const VesselDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const toast = useToast();
 
-  const [activeTab, setActiveTab] = useState<TabId>('crew');
+  const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const groupRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [openNavGroup, setOpenNavGroup] = useState<string | null>(null);
@@ -269,6 +278,20 @@ export const VesselDetailPage: React.FC = () => {
   const [isDirty, setIsDirty] = useState(false);
 
   const [formData, setFormData] = useState<Partial<Vessel>>({});
+
+  // ── Telemetry & status ──
+  interface VesselStatus {
+    latitude?: number;
+    longitude?: number;
+    speedOverGround?: number;
+    courseOverGround?: number;
+    timestamp?: string;
+    captainName?: string;
+    engineRunning?: boolean;
+    crewCount?: number;
+    lastReport?: string;
+  }
+  const [vesselStatus, setVesselStatus] = useState<VesselStatus | null>(null);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -286,19 +309,98 @@ export const VesselDetailPage: React.FC = () => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Load vessel data
+  // Load vessel data + telemetry
   useEffect(() => {
     if (!id) return;
     setLoading(true);
     setError(null);
-    apiFetch<Vessel>(`${BASE}/vessels/${id}`)
-      .then(v => {
-        setVessel(v);
-        // Initialize form data with all fields
-        setFormData(v);
-      })
-      .catch(e => setError(e instanceof Error ? e.message : 'Failed to load vessel'))
-      .finally(() => setLoading(false));
+
+    const loadAll = async () => {
+      try {
+        // Fetch vessel + telemetry + crew song song
+        const [vData, posRes, crewRes] = await Promise.all([
+          apiFetch<Vessel>(`${BASE}/vessels/${id}`),
+          apiFetch<any>(`${BASE}/VesselTelemetry/vessel/${id}/realtime?hours=1`).catch(() => null),
+          apiFetch<any>(`${BASE}/crew/vessel/${id}`).catch(() => null),
+        ]);
+
+        setVessel(vData);
+        setFormData(vData);
+
+        // Parse telemetry
+        if (posRes?.latest) {
+          const l = posRes.latest;
+          setVesselStatus(prev => ({
+            ...prev,
+            latitude: l.latitude,
+            longitude: l.longitude,
+            speedOverGround: l.speedOverGround ?? undefined,
+            courseOverGround: l.courseOverGround ?? undefined,
+            timestamp: l.timestamp,
+          }));
+        }
+
+        // Parse engine status từ realtime API
+        if (posRes?.engine) {
+          setVesselStatus(prev => ({
+            ...prev,
+            engineRunning: posRes.engine.isRunning,
+          }));
+        }
+
+        // Parse crew
+        if (crewRes) {
+          const crewList = crewRes?.data || crewRes || [];
+          const captain = Array.isArray(crewList)
+            ? crewList.find((c: any) =>
+                c.rank?.toLowerCase()?.includes('captain') ||
+                c.position?.toLowerCase()?.includes('master') ||
+                c.rankName?.toLowerCase()?.includes('thuyền trưởng')
+              )
+            : undefined;
+          setVesselStatus(prev => ({
+            ...prev,
+            captainName: captain
+              ? (captain.fullName || captain.name || `${captain.firstName || ''} ${captain.lastName || ''}`.trim())
+              : undefined,
+            crewCount: Array.isArray(crewList) ? crewList.length : undefined,
+          }));
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed to load vessel');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadAll();
+  }, [id]);
+
+  // ── Auto-refresh telemetry (vị trí + động cơ) mỗi 30s ──
+  useEffect(() => {
+    if (!id) return;
+    const interval = setInterval(async () => {
+      try {
+        const posRes = await apiFetch<any>(`${BASE}/VesselTelemetry/vessel/${id}/realtime?hours=1`).catch(() => null);
+        if (posRes?.latest) {
+          const l = posRes.latest;
+          setVesselStatus(prev => ({
+            ...prev,
+            latitude: l.latitude,
+            longitude: l.longitude,
+            speedOverGround: l.speedOverGround ?? undefined,
+            courseOverGround: l.courseOverGround ?? undefined,
+            timestamp: l.timestamp,
+          }));
+        }
+        if (posRes?.engine) {
+          setVesselStatus(prev => ({ ...prev, engineRunning: posRes.engine.isRunning }));
+        }
+      } catch {
+        // Silent fail — không làm gián đoạn trải nghiệm
+      }
+    }, 10000);
+    return () => clearInterval(interval);
   }, [id]);
 
   const handleChange = useCallback((field: keyof Vessel, value: Vessel[keyof Vessel]) => {
@@ -385,6 +487,9 @@ export const VesselDetailPage: React.FC = () => {
     if (!vessel) return null;
 
     switch (activeTab) {
+      case 'overview':
+        return <VesselOverviewTab vessel={vessel} vesselStatus={vesselStatus} />;
+
       case 'basic-data':
         return <BasicDataTab vessel={vessel} />;
 

@@ -232,6 +232,13 @@ namespace MaritimeEdge
                 builder.Services.AddHostedService<MaritimeEdge.Services.Voyage.PositionSyncEnqueuerService>();
             }
 
+            // Engine Sync Enqueuer — đồng bộ trạng thái động cơ từ Edge lên Shore
+            var engineSyncEnqueuerEnabled = builder.Configuration.GetValue("EngineSyncEnqueuer:Enabled", true);
+            if (engineSyncEnqueuerEnabled)
+            {
+                builder.Services.AddHostedService<MaritimeEdge.Services.Voyage.EngineSyncEnqueuerService>();
+            }
+
             builder.Services.AddHostedService<MaritimeEdge.Services.Core.DataCleanupService>();
             if (builder.Configuration.GetValue("Sync:Enabled", true))
             {
@@ -380,6 +387,12 @@ namespace MaritimeEdge
                     {
                         logger.LogInformation("Database auto-migration disabled by configuration");
                     }
+
+                    // ── Migration: Add is_running column to engine_data ──
+                    await dbContext.Database.ExecuteSqlRawAsync(@"
+                        ALTER TABLE engine_data
+                        ADD COLUMN IF NOT EXISTS is_running boolean NOT NULL DEFAULT false;
+                    ");
 
                     await EnsurePortSeedDataAsync(dbContext, logger, app.Environment.ContentRootPath);
                 }

@@ -20,6 +20,9 @@ public class SensorNavigationDto
     /// <summary>Tốc độ qua nước (nếu có) - knots</summary>
     public double? SpeedThroughWater { get; set; }
 
+    /// <summary>Tốc độ vòng tua máy (từ ESP) - RPM</summary>
+    public double? Speed { get; set; }
+
     /// <summary>Độ sâu (nếu có cảm biến) - mét</summary>
     public double? Depth { get; set; }
 }

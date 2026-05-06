@@ -1,8 +1,11 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
+import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { dashboardService, alarmService, telemetryService } from '@/services/maritime.service'
 import { useMaritimeStore } from '@/stores/maritime.store'
 import type { DashboardStats } from '@/types/maritime.types'
 import { useTranslationSafe } from '@/contexts/I18nContext'
+import { VesselMap } from '@/components/ship-data/VesselMap'
+import plannedRouteData from '@/assets/planned-route.json'
 import { 
   AlertTriangle, 
   Users, 
@@ -26,7 +29,16 @@ export function DashboardPage() {
   const [position, setPosition] = useState<any>(null)
   const [navigation, setNavigation] = useState<any>(null)
   const [engine, setEngine] = useState<any>(null)
+  const [history, setHistory] = useState<any[]>([])
   const { setDashboardStats, setActiveAlarms, setCurrentPosition, setCurrentNavigation } = useMaritimeStore()
+
+  // Khởi tạo một số dữ liệu trống cho biểu đồ lúc ban đầu
+  useEffect(() => {
+    const initialData = Array.from({ length: 30 }).map((_, i) => ({
+      time: '', pitch: 0, roll: 0, rpm: 0
+    }))
+    setHistory(initialData)
+  }, [])
 
   const loadDashboardData = useCallback(async () => {
     try {
@@ -74,6 +86,19 @@ export function DashboardPage() {
       if (navData) {
         setNavigation(navData)
         setCurrentNavigation(navData)
+        
+        // Cập nhật history cho biểu đồ real-time (giữ 30 điểm gần nhất)
+        setHistory(prev => {
+          const now = new Date()
+          const timeStr = `${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`
+          const newPoint = {
+            time: timeStr,
+            pitch: navData.pitch ?? 0,
+            roll: navData.roll ?? 0,
+            rpm: navData.speedThroughWater ?? 0
+          }
+          return [...prev.slice(-29), newPoint]
+        })
       }
     } catch (error) {
       // Bỏ qua lỗi để không spam console (ESP có thể offline)
@@ -178,18 +203,20 @@ export function DashboardPage() {
             {/* Left: Info List */}
             <div className="space-y-2">
               <DataRow label="Latitude" value={position?.latitude != null ? `${position.latitude.toFixed(4)}° N` : '59.7992° N'} />
-              <DataRow label="Longitude" value="Speed" />
+              <DataRow label="Longitude" value={position?.longitude != null ? `${position.longitude.toFixed(4)}° E` : '10.4561° E'} />
               <DataRow label="Speed" value={position?.speedOverGround != null ? `${position.speedOverGround.toFixed(1)} knots` : '6.9 knots'} />
               <DataRow label="Course" value={navigation?.courseOverGround != null ? `${navigation.courseOverGround.toFixed(0)}°` : 'N/A'} />
             </div>
             {/* Right: Map */}
-            <div className="relative">
-              <div className="bg-blue-100 rounded h-full relative flex items-center justify-center overflow-hidden">
-                <div className="text-center">
-                  <Navigation className="w-8 h-8 text-blue-600 mx-auto" />
-                </div>
-              </div>
-              <div className="absolute bottom-2 left-2 right-2 bg-white/90 px-2 py-1 rounded text-xs">
+            <div className="relative h-48 sm:h-full min-h-[12rem] bg-gray-100 rounded overflow-hidden">
+              <VesselMap 
+                currentPosition={position} 
+                positions={plannedRouteData as any[]} 
+                autoFit={true} 
+                height="100%" 
+                className="w-full h-full rounded shadow-none border-none" 
+              />
+              <div className="absolute bottom-2 left-2 right-2 bg-white/90 px-2 py-1 rounded text-xs z-[400] shadow">
                 <div className="font-medium">ETA: 18 Dec, 14:00</div>
                 <div className="text-gray-600">Next Port: Singapore</div>
               </div>
@@ -448,256 +475,149 @@ export function DashboardPage() {
           );
         })()}
 
-        {/* Main Engine Card */}
-        <div className="bg-white rounded shadow">
-          <div className="p-4 border-b">
-            <h3 className="font-semibold text-gray-900 flex items-center">
-              <Gauge className="w-5 h-5 mr-2 text-gray-600" />
-              Main Engine
+        {/* Main Engine RPM Card */}
+        <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+          <div className="p-4 border-b bg-gray-50 flex items-center justify-between">
+            <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+              <Settings className="w-5 h-5 text-gray-600" />
+              Main Engine RPM
             </h3>
+            <span className="flex items-center gap-1.5 text-xs font-bold text-gray-600 bg-gray-200 px-3 py-1 rounded-full uppercase">
+              <span className={`inline-block w-2 h-2 rounded-full ${((navigation?.speedThroughWater ?? 0) > 0) && navigation?.timestamp ? 'bg-green-500 animate-ping' : 'bg-gray-400'}`} />
+              Live
+            </span>
           </div>
-          <div className="p-4 space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Settings className="w-4 h-4 text-orange-500" />
-                <span className="text-sm text-gray-600">RPM</span>
-              </div>
-              <div className="flex items-center space-x-4">
-                <span className="text-sm font-medium">2°C</span>
-                <span className="text-sm font-medium">N/A</span>
+          
+          <div className="p-6 flex flex-col items-center justify-center space-y-6">
+            <div className="relative w-48 h-48 flex items-center justify-center">
+              {/* Vòng ngoài Gauge */}
+              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                {/* Background circle */}
+                <circle 
+                  cx="50" cy="50" r="45" fill="none" 
+                  stroke="#e5e7eb" strokeWidth="10" 
+                />
+                
+                {/* Progress circle - scale adjusted to 500 max to match motor RPM visually */}
+                <circle 
+                  cx="50" cy="50" r="45" fill="none" 
+                  stroke="url(#rpm-gradient)" strokeWidth="10"
+                  strokeLinecap="round"
+                  strokeDasharray={`${(Math.min((navigation?.speedThroughWater ?? 0), 500) / 500) * 283} 283`}
+                  className="transition-all duration-300"
+                />
+                <defs>
+                  <linearGradient id="rpm-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#3b82f6" />
+                    <stop offset="50%" stopColor="#10b981" />
+                    <stop offset="100%" stopColor="#ef4444" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              
+              {/* Text inside gauge */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
+                <span className="font-mono text-5xl font-bold tracking-tight text-gray-900">
+                  {Math.round(navigation?.speedThroughWater ?? 0)}
+                </span>
+                <span className="text-sm font-semibold tracking-widest text-gray-500 mt-1 uppercase">RPM</span>
               </div>
             </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Activity className="w-4 h-4 text-teal-500" />
-                <span className="text-sm text-gray-600">Speed</span>
-                <span className="text-sm">Aero Info</span>
+            
+            <div className="w-full grid grid-cols-2 gap-4 text-center border-t border-gray-100 pt-4">
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase">Tốc độ hiện tại</p>
+                <p className="text-lg font-bold text-gray-900 font-mono">{navigation?.speedThroughWater?.toFixed(1) ?? '——'}</p>
               </div>
-              <div className="flex items-center space-x-4">
-                <Wind className="w-4 h-4 text-blue-500" />
-                <span className="text-sm font-medium">Wind Speed</span>
-                <span className="text-sm font-medium">N/A</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Gauge className="w-4 h-4 text-gray-500" />
-                <span className="text-sm text-gray-600">Dual Rate</span>
-                <span className="text-sm">00</span>
-              </div>
-              <div className="flex items-center space-x-4">
-                <span className="text-sm font-medium">3 knots</span>
-                <span className="text-sm font-medium">N/A</span>
-              </div>
-            </div>
-            <div className="pt-2 border-t">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Next Port: Singapore</span>
-                <span className="text-sm font-medium">N/A</span>
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase">Trạng thái</p>
+                <p className={`text-lg font-bold ${(navigation?.speedThroughWater ?? 0) > 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                  {(navigation?.speedThroughWater ?? 0) > 0 ? 'Đang chạy' : 'Dừng'}
+                </p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Environmental Card */}
-        <div className="bg-white rounded shadow">
-          <div className="p-4 border-b">
-            <h3 className="font-semibold text-gray-900 flex items-center">
-              <Thermometer className="w-5 h-5 mr-2 text-blue-600" />
-              Environmental
+        {/* Real-time Telemetry Charts */}
+        <div className="lg:col-span-3 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden mt-2">
+          <div className="p-4 border-b bg-gray-50 flex items-center justify-between">
+            <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+              <Activity className="w-5 h-5 text-blue-600" />
+              Live Telemetry Pipeline
             </h3>
           </div>
-          <div className="p-4 space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Sun className="w-4 h-4 text-orange-500" />
-                <span className="text-sm text-gray-600">Air Temp</span>
-              </div>
-              <div className="flex items-center space-x-4">
-                <span className="text-sm font-medium">0°C</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Activity className="w-4 h-4 text-teal-500" />
-                <span className="text-sm text-gray-600">Sea Temp</span>
-              </div>
-              <div className="flex items-center space-x-4">
-                <Wind className="w-4 h-4 text-blue-500" />
-                <span className="text-sm font-medium">Wind Speed</span>
-                <span className="text-sm font-medium">9 knots</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Wind className="w-4 h-4 text-blue-500" />
-                <span className="text-sm text-gray-600">Wind Speed</span>
-                <span className="text-sm">9 knots</span>
-              </div>
-              <div className="flex items-center space-x-4">
-                <Eye className="w-4 h-4 text-yellow-500" />
-                <span className="text-sm font-medium">Visibility</span>
-                <span className="text-sm font-medium">10</span>
-              </div>
-            </div>
-            <div className="pt-2 border-t">
-              <div className="flex items-center justify-between">
-                <CloudRain className="w-4 h-4 text-gray-500 mr-2" />
-                <span className="text-sm text-gray-600">Weather: Partly Cloudy</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Bottom Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Main Engine Large Gauge */}
-        <div className="bg-white rounded shadow p-6">
-          <h3 className="font-semibold text-gray-900 mb-4 flex items-center">
-            <Gauge className="w-5 h-5 mr-2 text-green-600" />
-            Main Engine
-          </h3>
-          <div className="grid grid-cols-2 gap-6 mb-4">
-            {/* Left: Large RPM Gauge */}
-            <div className="flex flex-col items-center">
-              <div className="relative w-40 h-40">
-                <svg className="w-full h-full" viewBox="0 0 160 160">
-                  <circle cx="80" cy="80" r="70" fill="none" stroke="#e5e7eb" strokeWidth="12"/>
-                  <circle 
-                    cx="80" 
-                    cy="80" 
-                    r="70" 
-                    fill="none" 
-                    stroke="#22c55e" 
-                    strokeWidth="12"
-                    strokeDasharray={`${((engine?.mainEngineRpm || 750) / 1000) * 440} 440`}
-                    strokeLinecap="round"
-                    transform="rotate(-90 80 80)"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-4xl font-bold text-gray-900">{engine?.mainEngineRpm || 750}</span>
-                  <span className="text-sm text-gray-500">RPM</span>
-                </div>
-              </div>
-              <span className="text-sm text-gray-600 mt-2">Engine Load</span>
-            </div>
-            {/* Right: Small Gauge and Data */}
-            <div className="flex flex-col">
-              <div className="flex items-start space-x-4 mb-4">
-                {/* Small gauge */}
-                <div className="relative w-20 h-20">
-                  <svg className="w-full h-full" viewBox="0 0 80 80">
-                    <circle cx="40" cy="40" r="30" fill="none" stroke="#e5e7eb" strokeWidth="8"/>
-                    <circle 
-                      cx="40" 
-                      cy="40" 
-                      r="30" 
-                      fill="none" 
-                      stroke="url(#gradient-gauge)" 
-                      strokeWidth="8"
-                      strokeDasharray={`${((engine?.mainEngineLoad || 60) / 100) * 188} 188`}
-                      strokeLinecap="round"
-                      transform="rotate(-90 40 40)"
-                    />
+          <div className="p-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0 divide-y lg:divide-y-0 lg:divide-x divide-gray-100">
+            
+            {/* Pitch Chart */}
+            <div className="p-4">
+              <p className="text-xs font-semibold text-gray-500 mb-2">PITCH TREND</p>
+              <div className="h-40">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={history}>
                     <defs>
-                      <linearGradient id="gradient-gauge" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="#22c55e" />
-                        <stop offset="50%" stopColor="#fbbf24" />
-                        <stop offset="100%" stopColor="#ef4444" />
+                      <linearGradient id="colorPitch" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-lg font-bold text-gray-900">{engine?.mainEngineLoad || 60}%</span>
-                    <span className="text-xs text-gray-500">RPM</span>
-                  </div>
-                </div>
-                {/* Right data columns */}
-                <div className="flex-1 space-y-1 text-right">
-                  <div className="text-sm text-gray-600">RPM</div>
-                  <div className="text-sm text-gray-600">20VA</div>
-                  <div className="text-sm text-gray-600">N/A</div>
-                  <div className="text-sm text-gray-600">3 N/A</div>
-                </div>
-              </div>
-              <div className="text-sm text-gray-600 mt-auto">
-                60%
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+                    <XAxis dataKey="time" hide />
+                    <YAxis domain={[-15, 15]} width={30} tick={{fontSize: 10, fill: '#6b7280'}} />
+                    <Tooltip contentStyle={{fontSize: '12px', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+                    <Area type="monotone" dataKey="pitch" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorPitch)" isAnimationActive={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
               </div>
             </div>
-          </div>
-          <p className="text-sm text-gray-600">Estimated Range: 2500 NM</p>
-        </div>
 
-        {/* Fuel Status + Maintenance */}
-        <div className="lg:col-span-2 space-y-4">
-          {/* Fuel Status */}
-          <div className="bg-white rounded shadow p-6">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-gray-900 flex items-center">
-                <Fuel className="w-5 h-5 mr-2 text-green-600" />
-                Fuel Status
-              </h3>
-              <span className="text-3xl font-bold text-gray-900">
-                {stats?.fuelLevel || 75}%
-              </span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
-              <div
-                className="bg-green-500 h-3 rounded-full transition-all"
-                style={{ width: `${stats?.fuelLevel || 75}%` }}
-              />
-            </div>
-            <div className="flex justify-between text-xs text-gray-500">
-              <span>0%</span>
-              <span>50%</span>
-              <span>100%</span>
-            </div>
-          </div>
-
-          {/* Upcoming Maintenance */}
-          <div className="bg-white rounded shadow p-6">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-gray-900 flex items-center">
-                <Wrench className="w-5 h-5 mr-2 text-yellow-600" />
-                Upcoming Maintenance Tasks
-              </h3>
-              <button className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">Details</button>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <TaskItem number="1" task="Engine oil change" dueDate="Due: Tomorrow" />
-                <TaskItem number="2" task="Hull cleaning" dueDate="" />
+            {/* Roll Chart */}
+            <div className="p-4">
+              <p className="text-xs font-semibold text-gray-500 mb-2">ROLL TREND</p>
+              <div className="h-40">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={history}>
+                    <defs>
+                      <linearGradient id="colorRoll" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+                    <XAxis dataKey="time" hide />
+                    <YAxis domain={[-35, 35]} width={30} tick={{fontSize: 10, fill: '#6b7280'}} />
+                    <Tooltip contentStyle={{fontSize: '12px', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+                    <Area type="monotone" dataKey="roll" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorRoll)" isAnimationActive={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
               </div>
-              <div className="relative h-24">
-                <svg className="w-full h-full" viewBox="0 0 200 100">
-                  <polyline points="0,80 40,60 80,50 120,40 160,35 200,30" fill="none" stroke="#22c55e" strokeWidth="2" />
-                  <circle cx="40" cy="60" r="3" fill="#22c55e" />
-                  <circle cx="80" cy="50" r="3" fill="#22c55e" />
-                  <circle cx="120" cy="40" r="3" fill="#22c55e" />
-                  <circle cx="160" cy="35" r="3" fill="#22c55e" />
-                  <circle cx="200" cy="30" r="3" fill="#22c55e" />
-                </svg>
-                <div className="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-gray-400">
-                  <span>0130</span>
-                  <span>0200</span>
-                  <span>0230</span>
-                  <span>0300</span>
-                </div>
+            </div>
+
+            {/* RPM Chart */}
+            <div className="p-4">
+              <p className="text-xs font-semibold text-gray-500 mb-2">RPM TREND</p>
+              <div className="h-40">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={history}>
+                    <defs>
+                      <linearGradient id="colorRpm" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+                    <XAxis dataKey="time" hide />
+                    <YAxis domain={[0, 400]} width={30} tick={{fontSize: 10, fill: '#6b7280'}} />
+                    <Tooltip contentStyle={{fontSize: '12px', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+                    <Area type="step" dataKey="rpm" stroke="#f59e0b" strokeWidth={2} fillOpacity={1} fill="url(#colorRpm)" isAnimationActive={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Task Management */}
-      <div className="bg-white rounded shadow p-6">
-        <h3 className="font-semibold text-gray-900 mb-3">Task Manangence Tasks</h3>
-        <div className="space-y-2">
-          <TaskItem number="1" task="Engine oil" dueDate="" />
-        </div>
-      </div>
       </div>
     </div>
   )

@@ -33,6 +33,13 @@ interface PositionResponse {
     distanceNm: number;
     avgSpeedKn: number;
   };
+  engine: {
+    timestamp: string;
+    engineId: string;
+    rpm: number | null;
+    isRunning: boolean;
+    loadPercent: number | null;
+  } | null;
 }
 
 interface VesselOption {
@@ -118,14 +125,47 @@ export const VesselTrackingPage: React.FC = () => {
       );
 
       const trackData: VesselTrackData[] = [];
+
+      // Fetch thêm thông tin chi tiết cho từng tàu (IMO, Captain, v.v.)
+      const vesselDetailPromises = vessels.map(v =>
+        axios.get(`${API_BASE}/vessels/${v.id}`, { headers }).catch(() => null)
+      );
+      const vesselDetailResults = await Promise.allSettled(vesselDetailPromises);
+
       results.forEach((result, idx) => {
         if (result.status === 'fulfilled' && result.value.data?.latest) {
           const d = result.value.data;
-          const latest = d.latest; // non-null after the guard above
+          const latest = d.latest;
           const v = vessels[idx];
+          
+          // Lấy thông tin bổ sung từ vessel detail
+          let imo = v.imo;
+          let captainName: string | undefined;
+          let engineRunning: boolean | undefined;
+          const detailResult = vesselDetailResults[idx];
+          if (detailResult.status === 'fulfilled' && detailResult.value?.data) {
+            const detail = detailResult.value.data;
+            imo = detail.imo || detail.imoNumber || v.imo;
+            // Nếu có crew trên tàu, lấy thuyền trưởng
+            if (detail.crew && Array.isArray(detail.crew)) {
+              const captain = detail.crew.find((c: any) => 
+                c.rank?.toLowerCase()?.includes('captain') || 
+                c.position?.toLowerCase()?.includes('master') ||
+                c.rankName?.toLowerCase()?.includes('thuyền trưởng')
+              );
+              if (captain) {
+                captainName = captain.fullName || captain.name || `${captain.firstName || ''} ${captain.lastName || ''}`.trim();
+              }
+            }
+          }
+
+          // Lấy trạng thái động cơ từ realtime API (engine_data sync từ Edge)
+          engineRunning = d.engine?.isRunning;
+
           trackData.push({
             id: v.id,
             name: v.name,
+            imo: imo,
             color: VESSEL_COLORS[idx % VESSEL_COLORS.length],
             dashArray: DASH_PATTERNS[idx % DASH_PATTERNS.length],
             position: {
@@ -142,6 +182,9 @@ export const VesselTrackingPage: React.FC = () => {
               courseOverGround: p.courseOverGround ?? undefined,
               timestamp: p.timestamp,
             })),
+            captainName,
+            engineRunning,
+            flag: undefined, // sẽ fetch nếu có
           });
         }
       });
@@ -163,7 +206,7 @@ export const VesselTrackingPage: React.FC = () => {
   // Auto-refresh mỗi 30s
   useEffect(() => {
     fetchAllPositions();
-    const interval = setInterval(fetchAllPositions, 30000);
+    const interval = setInterval(fetchAllPositions, 10000);
     return () => clearInterval(interval);
   }, [fetchAllPositions]);
 

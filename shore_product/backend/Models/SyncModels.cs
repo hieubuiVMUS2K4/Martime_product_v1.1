@@ -91,7 +91,8 @@ public class EngineData
     public double? LoadPercent { get; set; }
     public double? FuelRate { get; set; } 
     public double? RunningHours { get; set; }
-    public int? AlarmStatus { get; set; } 
+    public int? AlarmStatus { get; set; }
+    public bool IsRunning { get; set; } = false;
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

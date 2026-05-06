@@ -145,7 +145,7 @@ public class TelemetryController : ControllerBase
                 Roll = dto.Roll,
                 HeadingTrue = dto.HeadingTrue,
                 HeadingMagnetic = dto.HeadingMagnetic,
-                SpeedThroughWater = dto.SpeedThroughWater,
+                SpeedThroughWater = dto.Speed ?? dto.SpeedThroughWater,
                 Depth = dto.Depth,
                 IsSynced = false,
                 CreatedAt = DateTime.UtcNow

@@ -194,6 +194,7 @@ namespace MaritimeEdge.Services.Voyage;
                 RunningHours = 12543.5 + 0.0014, // Increment by ~5 seconds
                 StartCount = 1250,
                 AlarmStatus = 0,
+                IsRunning = true,
                 IsSynced = false,
                 CreatedAt = DateTime.UtcNow
             };
@@ -216,6 +217,7 @@ namespace MaritimeEdge.Services.Voyage;
                 RunningHours = 8234.2 + 0.0014,
                 StartCount = 890,
                 AlarmStatus = 0,
+                IsRunning = true,
                 IsSynced = false,
                 CreatedAt = DateTime.UtcNow
             };
