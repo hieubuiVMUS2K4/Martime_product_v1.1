@@ -24,6 +24,15 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      '/vietmap': {
+        target: 'https://maps.vietmap.vn',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/vietmap\/?/, '/'),
+      },
+      '/maps': {
+        target: 'https://maps.vietmap.vn',
+        changeOrigin: true,
+      }
     },
   },
 })

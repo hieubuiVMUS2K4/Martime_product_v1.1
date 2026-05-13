@@ -18,6 +18,8 @@ using MaritimeEdge.Services.Logbooks;
 using MaritimeEdge.Services.AbstractLog;
 using MaritimeEdge.Services;
 using MaritimeEdge.Services.AI;
+using MaritimeEdge.Services.Common;
+using MaritimeEdge.Extensions;
 using MaritimeEdge.Repositories;
 
 namespace MaritimeEdge
@@ -140,6 +142,9 @@ namespace MaritimeEdge
             // Add Memory Cache for performance optimization
             builder.Services.AddMemoryCache();
 
+            // Add AutoMapper for DTO mapping consolidation
+            builder.Services.AddAutoMapperProfiles();
+
             // Add Business Services
             builder.Services.AddScoped<FuelAnalyticsService>();
             builder.Services.AddScoped<ISignalKHttpClient, SignalKHttpClient>();
@@ -237,6 +242,13 @@ namespace MaritimeEdge
             if (engineSyncEnqueuerEnabled)
             {
                 builder.Services.AddHostedService<MaritimeEdge.Services.Voyage.EngineSyncEnqueuerService>();
+            }
+
+            // Alert Sync Enqueuer — đồng bộ SafetyAlarm + EngineEvent lên Shore (tần suất cao, ưu tiên Critical)
+            var alertSyncEnqueuerEnabled = builder.Configuration.GetValue("AlertSyncEnqueuer:Enabled", true);
+            if (alertSyncEnqueuerEnabled)
+            {
+                builder.Services.AddHostedService<MaritimeEdge.Services.Voyage.AlertSyncEnqueuerService>();
             }
 
             builder.Services.AddHostedService<MaritimeEdge.Services.Core.DataCleanupService>();

@@ -211,28 +211,40 @@ public class CrewMember : ISyncableEntity
     // NOT stored in DB — computed from Certificates navigation collection
     // ============================================
 
-    [NotMapped]
-    public string? CertificateNumber => Certificates?
-        .FirstOrDefault(c => c.Certificate?.Category == "COMPETENCY" || c.Certificate?.CertificateCode?.StartsWith("STCW") == true)?
-        .CertificateNumber;
+    /// <summary>
+    /// Helper: Get latest STCW/Competency certificate
+    /// Single evaluation to avoid N+1 queries
+    /// </summary>
+    private CrewCertificate? GetLatestStcwCertificate() =>
+        Certificates?
+            .Where(c => c.Certificate?.Category == "COMPETENCY" 
+                || c.Certificate?.CertificateCode?.StartsWith("STCW", StringComparison.OrdinalIgnoreCase) == true)
+            .OrderByDescending(c => c.IssueDate)
+            .FirstOrDefault();
+
+    /// <summary>
+    /// Helper: Get latest Medical certificate
+    /// Single evaluation to avoid N+1 queries
+    /// </summary>
+    private CrewCertificate? GetLatestMedicalCertificate() =>
+        Certificates?
+            .Where(c => c.Certificate?.Category == "MEDICAL" 
+                || c.Certificate?.CertificateCode?.Equals("MEDICAL", StringComparison.OrdinalIgnoreCase) == true)
+            .OrderByDescending(c => c.IssueDate)
+            .FirstOrDefault();
 
     [NotMapped]
-    public DateTime? CertificateExpiry => Certificates?
-        .FirstOrDefault(c => c.Certificate?.Category == "COMPETENCY" || c.Certificate?.CertificateCode?.StartsWith("STCW") == true)?
-        .ExpiryDate;
+    public string? CertificateNumber => GetLatestStcwCertificate()?.CertificateNumber;
 
     [NotMapped]
-    public DateTime? CertificateIssue => Certificates?
-        .FirstOrDefault(c => c.Certificate?.Category == "COMPETENCY" || c.Certificate?.CertificateCode?.StartsWith("STCW") == true)?
-        .IssueDate;
+    public DateTime? CertificateExpiry => GetLatestStcwCertificate()?.ExpiryDate;
 
     [NotMapped]
-    public DateTime? MedicalExpiry => Certificates?
-        .FirstOrDefault(c => c.Certificate?.Category == "MEDICAL" || c.Certificate?.CertificateCode == "MEDICAL")?
-        .ExpiryDate;
+    public DateTime? CertificateIssue => GetLatestStcwCertificate()?.IssueDate;
 
     [NotMapped]
-    public DateTime? MedicalIssue => Certificates?
-        .FirstOrDefault(c => c.Certificate?.Category == "MEDICAL" || c.Certificate?.CertificateCode == "MEDICAL")?
-        .IssueDate;
+    public DateTime? MedicalExpiry => GetLatestMedicalCertificate()?.ExpiryDate;
+
+    [NotMapped]
+    public DateTime? MedicalIssue => GetLatestMedicalCertificate()?.IssueDate;
 }

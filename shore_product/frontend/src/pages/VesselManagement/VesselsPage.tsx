@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Ship, Plus, RefreshCw, Pencil, Trash2,
   AlertTriangle,
-  X, Loader2, Download,
+  X, Loader2,
   ExternalLink, FileText, Map
 } from 'lucide-react';
 import { ENV } from '../../config/env';
@@ -235,91 +235,138 @@ export const VesselsPage: React.FC = () => {
       {/*  Page header  */}
       <div className="vp-header">
         <div className="vp-header-left">
-          <Ship size={16} className="vp-header-icon" />
+          <Ship size={18} className="vp-header-icon" />
           <h1 className="vp-title">Danh sách tàu</h1>
           <span className="vp-count-badge">{vessels.length}</span>
         </div>
         <div className="vp-header-right">
-          <button className="vp-btn vp-btn--ghost" onClick={fetchData} title="Làm mới"><RefreshCw size={13} /></button>
+          <button className="vp-btn vp-btn--ghost" onClick={fetchData} title="Làm mới"><RefreshCw size={14} /></button>
           <button className="vp-btn vp-btn--outline" onClick={() => navigate('/vessels/tracking')} title="Bản đồ tracking">
-            <Map size={13} /> Tracking Map
+            <Map size={14} /> Tracking
           </button>
-          <button className="vp-btn vp-btn--outline"><Download size={13} /> Xuất excel</button>
-          <button className="vp-btn vp-btn--primary" onClick={openCreate}><Plus size={13} /> Thêm mới</button>
+          <button className="vp-btn vp-btn--primary" onClick={openCreate}><Plus size={14} /> Thêm tàu</button>
         </div>
       </div>
 
       {/*  Error  */}
       {error && (
         <div className="vp-error">
-          <AlertTriangle size={13} /> {error}
+          <AlertTriangle size={14} /> {error}
           <button className="vp-link-btn" onClick={fetchData}>Thử lại</button>
         </div>
       )}
 
-      {/*  Main table  */}
-      <div className="vp-table-card">
-        <table className="vp-table">
-          <thead>
-            {/* Label row */}
-            <tr className="vp-tr-labels">
-              <th>Tên tàu</th>
-              <th>Loại tàu</th>
-              <th>Cờ tàu</th>
-              <th>Số IMO</th>
-              <th>Trạng thái kết nối</th>
-            </tr>
-            {/* Filter row */}
-            <tr className="vp-tr-filters">
-              <th><div className="vp-search-wrap"><input className="vp-cf" placeholder="Tìm kiếm" value={colF.name} onChange={e => cf('name', e.target.value)} /></div></th>
-              <th><div className="vp-search-wrap"><input className="vp-cf" placeholder="Tìm kiếm" value={colF.type} onChange={e => cf('type', e.target.value)} /></div></th>
-              <th><div className="vp-search-wrap"><input className="vp-cf" placeholder="Tìm kiếm" value={colF.flag} onChange={e => cf('flag', e.target.value)} /></div></th>
-              <th><div className="vp-search-wrap"><input className="vp-cf" placeholder="Tìm kiếm" value={colF.imo} onChange={e => cf('imo', e.target.value)} /></div></th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 ? (
-              <tr><td colSpan={5} className="vp-empty"><Ship size={24} /><p>Không tìm thấy tàu nào</p></td></tr>
-            ) : filtered.map((v, idx) => {
-              const node = syncNodesByImo[v.imo];
-              return (
-                <tr
-                  key={v.id}
-                  className={`vp-tr${idx % 2 === 1 ? ' vp-tr--alt' : ''}${selectedVesselId === v.id ? ' vp-tr--selected' : ''}`}
-                  onContextMenu={(e) => handleContextMenu(e, v)}
+      {/*  Search Bar  */}
+      <div className="vp-search-bar">
+        <div className="vp-search-field">
+          <input
+            className="vp-search-input"
+            placeholder="Tìm theo tên tàu, IMO, call sign..."
+            value={colF.name || colF.imo}
+            onChange={e => { cf('name', e.target.value); cf('imo', e.target.value); }}
+          />
+        </div>
+        <div className="vp-search-filters">
+          <select className="vp-select-filter" value={colF.type} onChange={e => cf('type', e.target.value)}>
+            <option value="">Tất cả loại tàu</option>
+            {VESSEL_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <select className="vp-select-filter" value={colF.flag} onChange={e => cf('flag', e.target.value)}>
+            <option value="">Tất cả cờ</option>
+            {FLAGS.map(f => <option key={f} value={f}>{f}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {/*  Vessel Cards Grid  */}
+      <div className="vp-card-grid">
+        {filtered.length === 0 ? (
+          <div className="vp-empty">
+            <Ship size={32} />
+            <p>Không tìm thấy tàu nào</p>
+          </div>
+        ) : filtered.map((v) => {
+          const node = syncNodesByImo[v.imo];
+          const isOnline = node?.isOnline ?? false;
+          return (
+            <div
+              key={v.id}
+              className="vp-card"
+              onContextMenu={(e) => handleContextMenu(e, v)}
+              onClick={() => navigate(`/vessels/${v.id}`)}
+            >
+              {/* Card header */}
+              <div className="vp-card-head">
+                <div className="vp-card-head-left">
+                  <div className="vp-card-avatar">
+                    <Ship size={18} />
+                  </div>
+                  <div>
+                    <h3 className="vp-card-name">{v.name}</h3>
+                    <span className="vp-card-imo">{v.imo}</span>
+                  </div>
+                </div>
+                <div className="vp-card-head-right">
+                  {isOnline ? (
+                    <span className="vp-card-status vp-card-status--online">Online</span>
+                  ) : (
+                    <span className="vp-card-status vp-card-status--offline">Offline</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Card body */}
+              <div className="vp-card-body">
+                <div className="vp-card-info">
+                  <div className="vp-card-info-item">
+                    <span className="vp-card-info-label">Call Sign</span>
+                    <span className="vp-card-info-value">{v.callSign || '—'}</span>
+                  </div>
+                  <div className="vp-card-info-item">
+                    <span className="vp-card-info-label">Loại tàu</span>
+                    <span className="vp-card-info-value">{v.vesselType || '—'}</span>
+                  </div>
+                  <div className="vp-card-info-item">
+                    <span className="vp-card-info-label">Quốc tịch</span>
+                    <span className="vp-card-info-value">{v.flag || '—'}</span>
+                  </div>
+                  <div className="vp-card-info-item">
+                    <span className="vp-card-info-label">{v.grossTonnage ? 'GT' : 'DWT'}</span>
+                    <span className="vp-card-info-value">{v.grossTonnage ? `${v.grossTonnage.toLocaleString()}` : v.deadWeight ? `${v.deadWeight.toLocaleString()} t` : '—'}</span>
+                  </div>
+                </div>
+                {v.unacknowledgedAlerts > 0 && (
+                  <div className="vp-card-alert">
+                    <AlertTriangle size={12} />
+                    <span>{v.unacknowledgedAlerts} cảnh báo chưa xử lý</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Card footer */}
+              <div className="vp-card-footer">
+                <button
+                  className="vp-card-action"
+                  onClick={(e) => { e.stopPropagation(); navigate(`/vessels/${v.id}`); }}
                 >
-                  <td>
-                    <button className="vp-name-link" onClick={() => navigate(`/vessels/${v.id}`)}>
-                      {v.name}
-                    </button>
-                    <div className="vp-name-sub">
-                      <span className="vp-callsign">{v.callSign}</span>
-                      {v.unacknowledgedAlerts > 0 && (
-                        <span className="vp-alert-mini"><AlertTriangle size={9} />{v.unacknowledgedAlerts}</span>
-                      )}
-                    </div>
-                  </td>
-                  <td>{v.vesselType || ''}</td>
-                  <td>{v.flag || ''}</td>
-                  <td className="vp-cell-imo">{v.imo}</td>
-                  <td className="vp-cell-status">
-                    {node ? (
-                      <span className={`vp-status-badge ${node.isOnline ? 'vp-status-badge--online' : 'vp-status-badge--offline'}`}>
-                        <span className="vp-status-badge__dot" />
-                        {node.isOnline ? 'Online' : 'Offline'}
-                      </span>
-                    ) : (
-                      <span className="vp-status-badge vp-status-badge--unknown">
-                        Chưa kết nối
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                  <FileText size={12} /> Chi tiết
+                </button>
+                <button
+                  className="vp-card-action"
+                  onClick={(e) => { e.stopPropagation(); openEdit(v); }}
+                >
+                  <Pencil size={12} /> Sửa
+                </button>
+                <button
+                  className="vp-card-action vp-card-action--danger"
+                  onClick={(e) => { e.stopPropagation(); setDeleteTarget(v); }}
+                >
+                  <Trash2 size={12} /> Xóa
+                </button>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Footer */}

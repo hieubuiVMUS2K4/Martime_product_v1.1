@@ -26,7 +26,9 @@
     "none": "Không có",
     "noData": "Không có dữ liệu",
     "actions": "Thao tác",
-    "comingSoon": "Sắp ra mắt..."
+    "comingSoon": "Sắp ra mắt...",
+    "expand": "Mở rộng",
+    "collapse": "Thu gọn"
   },
   "settings": {
     "title": "Cài đặt",
@@ -93,14 +95,20 @@
     "safety": "An toàn & Diễn tập",
     "drillTraining": "Diễn tập",
     "shipData": "Dữ liệu tàu",
-    "auditLog": "Nhật ký kiểm toán"
+    "auditLog": "Nhật ký kiểm toán",
+    "abstractLog": "Nhật ký chung"
   },
   "header": {
     "title": "Vận hành tàu",
     "syncing": "Đang đồng bộ...",
     "lastSync": "Đồng bộ lần cuối: {time}",
     "online": "Trực tuyến",
-    "offline": "Ngoại tuyến"
+    "offline": "Ngoại tuyến",
+    "profile": "Hồ sơ",
+    "bridgeTerminal": "Trạm đài chỉ huy",
+    "signingOut": "Đang đăng xuất...",
+    "signOut": "Đăng xuất",
+    "ispsSession": "Phiên giám sát ISPS"
   },
   "dashboard": {
     "title": "Bảng điều khiển tàu",
@@ -1719,5 +1727,61 @@
       "fromTarget": "so với mục tiêu",
       "boundaries": "Ngưỡng CII"
     }
+  },
+  "conning": {
+    "title": "Trực ca Động lực (Conning)",
+    "local": "Địa phương",
+    "positioning": "Định vị",
+    "gpsFix": "Cố định GPS",
+    "dgpsFix": "Cố định DGPS",
+    "noFix": "Mất tín hiệu",
+    "edgeNode": "Edge Node",
+    "queue": "Hàng chờ",
+    "lastSync": "Đồng bộ cuối",
+    "hdg": "Hướng mũi (HDG)",
+    "magnetic": "La bàn từ",
+    "cog": "Hướng đi (COG)",
+    "drift": "Độ dạt",
+    "sog": "Tốc độ SOG",
+    "gpsDerived": "Tọa độ GPS",
+    "stw": "Tốc độ STW",
+    "tide": "Dòng chảy",
+    "activeAlarms": "Báo động",
+    "critical": "Nghiêm trọng",
+    "total": "Tổng",
+    "attitude": "Trạng thái tàu",
+    "pitch": "Độ chúi",
+    "roll": "Độ nghiêng",
+    "draftFore": "Mớn mũi",
+    "draftMid": "Mớn giữa",
+    "draftAft": "Mớn lái",
+    "ukc": "UKC",
+    "wind": "Gió",
+    "bowThr": "Chân vịt mũi",
+    "sternThr": "Chân vịt lái",
+    "rudder": "Góc lái",
+    "stbd": "Phải",
+    "port": "Trái",
+    "mid": "Giữa",
+    "rot": "Tốc độ quay trở (ROT)",
+    "aisTargets": "Mục tiêu AIS",
+    "cpa": "Khoảng cách CPA",
+    "tcpa": "Thời gian TCPA",
+    "propulsion": "Hệ thống lực đẩy",
+    "rpm": "Vòng tua máy",
+    "propPitch": "Bước chân vịt",
+    "engineLoad": "Tải máy chính",
+    "fuelRate": "Tiêu thụ nhiên liệu",
+    "status": "Trạng thái",
+    "ahead": "CHẠY TỚI",
+    "stopped": "DỪNG"
+  },
+  "map": {
+    "shipPosition": "Vị trí tàu",
+    "lat": "Vĩ độ",
+    "lon": "Kinh độ",
+    "sog": "SOG",
+    "cog": "COG",
+    "time": "Thời gian"
   }
 }

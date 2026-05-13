@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useAuthStore } from '@/stores/auth.store'
 import { User, LogOut, Shield, ChevronDown, Monitor } from 'lucide-react'
+import { useTranslationSafe } from '@/contexts/I18nContext'
 
 // ============================================================
 // USER MENU - Header dropdown for auth actions
@@ -25,6 +26,7 @@ function getRoleBadgeColor(roleCode?: string): string {
 
 export function UserMenu() {
   const { user, logout } = useAuthStore()
+  const { t } = useTranslationSafe()
   const [isOpen, setIsOpen] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -148,14 +150,14 @@ export function UserMenu() {
               onClick={() => setIsOpen(false)}
             >
               <User className="w-4 h-4 text-gray-400" />
-              <span>Profile</span>
+              <span>{t('header.profile')}</span>
             </button>
 
             {/* Device Info */}
             <div className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-500 dark:text-gray-400">
               <Monitor className="w-4 h-4 text-gray-400" />
               <span className="text-xs">
-                {user.position || 'Bridge Terminal'}
+                {user.position || t('header.bridgeTerminal')}
               </span>
             </div>
           </div>
@@ -170,14 +172,14 @@ export function UserMenu() {
                          disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <LogOut className="w-4 h-4" />
-              <span>{isLoggingOut ? 'Signing out...' : 'Sign Out'}</span>
+              <span>{isLoggingOut ? t('header.signingOut') : t('header.signOut')}</span>
             </button>
           </div>
 
           {/* ISPS Footer */}
           <div className="px-4 py-2 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-700">
             <p className="text-[9px] text-gray-400 dark:text-gray-500 text-center uppercase tracking-wider">
-              ISPS Monitored Session
+              {t('header.ispsSession')}
             </p>
           </div>
         </div>

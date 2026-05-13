@@ -229,6 +229,35 @@ public class SafetyAlarm
 }
 
 /// <summary>
+/// Engine start/stop event log synced from Edge for shore-side timeline display
+/// </summary>
+public class EngineEvent
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    public DateTime Timestamp { get; set; }
+    
+    [Required]
+    [MaxLength(50)]
+    public string EngineId { get; set; } = string.Empty;
+    
+    [Required]
+    [MaxLength(10)]
+    public string EventType { get; set; } = string.Empty; // "START" or "STOP"
+    
+    public double? RpmAtEvent { get; set; }
+    
+    [MaxLength(50)]
+    public string? TriggerSource { get; set; }
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
+}
+
+/// <summary>
 /// Voyage records for reporting
 /// </summary>
 public class VoyageRecord : ISyncableEntity

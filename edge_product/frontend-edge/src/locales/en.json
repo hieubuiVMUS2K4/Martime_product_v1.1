@@ -26,7 +26,9 @@
     "none": "None",
     "noData": "No data available",
     "actions": "Actions",
-    "comingSoon": "Coming soon..."
+    "comingSoon": "Coming soon...",
+    "expand": "Expand",
+    "collapse": "Collapse"
   },
   "settings": {
     "title": "Settings",
@@ -93,14 +95,20 @@
     "safety": "Safety & Drills",
     "drillTraining": "Drill Training",
     "shipData": "Ship Data",
-    "auditLog": "Audit Log"
+    "auditLog": "Audit Log",
+    "abstractLog": "Abstract Log"
   },
   "header": {
     "title": "Vessel Operations",
     "syncing": "Syncing...",
     "lastSync": "Last sync: {time}",
     "online": "Online",
-    "offline": "Offline"
+    "offline": "Offline",
+    "profile": "Profile",
+    "bridgeTerminal": "Bridge Terminal",
+    "signingOut": "Signing out...",
+    "signOut": "Sign Out",
+    "ispsSession": "ISPS Monitored Session"
   },
   "dashboard": {
     "title": "Vessel Dashboard",
@@ -1719,5 +1727,61 @@
       "fromTarget": "from target",
       "boundaries": "CII Boundaries"
     }
+  },
+  "conning": {
+    "title": "Bridge Conning Display",
+    "local": "Local",
+    "positioning": "Positioning",
+    "gpsFix": "GPS Fix",
+    "dgpsFix": "DGPS Fix",
+    "noFix": "No Fix",
+    "edgeNode": "Edge Node",
+    "queue": "Queue",
+    "lastSync": "Last Sync",
+    "hdg": "HDG",
+    "magnetic": "Magnetic",
+    "cog": "COG",
+    "drift": "Drift",
+    "sog": "SOG",
+    "gpsDerived": "GPS Derived",
+    "stw": "STW",
+    "tide": "Tide",
+    "activeAlarms": "Active Alarms",
+    "critical": "Critical",
+    "total": "Total",
+    "attitude": "Attitude",
+    "pitch": "Pitch",
+    "roll": "Roll",
+    "draftFore": "Draft Fore",
+    "draftMid": "Draft Mid",
+    "draftAft": "Draft Aft",
+    "ukc": "UKC",
+    "wind": "Wind",
+    "bowThr": "Bow Thruster",
+    "sternThr": "Stern Thruster",
+    "rudder": "Rudder",
+    "stbd": "STBD",
+    "port": "PORT",
+    "mid": "MID",
+    "rot": "ROT",
+    "aisTargets": "AIS Targets",
+    "cpa": "CPA",
+    "tcpa": "TCPA",
+    "propulsion": "Propulsion",
+    "rpm": "RPM",
+    "propPitch": "Prop Pitch",
+    "engineLoad": "Engine Load",
+    "fuelRate": "Fuel Rate",
+    "status": "Status",
+    "ahead": "AHEAD",
+    "stopped": "STOPPED"
+  },
+  "map": {
+    "shipPosition": "Ship Position",
+    "lat": "Lat",
+    "lon": "Lon",
+    "sog": "SOG",
+    "cog": "COG",
+    "time": "Time"
   }
 }

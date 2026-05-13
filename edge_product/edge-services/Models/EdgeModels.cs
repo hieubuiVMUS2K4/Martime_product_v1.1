@@ -274,6 +274,9 @@ public class EngineData
     
     public double? Rpm { get; set; }
     
+    /// <summary>Propeller pitch percentage (0-100%)</summary>
+    public double? PropellerPitch { get; set; }
+    
     public double? LoadPercent { get; set; }
     
     public double? CoolantTemp { get; set; } // Celsius
@@ -1308,6 +1311,39 @@ public class VoyageRevenueEstimate : ISyncableEntity
     [ForeignKey("VoyageId")]
     [JsonIgnore]
     public virtual VoyageRecord? Voyage { get; set; }
+}
+
+/// <summary>
+/// Engine start/stop event log — records each transition for shore-side timeline
+/// </summary>
+[Table("engine_events")]
+public class EngineEvent
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+    
+    public DateTime Timestamp { get; set; }
+    
+    [Required]
+    [MaxLength(50)]
+    public string EngineId { get; set; } = string.Empty;
+    
+    [Required]
+    [MaxLength(10)]
+    public string EventType { get; set; } = string.Empty; // "START" or "STOP"
+    
+    public double? Rpm { get; set; }
+    public double? LoadPercent { get; set; }
+    
+    [MaxLength(50)]
+    public string? TriggerSource { get; set; } // "ESP8266", "MODBUS", "MANUAL", "AUTO"
+    
+    public bool IsSynced { get; set; } = false;
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    
+    [MaxLength(50)]
+    public string OriginNode { get; set; } = "SHIP_01";
 }
 
 // ============================================================
@@ -3968,6 +4004,10 @@ public class NoonReport
     public int? CertificatesExpiringSoon { get; set; }
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    
+    // Navigation property
+    [ForeignKey(nameof(MaritimeReportId))]
+    public virtual MaritimeReport? MaritimeReport { get; set; }
 }
 
 /// <summary>
@@ -4054,6 +4094,10 @@ public class DepartureReport
     public string? Remarks { get; set; }
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    
+    // Navigation property
+    [ForeignKey(nameof(MaritimeReportId))]
+    public virtual MaritimeReport? MaritimeReport { get; set; }
 }
 
 /// <summary>
@@ -4146,6 +4190,10 @@ public class ArrivalReport
     public string? Remarks { get; set; }
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    
+    // Navigation property
+    [ForeignKey(nameof(MaritimeReportId))]
+    public virtual MaritimeReport? MaritimeReport { get; set; }
 }
 
 /// <summary>
@@ -4259,6 +4307,10 @@ public class BunkerReport
     public string? Remarks { get; set; }
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    
+    // Navigation property
+    [ForeignKey(nameof(MaritimeReportId))]
+    public virtual MaritimeReport? MaritimeReport { get; set; }
 }
 
 /// <summary>
@@ -4314,6 +4366,10 @@ public class PositionReport
     public string? Remarks { get; set; }
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    
+    // Navigation property
+    [ForeignKey(nameof(MaritimeReportId))]
+    public virtual MaritimeReport? MaritimeReport { get; set; }
 }
 
 /// <summary>

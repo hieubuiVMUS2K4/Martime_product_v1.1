@@ -25,6 +25,15 @@ export default defineConfig({
         target: backendUrl,
         changeOrigin: true,
         headers: internalApiKey ? { 'X-Internal-Api-Key': internalApiKey } : undefined,
+      },
+      '/vietmap': {
+        target: 'https://maps.vietmap.vn',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/vietmap\/?/, '/'),
+      },
+      '/maps': {
+        target: 'https://maps.vietmap.vn',
+        changeOrigin: true,
       }
     }
   }

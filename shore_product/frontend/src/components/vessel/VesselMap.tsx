@@ -112,6 +112,29 @@ function getDashPattern(index: number): string {
   return dashPatterns[index % dashPatterns.length];
 }
 
+/** Component hiển thị nhãn tiếng Việt cho Hoàng Sa và Trường Sa */
+function VietnameseLabels() {
+  const map = useMap();
+  useEffect(() => {
+    const labels = [
+      { name: 'Quần đảo Hoàng Sa', lat: 16.5, lng: 111.5 },
+      { name: 'Quần đảo Trường Sa', lat: 9.5, lng: 113.5 },
+    ];
+    const markers = labels.map(({ name, lat, lng }) =>
+      L.marker([lat, lng], {
+        icon: L.divIcon({
+          className: 'vn-label',
+          html: `<div style="font-weight:bold;color:#000000;text-shadow:0 0 4px white,0 0 4px white;font-size:13px;white-space:nowrap;background:rgba(255,255,255,0.9);padding:2px 8px;border-radius:4px;border:1.5px solid #000000;">${name}</div>`,
+          iconSize: [0, 0],
+          iconAnchor: [0, 0],
+        }),
+      }).addTo(map)
+    );
+    return () => markers.forEach(m => m.removeFrom(map));
+  }, [map]);
+  return null;
+}
+
 /** Component con để tự động fly-to và fit bounds */
 function MapController({ 
   currentPosition, 
@@ -237,7 +260,7 @@ export const VesselMap: React.FC<VesselMapProps> = ({
   ];
 
   return (
-    <div className={`rounded-xl overflow-hidden shadow-lg border border-gray-200 dark:border-gray-700 ${className}`}>
+    <div className={`rounded-2xl overflow-hidden shadow-2xl border border-gray-200/80 dark:border-gray-700/80 ring-1 ring-black/[0.02] h-full ${className}`}>
       <MapContainer
         center={defaultCenter}
         zoom={6}
@@ -250,6 +273,8 @@ export const VesselMap: React.FC<VesselMapProps> = ({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+
+        <VietnameseLabels />
 
         {/* Map Controller */}
         <MapController

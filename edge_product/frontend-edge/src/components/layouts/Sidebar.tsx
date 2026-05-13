@@ -65,13 +65,13 @@ const getNavigation = (t: (key: string) => string) => [
           { name: t('nav.inventory'), to: '/pms/logistics/inventory', icon: BarChart3 },
         ]
       },
-      { name: t('nav.workPlanning') || 'Danh sách công việc', to: '/pms/work-planning', icon: ClipboardList },
+      { name: t('nav.workPlanning'), to: '/pms/work-planning', icon: ClipboardList },
     ]
   },
   { name: t('nav.reporting'), to: '/reporting', icon: ClipboardList },
-  { name: t('nav.shipData') || 'Ship Data', to: '/ship-data', icon: Anchor },
+  { name: t('nav.shipData'), to: '/ship-data', icon: Anchor },
   { name: t('nav.voyage'), to: '/voyage', icon: Ship },
-  { name: t('nav.ports') || 'Ports', to: '/ports', icon: MapPin },
+  { name: t('nav.ports'), to: '/ports', icon: MapPin },
   { name: t('nav.compliance'), to: '/compliance', icon: FileText },
   { 
     name: t('nav.safety'), 
@@ -80,7 +80,7 @@ const getNavigation = (t: (key: string) => string) => [
       { name: t('nav.drillTraining'), to: '/safety/drills', icon: Calendar },
     ]
   },
-  { name: t('nav.auditLog') || 'Audit Log', to: '/audit-log', icon: Shield, roles: ['ADMIN', 'CAPTAIN'] },
+  { name: t('nav.auditLog'), to: '/audit-log', icon: Shield, roles: ['ADMIN', 'CAPTAIN'] },
   { name: t('nav.sync'), to: '/sync', icon: RefreshCw },
 ]
 
@@ -93,7 +93,7 @@ const getLogbooksMenu = (t: (key: string) => string) => [
   { name: t('nav.garbageRecord'), to: '/logbooks/garbage', icon: Trash2 },
   { name: t('nav.ballastWater'), to: '/logbooks/ballast', icon: Waves },
   { name: t('nav.watchkeeping'), to: '/logbooks/watchkeeping', icon: Clock },
-  { name: t('nav.abstractLog') || 'Abstract Log', to: '/logbooks/abstract', icon: FileText },
+  { name: t('nav.abstractLog'), to: '/logbooks/abstract', icon: FileText },
 ]
 
 export function Sidebar() {
@@ -330,19 +330,18 @@ export function Sidebar() {
         </div>
       </nav>
 
-      {/* Toggle Button */}
       <div className="p-2 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
         <button
           onClick={toggleSidebar}
           className="w-full flex items-center justify-center p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={isCollapsed ? t('common.expand') : t('common.collapse')}
         >
           {isCollapsed ? (
             <PanelLeftOpen className="w-5 h-5" />
           ) : (
             <>
               <PanelLeftClose className="w-5 h-5 mr-2" />
-              <span className="text-xs">Collapse</span>
+              <span className="text-xs">{t('common.collapse')}</span>
             </>
           )}
         </button>

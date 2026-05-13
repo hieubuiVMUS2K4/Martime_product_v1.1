@@ -3541,6 +3541,9 @@ namespace productapi.Migrations
                     b.Property<double?>("FuelRate")
                         .HasColumnType("double precision");
 
+                    b.Property<bool>("IsRunning")
+                        .HasColumnType("boolean");
+
                     b.Property<double?>("LoadPercent")
                         .HasColumnType("double precision");
 
@@ -3564,6 +3567,45 @@ namespace productapi.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("EngineData");
+                });
+
+            modelBuilder.Entity("ProductApi.Models.EngineEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EngineId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<double?>("RpmAtEvent")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TriggerSource")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("EngineEvents");
                 });
 
             modelBuilder.Entity("ProductApi.Models.EquipmentAsset", b =>
@@ -4741,14 +4783,8 @@ namespace productapi.Migrations
                     b.Property<int?>("PassengersOnBoard")
                         .HasColumnType("integer");
 
-                    b.Property<double?>("Pitch")
-                        .HasColumnType("double precision");
-
                     b.Property<DateTime>("ReportDate")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<double?>("Roll")
-                        .HasColumnType("double precision");
 
                     b.Property<string>("SafetyDrillsConducted")
                         .HasMaxLength(500)

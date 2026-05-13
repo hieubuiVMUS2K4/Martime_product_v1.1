@@ -570,31 +570,7 @@ export const VesselDetailPage: React.FC = () => {
               <p className="vd-subtitle">IMO: {vessel.imo} • {vessel.callSign}</p>
             )}
           </div>
-          {isDirty && (
-            <span className="vd-unsaved-badge">
-              Unsaved changes
-            </span>
-          )}
         </div>
-        {isEditable && (
-          <button
-            className="vd-save-btn-new"
-            onClick={handleSave}
-            disabled={!isDirty || saving}
-          >
-            {saving ? (
-              <>
-                <Loader2 size={16} className="vd-spin" />
-                <span>Saving...</span>
-              </>
-            ) : (
-              <>
-                <Save size={16} />
-                <span>Save Commercial Data</span>
-              </>
-            )}
-          </button>
-        )}
       </div>
 
       {/* Tab group menu bar */}
@@ -680,6 +656,35 @@ export const VesselDetailPage: React.FC = () => {
       <div className="vd-content-new">
         {renderTabContent()}
       </div>
+
+      {/* Floating Save Bar — only when editable tab has changes */}
+      {isDirty && isEditable && (
+        <div className="vd-floating-save">
+          <div className="vd-floating-save-inner">
+            <div className="vd-floating-save-info">
+              <AlertCircle size={16} />
+              <span>Bạn có thay đổi chưa được lưu</span>
+            </div>
+            <button
+              className="vd-floating-save-btn"
+              onClick={handleSave}
+              disabled={saving}
+            >
+              {saving ? (
+                <>
+                  <Loader2 size={16} className="vd-spin" />
+                  <span>Đang lưu...</span>
+                </>
+              ) : (
+                <>
+                  <Save size={16} />
+                  <span>Lưu dữ liệu thương mại</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

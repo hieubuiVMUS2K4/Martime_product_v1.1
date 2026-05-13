@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import plannedRouteData from '../../assets/planned-route.json';
+import { useTranslationSafe } from '@/contexts/I18nContext';
 
 // Fix default marker icon issue with bundlers
 // @ts-expect-error _getIconUrl is internal Leaflet API
@@ -30,44 +31,56 @@ interface VesselMapProps {
   className?: string;
 }
 
-/** Icon tàu thủy tùy chỉnh — hình thuyền từ trên xuống */
-const shipSvg = `<svg width="28" height="28" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Thân tàu -->
-  <path d="M10 70 Q20 40 30 30 L70 30 Q80 40 90 70 L85 75 Q75 65 65 60 L35 60 Q25 65 15 75 Z" fill="white"/>
-  <!-- Mũi tàu -->
-  <path d="M45 20 L50 10 L55 20 Z" fill="white"/>
-  <!-- Đài chỉ huy -->
-  <rect x="40" y="25" width="20" height="18" rx="2" fill="white" stroke="rgba(0,0,0,0.3)" stroke-width="1.5"/>
-  <!-- Cột ăn-ten -->
-  <line x1="50" y1="10" x2="50" y2="5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-  <line x1="46" y1="7" x2="54" y2="7" stroke="white" stroke-width="1" stroke-linecap="round"/>
-  <!-- Cửa sổ cabin -->
-  <rect x="43" y="28" width="5" height="4" rx="1" fill="rgba(0,0,0,0.25)"/>
-  <rect x="52" y="28" width="5" height="4" rx="1" fill="rgba(0,0,0,0.25)"/>
-  <!-- Đường nước -->
-  <path d="M12 72 Q25 68 50 70 Q75 72 88 70" stroke="rgba(255,255,255,0.7)" stroke-width="1.5" fill="none"/>
+/** SVG hình mũi tên điều hướng (như AIS marker) */
+const shipSvg = `<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <path d="M12 2L4 20L12 17L20 20L12 2Z" fill="currentColor" stroke="rgba(0,0,0,0.5)" stroke-width="1.5" stroke-linejoin="round"/>
 </svg>`;
 
-const shipIcon = new L.DivIcon({
-  className: 'vessel-marker',
-  html: `<div style="
-    width: 42px; height: 42px;
-    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-    border: 3px solid white;
-    border-radius: 8px;
-    box-shadow: 0 3px 12px rgba(59,130,246,0.5), 0 0 0 2px rgba(59,130,246,0.2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transform: rotate(0deg);
-    transition: transform 0.3s;
-  ">
-    ${shipSvg}
-  </div>`,
-  iconSize: [42, 42],
-  iconAnchor: [21, 21],
-  popupAnchor: [0, -24],
-});
+/** Tạo icon tàu dạng mũi tên với màu tùy chỉnh và hướng đi */
+function makeShipIcon(color: string, course?: number) {
+  const rotation = course != null ? course : 0;
+  return new L.DivIcon({
+    className: 'vessel-marker-arrow',
+    html: `<div style="
+      width: 24px; height: 24px;
+      color: ${color};
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform: rotate(${rotation}deg);
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    ">
+      ${shipSvg}
+    </div>`,
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+    popupAnchor: [0, -12],
+    tooltipAnchor: [12, 0],
+  });
+}
+
+/** Component hiển thị nhãn tiếng Việt cho Hoàng Sa và Trường Sa */
+function VietnameseLabels() {
+  const map = useMap();
+  useEffect(() => {
+    const labels = [
+      { name: 'Quần đảo Hoàng Sa', lat: 16.5, lng: 111.5 },
+      { name: 'Quần đảo Trường Sa', lat: 9.5, lng: 113.5 },
+    ];
+    const markers = labels.map(({ name, lat, lng }) =>
+      L.marker([lat, lng], {
+        icon: L.divIcon({
+          className: 'vn-label',
+          html: `<div style="font-weight:bold;color:#000000;text-shadow:0 0 4px white,0 0 4px white;font-size:13px;white-space:nowrap;background:rgba(255,255,255,0.9);padding:2px 8px;border-radius:4px;border:1.5px solid #000000;">${name}</div>`,
+          iconSize: [0, 0],
+          iconAnchor: [0, 0],
+        }),
+      }).addTo(map)
+    );
+    return () => markers.forEach(m => m.removeFrom(map));
+  }, [map]);
+  return null;
+}
 
 function MapController({ currentPosition, positions, autoFit }: {
   currentPosition: GpsPoint | null;
@@ -117,6 +130,7 @@ export const VesselMap: React.FC<VesselMapProps> = ({
   height = '600px',
   className = '',
 }) => {
+  const { t } = useTranslationSafe();
   const defaultCenter: [number, number] = currentPosition
     ? [currentPosition.latitude, currentPosition.longitude]
     : [10.7769, 106.7009];
@@ -143,33 +157,35 @@ export const VesselMap: React.FC<VesselMapProps> = ({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
+        <VietnameseLabels />
+
         <MapController currentPosition={currentPosition} positions={positions} autoFit={autoFit} />
 
         {currentPosition && currentPosition.latitude && currentPosition.longitude && (
-          <Marker position={[currentPosition.latitude, currentPosition.longitude]} icon={shipIcon}>
+          <Marker position={[currentPosition.latitude, currentPosition.longitude]} icon={makeShipIcon('#3b82f6', currentPosition.courseOverGround)}>
             <Popup>
               <div className="text-sm min-w-[180px]">
-                <div className="font-bold text-base mb-1">🚢 Ship Position</div>
+                <div className="font-bold text-base mb-1">🚢 {t('map.shipPosition')}</div>
                 <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-gray-700">
-                  <span className="text-gray-500">Lat:</span>
+                  <span className="text-gray-500">{t('map.lat')}:</span>
                   <span className="font-mono">{currentPosition.latitude.toFixed(6)}°</span>
-                  <span className="text-gray-500">Lon:</span>
+                  <span className="text-gray-500">{t('map.lon')}:</span>
                   <span className="font-mono">{currentPosition.longitude.toFixed(6)}°</span>
                   {currentPosition.speedOverGround != null && (
                     <>
-                      <span className="text-gray-500">SOG:</span>
+                      <span className="text-gray-500">{t('map.sog')}:</span>
                       <span className="font-semibold">{currentPosition.speedOverGround.toFixed(1)} kn</span>
                     </>
                   )}
                   {currentPosition.courseOverGround != null && (
                     <>
-                      <span className="text-gray-500">COG:</span>
+                      <span className="text-gray-500">{t('map.cog')}:</span>
                       <span className="font-semibold">{currentPosition.courseOverGround.toFixed(1)}°</span>
                     </>
                   )}
                   {currentPosition.timestamp && (
                     <>
-                      <span className="text-gray-500">Time:</span>
+                      <span className="text-gray-500">{t('map.time')}:</span>
                       <span>{new Date(currentPosition.timestamp).toLocaleTimeString()}</span>
                     </>
                   )}

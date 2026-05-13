@@ -602,112 +602,112 @@ namespace MaritimeEdge.Data.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7144),
+                            CreatedAt = new DateTime(2026, 5, 11, 9, 34, 8, 943, DateTimeKind.Utc).AddTicks(5668),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "MAST",
                             RankName = "Master (Captain)",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7148)
+                            UpdatedAt = new DateTime(2026, 5, 11, 9, 34, 8, 943, DateTimeKind.Utc).AddTicks(5670)
                         },
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7149),
+                            CreatedAt = new DateTime(2026, 5, 11, 9, 34, 8, 943, DateTimeKind.Utc).AddTicks(5671),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "C/O",
                             RankName = "Chief Officer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7150)
+                            UpdatedAt = new DateTime(2026, 5, 11, 9, 34, 8, 943, DateTimeKind.Utc).AddTicks(5671)
                         },
                         new
                         {
                             Id = 3,
-                            CreatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7150),
+                            CreatedAt = new DateTime(2026, 5, 11, 9, 34, 8, 943, DateTimeKind.Utc).AddTicks(5672),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "2/O",
                             RankName = "Second Officer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7151)
+                            UpdatedAt = new DateTime(2026, 5, 11, 9, 34, 8, 943, DateTimeKind.Utc).AddTicks(5672)
                         },
                         new
                         {
                             Id = 4,
-                            CreatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7158),
+                            CreatedAt = new DateTime(2026, 5, 11, 9, 34, 8, 943, DateTimeKind.Utc).AddTicks(5684),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "3/O",
                             RankName = "Third Officer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7159)
+                            UpdatedAt = new DateTime(2026, 5, 11, 9, 34, 8, 943, DateTimeKind.Utc).AddTicks(5685)
                         },
                         new
                         {
                             Id = 5,
-                            CreatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7160),
+                            CreatedAt = new DateTime(2026, 5, 11, 9, 34, 8, 943, DateTimeKind.Utc).AddTicks(5686),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "C/E",
                             RankName = "Chief Engineer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7160)
+                            UpdatedAt = new DateTime(2026, 5, 11, 9, 34, 8, 943, DateTimeKind.Utc).AddTicks(5686)
                         },
                         new
                         {
                             Id = 6,
-                            CreatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7161),
+                            CreatedAt = new DateTime(2026, 5, 11, 9, 34, 8, 943, DateTimeKind.Utc).AddTicks(5687),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "2/E",
                             RankName = "Second Engineer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7162)
+                            UpdatedAt = new DateTime(2026, 5, 11, 9, 34, 8, 943, DateTimeKind.Utc).AddTicks(5687)
                         },
                         new
                         {
                             Id = 7,
-                            CreatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7163),
+                            CreatedAt = new DateTime(2026, 5, 11, 9, 34, 8, 943, DateTimeKind.Utc).AddTicks(5688),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "BOSN",
                             RankName = "Bosun",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7163)
+                            UpdatedAt = new DateTime(2026, 5, 11, 9, 34, 8, 943, DateTimeKind.Utc).AddTicks(5688)
                         },
                         new
                         {
                             Id = 8,
-                            CreatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7166),
+                            CreatedAt = new DateTime(2026, 5, 11, 9, 34, 8, 943, DateTimeKind.Utc).AddTicks(5689),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "AB",
                             RankName = "Able Seaman",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7167)
+                            UpdatedAt = new DateTime(2026, 5, 11, 9, 34, 8, 943, DateTimeKind.Utc).AddTicks(5689)
                         },
                         new
                         {
                             Id = 9,
-                            CreatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7168),
+                            CreatedAt = new DateTime(2026, 5, 11, 9, 34, 8, 943, DateTimeKind.Utc).AddTicks(5690),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "OILR",
                             RankName = "Oiler",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7168)
+                            UpdatedAt = new DateTime(2026, 5, 11, 9, 34, 8, 943, DateTimeKind.Utc).AddTicks(5691)
                         },
                         new
                         {
                             Id = 10,
-                            CreatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7171),
+                            CreatedAt = new DateTime(2026, 5, 11, 9, 34, 8, 943, DateTimeKind.Utc).AddTicks(5699),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "COOK",
                             RankName = "Chief Cook",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 3, 22, 14, 18, 54, 311, DateTimeKind.Utc).AddTicks(7172)
+                            UpdatedAt = new DateTime(2026, 5, 11, 9, 34, 8, 943, DateTimeKind.Utc).AddTicks(5699)
                         });
                 });
 
@@ -3813,6 +3813,10 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("decimal(8,2)")
                         .HasColumnName("fuel_rate");
 
+                    b.Property<bool>("IsRunning")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_running");
+
                     b.Property<bool>("IsSynced")
                         .HasColumnType("boolean")
                         .HasColumnName("is_synced");
@@ -3870,6 +3874,62 @@ namespace MaritimeEdge.Data.Migrations
                         .HasDatabaseName("idx_engine_id_timestamp");
 
                     b.ToTable("engine_data", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.EngineEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("EngineId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("engine_id");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("event_type");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_synced");
+
+                    b.Property<double?>("LoadPercent")
+                        .HasColumnType("double precision")
+                        .HasColumnName("load_percent");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("origin_node");
+
+                    b.Property<double?>("Rpm")
+                        .HasColumnType("double precision")
+                        .HasColumnName("rpm");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("timestamp");
+
+                    b.Property<string>("TriggerSource")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("trigger_source");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_engine_events");
+
+                    b.ToTable("engine_events", "public");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.EngineLogBook", b =>
@@ -5819,6 +5879,14 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("priority");
 
+                    b.Property<bool>("RequireInspectionReport")
+                        .HasColumnType("boolean")
+                        .HasColumnName("require_inspection_report");
+
+                    b.Property<bool>("RequireRiskAssessment")
+                        .HasColumnType("boolean")
+                        .HasColumnName("require_risk_assessment");
+
                     b.Property<string>("ScheduleCode")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -6046,6 +6114,14 @@ namespace MaritimeEdge.Data.Migrations
                     b.Property<string>("RejectionReason")
                         .HasColumnType("text")
                         .HasColumnName("rejection_reason");
+
+                    b.Property<bool>("RequireInspectionReport")
+                        .HasColumnType("boolean")
+                        .HasColumnName("require_inspection_report");
+
+                    b.Property<bool>("RequireRiskAssessment")
+                        .HasColumnType("boolean")
+                        .HasColumnName("require_risk_assessment");
 
                     b.Property<int>("RequiredPhotos")
                         .HasColumnType("integer")
@@ -10828,6 +10904,244 @@ namespace MaritimeEdge.Data.Migrations
                     b.ToTable("task_deferral_requests", "public");
                 });
 
+            modelBuilder.Entity("MaritimeEdge.Models.TaskInspectionReport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ChiefEngineerSignature")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("chief_engineer_signature");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("EquipmentCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("equipment_code");
+
+                    b.Property<string>("EquipmentName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("equipment_name");
+
+                    b.Property<string>("JobItemsJson")
+                        .HasColumnType("text")
+                        .HasColumnName("job_items_json");
+
+                    b.Property<DateTime?>("MaintenanceDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("maintenance_date");
+
+                    b.Property<string>("MaintenanceType")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("maintenance_type");
+
+                    b.Property<string>("OperatorSignature")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("operator_signature");
+
+                    b.Property<string>("OverallResult")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("overall_result");
+
+                    b.Property<string>("PostMaintenanceStatus")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("post_maintenance_status");
+
+                    b.Property<string>("Recommendations")
+                        .HasColumnType("text")
+                        .HasColumnName("recommendations");
+
+                    b.Property<string>("ShipName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("ship_name");
+
+                    b.Property<string>("TaskId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("task_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_task_inspection_reports");
+
+                    b.ToTable("task_inspection_reports", "public");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.TaskRiskAssessment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime?>("AssessmentDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("assessment_date");
+
+                    b.Property<string>("ChiefEngineerApproval")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("chief_engineer_approval");
+
+                    b.Property<bool>("ControlLOTO")
+                        .HasColumnType("boolean")
+                        .HasColumnName("control_loto");
+
+                    b.Property<string>("ControlNotes")
+                        .HasColumnType("text")
+                        .HasColumnName("control_notes");
+
+                    b.Property<bool>("ControlPPE")
+                        .HasColumnType("boolean")
+                        .HasColumnName("control_ppe");
+
+                    b.Property<bool>("ControlPTW")
+                        .HasColumnType("boolean")
+                        .HasColumnName("control_ptw");
+
+                    b.Property<bool>("ControlVentilation")
+                        .HasColumnType("boolean")
+                        .HasColumnName("control_ventilation");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("EquipmentName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("equipment_name");
+
+                    b.Property<bool>("HazardChemical")
+                        .HasColumnType("boolean")
+                        .HasColumnName("hazard_chemical");
+
+                    b.Property<bool>("HazardElectrical")
+                        .HasColumnType("boolean")
+                        .HasColumnName("hazard_electrical");
+
+                    b.Property<bool>("HazardEnvironmental")
+                        .HasColumnType("boolean")
+                        .HasColumnName("hazard_environmental");
+
+                    b.Property<bool>("HazardMechanical")
+                        .HasColumnType("boolean")
+                        .HasColumnName("hazard_mechanical");
+
+                    b.Property<string>("HazardNotes")
+                        .HasColumnType("text")
+                        .HasColumnName("hazard_notes");
+
+                    b.Property<string>("InitialLikelihood")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("initial_likelihood");
+
+                    b.Property<string>("InitialRiskLevel")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("initial_risk_level");
+
+                    b.Property<string>("InitialSeverity")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("initial_severity");
+
+                    b.Property<bool>("IsApprovedToProceed")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_approved_to_proceed");
+
+                    b.Property<string>("JobName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("job_name");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("location");
+
+                    b.Property<string>("Personnel")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("personnel");
+
+                    b.Property<string>("RaNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("ra_number");
+
+                    b.Property<string>("ResidualLikelihood")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("residual_likelihood");
+
+                    b.Property<string>("ResidualRiskLevel")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("residual_risk_level");
+
+                    b.Property<string>("ResidualRiskNotes")
+                        .HasColumnType("text")
+                        .HasColumnName("residual_risk_notes");
+
+                    b.Property<string>("ResidualSeverity")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("residual_severity");
+
+                    b.Property<string>("SupervisorSignature")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("supervisor_signature");
+
+                    b.Property<string>("TaskId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("task_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("WorkerSignature")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("worker_signature");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_task_risk_assessments");
+
+                    b.ToTable("task_risk_assessments", "public");
+                });
+
             modelBuilder.Entity("MaritimeEdge.Models.TaskStatusHistory", b =>
                 {
                     b.Property<Guid>("Id")
@@ -13582,11 +13896,14 @@ namespace MaritimeEdge.Data.Migrations
 
             modelBuilder.Entity("MaritimeEdge.Models.ArrivalReport", b =>
                 {
-                    b.HasOne("MaritimeEdge.Models.MaritimeReport", null)
+                    b.HasOne("MaritimeEdge.Models.MaritimeReport", "MaritimeReport")
                         .WithOne()
                         .HasForeignKey("MaritimeEdge.Models.ArrivalReport", "MaritimeReportId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("f_k_arrival_reports__maritime_reports_maritime_report_id");
+
+                    b.Navigation("MaritimeReport");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.BallastWaterRecordBook", b =>
@@ -13608,11 +13925,14 @@ namespace MaritimeEdge.Data.Migrations
 
             modelBuilder.Entity("MaritimeEdge.Models.BunkerReport", b =>
                 {
-                    b.HasOne("MaritimeEdge.Models.MaritimeReport", null)
+                    b.HasOne("MaritimeEdge.Models.MaritimeReport", "MaritimeReport")
                         .WithOne()
                         .HasForeignKey("MaritimeEdge.Models.BunkerReport", "MaritimeReportId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("f_k_bunker_reports__maritime_reports_maritime_report_id");
+
+                    b.Navigation("MaritimeReport");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.CargoOperation", b =>
@@ -13643,11 +13963,14 @@ namespace MaritimeEdge.Data.Migrations
 
             modelBuilder.Entity("MaritimeEdge.Models.DepartureReport", b =>
                 {
-                    b.HasOne("MaritimeEdge.Models.MaritimeReport", null)
+                    b.HasOne("MaritimeEdge.Models.MaritimeReport", "MaritimeReport")
                         .WithOne()
                         .HasForeignKey("MaritimeEdge.Models.DepartureReport", "MaritimeReportId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("f_k_departure_reports__maritime_reports_maritime_report_id");
+
+                    b.Navigation("MaritimeReport");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.DrillLog", b =>
@@ -13919,11 +14242,14 @@ namespace MaritimeEdge.Data.Migrations
 
             modelBuilder.Entity("MaritimeEdge.Models.NoonReport", b =>
                 {
-                    b.HasOne("MaritimeEdge.Models.MaritimeReport", null)
+                    b.HasOne("MaritimeEdge.Models.MaritimeReport", "MaritimeReport")
                         .WithOne()
                         .HasForeignKey("MaritimeEdge.Models.NoonReport", "MaritimeReportId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("f_k_noon_reports_maritime_reports_maritime_report_id");
+
+                    b.Navigation("MaritimeReport");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.OilRecordBook", b =>
@@ -13972,11 +14298,14 @@ namespace MaritimeEdge.Data.Migrations
 
             modelBuilder.Entity("MaritimeEdge.Models.PositionReport", b =>
                 {
-                    b.HasOne("MaritimeEdge.Models.MaritimeReport", null)
+                    b.HasOne("MaritimeEdge.Models.MaritimeReport", "MaritimeReport")
                         .WithOne()
                         .HasForeignKey("MaritimeEdge.Models.PositionReport", "MaritimeReportId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("f_k_position_reports_maritime_reports_maritime_report_id");
+
+                    b.Navigation("MaritimeReport");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.ReportAttachment", b =>

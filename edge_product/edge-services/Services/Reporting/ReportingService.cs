@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using AutoMapper;
 using MaritimeEdge.Data;
 using MaritimeEdge.Models;
 using MaritimeEdge.DTOs;
@@ -79,6 +80,7 @@ public class ReportingService : IReportingService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _configuration;
     private readonly IVoyageContextService _voyageContext;
+    private readonly IMapper _mapper;
     private static readonly TimeSpan CacheDuration = TimeSpan.FromHours(24);
 
     public ReportingService(
@@ -87,7 +89,8 @@ public class ReportingService : IReportingService
         IMemoryCache cache,
         IHttpClientFactory httpClientFactory,
         IConfiguration configuration,
-        IVoyageContextService voyageContext)
+        IVoyageContextService voyageContext,
+        IMapper mapper)
     {
         _context = context;
         _logger = logger;
@@ -95,6 +98,7 @@ public class ReportingService : IReportingService
         _httpClientFactory = httpClientFactory;
         _configuration = configuration;
         _voyageContext = voyageContext;
+        _mapper = mapper;
     }
 
     // ============================================================
@@ -282,105 +286,31 @@ public class ReportingService : IReportingService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating noon report");
-            return (false, string.Empty, null, ex.Message);
+            return (false, string.Empty, null, ex.InnerException?.Message ?? ex.Message);
         }
     }
 
     public async Task<NoonReportDto?> GetNoonReportAsync(Guid reportId)
     {
-        // First, get basic noon report data
-        var basicData = await (
-            from maritimeReport in _context.MaritimeReports.AsNoTracking()
-            join noonReport in _context.NoonReports.AsNoTracking() on maritimeReport.Id equals noonReport.MaritimeReportId
-            where maritimeReport.Id == reportId && maritimeReport.DeletedAt == null
-            select new { maritimeReport, noonReport }
-        ).FirstOrDefaultAsync();
+        // Fetch with eager loading of related entity
+        var noonReport = await _context.NoonReports
+            .AsNoTracking()
+            .Include(n => n.MaritimeReport)
+            .FirstOrDefaultAsync(n => n.MaritimeReportId == reportId && n.MaritimeReport.DeletedAt == null);
 
-        if (basicData == null)
+        if (noonReport == null)
             return null;
 
-        var mr = basicData.maritimeReport;
-        var nr = basicData.noonReport;
-        var reportDate = nr.ReportDate.Date;
+        var reportDate = noonReport.ReportDate.Date;
 
-        // Build the full DTO with all fields
-        var dto = new NoonReportDto
-        {
-            Id = nr.Id,
-            MaritimeReportId = mr.Id,
-            ReportNumber = mr.ReportNumber,
-            ReportTypeCode = "NOON",
-            Status = mr.Status,
-            ReportDate = nr.ReportDate,
-            VoyageId = mr.VoyageId,
-            VoyagePlanLegId = mr.VoyagePlanLegId,
-            
-            // Position
-            Latitude = nr.Latitude,
-            Longitude = nr.Longitude,
-            CourseOverGround = nr.CourseOverGround,
-            SpeedOverGround = nr.SpeedOverGround,
-            DistanceTraveled = nr.DistanceTraveled,
-            DistanceToGo = nr.DistanceToGo,
-            EstimatedTimeOfArrival = nr.EstimatedTimeOfArrival,
-            
-            // Weather - Full data
-            WeatherConditions = nr.WeatherConditions,
-            SeaState = nr.SeaState,
-            AirTemperature = nr.AirTemperature,
-            SeaTemperature = nr.SeaTemperature,
-            BarometricPressure = nr.BarometricPressure,
-            WindDirection = nr.WindDirection,
-            WindSpeed = nr.WindSpeed,
-            Visibility = nr.Visibility,
-            
-            // Fuel - Full data
-            FuelOilConsumed = nr.FuelOilConsumed,
-            DieselOilConsumed = nr.DieselOilConsumed,
-            LubOilConsumed = nr.LubOilConsumed,
-            FreshWaterConsumed = nr.FreshWaterConsumed,
-            FuelOilROB = nr.FuelOilROB,
-            DieselOilROB = nr.DieselOilROB,
-            LubOilROB = nr.LubOilROB,
-            FreshWaterROB = nr.FreshWaterROB,
-            
-            // Engine - Full data
-            MainEngineRPM = nr.MainEngineRPM,
-            MainEnginePower = nr.MainEnginePower,
-            MainEngineRunningHours = nr.MainEngineRunningHours,
-            AuxEngineRunningHours = nr.AuxEngineRunningHours,
-            
-            // Cargo
-            CargoOnBoard = nr.CargoOnBoard,
-            CargoDescription = nr.CargoDescription,
-            
-            // Remarks
-            OperationalRemarks = nr.OperationalRemarks,
-            MachineryRemarks = nr.MachineryRemarks,
-            CargoRemarks = nr.CargoRemarks,
-            MaintenanceRemarks = nr.MaintenanceRemarks,
-            SafetyDrillsConducted = nr.SafetyDrillsConducted,
-            SafetyIncidents = nr.SafetyIncidents,
-            GeneralRemarks = mr.Remarks,
-
-            // Crew & safety
-            PassengersOnBoard = nr.PassengersOnBoard,
-            
-            // Metadata
-            PreparedBy = mr.PreparedBy,
-            MasterSignature = mr.MasterSignature,
-            SignedAt = mr.SignedAt,
-            IsTransmitted = mr.IsTransmitted,
-            TransmittedAt = mr.TransmittedAt,
-            CreatedAt = mr.CreatedAt,
-            UpdatedAt = mr.UpdatedAt
-        };
+        // Use AutoMapper for core property mapping (85+ properties consolidated into 1 line)
+        var dto = _mapper.Map<NoonReportDto>(noonReport);
 
         // Get voyage number if linked
-        if (mr.VoyageId.HasValue)
+        if (noonReport.MaritimeReport.VoyageId.HasValue)
         {
             var voyage = await _context.VoyageRecords
-                .Where(v => v.Id == mr.VoyageId.Value)
+                .Where(v => v.Id == noonReport.MaritimeReport.VoyageId.Value)
                 .Select(v => v.VoyageNumber)
                 .FirstOrDefaultAsync();
             dto.VoyageNumber = voyage;
@@ -394,7 +324,6 @@ public class ReportingService : IReportingService
             
             var thirtyDaysFromNow = DateTime.UtcNow.AddDays(30);
             
-            // Count certificates expiring soon from CrewCertificates table
             var onboardCrewIds = await _context.CrewMembers
                 .Where(c => c.IsOnboard)
                 .Select(c => c.Id)
@@ -405,12 +334,7 @@ public class ReportingService : IReportingService
                              cc.ExpiryDate <= thirtyDaysFromNow)
                 .CountAsync();
             
-            // Passport expiry removed - will be managed in documents table
-            // var passportsExpiringSoon = await _context.CrewMembers
-            //     .Where(c => c.IsOnboard && c.PassportExpiry.HasValue && c.PassportExpiry.Value <= thirtyDaysFromNow)
-            //     .CountAsync();
-            
-            dto.CertificatesExpiringSoon = certsExpiringSoon; // + passportsExpiringSoon;
+            dto.CertificatesExpiringSoon = certsExpiringSoon;
         }
         catch (Exception ex)
         {
@@ -446,7 +370,6 @@ public class ReportingService : IReportingService
                     .CountAsync(t => t.HasPendingDeferral)
             };
 
-            // Get critical maintenance notes
             var criticalTasks = await _context.MaintenanceTasks
                 .Where(t => t.Priority == "CRITICAL" && t.Status == "OVERDUE")
                 .Take(3)
@@ -472,28 +395,22 @@ public class ReportingService : IReportingService
 
             var alarmSummary = new NoonReportAlarmSummaryDto
             {
-                // Active = not acknowledged and not resolved
                 ActiveAlarms = await _context.SafetyAlarms
                     .CountAsync(a => !a.IsAcknowledged && !a.IsResolved),
                 
-                // Acknowledged but not resolved
                 AcknowledgedAlarms = await _context.SafetyAlarms
                     .CountAsync(a => a.IsAcknowledged && !a.IsResolved),
                 
-                // Resolved in last 24 hours
                 ResolvedLast24h = await _context.SafetyAlarms
                     .CountAsync(a => a.IsResolved && a.ResolvedAt >= yesterday),
                 
-                // Critical alarms not resolved
                 CriticalAlarms = await _context.SafetyAlarms
                     .CountAsync(a => a.Severity == "CRITICAL" && !a.IsResolved),
                 
-                // Warning alarms not resolved
                 WarningAlarms = await _context.SafetyAlarms
                     .CountAsync(a => a.Severity == "WARNING" && !a.IsResolved)
             };
 
-            // Get safety notes from recent critical alarms
             var recentCriticalAlarms = await _context.SafetyAlarms
                 .Where(a => a.Severity == "CRITICAL" && !a.IsResolved)
                 .Take(2)
@@ -634,50 +551,15 @@ public class ReportingService : IReportingService
 
     public async Task<DepartureReportDto?> GetDepartureReportAsync(Guid reportId)
     {
-        var query = from mr in _context.MaritimeReports.AsNoTracking()
-                    join dr in _context.DepartureReports.AsNoTracking() on mr.Id equals dr.MaritimeReportId
-                    where mr.Id == reportId && mr.DeletedAt == null  // Exclude soft-deleted reports
-                    select new DepartureReportDto
-                    {
-                        Id = dr.Id,
-                        MaritimeReportId = mr.Id,
-                        ReportNumber = mr.ReportNumber,
-                        ReportTypeCode = "DEPARTURE",
-                        Status = mr.Status,
-                        VoyageId = mr.VoyageId,
-                        VoyagePlanLegId = mr.VoyagePlanLegId,
-                        PortName = dr.PortName,
-                        PortCode = dr.PortCode,
-                        DepartureDateTime = dr.DepartureDateTime,
-                        PilotOffTime = dr.PilotOnBoardTime,
-                        LastLineLetGoTime = dr.LastLineAshoreTime,
-                        DepartureLatitude = dr.DepartureLatitude,
-                        DepartureLongitude = dr.DepartureLongitude,
-                        DraftForward = dr.DraftForward,
-                        DraftAft = dr.DraftAft,
-                        DraftMidship = dr.DraftMidship,
-                        FuelOilROB = dr.FuelOilROB,
-                        DieselOilROB = dr.DieselOilROB,
-                        LubOilROB = dr.LubOilROB,
-                        FreshWaterROB = dr.FreshWaterROB,
-                        CargoOnBoard = dr.CargoOnBoard,
-                        CargoDescription = dr.CargoDescription,
-                        CrewOnBoard = dr.CrewOnBoard,
-                        PassengersOnBoard = dr.PassengersOnBoard,
-                        DestinationPort = dr.NextPort,
-                        NextPortCode = dr.NextPortCode,
-                        DistanceToNextPort = dr.DistanceToNextPort,
-                        EstimatedArrival = dr.EstimatedTimeOfArrival,
-                        Remarks = dr.Remarks,
-                        PreparedBy = mr.PreparedBy,
-                        MasterSignature = mr.MasterSignature,
-                        SignedAt = mr.SignedAt,
-                        IsTransmitted = mr.IsTransmitted,
-                        TransmittedAt = mr.TransmittedAt,
-                        CreatedAt = mr.CreatedAt
-                    };
+        var departureReport = await _context.DepartureReports
+            .AsNoTracking()
+            .Include(d => d.MaritimeReport)
+            .FirstOrDefaultAsync(d => d.MaritimeReportId == reportId && d.MaritimeReport.DeletedAt == null);
 
-        return await query.FirstOrDefaultAsync();
+        if (departureReport == null)
+            return null;
+
+        return _mapper.Map<DepartureReportDto>(departureReport);
     }
 
     // ============================================================
@@ -784,51 +666,15 @@ public class ReportingService : IReportingService
 
     public async Task<ArrivalReportDto?> GetArrivalReportAsync(Guid reportId)
     {
-        var query = from mr in _context.MaritimeReports.AsNoTracking()
-                    join ar in _context.ArrivalReports.AsNoTracking() on mr.Id equals ar.MaritimeReportId
-                    where mr.Id == reportId && mr.DeletedAt == null  // Exclude soft-deleted reports
-                    select new ArrivalReportDto
-                    {
-                        Id = ar.Id,
-                        MaritimeReportId = mr.Id,
-                        ReportNumber = mr.ReportNumber,
-                        ReportTypeCode = "ARRIVAL",
-                        Status = mr.Status,
-                        VoyageId = mr.VoyageId,
-                        VoyagePlanLegId = mr.VoyagePlanLegId,
-                        PortName = ar.PortName,
-                        PortCode = ar.PortCode,
-                        ArrivalDateTime = ar.ArrivalDateTime,
-                        PilotOnBoardTime = ar.PilotOnBoardTime,
-                        FirstLineAshoreTime = ar.FirstLineAshoreTime,
-                        ArrivalLatitude = ar.ArrivalLatitude,
-                        ArrivalLongitude = ar.ArrivalLongitude,
-                        VoyageDistance = ar.VoyageDistance,
-                        VoyageDuration = ar.VoyageDuration,
-                        AverageSpeed = ar.AverageSpeed,
-                        DraftForward = ar.DraftForward,
-                        DraftAft = ar.DraftAft,
-                        DraftMidship = ar.DraftMidship,
-                        FuelOilROB = ar.FuelOilROB,
-                        DieselOilROB = ar.DieselOilROB,
-                        LubOilROB = ar.LubOilROB,
-                        FreshWaterROB = ar.FreshWaterROB,
-                        TotalFuelConsumed = ar.TotalFuelConsumed,
-                        TotalDieselConsumed = ar.TotalDieselConsumed,
-                        CargoOnBoard = ar.CargoOnBoard,
-                        CargoDescription = ar.CargoDescription,
-                        CrewOnBoard = ar.CrewOnBoard,
-                        PassengersOnBoard = ar.PassengersOnBoard,
-                        Remarks = ar.Remarks,
-                        PreparedBy = mr.PreparedBy,
-                        MasterSignature = mr.MasterSignature,
-                        SignedAt = mr.SignedAt,
-                        IsTransmitted = mr.IsTransmitted,
-                        TransmittedAt = mr.TransmittedAt,
-                        CreatedAt = mr.CreatedAt
-                    };
+        var arrivalReport = await _context.ArrivalReports
+            .AsNoTracking()
+            .Include(a => a.MaritimeReport)
+            .FirstOrDefaultAsync(a => a.MaritimeReportId == reportId && a.MaritimeReport.DeletedAt == null);
 
-        return await query.FirstOrDefaultAsync();
+        if (arrivalReport == null)
+            return null;
+
+        return _mapper.Map<ArrivalReportDto>(arrivalReport);
     }
 
     // ============================================================
@@ -944,24 +790,28 @@ public class ReportingService : IReportingService
 
     public async Task<BunkerReportDto?> GetBunkerReportAsync(Guid reportId)
     {
-        var result = await (
-            from mr in _context.MaritimeReports.AsNoTracking()
-            join br in _context.BunkerReports.AsNoTracking() on mr.Id equals br.MaritimeReportId
-            where mr.Id == reportId && mr.DeletedAt == null
-            select new { mr, br }
-        ).FirstOrDefaultAsync();
+        var bunkerReport = await _context.BunkerReports
+            .AsNoTracking()
+            .Include(b => b.MaritimeReport)
+            .FirstOrDefaultAsync(b => b.MaritimeReportId == reportId && b.MaritimeReport.DeletedAt == null);
 
-        if (result == null)
-        {
+        if (bunkerReport == null)
             return null;
-        }
 
-        CreateBunkerReportDto? reportData = null;
-        if (!string.IsNullOrWhiteSpace(result.mr.ReportData))
+        var dto = _mapper.Map<BunkerReportDto>(bunkerReport);
+        
+        // Extract additional data from ReportData JSON if needed
+        if (!string.IsNullOrWhiteSpace(bunkerReport.MaritimeReport.ReportData))
         {
             try
             {
-                reportData = JsonSerializer.Deserialize<CreateBunkerReportDto>(result.mr.ReportData);
+                var reportData = JsonSerializer.Deserialize<CreateBunkerReportDto>(bunkerReport.MaritimeReport.ReportData);
+                if (reportData != null)
+                {
+                    dto.UnitPrice = reportData.UnitPrice;
+                    dto.TotalCost = reportData.TotalCost;
+                    dto.DeliveryMethod = reportData.DeliveryMethod;
+                }
             }
             catch (JsonException ex)
             {
@@ -969,43 +819,7 @@ public class ReportingService : IReportingService
             }
         }
 
-        return new BunkerReportDto
-        {
-            Id = result.br.Id,
-            MaritimeReportId = result.mr.Id,
-            ReportNumber = result.mr.ReportNumber,
-            ReportTypeCode = "BUNKER",
-            Status = result.mr.Status,
-            BunkerDate = result.br.BunkerDate,
-            VoyageId = result.mr.VoyageId,
-            VoyagePlanLegId = result.mr.VoyagePlanLegId,
-            PortName = result.br.PortName,
-            PortCode = result.br.PortCode,
-            SupplierName = result.br.SupplierName,
-            BDNNumber = result.br.BDNNumber,
-            FuelType = result.br.FuelType,
-            FuelGrade = result.br.FuelGrade,
-            QuantityReceived = result.br.QuantityReceived,
-            Density = result.br.Density,
-            SulphurContent = result.br.SulphurContent,
-            Viscosity = result.br.Viscosity,
-            FlashPoint = result.br.FlashPoint,
-            ROBBefore = result.br.ROBefore,
-            ROBAfter = result.br.ROBAfter,
-            TanksLoaded = result.br.TanksLoaded,
-            SealNumbers = result.br.SealNumbers,
-            ChiefEngineerSignature = result.br.ChiefEngineerSignature,
-            UnitPrice = reportData?.UnitPrice,
-            TotalCost = reportData?.TotalCost,
-            DeliveryMethod = reportData?.DeliveryMethod,
-            Remarks = result.br.Remarks,
-            PreparedBy = result.mr.PreparedBy,
-            MasterSignature = result.mr.MasterSignature,
-            SignedAt = result.mr.SignedAt,
-            IsTransmitted = result.mr.IsTransmitted,
-            TransmittedAt = result.mr.TransmittedAt,
-            CreatedAt = result.mr.CreatedAt
-        };
+        return dto;
     }
 
     // ============================================================
@@ -1098,39 +912,15 @@ public class ReportingService : IReportingService
 
     public async Task<PositionReportDto?> GetPositionReportAsync(Guid reportId)
     {
-        var query = from mr in _context.MaritimeReports.AsNoTracking()
-                    join pr in _context.PositionReports.AsNoTracking() on mr.Id equals pr.MaritimeReportId
-                    where mr.Id == reportId && mr.DeletedAt == null  // Exclude soft-deleted reports
-                    select new PositionReportDto
-                    {
-                        Id = pr.Id,
-                        MaritimeReportId = mr.Id,
-                        ReportNumber = mr.ReportNumber,
-                        ReportTypeCode = "POSITION",
-                        Status = mr.Status,
-                        ReportDateTime = pr.ReportDateTime,
-                        VoyageId = mr.VoyageId,
-                        VoyagePlanLegId = mr.VoyagePlanLegId,
-                        Latitude = pr.Latitude,
-                        Longitude = pr.Longitude,
-                        CourseOverGround = pr.CourseOverGround,
-                        SpeedOverGround = pr.SpeedOverGround,
-                        ReportReason = pr.ReportReason,
-                        LastPort = pr.LastPort,
-                        NextPort = pr.NextPort,
-                        ETA = pr.ETA,
-                        CargoOnBoard = pr.CargoOnBoard,
-                        CrewOnBoard = pr.CrewOnBoard,
-                        Remarks = pr.Remarks,
-                        PreparedBy = mr.PreparedBy,
-                        MasterSignature = mr.MasterSignature,
-                        SignedAt = mr.SignedAt,
-                        IsTransmitted = mr.IsTransmitted,
-                        TransmittedAt = mr.TransmittedAt,
-                        CreatedAt = mr.CreatedAt
-                    };
+        var positionReport = await _context.PositionReports
+            .AsNoTracking()
+            .Include(p => p.MaritimeReport)
+            .FirstOrDefaultAsync(p => p.MaritimeReportId == reportId && p.MaritimeReport.DeletedAt == null);
 
-        return await query.FirstOrDefaultAsync();
+        if (positionReport == null)
+            return null;
+
+        return _mapper.Map<PositionReportDto>(positionReport);
     }
 
     // ============================================================
