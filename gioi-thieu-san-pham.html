@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Bản Giới Thiệu Sản Phẩm – Maritime Management System</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Times New Roman', Times, serif;
+      background: #b0b0b0;
+      color: #1a1a1a;
+    }
+
+    /* ========== A4 PAGE ========== */
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      background: white;
+      margin: 8mm auto;
+      padding: 10mm 12mm;
+      page-break-after: always;
+      display: flex;
+      flex-direction: column;
+      border: 1.5px solid #90caf9;
+      position: relative;
+    }
+
+    @media print {
+      body { background: white; }
+      .page { margin: 0; border: none; }
+    }
+
+    /* ========== TRANG 1: BÌA ========== */
+
+    .cover-school {
+      display: flex;
+      align-items: center;
+      gap: 4mm;
+      margin-bottom: 6mm;
+    }
+
+    .cover-logo {
+      width: 18mm;
+      height: 18mm;
+      border: 2.5px solid #1565c0;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      flex-shrink: 0;
+    }
+
+    .cover-school-name {
+      font-family: Arial, sans-serif;
+      font-size: 9pt;
+      font-weight: bold;
+      color: #1565c0;
+      text-transform: uppercase;
+      line-height: 1.5;
+    }
+
+    .cover-divider {
+      height: 2.5px;
+      background: linear-gradient(to right, #1565c0, #42a5f5, #1565c0);
+      margin-bottom: 8mm;
+    }
+
+    .cover-title-main {
+      text-align: center;
+      font-family: Arial, sans-serif;
+      font-size: 42pt;
+      font-weight: 900;
+      color: #1565c0;
+      letter-spacing: 2px;
+      line-height: 1;
+      margin-bottom: 2mm;
+    }
+
+    .cover-title-sub1 {
+      text-align: center;
+      font-family: Arial, sans-serif;
+      font-size: 11pt;
+      font-weight: bold;
+      color: #333;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 1mm;
+    }
+
+    .cover-title-sub2 {
+      text-align: center;
+      font-family: Arial, sans-serif;
+      font-size: 10pt;
+      font-weight: bold;
+      color: #1565c0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .cover-divider2 {
+      height: 1px;
+      background: #bbdefb;
+      margin: 5mm 0;
+    }
+
+    .cover-detai {
+      font-family: Arial, sans-serif;
+      font-size: 8.5pt;
+      color: #555;
+      margin-bottom: 1.5mm;
+    }
+
+    .cover-detai strong {
+      color: #1a1a1a;
+    }
+
+    .cover-product-name {
+      font-family: Arial, sans-serif;
+      font-size: 14pt;
+      font-weight: 900;
+      color: #1565c0;
+      text-transform: uppercase;
+      margin-top: 3mm;
+      margin-bottom: 5mm;
+    }
+
+    .cover-info-table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-bottom: 4mm;
+    }
+
+    .cover-info-table td {
+      padding: 2mm 3mm;
+      font-family: Arial, sans-serif;
+      font-size: 8.5pt;
+      border-bottom: 1px solid #e3f2fd;
+      vertical-align: top;
+    }
+
+    .cover-info-table td:first-child {
+      width: 20mm;
+      color: #555;
+      font-style: italic;
+      white-space: nowrap;
+    }
+
+    .cover-info-table td:last-child {
+      font-weight: bold;
+      color: #1a1a1a;
+    }
+
+    .cover-ship-wrap {
+      flex: 1;
+      min-height: 65mm;
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid #bbdefb;
+      position: relative;
+    }
+
+    .cover-ship-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .cover-ship-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(transparent, rgba(21,101,192,0.85));
+      color: white;
+      padding: 4mm 5mm 3mm;
+      font-family: Arial, sans-serif;
+    }
+
+    .cover-ship-overlay .year {
+      font-size: 8pt;
+      opacity: 0.9;
+    }
+
+    .cover-ship-overlay .tagline {
+      font-size: 10pt;
+      font-weight: bold;
+    }
+
+    /* ========== TRANG NỘI DUNG ========== */
+
+    .content-header {
+      background: #1565c0;
+      color: white;
+      padding: 3mm 5mm;
+      border-radius: 3px 3px 0 0;
+      margin: -10mm -12mm 6mm -12mm;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    .content-header .sec-num {
+      font-family: Arial, sans-serif;
+      font-size: 11pt;
+      font-weight: bold;
+      color: #ffeb3b;
+      margin-right: 2mm;
+    }
+
+    .content-header .sec-title {
+      font-family: Arial, sans-serif;
+      font-size: 10.5pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .content-header .sec-tag {
+      font-family: Arial, sans-serif;
+      font-size: 7pt;
+      opacity: 0.8;
+      background: rgba(255,255,255,0.15);
+      padding: 0.5mm 2mm;
+      border-radius: 2px;
+    }
+
+    /* Sub-section header */
+    .sub-header {
+      background: #e3f2fd;
+      border-left: 4px solid #1565c0;
+      padding: 1.5mm 3mm;
+      font-family: Arial, sans-serif;
+      font-size: 8pt;
+      font-weight: bold;
+      color: #1565c0;
+      text-transform: uppercase;
+      margin-bottom: 2mm;
+    }
+
+    /* Screenshot grid */
+    .shot-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2.5mm;
+      margin-bottom: 3mm;
+    }
+
+    .shot-grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 2mm;
+      margin-bottom: 3mm;
+    }
+
+    .shot {
+      border: 1px solid #bbdefb;
+      border-radius: 2px;
+      overflow: hidden;
+      background: #f5f9ff;
+    }
+
+    .shot img {
+      width: 100%;
+      display: block;
+    }
+
+    .shot-cap {
+      background: #e3f2fd;
+      font-size: 6pt;
+      text-align: center;
+      padding: 0.8mm 1mm;
+      color: #1565c0;
+      font-weight: bold;
+      font-family: Arial, sans-serif;
+      border-top: 1px solid #bbdefb;
+    }
+
+    /* Tech tags */
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5mm;
+    }
+
+    .tag {
+      background: #e3f2fd;
+      border: 1px solid #90caf9;
+      color: #1565c0;
+      font-size: 6.5pt;
+      padding: 0.5mm 2mm;
+      border-radius: 2px;
+      font-family: Arial, sans-serif;
+      font-weight: bold;
+    }
+
+    .tag.red   { background: #ffebee; border-color: #ef9a9a; color: #c62828; }
+    .tag.green { background: #e8f5e9; border-color: #a5d6a7; color: #2e7d32; }
+
+    /* Feature list */
+    .feat-list {
+      list-style: none;
+      font-size: 7.5pt;
+      font-family: Arial, sans-serif;
+      line-height: 2;
+      color: #333;
+    }
+
+    .feat-list li::before {
+      content: "▶ ";
+      color: #1565c0;
+      font-size: 6pt;
+    }
+
+    .feat-list.red  li::before { color: #c62828; }
+    .feat-list.green li::before { color: #2e7d32; }
+
+    /* 2-col text layout */
+    .two-col-text {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4mm;
+    }
+
+    /* Arch boxes */
+    .arch-container {
+      display: grid;
+      grid-template-columns: 1fr 8mm 1fr 8mm 1fr;
+      gap: 2mm;
+      align-items: center;
+      margin: 3mm 0;
+    }
+
+    .arch-box {
+      border: 2px solid;
+      border-radius: 4px;
+      padding: 3mm 3mm;
+      text-align: center;
+    }
+
+    .arch-box.shore  { border-color: #1565c0; background: #e3f2fd; }
+    .arch-box.edge   { border-color: #c62828; background: #ffebee; }
+    .arch-box.mobile { border-color: #2e7d32; background: #e8f5e9; }
+
+    .arch-box h4 {
+      font-size: 7.5pt;
+      font-weight: bold;
+      margin-bottom: 2mm;
+      font-family: Arial, sans-serif;
+    }
+
+    .arch-box.shore  h4 { color: #1565c0; }
+    .arch-box.edge   h4 { color: #c62828; }
+    .arch-box.mobile h4 { color: #2e7d32; }
+
+    .arch-box ul {
+      list-style: none;
+      font-size: 6.5pt;
+      color: #333;
+      font-family: Arial, sans-serif;
+      text-align: left;
+      line-height: 1.8;
+    }
+
+    .arch-box ul li::before { content: "▸ "; }
+    .arch-box.shore  ul li::before { color: #1565c0; }
+    .arch-box.edge   ul li::before { color: #c62828; }
+    .arch-box.mobile ul li::before { color: #2e7d32; }
+
+    .arch-arrow {
+      text-align: center;
+      font-size: 14pt;
+      color: #90a4ae;
+      font-weight: bold;
+      line-height: 1;
+    }
+
+    .arch-arrow small {
+      display: block;
+      font-size: 5pt;
+      font-family: Arial, sans-serif;
+      color: #777;
+      font-weight: normal;
+      margin-top: 0.5mm;
+    }
+
+    /* Stats row */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 2mm;
+    }
+
+    .stat-box {
+      background: #1565c0;
+      color: white;
+      text-align: center;
+      padding: 2mm 1mm;
+      border-radius: 3px;
+    }
+
+    .stat-box .num {
+      font-size: 15pt;
+      font-weight: bold;
+      line-height: 1;
+      font-family: Arial, sans-serif;
+    }
+
+    .stat-box .lbl {
+      font-size: 5.5pt;
+      line-height: 1.3;
+      margin-top: 1mm;
+      font-family: Arial, sans-serif;
+      opacity: 0.9;
+    }
+
+    /* Highlight / callout */
+    .callout {
+      border-left: 4px solid #1565c0;
+      background: #e3f2fd;
+      padding: 2.5mm 3mm;
+      border-radius: 0 3px 3px 0;
+      font-family: Arial, sans-serif;
+      font-size: 7.5pt;
+      color: #1a1a1a;
+      line-height: 1.6;
+    }
+
+    .callout.red   { border-color: #c62828; background: #ffebee; }
+    .callout.green { border-color: #2e7d32; background: #e8f5e9; }
+
+    /* Separator */
+    .sep { height: 1px; background: #e3f2fd; margin: 3mm 0; }
+
+    /* Body paragraph */
+    .btext {
+      font-family: Arial, sans-serif;
+      font-size: 8pt;
+      line-height: 1.7;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ============================================================ -->
+<!--  TRANG 1 – BÌA GIỚI THIỆU                                    -->
+<!-- ============================================================ -->
+<div class="page">
+
+  <!-- School header -->
+  <div class="cover-school">
+    <div class="cover-logo">⚓</div>
+    <div class="cover-school-name">
+      Trường Đại Học Hàng Hải Việt Nam<br>
+      <span style="font-weight:normal;font-size:7.5pt;color:#555">Vietnam Maritime University</span>
+    </div>
+  </div>
+
+  <div class="cover-divider"></div>
+
+  <!-- Main title -->
+  <div class="cover-title-main">BẢN GIỚI THIỆU</div>
+  <div class="cover-title-sub1" style="margin-top:2mm">Sản Phẩm Công Nghệ</div>
+  <div class="cover-title-sub2">Đề Tài Nghiên Cứu Khoa Học Sinh Viên</div>
+
+  <div class="cover-divider2"></div>
+
+  <!-- Đề tài -->
+  <div class="cover-detai">
+    <strong>ĐỀ TÀI:</strong>&nbsp; Xây dựng hệ thống quản lý đội tàu biển tích hợp kiến trúc Shore–Edge Computing và ứng dụng di động thuyền viên
+  </div>
+
+  <!-- Product name -->
+  <div class="cover-product-name">
+    Sản Phẩm: Maritime Fleet Management System v1.1
+  </div>
+
+  <!-- Info table -->
+  <table class="cover-info-table">
+    <tr>
+      <td>Họ và tên :</td>
+      <td>[Thành viên 1] &nbsp;·&nbsp; [Thành viên 2] &nbsp;·&nbsp; [Thành viên 3]</td>
+    </tr>
+    <tr>
+      <td>GVHD :</td>
+      <td>[Giảng viên hướng dẫn]</td>
+    </tr>
+    <tr>
+      <td>Năm học :</td>
+      <td>2025 – 2026</td>
+    </tr>
+    <tr>
+      <td>Bộ môn :</td>
+      <td>Công nghệ Thông tin – Trường ĐH Hàng Hải Việt Nam</td>
+    </tr>
+  </table>
+
+  <!-- Ship image fills remaining space -->
+  <div class="cover-ship-wrap">
+    <img src="mau/vesselbackground.jpg" alt="Vessel background">
+    <div class="cover-ship-overlay">
+      <div class="year">Tháng 5 / 2026</div>
+      <div class="tagline">Shore · Edge · Mobile — Hải Trình Số Việt Nam</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============================================================ -->
+<!--  TRANG 2 – TỔNG QUAN & KIẾN TRÚC                             -->
+<!-- ============================================================ -->
+<div class="page">
+
+  <div class="content-header">
+    <div>
+      <span class="sec-num">1.</span>
+      <span class="sec-title">Tổng Quan Sản Phẩm &amp; Kiến Trúc Hệ Thống</span>
+    </div>
+    <div class="sec-tag">Maritime Fleet Management System v1.1</div>
+  </div>
+
+  <!-- Intro text + tags -->
+  <p class="btext" style="margin-bottom:3mm">
+    Hệ thống quản lý hạm đội tàu biển tích hợp mô hình <strong>Shore–Edge Computing</strong>:
+    bộ phận <em>Shore</em> vận hành tại văn phòng bờ giám sát đội tàu toàn cục, bộ phận
+    <em>Edge</em> cài đặt trực tiếp trên tàu hoạt động <strong>100% Offline-First</strong>,
+    đồng bộ thông minh khi tàu vào vùng phủ sóng vệ tinh / 4G. Kết hợp ứng dụng di động
+    Flutter cho thuyền viên, hệ thống tạo thành giải pháp quản lý đội tàu toàn diện.
+  </p>
+
+  <div class="tag-row" style="margin-bottom:4mm">
+    <span class="tag">.NET 8 / ASP.NET Core</span>
+    <span class="tag">React 19</span>
+    <span class="tag">Flutter / Dart</span>
+    <span class="tag">PostgreSQL 15</span>
+    <span class="tag">Docker Compose</span>
+    <span class="tag">Redis</span>
+    <span class="tag">SignalR</span>
+    <span class="tag">Entity Framework Core</span>
+    <span class="tag">Tailwind CSS</span>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row" style="margin-bottom:5mm">
+    <div class="stat-box">
+      <div class="num">3</div>
+      <div class="lbl">Ứng dụng<br>độc lập</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">170+</div>
+      <div class="lbl">Bảng<br>database</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">80</div>
+      <div class="lbl">API<br>Controllers</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">90+</div>
+      <div class="lbl">Màn hình<br>&amp; trang</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">100%</div>
+      <div class="lbl">Offline<br>First</div>
+    </div>
+  </div>
+
+  <!-- Architecture diagram -->
+  <div class="sub-header">Kiến Trúc Shore – Edge – Mobile Computing</div>
+
+  <div class="arch-container">
+    <div class="arch-box shore">
+      <h4>🏢 SHORE<br><span style="font-weight:normal;font-size:6pt;color:#555">Văn phòng bờ</span></h4>
+      <ul>
+        <li>Theo dõi đội tàu GPS</li>
+        <li>Quản lý thuyền viên</li>
+        <li>Phân tích báo cáo</li>
+        <li>Trợ lý AI (LLM)</li>
+        <li>Quản trị người dùng</li>
+        <li>Thống kê hành trình</li>
+      </ul>
+    </div>
+    <div class="arch-arrow">⇄<small>Sync<br>Queue</small></div>
+    <div class="arch-box edge">
+      <h4>🚢 EDGE<br><span style="font-weight:normal;font-size:6pt;color:#555">Trên tàu</span></h4>
+      <ul>
+        <li>100% Offline-First</li>
+        <li>Nhật ký hành trình</li>
+        <li>PMS bảo trì thiết bị</li>
+        <li>Kho vật tư trên tàu</li>
+        <li>Quản lý thuyền viên</li>
+        <li>Dữ liệu sensor trực tiếp</li>
+      </ul>
+    </div>
+    <div class="arch-arrow">⇄<small>BLE /<br>WiFi</small></div>
+    <div class="arch-box mobile">
+      <h4>📱 MOBILE<br><span style="font-weight:normal;font-size:6pt;color:#555">Flutter App</span></h4>
+      <ul>
+        <li>Android &amp; iOS</li>
+        <li>Xem nhiệm vụ bảo trì</li>
+        <li>Cập nhật tiến độ</li>
+        <li>Nhận thông báo push</li>
+        <li>Đồng bộ với Edge</li>
+        <li>Offline capable</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sep"></div>
+
+  <!-- Sync mechanism -->
+  <div class="sub-header">Cơ Chế Đồng Bộ Thông Minh</div>
+  <div class="two-col-text" style="margin-top:2mm">
+    <div class="callout">
+      <strong>Sync Queue &amp; Idempotency</strong><br>
+      Mọi thay đổi trên tàu (Edge) được đưa vào hàng đợi và đánh định danh idempotency key,
+      đảm bảo không trùng lặp hay mất dữ liệu khi kết nối chập chờn.
+    </div>
+    <div class="callout red">
+      <strong>Conflict Resolution</strong><br>
+      Khi Shore và Edge cùng chỉnh sửa một bản ghi, hệ thống tự động giải quyết xung đột
+      theo quy tắc ownership: Edge làm chủ dữ liệu vận hành, Shore làm chủ dữ liệu quản trị.
+    </div>
+  </div>
+
+  <div class="sep"></div>
+
+  <!-- Deployment -->
+  <div class="sub-header">Môi Trường Triển Khai &amp; Hạ Tầng</div>
+  <div class="two-col-text" style="margin-top:2mm;margin-bottom:3mm">
+    <div>
+      <p class="btext" style="margin-bottom:2mm"><strong>Shore (Văn phòng bờ):</strong></p>
+      <ul class="feat-list" style="line-height:1.9">
+        <li>Docker Compose – triển khai toàn bộ stack bằng 1 lệnh</li>
+        <li>PostgreSQL 15 – cơ sở dữ liệu quan hệ chính</li>
+        <li>Redis – cache session, pub/sub thông báo thời gian thực</li>
+        <li>SignalR – cập nhật trạng thái tàu thời gian thực lên UI</li>
+        <li>Nginx reverse proxy – load balancing, SSL termination</li>
+      </ul>
+    </div>
+    <div>
+      <p class="btext" style="margin-bottom:2mm"><strong>Edge (Trên tàu):</strong></p>
+      <ul class="feat-list red" style="line-height:1.9">
+        <li>Docker Compose – chạy trên máy tính công nghiệp (mini PC)</li>
+        <li>PostgreSQL 15 – database độc lập, không phụ thuộc kết nối</li>
+        <li>Sync Agent – tiến trình nền tự động phát hiện kết nối và đồng bộ</li>
+        <li>Local network – thuyền viên truy cập qua WiFi nội bộ trên tàu</li>
+        <li>Toxiproxy – công cụ mô phỏng môi trường mạng vệ tinh để test</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sep"></div>
+
+  <!-- Sync flow detail -->
+  <div class="sub-header">Luồng Đồng Bộ Dữ Liệu Chi Tiết</div>
+  <div style="margin-top:2.5mm;display:grid;grid-template-columns:1fr 6mm 1fr 6mm 1fr 6mm 1fr;gap:1.5mm;align-items:center">
+    <div style="background:#e3f2fd;border:1.5px solid #90caf9;border-radius:3px;padding:2.5mm 3mm;text-align:center">
+      <div style="font-family:Arial,sans-serif;font-size:6.5pt;font-weight:bold;color:#1565c0">① THAY ĐỔI<br>TRÊN TÀU</div>
+      <div style="font-family:Arial,sans-serif;font-size:6pt;color:#555;margin-top:1mm">CRUD operations<br>Edge database</div>
+    </div>
+    <div style="text-align:center;font-size:11pt;color:#90a4ae">→</div>
+    <div style="background:#fff3e0;border:1.5px solid #ffcc80;border-radius:3px;padding:2.5mm 3mm;text-align:center">
+      <div style="font-family:Arial,sans-serif;font-size:6.5pt;font-weight:bold;color:#e65100">② SYNC QUEUE</div>
+      <div style="font-family:Arial,sans-serif;font-size:6pt;color:#555;margin-top:1mm">Idempotency key<br>Timestamp + UID</div>
+    </div>
+    <div style="text-align:center;font-size:11pt;color:#90a4ae">→</div>
+    <div style="background:#f3e5f5;border:1.5px solid #ce93d8;border-radius:3px;padding:2.5mm 3mm;text-align:center">
+      <div style="font-family:Arial,sans-serif;font-size:6.5pt;font-weight:bold;color:#6a1b9a">③ KẾT NỐI</div>
+      <div style="font-family:Arial,sans-serif;font-size:6pt;color:#555;margin-top:1mm">Vệ tinh / 4G<br>Phát hiện tự động</div>
+    </div>
+    <div style="text-align:center;font-size:11pt;color:#90a4ae">→</div>
+    <div style="background:#e8f5e9;border:1.5px solid #a5d6a7;border-radius:3px;padding:2.5mm 3mm;text-align:center">
+      <div style="font-family:Arial,sans-serif;font-size:6.5pt;font-weight:bold;color:#2e7d32">④ SHORE<br>DATABASE</div>
+      <div style="font-family:Arial,sans-serif;font-size:6pt;color:#555;margin-top:1mm">Conflict resolve<br>Merge &amp; confirm</div>
+    </div>
+  </div>
+
+  <div class="two-col-text" style="margin-top:3mm">
+    <div class="callout green" style="font-size:7pt">
+      <strong>Ownership Model:</strong> Mỗi bảng dữ liệu có quy tắc ownership rõ ràng —
+      dữ liệu vận hành tàu (nhật ký, bảo trì, vật tư) do <strong>Edge làm chủ</strong>;
+      dữ liệu quản trị (thuyền viên, hợp đồng, danh mục) do <strong>Shore làm chủ</strong>.
+      Tránh hoàn toàn xung đột write-write trên cùng bản ghi.
+    </div>
+    <div class="callout" style="font-size:7pt">
+      <strong>Kết quả kiểm thử:</strong> Hệ thống được kiểm thử với Toxiproxy mô phỏng
+      băng thông vệ tinh VSAT (512 kbps, latency 600ms) và 4G hải lý (2 Mbps). Đồng bộ
+      ổn định, không mất dữ liệu sau 100+ chu kỳ disconnect/reconnect liên tiếp.
+    </div>
+  </div>
+
+</div>
+
+<!-- ============================================================ -->
+<!--  TRANG 3 – HỆ THỐNG SHORE & EDGE                             -->
+<!-- ============================================================ -->
+<div class="page">
+
+  <div class="content-header">
+    <div>
+      <span class="sec-num">2.</span>
+      <span class="sec-title">Giao Diện Hệ Thống Shore · Edge · Mobile</span>
+    </div>
+    <div class="sec-tag">React 19 · .NET 8 · Flutter · PostgreSQL 15</div>
+  </div>
+
+  <!-- Shore -->
+  <div class="sub-header" style="background:#e3f2fd;border-color:#1565c0;color:#1565c0">
+    🏢 HỆ THỐNG SHORE – QUẢN LÝ ĐỘI TÀU TỪ VĂN PHÒNG BỜ
+  </div>
+
+  <div class="shot-grid-2" style="margin-top:2mm">
+    <div class="shot">
+      <img src="mau/12.png" alt="Vessel Tracking">
+      <div class="shot-cap">Bản đồ theo dõi đội tàu GPS thời gian thực</div>
+    </div>
+    <div class="shot">
+      <img src="mau/11.png" alt="Crew Management">
+      <div class="shot-cap">Quản lý thuyền viên &amp; chứng chỉ hàng hải</div>
+    </div>
+  </div>
+
+  <div class="shot-grid-2">
+    <div class="shot">
+      <img src="mau/14.png" alt="Noon Reports">
+      <div class="shot-cap">Danh sách Noon Report &amp; báo cáo hành trình</div>
+    </div>
+    <div class="shot">
+      <img src="mau/15.png" alt="AI Assistant">
+      <div class="shot-cap">Trợ lý AI – Tra cứu dữ liệu ngôn ngữ tự nhiên</div>
+    </div>
+  </div>
+
+  <div class="two-col-text" style="margin-bottom:4mm">
+    <ul class="feat-list">
+      <li>Theo dõi vị trí đội tàu trên bản đồ GPS thời gian thực</li>
+      <li>Quản lý thuyền viên, hợp đồng lao động biển, chứng chỉ</li>
+      <li>Nhận và phân tích Noon Report tự động từ tàu</li>
+    </ul>
+    <ul class="feat-list">
+      <li>Trợ lý AI (LLM) hỗ trợ tra cứu bằng ngôn ngữ tự nhiên</li>
+      <li>Dashboard thống kê, báo cáo tổng hợp đội tàu</li>
+      <li>Quản trị người dùng, phân quyền theo vai trò</li>
+    </ul>
+  </div>
+
+  <div class="sep"></div>
+
+  <!-- Edge -->
+  <div class="sub-header" style="background:#ffebee;border-color:#c62828;color:#c62828">
+    🚢 HỆ THỐNG EDGE – VẬN HÀNH TÀU OFFLINE-FIRST TRÊN TÀU
+  </div>
+
+  <div class="shot-grid-2" style="margin-top:2mm">
+    <div class="shot">
+      <img src="mau/1.png" alt="Dashboard">
+      <div class="shot-cap">Dashboard vận hành tàu</div>
+    </div>
+    <div class="shot">
+      <img src="mau/2.png" alt="Crew list Edge">
+      <div class="shot-cap">Quản lý thuyền viên trên tàu</div>
+    </div>
+  </div>
+
+  <div class="shot-grid-2">
+    <div class="shot">
+      <img src="mau/5.png" alt="Equipment">
+      <div class="shot-cap">Danh mục thiết bị PMS</div>
+    </div>
+    <div class="shot">
+      <img src="mau/6.png" alt="Materials">
+      <div class="shot-cap">Kho vật tư trên tàu</div>
+    </div>
+  </div>
+
+  <div class="two-col-text">
+    <ul class="feat-list red">
+      <li>Hoạt động hoàn toàn offline, không cần kết nối internet</li>
+      <li>PMS: lên lịch bảo trì, theo dõi giờ chạy máy, cảnh báo</li>
+      <li>Nhật ký hành hải điện tử (logbook) theo tiêu chuẩn IMO</li>
+    </ul>
+    <ul class="feat-list red">
+      <li>Quản lý kho vật tư, phụ tùng thay thế trên tàu</li>
+      <li>Chứng chỉ thuyền viên: cảnh báo hết hạn tự động</li>
+      <li>Tự động đồng bộ về bờ khi có kết nối vệ tinh / 4G</li>
+    </ul>
+  </div>
+
+  <div class="sep"></div>
+
+  <!-- Mobile -->
+  <div class="sub-header" style="background:#e8f5e9;border-color:#2e7d32;color:#2e7d32">
+    📱 ỨNG DỤNG MOBILE – MARITIME CREW APP (FLUTTER – ANDROID / IOS)
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:2.5mm;margin-top:2mm">
+    <div class="shot">
+      <img src="mau/9.png" alt="Mobile home" style="max-height:50mm;object-fit:contain;background:#f0f0f0">
+      <div class="shot-cap">Màn hình chính ứng dụng</div>
+    </div>
+    <div class="shot">
+      <img src="mau/10.png" alt="My Tasks" style="max-height:50mm;object-fit:contain;background:#f0f0f0">
+      <div class="shot-cap">Danh sách nhiệm vụ bảo trì</div>
+    </div>
+    <div style="border:1.5px solid #a5d6a7;border-radius:2px;background:#e8f5e9;padding:3mm 4mm;display:flex;flex-direction:column;justify-content:center">
+      <ul class="feat-list green" style="line-height:2.0">
+        <li>Flutter đa nền tảng Android &amp; iOS</li>
+        <li>Xem &amp; cập nhật nhiệm vụ bảo trì</li>
+        <li>Nhận thông báo push</li>
+        <li>Xem chứng chỉ cá nhân</li>
+        <li>Đồng bộ tự động với Edge</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============================================================ -->
+<!--  TRANG 4 – MOBILE APP & KẾT QUẢ                              -->
+<!-- ============================================================ -->
+<div class="page">
+
+  <div class="content-header">
+    <div>
+      <span class="sec-num">3.</span>
+      <span class="sec-title">Chức Năng Bổ Sung &amp; Kết Quả Nghiên Cứu</span>
+    </div>
+    <div class="sec-tag">PMS · AI · Tháng 5/2026</div>
+  </div>
+
+  <!-- PMS + AI screens -->
+  <div class="sub-header">Chức Năng Bổ Sung – PMS Bảo Trì &amp; Tích Hợp</div>
+
+  <div class="shot-grid-3" style="margin-top:2mm">
+    <div class="shot">
+      <img src="mau/7.png" alt="PMS tasks">
+      <div class="shot-cap">Công việc bảo trì PMS</div>
+    </div>
+    <div class="shot">
+      <img src="mau/8.png" alt="Maintenance config">
+      <div class="shot-cap">Cấu hình lịch bảo trì</div>
+    </div>
+    <div class="shot">
+      <img src="mau/13.png" alt="Voyage detail">
+      <div class="shot-cap">Chi tiết hành trình</div>
+    </div>
+  </div>
+
+  <div class="sep"></div>
+
+  <!-- Results -->
+  <div class="sub-header">Kết Quả &amp; Ý Nghĩa Khoa Học</div>
+
+  <div class="two-col-text" style="margin-top:3mm;gap:5mm">
+    <div>
+      <ul class="feat-list" style="line-height:2.1">
+        <li>Xây dựng thành công hệ thống quản lý đội tàu hoàn chỉnh với 3 ứng dụng tích hợp</li>
+        <li>Giải quyết bài toán kết nối không ổn định trên biển bằng mô hình Offline-First</li>
+        <li>Cơ chế đồng bộ thông minh (Sync Queue + Idempotency) đảm bảo toàn vẹn dữ liệu</li>
+        <li>Tích hợp AI (LLM) hỗ trợ nghiệp vụ hàng hải – hướng tiếp cận mới trong ngành</li>
+        <li>Đóng góp giải pháp công nghệ thực tiễn cho vận tải biển Việt Nam</li>
+      </ul>
+    </div>
+    <div>
+      <div class="callout green" style="margin-bottom:3mm">
+        <strong>Điểm nổi bật kỹ thuật:</strong><br>
+        Hệ thống Edge vận hành hoàn toàn độc lập khi tàu ngoài vùng phủ sóng.
+        Khi tàu vào cảng hoặc có vệ tinh, toàn bộ dữ liệu tự động đồng bộ về Shore
+        theo thứ tự ưu tiên, không bị mất hay trùng lặp.
+      </div>
+      <div class="stats-row" style="grid-template-columns:repeat(3,1fr)">
+        <div class="stat-box"><div class="num" style="font-size:11pt">Shore</div><div class="lbl">.NET 8<br>React 19</div></div>
+        <div class="stat-box" style="background:#c62828"><div class="num" style="font-size:11pt">Edge</div><div class="lbl">.NET 8<br>React 19</div></div>
+        <div class="stat-box" style="background:#2e7d32"><div class="num" style="font-size:11pt">Mobile</div><div class="lbl">Flutter<br>Dart</div></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

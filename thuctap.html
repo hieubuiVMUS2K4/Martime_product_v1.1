@@ -1,0 +1,1358 @@
+<!DOCTYPE html><html><head>
+      <title>thuctap</title>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      
+      <link rel="stylesheet" href="file:///c:\Users\Admin\.vscode\extensions\shd101wyy.markdown-preview-enhanced-0.8.24\crossnote\dependencies\katex\katex.min.css">
+      
+      
+      
+      <script type="text/javascript" src="file:///c:\Users\Admin\.vscode\extensions\shd101wyy.markdown-preview-enhanced-0.8.24\crossnote\dependencies\mermaid\mermaid.min.js" charset="UTF-8"></script>
+      
+      
+      
+      <style>
+      code[class*=language-],pre[class*=language-]{color:#333;background:0 0;font-family:Consolas,"Liberation Mono",Menlo,Courier,monospace;text-align:left;white-space:pre;word-spacing:normal;word-break:normal;word-wrap:normal;line-height:1.4;-moz-tab-size:8;-o-tab-size:8;tab-size:8;-webkit-hyphens:none;-moz-hyphens:none;-ms-hyphens:none;hyphens:none}pre[class*=language-]{padding:.8em;overflow:auto;border-radius:3px;background:#f5f5f5}:not(pre)>code[class*=language-]{padding:.1em;border-radius:.3em;white-space:normal;background:#f5f5f5}.token.blockquote,.token.comment{color:#969896}.token.cdata{color:#183691}.token.doctype,.token.macro.property,.token.punctuation,.token.variable{color:#333}.token.builtin,.token.important,.token.keyword,.token.operator,.token.rule{color:#a71d5d}.token.attr-value,.token.regex,.token.string,.token.url{color:#183691}.token.atrule,.token.boolean,.token.code,.token.command,.token.constant,.token.entity,.token.number,.token.property,.token.symbol{color:#0086b3}.token.prolog,.token.selector,.token.tag{color:#63a35c}.token.attr-name,.token.class,.token.class-name,.token.function,.token.id,.token.namespace,.token.pseudo-class,.token.pseudo-element,.token.url-reference .token.variable{color:#795da3}.token.entity{cursor:help}.token.title,.token.title .token.punctuation{font-weight:700;color:#1d3e81}.token.list{color:#ed6a43}.token.inserted{background-color:#eaffea;color:#55a532}.token.deleted{background-color:#ffecec;color:#bd2c00}.token.bold{font-weight:700}.token.italic{font-style:italic}.language-json .token.property{color:#183691}.language-markup .token.tag .token.punctuation{color:#333}.language-css .token.function,code.language-css{color:#0086b3}.language-yaml .token.atrule{color:#63a35c}code.language-yaml{color:#183691}.language-ruby .token.function{color:#333}.language-markdown .token.url{color:#795da3}.language-makefile .token.symbol{color:#795da3}.language-makefile .token.variable{color:#183691}.language-makefile .token.builtin{color:#0086b3}.language-bash .token.keyword{color:#0086b3}pre[data-line]{position:relative;padding:1em 0 1em 3em}pre[data-line] .line-highlight-wrapper{position:absolute;top:0;left:0;background-color:transparent;display:block;width:100%}pre[data-line] .line-highlight{position:absolute;left:0;right:0;padding:inherit 0;margin-top:1em;background:hsla(24,20%,50%,.08);background:linear-gradient(to right,hsla(24,20%,50%,.1) 70%,hsla(24,20%,50%,0));pointer-events:none;line-height:inherit;white-space:pre}pre[data-line] .line-highlight:before,pre[data-line] .line-highlight[data-end]:after{content:attr(data-start);position:absolute;top:.4em;left:.6em;min-width:1em;padding:0 .5em;background-color:hsla(24,20%,50%,.4);color:#f4f1ef;font:bold 65%/1.5 sans-serif;text-align:center;vertical-align:.3em;border-radius:999px;text-shadow:none;box-shadow:0 1px #fff}pre[data-line] .line-highlight[data-end]:after{content:attr(data-end);top:auto;bottom:.4em}html body{font-family:'Helvetica Neue',Helvetica,'Segoe UI',Arial,freesans,sans-serif;font-size:16px;line-height:1.6;color:#333;background-color:#fff;overflow:initial;box-sizing:border-box;word-wrap:break-word}html body>:first-child{margin-top:0}html body h1,html body h2,html body h3,html body h4,html body h5,html body h6{line-height:1.2;margin-top:1em;margin-bottom:16px;color:#000}html body h1{font-size:2.25em;font-weight:300;padding-bottom:.3em}html body h2{font-size:1.75em;font-weight:400;padding-bottom:.3em}html body h3{font-size:1.5em;font-weight:500}html body h4{font-size:1.25em;font-weight:600}html body h5{font-size:1.1em;font-weight:600}html body h6{font-size:1em;font-weight:600}html body h1,html body h2,html body h3,html body h4,html body h5{font-weight:600}html body h5{font-size:1em}html body h6{color:#5c5c5c}html body strong{color:#000}html body del{color:#5c5c5c}html body a:not([href]){color:inherit;text-decoration:none}html body a{color:#08c;text-decoration:none}html body a:hover{color:#00a3f5;text-decoration:none}html body img{max-width:100%}html body>p{margin-top:0;margin-bottom:16px;word-wrap:break-word}html body>ol,html body>ul{margin-bottom:16px}html body ol,html body ul{padding-left:2em}html body ol.no-list,html body ul.no-list{padding:0;list-style-type:none}html body ol ol,html body ol ul,html body ul ol,html body ul ul{margin-top:0;margin-bottom:0}html body li{margin-bottom:0}html body li.task-list-item{list-style:none}html body li>p{margin-top:0;margin-bottom:0}html body .task-list-item-checkbox{margin:0 .2em .25em -1.8em;vertical-align:middle}html body .task-list-item-checkbox:hover{cursor:pointer}html body blockquote{margin:16px 0;font-size:inherit;padding:0 15px;color:#5c5c5c;background-color:#f0f0f0;border-left:4px solid #d6d6d6}html body blockquote>:first-child{margin-top:0}html body blockquote>:last-child{margin-bottom:0}html body hr{height:4px;margin:32px 0;background-color:#d6d6d6;border:0 none}html body table{margin:10px 0 15px 0;border-collapse:collapse;border-spacing:0;display:block;width:100%;overflow:auto;word-break:normal;word-break:keep-all}html body table th{font-weight:700;color:#000}html body table td,html body table th{border:1px solid #d6d6d6;padding:6px 13px}html body dl{padding:0}html body dl dt{padding:0;margin-top:16px;font-size:1em;font-style:italic;font-weight:700}html body dl dd{padding:0 16px;margin-bottom:16px}html body code{font-family:Menlo,Monaco,Consolas,'Courier New',monospace;font-size:.85em;color:#000;background-color:#f0f0f0;border-radius:3px;padding:.2em 0}html body code::after,html body code::before{letter-spacing:-.2em;content:'\00a0'}html body pre>code{padding:0;margin:0;word-break:normal;white-space:pre;background:0 0;border:0}html body .highlight{margin-bottom:16px}html body .highlight pre,html body pre{padding:1em;overflow:auto;line-height:1.45;border:#d6d6d6;border-radius:3px}html body .highlight pre{margin-bottom:0;word-break:normal}html body pre code,html body pre tt{display:inline;max-width:initial;padding:0;margin:0;overflow:initial;line-height:inherit;word-wrap:normal;background-color:transparent;border:0}html body pre code:after,html body pre code:before,html body pre tt:after,html body pre tt:before{content:normal}html body blockquote,html body dl,html body ol,html body p,html body pre,html body ul{margin-top:0;margin-bottom:16px}html body kbd{color:#000;border:1px solid #d6d6d6;border-bottom:2px solid #c7c7c7;padding:2px 4px;background-color:#f0f0f0;border-radius:3px}@media print{html body{background-color:#fff}html body h1,html body h2,html body h3,html body h4,html body h5,html body h6{color:#000;page-break-after:avoid}html body blockquote{color:#5c5c5c}html body pre{page-break-inside:avoid}html body table{display:table}html body img{display:block;max-width:100%;max-height:100%}html body code,html body pre{word-wrap:break-word;white-space:pre}}.markdown-preview{width:100%;height:100%;box-sizing:border-box}.markdown-preview ul{list-style:disc}.markdown-preview ul ul{list-style:circle}.markdown-preview ul ul ul{list-style:square}.markdown-preview ol{list-style:decimal}.markdown-preview ol ol,.markdown-preview ul ol{list-style-type:lower-roman}.markdown-preview ol ol ol,.markdown-preview ol ul ol,.markdown-preview ul ol ol,.markdown-preview ul ul ol{list-style-type:lower-alpha}.markdown-preview .newpage,.markdown-preview .pagebreak{page-break-before:always}.markdown-preview pre.line-numbers{position:relative;padding-left:3.8em;counter-reset:linenumber}.markdown-preview pre.line-numbers>code{position:relative}.markdown-preview pre.line-numbers .line-numbers-rows{position:absolute;pointer-events:none;top:1em;font-size:100%;left:0;width:3em;letter-spacing:-1px;border-right:1px solid #999;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none}.markdown-preview pre.line-numbers .line-numbers-rows>span{pointer-events:none;display:block;counter-increment:linenumber}.markdown-preview pre.line-numbers .line-numbers-rows>span:before{content:counter(linenumber);color:#999;display:block;padding-right:.8em;text-align:right}.markdown-preview .mathjax-exps .MathJax_Display{text-align:center!important}.markdown-preview:not([data-for=preview]) .code-chunk .code-chunk-btn-group{display:none}.markdown-preview:not([data-for=preview]) .code-chunk .status{display:none}.markdown-preview:not([data-for=preview]) .code-chunk .output-div{margin-bottom:16px}.markdown-preview .md-toc{padding:0}.markdown-preview .md-toc .md-toc-details{margin:0;padding:0;border:none}.markdown-preview .md-toc summary.md-toc-link-wrapper{cursor:pointer;list-style-position:outside}.markdown-preview .md-toc summary.md-toc-link-wrapper::marker{font-size:.85em}.markdown-preview .md-toc .md-toc-link-wrapper .md-toc-link{display:inline;padding:.25rem 0}.markdown-preview .md-toc .md-toc-link-wrapper .md-toc-link div,.markdown-preview .md-toc .md-toc-link-wrapper .md-toc-link p{display:inline}.markdown-preview .md-toc .md-toc-link-wrapper.highlighted .md-toc-link{font-weight:800}.markdown-preview .md-toc .md-toc-link-wrapper[data-level='0']{margin-left:12px}.markdown-preview .md-toc .md-toc-link-wrapper[data-level='1']{margin-left:28px}.markdown-preview .md-toc .md-toc-link-wrapper[data-level='2']{margin-left:44px}.markdown-preview .md-toc .md-toc-link-wrapper[data-level='3']{margin-left:60px}.markdown-preview .md-toc .md-toc-link-wrapper[data-level='4']{margin-left:76px}.markdown-preview .md-toc .md-toc-link-wrapper[data-level='5']{margin-left:80px}.scrollbar-style::-webkit-scrollbar{width:8px}.scrollbar-style::-webkit-scrollbar-track{border-radius:10px;background-color:transparent}.scrollbar-style::-webkit-scrollbar-thumb{border-radius:5px;background-color:rgba(150,150,150,.66);border:4px solid rgba(150,150,150,.66);background-clip:content-box}html body[for=html-export]:not([data-presentation-mode]){position:relative;width:100%;height:100%;top:0;left:0;margin:0;padding:0;overflow:auto}html body[for=html-export]:not([data-presentation-mode]) .markdown-preview{position:relative;top:0;min-height:100vh}@media screen and (min-width:914px){html body[for=html-export]:not([data-presentation-mode]) .markdown-preview{padding:2em calc(50% - 457px + 2em)}}@media screen and (max-width:914px){html body[for=html-export]:not([data-presentation-mode]) .markdown-preview{padding:2em}}@media screen and (max-width:450px){html body[for=html-export]:not([data-presentation-mode]) .markdown-preview{font-size:14px!important;padding:1em}}@media print{html body[for=html-export]:not([data-presentation-mode]) #sidebar-toc-btn{display:none}}html body[for=html-export]:not([data-presentation-mode]) #sidebar-toc-btn{position:fixed;bottom:8px;left:8px;font-size:28px;cursor:pointer;color:inherit;z-index:99;width:32px;text-align:center;opacity:.4}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] #sidebar-toc-btn{opacity:1}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc{position:fixed;top:0;left:0;width:300px;height:100%;padding:32px 0 48px 0;font-size:14px;box-shadow:0 0 4px rgba(150,150,150,.33);box-sizing:border-box;overflow:auto;background-color:inherit}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc::-webkit-scrollbar{width:8px}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc::-webkit-scrollbar-track{border-radius:10px;background-color:transparent}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc::-webkit-scrollbar-thumb{border-radius:5px;background-color:rgba(150,150,150,.66);border:4px solid rgba(150,150,150,.66);background-clip:content-box}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc a{text-decoration:none}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc{padding:0 16px}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-details{margin:0;padding:0;border:none}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper .md-toc-link{display:inline;padding:.25rem 0}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper .md-toc-link div,html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper .md-toc-link p{display:inline}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper.highlighted .md-toc-link{font-weight:800}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper[data-level='0']{padding-left:0}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper[data-level='1']{padding-left:16px}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper[data-level='2']{padding-left:32px}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper[data-level='3']{padding-left:48px}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper[data-level='4']{padding-left:64px}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper[data-level='5']{padding-left:80px}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .markdown-preview{left:300px;width:calc(100% - 300px);padding:2em calc(50% - 457px - 300px / 2);margin:0;box-sizing:border-box}@media screen and (max-width:1274px){html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .markdown-preview{padding:2em}}@media screen and (max-width:450px){html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .markdown-preview{width:100%}}html body[for=html-export]:not([data-presentation-mode]):not([html-show-sidebar-toc]) .markdown-preview{left:50%;transform:translateX(-50%)}html body[for=html-export]:not([data-presentation-mode]):not([html-show-sidebar-toc]) .md-sidebar-toc{display:none}
+/* Please visit the URL below for more information: */
+/*   https://shd101wyy.github.io/markdown-preview-enhanced/#/customize-css */
+
+      </style>
+      <script type="text/javascript">
+  document.addEventListener("DOMContentLoaded", function () {
+    // your code here
+  });
+</script>
+    </head>
+    <body for="html-export">
+      <div class="crossnote markdown-preview  ">
+      
+<h1 id="tài-liệu-bảo-vệ-báo-cáo-thực-tập">TÀI LIỆU BẢO VỆ BÁO CÁO THỰC TẬP </h1>
+<h2 id="đề-tài-hệ-thống-quản-lý-hạm-đội-tàu-biển-theo-mô-hình-edge-shore-computing">Đề tài: Hệ thống Quản lý Hạm Đội Tàu Biển theo Mô hình Edge-Shore Computing </h2>
+<blockquote>
+<p><strong>Phiên bản:</strong> 1.0 | <strong>Ngày:</strong> 27/04/2026<br>
+<strong>Dự án:</strong> Maritime Management System v1.1<br>
+<strong>Repository:</strong> <code>Martime_product_v1.1</code></p>
+</blockquote>
+<hr>
+<h1 id="b1-quy-trình-và-hệ-thống-chung">B1. QUY TRÌNH VÀ HỆ THỐNG CHUNG </h1>
+<h2 id="11-git-log--lịch-sử-phát-triển">1.1 Git Log &amp; Lịch Sử Phát Triển </h2>
+<p>Dự án được phát triển theo mô hình <strong>feature branching</strong> trên GitHub với các nhánh:</p>
+<ul>
+<li><code>feature/viethoang</code> — nhánh chính (HEAD)</li>
+<li><code>feature/hieu5</code> — nhánh tính năng thành viên</li>
+<li><code>feature/tinhai</code>, <code>feature/tinht</code> — nhánh tính năng tổng hợp</li>
+</ul>
+<p><strong>Các commit tiêu biểu:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Commit</th>
+<th>Nội dung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>2ac7c5cb</code></td>
+<td>Nhánh hiện tại <code>feature/viethoang</code></td>
+</tr>
+<tr>
+<td><code>031fd097</code></td>
+<td>feat: redesign dashboard UI, dịch tiếng Việt toàn bộ shore frontend</td>
+</tr>
+<tr>
+<td><code>8d7d9d4b</code></td>
+<td>feat: crew cert rank filter, edge_changes clear on mark viewed</td>
+</tr>
+<tr>
+<td><code>30d4c7c8</code></td>
+<td>fix: crew sync - VesselId FK remapping, per-item error messages</td>
+</tr>
+<tr>
+<td><code>a8dd8842</code></td>
+<td>fix: sync auth middleware + conflict resolver duplicate + local config</td>
+</tr>
+<tr>
+<td><code>95a671bf</code></td>
+<td>fix: nginx client_max_body_size, edge upload cooldown</td>
+</tr>
+<tr>
+<td><code>c49297c5</code></td>
+<td>fix: restore production ShoreAPI URL and QuestPDF</td>
+</tr>
+<tr>
+<td><code>fc3c8ff6</code></td>
+<td>Merge feature/viethoang into feature/hieu5: cert rank filter</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Quy trình làm việc:</strong> Mỗi tính năng lớn được tạo branch riêng → phát triển → merge qua Pull Request → tích hợp lên nhánh chính.</p>
+</blockquote>
+<hr>
+<h2 id="12-phân-công-công-việc">1.2 Phân Công Công Việc </h2>
+<table>
+<thead>
+<tr>
+<th>Thành viên</th>
+<th>Phạm vi trách nhiệm</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Viet Hoang</strong></td>
+<td>Shore Frontend (React), Crew Management UI, Sync Dashboard</td>
+</tr>
+<tr>
+<td><strong>Hieu</strong></td>
+<td>Edge Backend (.NET), Sync Protocol, Conflict Resolver</td>
+</tr>
+<tr>
+<td><strong>Tinhai / Tinht</strong></td>
+<td>Voyage Sync, Phase 2.2 Bidirectional Sync, ERD Documentation</td>
+</tr>
+<tr>
+<td><strong>Chung</strong></td>
+<td>Edge Frontend (React), Mobile App (Flutter), PMS Module</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="13-tổng-quan-kiến-trúc-hệ-thống">1.3 Tổng Quan Kiến Trúc Hệ Thống </h2>
+<h3 id="bài-toán-thực-tế">Bài Toán Thực Tế </h3>
+<p>Trong ngành hàng hải, tàu hoạt động giữa đại dương nơi kết nối Internet rất hạn chế và đắt tiền:</p>
+<table>
+<thead>
+<tr>
+<th>Loại kết nối</th>
+<th>Băng thông</th>
+<th>Chi phí</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Iridium</strong> (vệ tinh)</td>
+<td>0.12 – 1 kbps</td>
+<td>Rất cao</td>
+</tr>
+<tr>
+<td><strong>VSAT</strong> (vệ tinh)</td>
+<td>64 kbps – 2 Mbps</td>
+<td>Cao</td>
+</tr>
+<tr>
+<td><strong>4G/LTE</strong> (cellular)</td>
+<td>1 – 100 Mbps</td>
+<td>Trung bình</td>
+</tr>
+<tr>
+<td><strong>Shore WiFi</strong></td>
+<td>10+ Mbps</td>
+<td>Thấp</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Vấn đề cốt lõi:</strong> Cần một hệ thống hoạt động được khi tàu ở giữa đại dương (offline hoàn toàn), nhưng vẫn đồng bộ dữ liệu với trung tâm khi có kết nối — mà không mất dữ liệu, không trùng lặp, không xung đột.</p>
+<h3 id="giải-pháp-edge-shore-computing">Giải Pháp: Edge-Shore Computing </h3>
+<pre data-role="codeBlock" data-info="" class="language-text"><code>┌─────────────────────────────┐     ┌─────────────────────────────┐
+│       SHORE (Trên Bờ)       │     │       EDGE (Trên Tàu)       │
+│   Trung tâm điều hành       │     │   Server đặt trên tàu       │
+│                             │     │                             │
+│  ✦ Quản lý đội tàu tổng thể │     │  ✦ Thu thập dữ liệu cảm biến│
+│  ✦ HR &amp; quản lý thuyền viên │     │  ✦ Giám sát máy móc real-time│
+│  ✦ Dữ liệu master tập trung │     │  ✦ Ghi nhật ký hành trình   │
+│  ✦ Compliance &amp; audit       │     │  ✦ Báo cáo Noon/Arrival/... │
+│  ✦ 29 Controllers           │     │  ✦ 51 Controllers           │
+│  ✦ 110+ bảng database       │     │  ✦ 60+ bảng database        │
+└─────────────────────────────┘     └─────────────────────────────┘
+              │                                    │
+              └──────────┐      ┌──────────────────┘
+                         ▼      ▼
+              ┌──────────────────────┐
+              │  VSAT / 4G / Iridium │
+              │  Kết nối không liên tục│
+              │  Store-and-Forward   │
+              └──────────────────────┘
+</code></pre><h3 id="nguyên-tắc-thiết-kế-cốt-lõi">Nguyên Tắc Thiết Kế Cốt Lõi </h3>
+<table>
+<thead>
+<tr>
+<th>Nguyên tắc</th>
+<th>Mô tả</th>
+<th>Lý do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Offline-First</strong></td>
+<td>Edge hoạt động 100% khi mất kết nối</td>
+<td>Tàu có thể mất kết nối hàng tuần</td>
+</tr>
+<tr>
+<td><strong>Store-and-Forward</strong></td>
+<td>Dữ liệu xếp hàng đợi, gửi khi có mạng</td>
+<td>Không mất dữ liệu dù mạng chập chờn</td>
+</tr>
+<tr>
+<td><strong>Network-Aware</strong></td>
+<td>Ưu tiên sync theo loại kết nối</td>
+<td>Iridium rất đắt → chỉ gửi Critical</td>
+</tr>
+<tr>
+<td><strong>Domain-Based Conflict</strong></td>
+<td>Mỗi bảng/trường có quy tắc riêng</td>
+<td>Last-Write-Wins không phù hợp hàng hải</td>
+</tr>
+<tr>
+<td><strong>Bidirectional Sync</strong></td>
+<td>Dữ liệu chảy hai chiều Shore ↔ Edge</td>
+<td>Shore plan → Edge thực thi → Shore nhận kết quả</td>
+</tr>
+<tr>
+<td><strong>Idempotent Processing</strong></td>
+<td>Xử lý nhiều lần không gây trùng lặp</td>
+<td>Mạng không ổn định → retry là bình thường</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="14-tiến-độ-phát-triển">1.4 Tiến Độ Phát Triển </h2>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Nội dung</th>
+<th>Trạng thái</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Phase 1</strong></td>
+<td>Kiến trúc cơ bản: Shore + Edge API, Database schema</td>
+<td>✅ Hoàn thành</td>
+</tr>
+<tr>
+<td><strong>Phase 2.1</strong></td>
+<td>Sync một chiều Edge → Shore (Crew, Telemetry)</td>
+<td>✅ Hoàn thành</td>
+</tr>
+<tr>
+<td><strong>Phase 2.2</strong></td>
+<td>Bidirectional Sync (Voyage Planning, Crew HR)</td>
+<td>✅ Hoàn thành (05/04/2026)</td>
+</tr>
+<tr>
+<td><strong>Phase 3</strong></td>
+<td>AI Module, Advanced Analytics</td>
+<td>🔄 Đang lên kế hoạch</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h1 id="b21-khảo-sát-phân-tích-và-thiết-kế-chi-tiết">B2.1. KHẢO SÁT, PHÂN TÍCH VÀ THIẾT KẾ CHI TIẾT </h1>
+<h2 id="211-mô-tả-nghiệp-vụ-hệ-thống">2.1.1 Mô Tả Nghiệp Vụ Hệ Thống </h2>
+<h3 id="module-1-quản-lý-thuyền-viên-crew-management">Module 1: Quản Lý Thuyền Viên (Crew Management) </h3>
+<p><strong>Đầu vào:</strong></p>
+<ul>
+<li>Hồ sơ thuyền viên: họ tên, ngày sinh, quốc tịch, chức danh (Rank)</li>
+<li>Chứng chỉ STCW (Standards of Training, Certification and Watchkeeping)</li>
+<li>Giấy tờ tùy thân, hộ chiếu, sách thuyền viên (Seafarer's Book)</li>
+<li>Hồ sơ sức khỏe, bảo hiểm xã hội, mã số thuế</li>
+</ul>
+<p><strong>Đầu ra:</strong></p>
+<ul>
+<li>Danh sách thuyền viên đang phục vụ trên tàu (IsOnboard = true)</li>
+<li>Lịch sử công tác (ServiceRecord) theo từng chuyến đi</li>
+<li>Cảnh báo chứng chỉ sắp hết hạn</li>
+<li>Báo cáo tuân thủ MLC 2006 (Maritime Labour Convention)</li>
+</ul>
+<p><strong>Quy tắc xử lý nghiệp vụ:</strong></p>
+<ol>
+<li>Mỗi thuyền viên có một <code>CrewCode</code> duy nhất trong hệ thống</li>
+<li>Không thể xóa thuyền viên nếu còn bản ghi phục vụ — chỉ được soft-delete</li>
+<li>Chứng chỉ STCW bắt buộc phải có trước khi phân công lên tàu (kiểm tra <code>ComplianceService</code>)</li>
+<li><code>IsOnboard</code> chỉ được Edge (tàu) thay đổi — Shore không được ghi đè trường này</li>
+<li>Khi thuyền viên mới được Shore tạo và sync xuống Edge → trạng thái <code>PendingReview</code>, thuyền trưởng phải duyệt trước khi chính thức onboard</li>
+</ol>
+<h3 id="module-2-đồng-bộ-dữ-liệu-sync-protocol">Module 2: Đồng Bộ Dữ Liệu (Sync Protocol) </h3>
+<p><strong>Đầu vào:</strong></p>
+<ul>
+<li>Thay đổi từ ứng dụng Edge: crew update, noon report, position, safety alarm...</li>
+<li>Thay đổi từ Shore: voyage plan, crew assignment, master data update...</li>
+<li>Loại kết nối mạng hiện tại: <code>None / Iridium / VSAT / 4G / WiFi</code></li>
+</ul>
+<p><strong>Đầu ra:</strong></p>
+<ul>
+<li><code>SyncQueue</code> (Edge): hàng đợi outgoing với trạng thái <code>Pending / Synced / Failed</code></li>
+<li><code>SyncOutbox</code> (Shore): hàng đợi gửi cho Edge với trạng thái <code>Pending / Delivered</code></li>
+<li><code>SyncLog</code>: audit trail đầy đủ mọi thao tác sync</li>
+<li>Kết quả <code>SyncBatchProcessResult</code>: số item thành công / thất bại, chi tiết lỗi</li>
+</ul>
+<p><strong>Quy tắc xử lý nghiệp vụ:</strong></p>
+<ol>
+<li><strong>Priority filtering theo network type:</strong>
+<ul>
+<li>Iridium → chỉ gửi <code>Critical</code> (safety alarms, distress)</li>
+<li>VSAT → <code>Critical + Operational</code></li>
+<li>4G/WiFi → tất cả priorities</li>
+</ul>
+</li>
+<li><strong>Idempotency:</strong> Key = <code>{TableName}:{RecordKey}:{SyncVersion}</code> — xử lý nhiều lần không gây duplicate</li>
+<li><strong>Exponential backoff:</strong> Retry tối đa 5 lần, delay tăng theo lũy thừa</li>
+<li><strong>Batch size:</strong> Tối đa 100 items/request, cursor-based pagination cho pull</li>
+<li><strong>Conflict resolution:</strong> Domain-based (không phải Last-Write-Wins)</li>
+</ol>
+<h3 id="module-3-báo-cáo-hàng-hải-maritime-reports">Module 3: Báo Cáo Hàng Hải (Maritime Reports) </h3>
+<p><strong>Đầu vào:</strong></p>
+<ul>
+<li>Dữ liệu từ buồng lái: vị trí GPS, tốc độ, hướng đi</li>
+<li>Tiêu thụ nhiên liệu (bunker): HFO, MDO, LFO theo từng máy</li>
+<li>Thông tin hàng hóa: trọng lượng, loại, tình trạng</li>
+<li>Thời tiết: sóng, gió, áp suất khí quyển</li>
+</ul>
+<p><strong>Đầu ra:</strong></p>
+<ul>
+<li><strong>Noon Report:</strong> báo cáo 12:00 UTC hằng ngày (IMO standard)</li>
+<li><strong>Departure Report:</strong> báo cáo khi tàu rời cảng</li>
+<li><strong>Arrival Report:</strong> báo cáo khi tàu vào cảng</li>
+<li><strong>Bunker Report:</strong> báo cáo tiêu thụ nhiên liệu</li>
+<li><strong>Position Report:</strong> vị trí tàu định kỳ</li>
+</ul>
+<p><strong>Quy tắc xử lý:</strong></p>
+<ol>
+<li>Noon Report phải có đủ: position, speed, fuel consumption, weather conditions</li>
+<li>Không thể nộp báo cáo trùng ngày/loại (unique constraint <code>VoyageId + ReportDate + Type</code>)</li>
+<li>Sau khi nộp, báo cáo được queue vào SyncQueue với priority <code>Operational</code></li>
+</ol>
+<h3 id="module-4-bảo-trì-phòng-ngừa--pms-planned-maintenance-system">Module 4: Bảo Trì Phòng Ngừa — PMS (Planned Maintenance System) </h3>
+<p><strong>Đầu vào:</strong></p>
+<ul>
+<li>Danh mục thiết bị tàu: máy chính, máy phụ, bơm, van, thiết bị cứu sinh</li>
+<li>Lịch bảo trì theo nhà sản xuất (running hours / calendar)</li>
+<li>Kết quả công việc bảo trì: trạng thái, vật tư tiêu hao, ghi chú</li>
+</ul>
+<p><strong>Đầu ra:</strong></p>
+<ul>
+<li><code>MaintenanceSchedule</code>: lịch bảo trì tự động theo chu kỳ</li>
+<li><code>MaintenanceTask</code> với trạng thái: <code>Pending / InProgress / Done / Overdue / Deferred</code></li>
+<li>Yêu cầu hoãn (<code>DeferralRequest</code>) cần duyệt của Chief Engineer</li>
+<li>Dashboard PMS tổng hợp: overdue count, upcoming, completion rate</li>
+</ul>
+<p><strong>Quy tắc:</strong></p>
+<ol>
+<li>Công việc overdue không thể tự đóng — phải có duyệt của Captain hoặc ChiefEngineer</li>
+<li><code>DeferralRequest</code> vượt quá 30 ngày cần phê duyệt từ Shore (ClassSurveyor)</li>
+<li>Tuân thủ ISM Code: mọi thao tác bảo trì phải có AuditLog</li>
+</ol>
+<hr>
+<h2 id="212-sơ-đồ-phân-tích-và-thiết-kế">2.1.2 Sơ Đồ Phân Tích và Thiết Kế </h2>
+<h3 id="sơ-đồ-luồng-đồng-bộ-dữ-liệu-sync-flow">Sơ Đồ Luồng Đồng Bộ Dữ Liệu (Sync Flow) </h3>
+<pre data-role="codeBlock" data-info="" class="language-text"><code>EDGE (Tàu)                                    SHORE (Bờ)
+══════════                                    ══════════
+  App.SaveChanges()
+       │
+       ▼
+  ISyncableEntity? ──NO──► Bỏ qua
+       │ YES
+       ▼
+  SyncQueue.Add(                              POST /api/sync
+    tableName,                ────────►       SyncController
+    recordKey,                PUSH            SyncInboxService
+    payload (JSON),           (batch 100)         │
+    priority,                                     ├─► IsAlreadyProcessed?
+    syncVersion,                                  │       │ YES → skip
+    actionType,                                   │       │ NO  ↓
+    originNode                                    ├─► ConflictResolverService
+  )                                               │       │
+       │                                          │       ├─► Master Data?  → Shore wins
+  SyncBackgroundWorker                            │       ├─► Operational?  → Edge wins
+  (mỗi 30 giây)                                  │       ├─► Crew member?  → Merge fields
+       │                                          │       └─► Fallback?     → Last-Write-Wins
+       ├─► Check NetworkType                      │
+       ├─► Filter by Priority                     ├─► Apply to DB
+       ├─► Send batch                             ├─► SyncIdempotencyRecord.Add()
+       └─► Mark SyncedAt                          └─► SyncLog.Add()
+
+
+SHORE (Bờ)                                    EDGE (Tàu)
+══════════                                    ══════════
+  Business Logic                              GET /api/sync/pull
+  SaveChanges()                   ◄────────   SyncBackgroundWorker
+       │                          PULL         (mỗi 30 giây)
+       ▼                          (cursor-         │
+  ShoreAutoSyncInterceptor        based)           ├─► Nhận SyncOutbox items
+       │                                          │
+  SyncOutboxService.EnqueueAsync()               ├─► SyncConflictHandler
+       │                                          │       │
+       ├─► TargetNode = ShipIMO                   │       ├─► Master Data? → Accept
+       ├─► Deduplication check                    │       ├─► ServiceRecord? → Reject
+       └─► Upsert SyncOutbox                      │       ├─► Crew from Shore? → PendingReview
+                                                   │       └─► Crew update? → Merge HR fields
+                                                   │
+                                              POST /api/sync/acknowledge
+                                              ────────────────────────►
+                                              Shore marks DeliveredAt
+</code></pre><h3 id="sơ-đồ-erd--module-crew-chứng-chỉ-users">Sơ Đồ ERD — Module Crew, Chứng Chỉ, Users </h3>
+<div class="mermaid">erDiagram
+    crew_members {
+        uuid id PK
+        string crew_code UK
+        string full_name
+        date date_of_birth
+        string nationality
+        int rank_id FK
+        bool is_onboard
+        date embark_date
+        date disembark_date
+        string origin_node
+        long sync_version
+    }
+    ranks {
+        int id PK
+        string code
+        string name_en
+        string name_vi
+    }
+    certificates {
+        int id PK
+        string code
+        string name_en
+        bool is_stcw
+    }
+    crew_certificates {
+        uuid id PK
+        uuid crew_id FK
+        int certificate_id FK
+        date issue_date
+        date expiry_date
+        string issuing_country
+        string certificate_number
+    }
+    service_records {
+        uuid id PK
+        uuid crew_id FK
+        string vessel_name
+        string rank_code
+        date sign_on
+        date sign_off
+        string origin_node
+    }
+    users {
+        uuid id PK
+        uuid crew_id FK
+        string username UK
+        string password_hash
+        int role_id FK
+    }
+
+    ranks ||--o{ crew_members : "has rank"
+    crew_members ||--o{ crew_certificates : "holds"
+    certificates ||--o{ crew_certificates : "type of"
+    crew_members ||--o{ service_records : "served in"
+    crew_members ||--o{ users : "has account"
+</div><h3 id="sơ-đồ-erd--module-voyage--sync-infrastructure">Sơ Đồ ERD — Module Voyage &amp; Sync Infrastructure </h3>
+<div class="mermaid">erDiagram
+    voyage_records {
+        uuid id PK
+        string voyage_number UK
+        string vessel_imo
+        string status
+        datetime planned_departure
+        datetime actual_departure
+        string origin_node
+        long sync_version
+    }
+    voyage_plan_legs {
+        uuid id PK
+        uuid voyage_id FK
+        string from_port
+        string to_port
+        datetime eta
+        int sequence_order
+    }
+    noon_reports {
+        uuid id PK
+        uuid voyage_id FK
+        date report_date
+        decimal latitude
+        decimal longitude
+        decimal speed_avg
+        decimal fuel_hfo
+        decimal fuel_mdo
+    }
+    sync_queue {
+        uuid id PK
+        string table_name
+        string record_key
+        string action_type
+        string priority
+        jsonb payload
+        long sync_version
+        datetime created_at
+        datetime synced_at
+        int retry_count
+    }
+    sync_outbox {
+        uuid id PK
+        string target_node
+        string table_name
+        string record_key
+        string action_type
+        jsonb payload
+        datetime created_at
+        datetime delivered_at
+    }
+    sync_idempotency_records {
+        uuid id PK
+        string idempotency_key UK
+        datetime processed_at
+        bool succeeded
+    }
+
+    voyage_records ||--o{ voyage_plan_legs : "has legs"
+    voyage_records ||--o{ noon_reports : "has reports"
+</div><hr>
+<h2 id="213-thiết-kế-bảng-dữ-liệu-chính">2.1.3 Thiết Kế Bảng Dữ Liệu Chính </h2>
+<h3 id="bảng-crew_members--bảng-trung-tâm-thuyền-viên">Bảng <code>crew_members</code> — Bảng trung tâm thuyền viên </h3>
+<pre data-role="codeBlock" data-info="sql" class="language-sql sql"><code><span class="token keyword keyword-CREATE">CREATE</span> <span class="token keyword keyword-TABLE">TABLE</span> crew_members <span class="token punctuation">(</span>
+    id              UUID <span class="token keyword keyword-PRIMARY">PRIMARY</span> <span class="token keyword keyword-KEY">KEY</span> <span class="token keyword keyword-DEFAULT">DEFAULT</span> gen_random_uuid<span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
+    crew_code       <span class="token keyword keyword-VARCHAR">VARCHAR</span><span class="token punctuation">(</span><span class="token number">20</span><span class="token punctuation">)</span> <span class="token keyword keyword-UNIQUE">UNIQUE</span> <span class="token operator">NOT</span> <span class="token boolean">NULL</span><span class="token punctuation">,</span>     <span class="token comment">-- Mã thuyền viên duy nhất</span>
+    full_name       <span class="token keyword keyword-VARCHAR">VARCHAR</span><span class="token punctuation">(</span><span class="token number">200</span><span class="token punctuation">)</span> <span class="token operator">NOT</span> <span class="token boolean">NULL</span><span class="token punctuation">,</span>
+    date_of_birth   <span class="token keyword keyword-DATE">DATE</span><span class="token punctuation">,</span>
+    nationality     <span class="token keyword keyword-VARCHAR">VARCHAR</span><span class="token punctuation">(</span><span class="token number">50</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
+    rank_id         <span class="token keyword keyword-INT">INT</span> <span class="token keyword keyword-REFERENCES">REFERENCES</span> ranks<span class="token punctuation">(</span>id<span class="token punctuation">)</span><span class="token punctuation">,</span>
+    <span class="token comment">-- Trường Edge sở hữu (chỉ tàu được cập nhật)</span>
+    is_onboard      <span class="token keyword keyword-BOOLEAN">BOOLEAN</span> <span class="token keyword keyword-DEFAULT">DEFAULT</span> <span class="token boolean">false</span><span class="token punctuation">,</span>
+    embark_date     <span class="token keyword keyword-DATE">DATE</span><span class="token punctuation">,</span>
+    disembark_date  <span class="token keyword keyword-DATE">DATE</span><span class="token punctuation">,</span>
+    embark_port     <span class="token keyword keyword-VARCHAR">VARCHAR</span><span class="token punctuation">(</span><span class="token number">10</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
+    disembark_port  <span class="token keyword keyword-VARCHAR">VARCHAR</span><span class="token punctuation">(</span><span class="token number">10</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
+    ship_id         UUID<span class="token punctuation">,</span>
+    <span class="token comment">-- Trường Shore sở hữu (chỉ HR được cập nhật)</span>
+    social_insurance_number <span class="token keyword keyword-VARCHAR">VARCHAR</span><span class="token punctuation">(</span><span class="token number">20</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
+    tax_id_number           <span class="token keyword keyword-VARCHAR">VARCHAR</span><span class="token punctuation">(</span><span class="token number">20</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
+    <span class="token comment">-- Sync infrastructure fields (implement ISyncableEntity)</span>
+    is_synced       <span class="token keyword keyword-BOOLEAN">BOOLEAN</span> <span class="token keyword keyword-DEFAULT">DEFAULT</span> <span class="token boolean">false</span><span class="token punctuation">,</span>
+    origin_node     <span class="token keyword keyword-VARCHAR">VARCHAR</span><span class="token punctuation">(</span><span class="token number">50</span><span class="token punctuation">)</span> <span class="token operator">NOT</span> <span class="token boolean">NULL</span><span class="token punctuation">,</span>    <span class="token comment">-- "SHORE" hoặc "SHIP_001"</span>
+    sync_version    <span class="token keyword keyword-BIGINT">BIGINT</span> <span class="token keyword keyword-DEFAULT">DEFAULT</span> <span class="token number">0</span><span class="token punctuation">,</span>        <span class="token comment">-- Optimistic concurrency</span>
+    created_at      TIMESTAMPTZ <span class="token operator">NOT</span> <span class="token boolean">NULL</span> <span class="token keyword keyword-DEFAULT">DEFAULT</span> <span class="token function">NOW</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
+    updated_at      TIMESTAMPTZ <span class="token operator">NOT</span> <span class="token boolean">NULL</span> <span class="token keyword keyword-DEFAULT">DEFAULT</span> <span class="token function">NOW</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+<span class="token punctuation">)</span><span class="token punctuation">;</span>
+</code></pre><p><strong>Lý do thiết kế:</strong></p>
+<ul>
+<li><code>origin_node</code>: Xác định ai tạo ra bản ghi, dùng trong conflict resolution</li>
+<li><code>sync_version</code>: Tăng mỗi lần update, dùng cho idempotency key</li>
+<li>Tách trường Shore/Edge sở hữu: phản ánh đúng ownership model</li>
+</ul>
+<h3 id="bảng-sync_queue--hàng-đợi-outgoing-tại-edge">Bảng <code>sync_queue</code> — Hàng đợi outgoing tại Edge </h3>
+<pre data-role="codeBlock" data-info="sql" class="language-sql sql"><code><span class="token keyword keyword-CREATE">CREATE</span> <span class="token keyword keyword-TABLE">TABLE</span> sync_queue <span class="token punctuation">(</span>
+    id           UUID <span class="token keyword keyword-PRIMARY">PRIMARY</span> <span class="token keyword keyword-KEY">KEY</span> <span class="token keyword keyword-DEFAULT">DEFAULT</span> gen_random_uuid<span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
+    table_name   <span class="token keyword keyword-VARCHAR">VARCHAR</span><span class="token punctuation">(</span><span class="token number">100</span><span class="token punctuation">)</span> <span class="token operator">NOT</span> <span class="token boolean">NULL</span><span class="token punctuation">,</span>
+    record_key   <span class="token keyword keyword-VARCHAR">VARCHAR</span><span class="token punctuation">(</span><span class="token number">200</span><span class="token punctuation">)</span> <span class="token operator">NOT</span> <span class="token boolean">NULL</span><span class="token punctuation">,</span>    <span class="token comment">-- Primary key của bản ghi</span>
+    action_type  <span class="token keyword keyword-VARCHAR">VARCHAR</span><span class="token punctuation">(</span><span class="token number">20</span><span class="token punctuation">)</span> <span class="token operator">NOT</span> <span class="token boolean">NULL</span><span class="token punctuation">,</span>     <span class="token comment">-- CREATE | UPDATE | DELETE | SNAPSHOT</span>
+    priority     <span class="token keyword keyword-VARCHAR">VARCHAR</span><span class="token punctuation">(</span><span class="token number">20</span><span class="token punctuation">)</span> <span class="token operator">NOT</span> <span class="token boolean">NULL</span><span class="token punctuation">,</span>     <span class="token comment">-- Critical | Operational | Low</span>
+    payload      JSONB <span class="token operator">NOT</span> <span class="token boolean">NULL</span><span class="token punctuation">,</span>           <span class="token comment">-- Serialized entity data</span>
+    sync_version <span class="token keyword keyword-BIGINT">BIGINT</span> <span class="token operator">NOT</span> <span class="token boolean">NULL</span><span class="token punctuation">,</span>
+    origin_node  <span class="token keyword keyword-VARCHAR">VARCHAR</span><span class="token punctuation">(</span><span class="token number">50</span><span class="token punctuation">)</span> <span class="token operator">NOT</span> <span class="token boolean">NULL</span><span class="token punctuation">,</span>
+    created_at   TIMESTAMPTZ <span class="token operator">NOT</span> <span class="token boolean">NULL</span> <span class="token keyword keyword-DEFAULT">DEFAULT</span> <span class="token function">NOW</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
+    synced_at    TIMESTAMPTZ<span class="token punctuation">,</span>             <span class="token comment">-- NULL = chưa đồng bộ</span>
+    retry_count  <span class="token keyword keyword-INT">INT</span> <span class="token keyword keyword-DEFAULT">DEFAULT</span> <span class="token number">0</span><span class="token punctuation">,</span>
+    last_error   <span class="token keyword keyword-TEXT">TEXT</span>
+<span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token keyword keyword-CREATE">CREATE</span> <span class="token keyword keyword-INDEX">INDEX</span> idx_sync_queue_unsynced <span class="token keyword keyword-ON">ON</span> sync_queue<span class="token punctuation">(</span>priority<span class="token punctuation">,</span> created_at<span class="token punctuation">)</span> 
+    <span class="token keyword keyword-WHERE">WHERE</span> synced_at <span class="token operator">IS</span> <span class="token boolean">NULL</span><span class="token punctuation">;</span>             <span class="token comment">-- Index cho background worker</span>
+</code></pre><p><strong>Lý do thiết kế:</strong></p>
+<ul>
+<li><code>priority</code> + partial index: Background worker chỉ scan hàng chờ, nhanh</li>
+<li><code>payload JSONB</code>: Linh hoạt, không cần schema migration khi thêm trường</li>
+<li><code>retry_count</code> + <code>last_error</code>: Exponential backoff và diagnostics</li>
+</ul>
+<hr>
+<h1 id="b22-tìm-hiểu-công-cụ-công-nghệ">B2.2. TÌM HIỂU CÔNG CỤ, CÔNG NGHỆ </h1>
+<h2 id="221-stack-công-nghệ">2.2.1 Stack Công Nghệ </h2>
+<h3 id="backend--aspnet-core-80">Backend — <a href="http://ASP.NET">ASP.NET</a> Core 8.0 </h3>
+<p><strong>Lý do chọn .NET 8:</strong></p>
+<ul>
+<li>Performance cao nhất trong lịch sử .NET (Benchmark TechEmpower vượt Go)</li>
+<li>Native AOT compilation → khởi động nhanh trên server tàu resource hạn chế</li>
+<li>Entity Framework Core 8 với interceptor pattern → tự động hóa sync queue</li>
+<li>IHostedService cho background worker mà không cần thư viện ngoài</li>
+</ul>
+<p><strong>Các pattern được áp dụng:</strong></p>
+<ul>
+<li><strong>Repository Pattern</strong>: Tách DB access khỏi business logic</li>
+<li><strong>Service Layer</strong>: Controller → Service → Repository → DB</li>
+<li><strong>Interceptor Pattern</strong> (<code>SaveChangesInterceptor</code>): Tự động phát hiện thay đổi ISyncableEntity</li>
+<li><strong>Background Service</strong> (<code>IHostedService</code>): Sync worker chạy độc lập</li>
+<li><strong>JWT + Role-based Authorization</strong>: 9 roles khác nhau (Admin, Master, ChiefOfficer...)</li>
+</ul>
+<h3 id="frontend--react-19--typescript">Frontend — React 19 + TypeScript </h3>
+<p><strong>Shore Frontend</strong> (Port 3000): React Context API cho state management<br>
+<strong>Edge Frontend</strong> (Port 3002): Zustand 5.0 với persistent state (offline-aware)</p>
+<p><strong>Lý do chọn Zustand cho Edge:</strong></p>
+<ul>
+<li>Redux quá nặng cho thiết bị trên tàu</li>
+<li>Zustand hỗ trợ persist middleware → lưu state vào localStorage</li>
+<li>Offline-first: UI không bị reset khi reload</li>
+</ul>
+<p><strong>Tính năng đặc biệt:</strong></p>
+<ul>
+<li>Export Excel: <code>ExcelJS</code> (PMS schedule, crew list)</li>
+<li>Export PDF: <code>jsPDF</code> (noon reports)</li>
+<li>Drag &amp; Drop: <code>@dnd-kit</code> (PMS task board)</li>
+<li>Real-time charts: <code>Recharts</code> (telemetry dashboard)</li>
+</ul>
+<h3 id="mobile--flutter-3x">Mobile — Flutter 3.x </h3>
+<p><strong>Lý do chọn Flutter:</strong></p>
+<ul>
+<li>Single codebase cho Android + iOS</li>
+<li>Dart AOT compilation → hiệu suất gần native</li>
+<li>Hive local database → offline cache thuyền viên</li>
+<li>Provider state management → đủ đơn giản cho app thao tác trên tàu</li>
+</ul>
+<h3 id="database--postgresql-15">Database — PostgreSQL 15 </h3>
+<p><strong>Lý do chọn PostgreSQL:</strong></p>
+<ul>
+<li>JSONB native: payload đồng bộ lưu không cần schema cứng</li>
+<li><code>gen_random_uuid()</code> built-in: UUID primary keys cho distributed system</li>
+<li>Partial indexes: <code>sync_queue</code> chỉ index hàng chờ (<code>WHERE synced_at IS NULL</code>)</li>
+<li><code>TIMESTAMPTZ</code>: Tránh timezone bug khi tàu đổi múi giờ</li>
+</ul>
+<hr>
+<h2 id="222-tổ-chức-mã-nguồn">2.2.2 Tổ Chức Mã Nguồn </h2>
+<h3 id="cấu-trúc-shore-backend">Cấu Trúc Shore Backend </h3>
+<pre data-role="codeBlock" data-info="" class="language-text"><code>shore_product/backend/
+├── Controllers/             → API endpoints (thin layer, chỉ nhận request)
+│   ├── SyncController.cs    → POST /api/sync, GET /api/sync/pull
+│   ├── Crew/                → CrewController, CertificatesController
+│   └── ...
+├── Services/
+│   ├── Sync/
+│   │   ├── SyncInboxService.cs         → Xử lý push từ Edge
+│   │   ├── SyncOutboxService.cs        → Enqueue dữ liệu cho Edge
+│   │   ├── ConflictResolverService.cs  → Domain-based conflict resolution
+│   │   ├── ShoreAutoSyncInterceptor.cs → Tự động phát hiện thay đổi
+│   │   └── SyncHealthMonitorService.cs → Giám sát sức khỏe
+│   ├── Crew/                → CrewService, CertificateService
+│   └── Background/          → AlertBackgroundService
+├── Models/                  → Domain entities (110+ classes)
+├── Data/AppDbContext.cs      → EF Core DbContext
+├── DTOs/                    → Request/Response models
+└── Security/                → JWT, Authorization policies
+</code></pre><h3 id="cấu-trúc-edge-backend">Cấu Trúc Edge Backend </h3>
+<pre data-role="codeBlock" data-info="" class="language-text"><code>edge_product/edge-services/
+├── Controllers/ (51)        → API endpoints theo domain
+│   ├── Reporting/           → Noon, Departure, Arrival, Position reports
+│   ├── Logbooks/            → DeckLogbook, EngineLogbook, OilRecordBook
+│   ├── Maintenance/         → PMS, EquipmentAsset, TaskChecklist
+│   └── ...
+├── Services/
+│   ├── Core/
+│   │   ├── SyncBackgroundWorker.cs   → Push + Pull mỗi 30 giây
+│   │   └── SyncConflictHandler.cs   → Xử lý conflict khi nhận từ Shore
+│   ├── Voyage/, Reporting/, Maintenance/
+│   └── AI/                          → AI Assistant module
+├── Models/ (97+)
+└── BackgroundServices/
+    ├── TelemetrySimulatorService.cs  → Dev mode: giả lập GPS/engine
+    └── SignalKDataCollectorService.cs → Production: real sensor data
+</code></pre><h3 id="isyncableentity-interface">ISyncableEntity Interface </h3>
+<pre data-role="codeBlock" data-info="csharp" class="language-csharp csharp"><code><span class="token comment">// Maritime.Shared/Interfaces/ISyncableEntity.cs</span>
+<span class="token keyword keyword-public">public</span> <span class="token keyword keyword-interface">interface</span> <span class="token class-name">ISyncableEntity</span>
+<span class="token punctuation">{</span>
+    <span class="token return-type class-name"><span class="token keyword keyword-bool">bool</span></span> IsSynced <span class="token punctuation">{</span> <span class="token keyword keyword-get">get</span><span class="token punctuation">;</span> <span class="token keyword keyword-set">set</span><span class="token punctuation">;</span> <span class="token punctuation">}</span>
+    <span class="token return-type class-name"><span class="token keyword keyword-string">string</span></span> OriginNode <span class="token punctuation">{</span> <span class="token keyword keyword-get">get</span><span class="token punctuation">;</span> <span class="token keyword keyword-set">set</span><span class="token punctuation">;</span> <span class="token punctuation">}</span>      <span class="token comment">// "SHORE" | "SHIP_IMO_NUMBER"</span>
+    <span class="token return-type class-name"><span class="token keyword keyword-long">long</span></span> SyncVersion <span class="token punctuation">{</span> <span class="token keyword keyword-get">get</span><span class="token punctuation">;</span> <span class="token keyword keyword-set">set</span><span class="token punctuation">;</span> <span class="token punctuation">}</span>       <span class="token comment">// Tăng mỗi lần update</span>
+    <span class="token return-type class-name">DateTime</span> CreatedAt <span class="token punctuation">{</span> <span class="token keyword keyword-get">get</span><span class="token punctuation">;</span> <span class="token keyword keyword-set">set</span><span class="token punctuation">;</span> <span class="token punctuation">}</span>
+    <span class="token return-type class-name">DateTime</span> UpdatedAt <span class="token punctuation">{</span> <span class="token keyword keyword-get">get</span><span class="token punctuation">;</span> <span class="token keyword keyword-set">set</span><span class="token punctuation">;</span> <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</code></pre><p>Tất cả entity cần đồng bộ đều implement interface này:<br>
+<code>CrewMember</code>, <code>CrewCertificate</code>, <code>ServiceRecord</code>, <code>VoyageRecord</code>, <code>NoonReport</code>, <code>MaintenanceTask</code>...</p>
+<h3 id="kiểm-tra-dữ-liệu--bắt-lỗi">Kiểm Tra Dữ Liệu &amp; Bắt Lỗi </h3>
+<p><strong>Validation tầng Controller:</strong></p>
+<pre data-role="codeBlock" data-info="csharp" class="language-csharp csharp"><code><span class="token punctuation">[</span><span class="token attribute"><span class="token class-name">HttpPost</span></span><span class="token punctuation">]</span>
+<span class="token keyword keyword-public">public</span> <span class="token keyword keyword-async">async</span> <span class="token return-type class-name">Task<span class="token punctuation">&lt;</span>IActionResult<span class="token punctuation">&gt;</span></span> <span class="token function">CreateCrewMember</span><span class="token punctuation">(</span><span class="token punctuation">[</span><span class="token attribute"><span class="token class-name">FromBody</span></span><span class="token punctuation">]</span> <span class="token class-name">CreateCrewMemberDto</span> dto<span class="token punctuation">)</span>
+<span class="token punctuation">{</span>
+    <span class="token keyword keyword-if">if</span> <span class="token punctuation">(</span><span class="token operator">!</span>ModelState<span class="token punctuation">.</span>IsValid<span class="token punctuation">)</span>          <span class="token comment">// DataAnnotations validation</span>
+        <span class="token keyword keyword-return">return</span> <span class="token function">BadRequest</span><span class="token punctuation">(</span>ModelState<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+    <span class="token keyword keyword-if">if</span> <span class="token punctuation">(</span><span class="token keyword keyword-await">await</span> _crewService<span class="token punctuation">.</span><span class="token function">CodeExistsAsync</span><span class="token punctuation">(</span>dto<span class="token punctuation">.</span>CrewCode<span class="token punctuation">)</span><span class="token punctuation">)</span>
+        <span class="token keyword keyword-return">return</span> <span class="token function">Conflict</span><span class="token punctuation">(</span><span class="token string">"Crew code already exists"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token comment">// ...</span>
+<span class="token punctuation">}</span>
+</code></pre><p><strong>Global Exception Middleware:</strong></p>
+<pre data-role="codeBlock" data-info="csharp" class="language-csharp csharp"><code><span class="token comment">// Middleware/ExceptionMiddleware.cs</span>
+app<span class="token punctuation">.</span><span class="token function">UseExceptionHandler</span><span class="token punctuation">(</span>err <span class="token operator">=&gt;</span> err<span class="token punctuation">.</span><span class="token function">Run</span><span class="token punctuation">(</span><span class="token keyword keyword-async">async</span> ctx <span class="token operator">=&gt;</span> <span class="token punctuation">{</span>
+    <span class="token class-name"><span class="token keyword keyword-var">var</span></span> ex <span class="token operator">=</span> ctx<span class="token punctuation">.</span>Features<span class="token punctuation">.</span><span class="token generic-method"><span class="token function">Get</span><span class="token generic class-name"><span class="token punctuation">&lt;</span>IExceptionHandlerFeature<span class="token punctuation">&gt;</span></span></span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">?.</span>Error<span class="token punctuation">;</span>
+    ctx<span class="token punctuation">.</span>Response<span class="token punctuation">.</span>StatusCode <span class="token operator">=</span> ex <span class="token keyword keyword-switch">switch</span> <span class="token punctuation">{</span>
+        NotFoundException <span class="token operator">=&gt;</span> <span class="token number">404</span><span class="token punctuation">,</span>
+        ValidationException <span class="token operator">=&gt;</span> <span class="token number">400</span><span class="token punctuation">,</span>
+        ConflictException <span class="token operator">=&gt;</span> <span class="token number">409</span><span class="token punctuation">,</span>
+        _ <span class="token operator">=&gt;</span> <span class="token number">500</span>
+    <span class="token punctuation">}</span><span class="token punctuation">;</span>
+    <span class="token keyword keyword-await">await</span> ctx<span class="token punctuation">.</span>Response<span class="token punctuation">.</span><span class="token function">WriteAsJsonAsync</span><span class="token punctuation">(</span><span class="token keyword keyword-new">new</span> <span class="token punctuation">{</span> error <span class="token operator">=</span> ex<span class="token punctuation">?.</span>Message <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+</code></pre><p><strong>Sync Batch Error Handling:</strong></p>
+<pre data-role="codeBlock" data-info="csharp" class="language-csharp csharp"><code><span class="token comment">// SyncInboxService.cs</span>
+<span class="token keyword keyword-public">public</span> <span class="token keyword keyword-async">async</span> <span class="token return-type class-name">Task<span class="token punctuation">&lt;</span>SyncBatchProcessResult<span class="token punctuation">&gt;</span></span> <span class="token function">ProcessBatchAsync</span><span class="token punctuation">(</span><span class="token class-name">List<span class="token punctuation">&lt;</span>SyncQueueItemDto<span class="token punctuation">&gt;</span></span> items<span class="token punctuation">)</span>
+<span class="token punctuation">{</span>
+    <span class="token class-name"><span class="token keyword keyword-var">var</span></span> result <span class="token operator">=</span> <span class="token keyword keyword-new">new</span> <span class="token constructor-invocation class-name">SyncBatchProcessResult</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token keyword keyword-foreach">foreach</span> <span class="token punctuation">(</span><span class="token class-name"><span class="token keyword keyword-var">var</span></span> item <span class="token keyword keyword-in">in</span> items<span class="token punctuation">)</span>
+    <span class="token punctuation">{</span>
+        <span class="token keyword keyword-try">try</span> <span class="token punctuation">{</span>
+            <span class="token keyword keyword-if">if</span> <span class="token punctuation">(</span><span class="token keyword keyword-await">await</span> <span class="token function">IsAlreadyProcessedAsync</span><span class="token punctuation">(</span>item<span class="token punctuation">.</span>TableName<span class="token punctuation">,</span> item<span class="token punctuation">.</span>RecordKey<span class="token punctuation">,</span> item<span class="token punctuation">.</span>SyncVersion<span class="token punctuation">)</span><span class="token punctuation">)</span>
+                <span class="token keyword keyword-continue">continue</span><span class="token punctuation">;</span>  <span class="token comment">// Idempotency check</span>
+
+            <span class="token keyword keyword-await">await</span> <span class="token function">ProcessIncomingAsync</span><span class="token punctuation">(</span>item<span class="token punctuation">)</span><span class="token punctuation">;</span>
+            result<span class="token punctuation">.</span>Succeeded<span class="token operator">++</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+        <span class="token keyword keyword-catch">catch</span> <span class="token punctuation">(</span><span class="token class-name">Exception</span> ex<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+            result<span class="token punctuation">.</span>Failed<span class="token operator">++</span><span class="token punctuation">;</span>
+            result<span class="token punctuation">.</span>FailedItems<span class="token punctuation">.</span><span class="token function">Add</span><span class="token punctuation">(</span><span class="token keyword keyword-new">new</span> <span class="token constructor-invocation class-name">SyncBatchItemFailure</span> <span class="token punctuation">{</span>
+                TableName <span class="token operator">=</span> item<span class="token punctuation">.</span>TableName<span class="token punctuation">,</span>
+                RecordKey <span class="token operator">=</span> item<span class="token punctuation">.</span>RecordKey<span class="token punctuation">,</span>
+                Error <span class="token operator">=</span> ex<span class="token punctuation">.</span>Message
+            <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+            _logger<span class="token punctuation">.</span><span class="token function">LogError</span><span class="token punctuation">(</span>ex<span class="token punctuation">,</span> <span class="token string">"Failed to process sync item {Table}/{Key}"</span><span class="token punctuation">,</span> 
+                item<span class="token punctuation">.</span>TableName<span class="token punctuation">,</span> item<span class="token punctuation">.</span>RecordKey<span class="token punctuation">)</span><span class="token punctuation">;</span>
+            <span class="token comment">// Không throw → tiếp tục xử lý items còn lại</span>
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">}</span>
+    <span class="token keyword keyword-return">return</span> result<span class="token punctuation">;</span>
+<span class="token punctuation">}</span>
+</code></pre><hr>
+<h2 id="223-sản-phẩm--kịch-bản-demo">2.2.3 Sản Phẩm &amp; Kịch Bản Demo </h2>
+<h3 id="kịch-bản-demo-1-thuyền-viên-lên-tàu">Kịch Bản Demo 1: Thuyền Viên Lên Tàu </h3>
+<ol>
+<li><strong>Shore</strong> (HRAdmin): Tạo hồ sơ thuyền viên mới trên shore dashboard</li>
+<li><strong>Shore AutoSync Interceptor</strong> tự động queue vào <code>SyncOutbox</code> (target = Ship IMO)</li>
+<li><strong>Edge</strong> SyncBackgroundWorker pull về → <code>SyncConflictHandler</code> xử lý → tạo crew với <code>IsOnboard=false, PendingReview=true</code></li>
+<li><strong>Edge</strong> (Captain/Master): Duyệt thuyền viên trong danh sách chờ → set <code>IsOnboard=true</code></li>
+<li><strong>Edge→Shore sync</strong>: Trạng thái mới được push về Shore</li>
+</ol>
+<h3 id="kịch-bản-demo-2-báo-cáo-noon-giữa-đại-dương">Kịch Bản Demo 2: Báo Cáo Noon (Giữa Đại Dương) </h3>
+<ol>
+<li>Tàu mất kết nối mạng (<code>NetworkType = None</code>)</li>
+<li>Chief Officer nhập Noon Report trên Edge Dashboard</li>
+<li>Hệ thống lưu vào DB + tạo <code>SyncQueue</code> entry (<code>Priority=Operational</code>)</li>
+<li>Sau 3 ngày, tàu vào vùng 4G coverage</li>
+<li>SyncBackgroundWorker phát hiện <code>NetworkType = Cellular_4G</code></li>
+<li>Push tất cả Operational + Critical items → Shore nhận, cập nhật fleet dashboard</li>
+<li>Shore tự động tính CII (Carbon Intensity Indicator) từ fuel data</li>
+</ol>
+<h3 id="kịch-bản-demo-3-conflict-resolution">Kịch Bản Demo 3: Conflict Resolution </h3>
+<ol>
+<li><strong>Shore HR</strong> cập nhật <code>FullName</code> thuyền viên: "Nguyen Van A" → "Nguyen Van An"</li>
+<li>Trong lúc mất mạng, <strong>Edge</strong> cũng cập nhật <code>IsOnboard=true</code> cho thuyền viên đó</li>
+<li>Khi có kết nối, cả 2 thay đổi được gửi lên Shore</li>
+<li><code>ConflictResolverService</code> xử lý:
+<ul>
+<li><code>FullName</code> → Shore owns → giữ "Nguyen Van An"</li>
+<li><code>IsOnboard</code> → Edge owns → giữ <code>true</code></li>
+</ul>
+</li>
+<li>Kết quả merge được push lại Edge</li>
+<li>Log xung đột được ghi vào <code>SyncLog</code> để audit</li>
+</ol>
+<hr>
+<h1 id="b23-trình-bày-giải-pháp">B2.3. TRÌNH BÀY GIẢI PHÁP </h1>
+<h2 id="231-tư-duy-thiết-kế">2.3.1 Tư Duy Thiết Kế </h2>
+<h3 id="tại-sao-không-dùng-giải-pháp-đơn-giản-hơn">Tại Sao Không Dùng Giải Pháp Đơn Giản Hơn? </h3>
+<p><strong>Phương án A — Chỉ dùng Cloud:</strong></p>
+<ul>
+<li>❌ Khi tàu mất kết nối, toàn bộ hệ thống không hoạt động</li>
+<li>❌ Chi phí băng thông VSAT cực kỳ đắt nếu mọi thao tác đều cần real-time</li>
+</ul>
+<p><strong>Phương án B — Chỉ dùng Edge, không sync:</strong></p>
+<ul>
+<li>❌ Shore không biết trạng thái tàu</li>
+<li>❌ Không thể quản lý đội tàu tập trung, không compliance</li>
+</ul>
+<p><strong>Phương án C (Đã chọn) — Edge-Shore với Store-and-Forward:</strong></p>
+<ul>
+<li>✅ Edge hoạt động hoàn toàn offline</li>
+<li>✅ Shore có đầy đủ dữ liệu khi tàu có mạng</li>
+<li>✅ Tốn bandwidth tối thiểu (chỉ sync data cần thiết theo priority)</li>
+</ul>
+<h3 id="tại-sao-không-dùng-last-write-wins">Tại Sao Không Dùng Last-Write-Wins? </h3>
+<p>Trong hàng hải, dữ liệu có <strong>ý nghĩa chuyên môn sâu</strong>:</p>
+<ul>
+<li>Shore có thể cập nhật <code>FullName</code> theo hộ chiếu mới → phải thắng</li>
+<li>Edge biết thuyền viên thực sự đang trên tàu (<code>IsOnboard</code>) → phải thắng</li>
+<li>Nếu dùng LWW: Shore cập nhật <code>IsOnboard=false</code> cho thuyền viên đang làm việc → sự cố nghiêm trọng</li>
+</ul>
+<p><strong>Giải pháp:</strong> Domain-Based Conflict Resolution — mỗi trường có chủ sở hữu (<code>OriginNode</code>) được định nghĩa trước trong <code>SYNC_OWNERSHIP_MATRIX.md</code>.</p>
+<h3 id="tại-sao-dùng-interceptor-thay-vì-manual-enqueue">Tại Sao Dùng Interceptor Thay Vì Manual Enqueue? </h3>
+<p><strong>Trước Phase 2.2:</strong> Mỗi service phải tự gọi <code>_syncOutbox.EnqueueAsync()</code> → dễ quên, code trùng lặp.</p>
+<p><strong>Phase 2.2:</strong> <code>ShoreAutoSyncInterceptor</code> kế thừa <code>SaveChangesInterceptor</code> của EF Core → tự động phát hiện 23+ entity types thay đổi → không thể bỏ sót.</p>
+<pre data-role="codeBlock" data-info="csharp" class="language-csharp csharp"><code><span class="token comment">// ShoreAutoSyncInterceptor.cs</span>
+<span class="token keyword keyword-public">public</span> <span class="token keyword keyword-override">override</span> <span class="token keyword keyword-async">async</span> <span class="token return-type class-name">ValueTask<span class="token punctuation">&lt;</span>InterceptionResult<span class="token punctuation">&lt;</span><span class="token keyword keyword-int">int</span><span class="token punctuation">&gt;</span><span class="token punctuation">&gt;</span></span> <span class="token function">SavingChangesAsync</span><span class="token punctuation">(</span><span class="token range operator">..</span><span class="token punctuation">.</span><span class="token punctuation">)</span>
+<span class="token punctuation">{</span>
+    <span class="token class-name"><span class="token keyword keyword-var">var</span></span> changes <span class="token operator">=</span> context<span class="token punctuation">.</span>ChangeTracker<span class="token punctuation">.</span><span class="token generic-method"><span class="token function">Entries</span><span class="token generic class-name"><span class="token punctuation">&lt;</span>ISyncableEntity<span class="token punctuation">&gt;</span></span></span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+        <span class="token punctuation">.</span><span class="token function">Where</span><span class="token punctuation">(</span>e <span class="token operator">=&gt;</span> e<span class="token punctuation">.</span>State <span class="token keyword keyword-is">is</span> <span class="token class-name">Added</span> <span class="token keyword keyword-or">or</span> Modified <span class="token keyword keyword-or">or</span> Deleted<span class="token punctuation">)</span>
+        <span class="token punctuation">.</span><span class="token function">ToList</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    
+    <span class="token keyword keyword-foreach">foreach</span> <span class="token punctuation">(</span><span class="token class-name"><span class="token keyword keyword-var">var</span></span> entry <span class="token keyword keyword-in">in</span> changes<span class="token punctuation">)</span>
+        <span class="token keyword keyword-await">await</span> _syncOutbox<span class="token punctuation">.</span><span class="token function">EnqueueAsync</span><span class="token punctuation">(</span>entry<span class="token punctuation">.</span>Entity<span class="token punctuation">,</span> entry<span class="token punctuation">.</span>State<span class="token punctuation">,</span> <span class="token range operator">..</span><span class="token punctuation">.</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    
+    <span class="token keyword keyword-return">return</span> <span class="token keyword keyword-await">await</span> <span class="token keyword keyword-base">base</span><span class="token punctuation">.</span><span class="token function">SavingChangesAsync</span><span class="token punctuation">(</span><span class="token range operator">..</span><span class="token punctuation">.</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token punctuation">}</span>
+</code></pre><hr>
+<h2 id="232-điểm-nổi-bật-để-trình-bày">2.3.2 Điểm Nổi Bật Để Trình Bày </h2>
+<ol>
+<li><strong>Offline-First là bài toán thực tế</strong> — không phải lý thuyết: tàu thực sự mất mạng hàng tuần</li>
+<li><strong>9 tiêu chuẩn quốc tế</strong> được tích hợp: SOLAS, MARPOL, STCW, MLC, ISM Code, IMO DCS/MRV/CII, ISPS</li>
+<li><strong>Conflict Resolution thông minh</strong>: Không phải "ai update sau thì thắng" mà là "ai có thẩm quyền thì thắng"</li>
+<li><strong>Kiến trúc 2 hệ thống độc lập</strong>: Shore và Edge có thể deploy riêng biệt, không phụ thuộc nhau khi mất mạng</li>
+<li><strong>Mobile App Flutter</strong> cho thuyền viên: Có thể hoạt động offline với Hive local cache</li>
+</ol>
+<hr>
+<h2 id="233-gợi-ý-slide-trình-chiếu">2.3.3 Gợi Ý Slide Trình Chiếu </h2>
+<table>
+<thead>
+<tr>
+<th>Slide</th>
+<th>Nội dung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Tiêu đề + tên thành viên</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Bài toán: Tàu biển và kết nối mạng (bảng bandwidth)</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Giải pháp tổng quan: Kiến trúc Edge-Shore (diagram ASCII)</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Nguyên tắc thiết kế 6 điểm</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Shore System: chức năng + stack</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Edge System: chức năng + stack</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Sync Protocol: Store-and-Forward flow diagram</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Conflict Resolution: Domain-Based (ví dụ crew member)</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Database: ERD tóm tắt 2 hệ thống</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Demo: Kịch bản noon report offline 3 ngày</td>
+</tr>
+<tr>
+<td>11</td>
+<td>Tiêu chuẩn hàng hải: 9 tiêu chuẩn IMO</td>
+</tr>
+<tr>
+<td>12</td>
+<td>Thống kê: 80+ controllers, 170+ bảng, 6 apps</td>
+</tr>
+<tr>
+<td>13</td>
+<td>Kết luận + Q&amp;A</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h1 id="b24-vấn-đáp--câu-hỏi--trả-lời">B2.4. VẤN ĐÁP — CÂU HỎI &amp; TRẢ LỜI </h1>
+<h2 id="nhóm-1-công-nghệ-tổng-quan">Nhóm 1: Công Nghệ Tổng Quan </h2>
+<h3 id="câu-hỏi-1-tại-sao-chọn-net-8-thay-vì-nodejs-hoặc-python">Câu hỏi 1: Tại sao chọn .NET 8 thay vì Node.js hoặc Python? </h3>
+<p><strong>Trả lời:</strong></p>
+<ul>
+<li><strong>.NET 8</strong> có hiệu suất rất cao (benchmark TechEmpower Top 10), phù hợp cho server chạy trên tàu với RAM/CPU hạn chế</li>
+<li><strong>Strongly-typed</strong> với C#: Catch lỗi lúc compile thay vì runtime — quan trọng với hệ thống hàng hải cần độ tin cậy cao</li>
+<li><strong>Entity Framework Core</strong> có tính năng <code>SaveChangesInterceptor</code> giúp tự động hóa sync queue — khó làm với ORM của Python/Node</li>
+<li><strong>IHostedService</strong>: Background service tích hợp sẵn, không cần Celery/Bull như Python/Node</li>
+</ul>
+<h3 id="câu-hỏi-2-tại-sao-dùng-postgresql-thay-vì-mysql-hoặc-sql-server">Câu hỏi 2: Tại sao dùng PostgreSQL thay vì MySQL hoặc SQL Server? </h3>
+<p><strong>Trả lời:</strong></p>
+<ul>
+<li><strong>JSONB</strong> của PostgreSQL: Payload đồng bộ lưu dạng JSON có thể query, index — MySQL JSON kém hơn</li>
+<li><strong><code>gen_random_uuid()</code></strong> built-in: UUID primary keys cần thiết cho distributed system</li>
+<li><strong>Partial index</strong>: <code>WHERE synced_at IS NULL</code> — MySQL không hỗ trợ</li>
+<li><strong><code>TIMESTAMPTZ</code></strong>: Timezone-aware — tàu di chuyển qua nhiều múi giờ</li>
+<li>SQL Server: License fee đắt, không phù hợp triển khai trên tàu với chi phí thấp</li>
+<li>Docker image <code>postgres:15-alpine</code> rất nhỏ gọn, phù hợp thiết bị tàu</li>
+</ul>
+<h3 id="câu-hỏi-3-tại-sao-dùng-react-19-thay-vì-vue-hoặc-angular">Câu hỏi 3: Tại sao dùng React 19 thay vì Vue hoặc Angular? </h3>
+<p><strong>Trả lời:</strong></p>
+<ul>
+<li><strong>React 19</strong> có Concurrent Features: <code>useTransition</code>, <code>useDeferredValue</code> — giúp UI mượt khi load nhiều data telemetry</li>
+<li><strong>Zustand</strong> (Edge) hỗ trợ persist middleware → offline-aware state management</li>
+<li><strong>Ecosystem</strong>: <code>Recharts</code> cho telemetry charts, <code>dnd-kit</code> cho PMS drag-drop, <code>ExcelJS</code> cho export</li>
+<li>Angular: quá nặng cho Edge device</li>
+<li>Vue: ecosystem nhỏ hơn với các thư viện maritime cần dùng</li>
+</ul>
+<h3 id="câu-hỏi-4-store-and-forward-pattern-là-gì">Câu hỏi 4: Store-and-Forward pattern là gì? </h3>
+<p><strong>Trả lời:</strong><br>
+Store-and-Forward là pattern trong đó:</p>
+<ol>
+<li>Dữ liệu được <strong>lưu cục bộ</strong> (Store) vào <code>SyncQueue</code> ngay khi tạo ra — dù chưa có mạng</li>
+<li>Khi có kết nối, Worker đọc queue và <strong>chuyển tiếp</strong> (Forward) lên Shore</li>
+<li>Nếu gửi thất bại → giữ trong queue, retry sau</li>
+</ol>
+<p><strong>Ưu điểm:</strong> Không bao giờ mất dữ liệu, không cần mạng real-time.<br>
+<strong>Ví dụ thực tế:</strong> Email SMTP server cũng dùng pattern này.</p>
+<hr>
+<h2 id="nhóm-2-luồng-dữ-liệu--mã-nguồn">Nhóm 2: Luồng Dữ Liệu &amp; Mã Nguồn </h2>
+<h3 id="câu-hỏi-5-khi-thuyền-viên-bấm-lưu-trên-edge-dữ-liệu-đi-đâu">Câu hỏi 5: Khi thuyền viên bấm "Lưu" trên Edge, dữ liệu đi đâu? </h3>
+<p><strong>Trả lời — Luồng đầy đủ:</strong></p>
+<pre data-role="codeBlock" data-info="" class="language-text"><code>1. CrewController.UpdateCrew(dto)
+   └─► CrewService.UpdateAsync(crew)
+        └─► _context.SaveChangesAsync()
+             └─► EF Core change tracker:
+                  ├─► Ghi vào table crew_members (transaction)
+                  └─► [HOOK] ProcessSyncQueue():
+                       └─► Tạo SyncQueue entry:
+                            {
+                              TableName: "crew_members",
+                              RecordKey: crew.Id.ToString(),
+                              ActionType: "UPDATE",
+                              Priority: "Operational",
+                              Payload: JsonSerialize(crew),
+                              SyncVersion: crew.SyncVersion + 1,
+                              OriginNode: "SHIP_IMO_9123456"
+                            }
+
+2. [30 giây sau] SyncBackgroundWorker.ExecuteAsync()
+   └─► Check NetworkType (từ appsettings / network probe)
+   └─► Query: SELECT * FROM sync_queue 
+              WHERE synced_at IS NULL 
+              AND priority IN ('Critical','Operational')  -- nếu VSAT
+              ORDER BY created_at LIMIT 100
+   └─► POST http://shore:5000/api/sync
+        Body: { items: [{ tableName, recordKey, payload, ... }] }
+   └─► Response: { succeeded: 1, failed: 0 }
+   └─► UPDATE sync_queue SET synced_at = NOW() WHERE id = ...
+</code></pre><h3 id="câu-hỏi-6-conflictresolverservice-hoạt-động-như-thế-nào">Câu hỏi 6: ConflictResolverService hoạt động như thế nào? </h3>
+<p><strong>Trả lời:</strong></p>
+<pre data-role="codeBlock" data-info="csharp" class="language-csharp csharp"><code><span class="token comment">// Khi Shore nhận push từ Edge chứa crew_member update:</span>
+<span class="token keyword keyword-public">public</span> <span class="token keyword keyword-async">async</span> <span class="token return-type class-name">Task<span class="token punctuation">&lt;</span>ConflictResolution<span class="token punctuation">&gt;</span></span> <span class="token function">ResolveAsync</span><span class="token punctuation">(</span><span class="token class-name"><span class="token keyword keyword-string">string</span></span> tableName<span class="token punctuation">,</span> 
+    <span class="token class-name"><span class="token keyword keyword-object">object</span></span> existingEntity<span class="token punctuation">,</span> <span class="token class-name"><span class="token keyword keyword-object">object</span></span> incomingEntity<span class="token punctuation">,</span> <span class="token class-name"><span class="token keyword keyword-string">string</span></span> originNode<span class="token punctuation">)</span>
+<span class="token punctuation">{</span>
+    <span class="token keyword keyword-return">return</span> tableName <span class="token keyword keyword-switch">switch</span> <span class="token punctuation">{</span>
+        <span class="token comment">// Master data: Shore luôn thắng, từ chối ghi đè</span>
+        <span class="token string">"certificates"</span> <span class="token keyword keyword-or">or</span> <span class="token string">"countries"</span> <span class="token keyword keyword-or">or</span> <span class="token string">"ranks"</span> <span class="token operator">=&gt;</span> 
+            ConflictResolution<span class="token punctuation">.</span><span class="token function">RejectIncoming</span><span class="token punctuation">(</span><span class="token string">"Master data owned by Shore"</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
+        
+        <span class="token comment">// Operational data: Edge thắng, luôn áp dụng</span>
+        <span class="token string">"service_records"</span> <span class="token keyword keyword-or">or</span> <span class="token string">"position_data"</span> <span class="token keyword keyword-or">or</span> <span class="token string">"noon_reports"</span> <span class="token operator">=&gt;</span>
+            ConflictResolution<span class="token punctuation">.</span><span class="token function">AcceptIncoming</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
+        
+        <span class="token comment">// Crew member: Merge theo từng trường</span>
+        <span class="token string">"crew_members"</span> <span class="token operator">=&gt;</span> 
+            <span class="token function">MergeCrewMember</span><span class="token punctuation">(</span>existingEntity <span class="token keyword keyword-as">as</span> <span class="token class-name">CrewMember</span><span class="token punctuation">,</span> 
+                           incomingEntity <span class="token keyword keyword-as">as</span> <span class="token class-name">CrewMember</span><span class="token punctuation">,</span> 
+                           originNode<span class="token punctuation">)</span><span class="token punctuation">,</span>
+        
+        <span class="token comment">// Fallback: Last-Write-Wins dựa trên UpdatedAt</span>
+        _ <span class="token operator">=&gt;</span> <span class="token function">ResolveByTimestamp</span><span class="token punctuation">(</span>existingEntity<span class="token punctuation">,</span> incomingEntity<span class="token punctuation">)</span>
+    <span class="token punctuation">}</span><span class="token punctuation">;</span>
+<span class="token punctuation">}</span>
+
+<span class="token keyword keyword-private">private</span> <span class="token return-type class-name">ConflictResolution</span> <span class="token function">MergeCrewMember</span><span class="token punctuation">(</span><span class="token class-name">CrewMember</span> existing<span class="token punctuation">,</span> 
+    <span class="token class-name">CrewMember</span> incoming<span class="token punctuation">,</span> <span class="token class-name"><span class="token keyword keyword-string">string</span></span> originNode<span class="token punctuation">)</span>
+<span class="token punctuation">{</span>
+    <span class="token class-name"><span class="token keyword keyword-var">var</span></span> merged <span class="token operator">=</span> existing<span class="token punctuation">.</span><span class="token function">Clone</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    
+    <span class="token comment">// Edge sở hữu các trường operational</span>
+    <span class="token keyword keyword-if">if</span> <span class="token punctuation">(</span>originNode <span class="token operator">!=</span> <span class="token string">"SHORE"</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+        merged<span class="token punctuation">.</span>IsOnboard <span class="token operator">=</span> incoming<span class="token punctuation">.</span>IsOnboard<span class="token punctuation">;</span>
+        merged<span class="token punctuation">.</span>EmbarkDate <span class="token operator">=</span> incoming<span class="token punctuation">.</span>EmbarkDate<span class="token punctuation">;</span>
+        merged<span class="token punctuation">.</span>DisembarkDate <span class="token operator">=</span> incoming<span class="token punctuation">.</span>DisembarkDate<span class="token punctuation">;</span>
+        merged<span class="token punctuation">.</span>AvatarUrl <span class="token operator">=</span> incoming<span class="token punctuation">.</span>AvatarUrl<span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+    
+    <span class="token comment">// Shore sở hữu các trường HR — không áp dụng từ Edge</span>
+    <span class="token comment">// merged.SocialInsuranceNumber → giữ nguyên</span>
+    <span class="token comment">// merged.TaxIdNumber → giữ nguyên</span>
+    
+    <span class="token comment">// Các trường thông thường: dùng timestamp</span>
+    <span class="token keyword keyword-if">if</span> <span class="token punctuation">(</span>incoming<span class="token punctuation">.</span>UpdatedAt <span class="token operator">&gt;</span> existing<span class="token punctuation">.</span>UpdatedAt <span class="token operator">&amp;&amp;</span> originNode <span class="token operator">!=</span> <span class="token string">"SHORE"</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+        merged<span class="token punctuation">.</span>FullName <span class="token operator">=</span> incoming<span class="token punctuation">.</span>FullName<span class="token punctuation">;</span>
+        <span class="token comment">// ... các trường khác</span>
+    <span class="token punctuation">}</span>
+    
+    <span class="token keyword keyword-return">return</span> ConflictResolution<span class="token punctuation">.</span><span class="token function">Merged</span><span class="token punctuation">(</span>merged<span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token punctuation">}</span>
+</code></pre><h3 id="câu-hỏi-7-idempotency-được-xử-lý-như-thế-nào">Câu hỏi 7: Idempotency được xử lý như thế nào? </h3>
+<p><strong>Trả lời:</strong></p>
+<p>Idempotency đảm bảo: xử lý cùng một sync item nhiều lần không tạo ra kết quả khác nhau.</p>
+<pre data-role="codeBlock" data-info="csharp" class="language-csharp csharp"><code><span class="token comment">// SyncInboxService.cs</span>
+<span class="token keyword keyword-public">public</span> <span class="token keyword keyword-async">async</span> <span class="token return-type class-name">Task<span class="token punctuation">&lt;</span><span class="token keyword keyword-bool">bool</span><span class="token punctuation">&gt;</span></span> <span class="token function">IsAlreadyProcessedAsync</span><span class="token punctuation">(</span>
+    <span class="token class-name"><span class="token keyword keyword-string">string</span></span> tableName<span class="token punctuation">,</span> <span class="token class-name"><span class="token keyword keyword-string">string</span></span> recordKey<span class="token punctuation">,</span> <span class="token class-name"><span class="token keyword keyword-long">long</span></span> syncVersion<span class="token punctuation">)</span>
+<span class="token punctuation">{</span>
+    <span class="token class-name"><span class="token keyword keyword-var">var</span></span> key <span class="token operator">=</span> <span class="token interpolation-string"><span class="token string">$"</span><span class="token interpolation"><span class="token punctuation">{</span><span class="token expression language-csharp">tableName</span><span class="token punctuation">}</span></span><span class="token string">:</span><span class="token interpolation"><span class="token punctuation">{</span><span class="token expression language-csharp">recordKey</span><span class="token punctuation">}</span></span><span class="token string">:</span><span class="token interpolation"><span class="token punctuation">{</span><span class="token expression language-csharp">syncVersion</span><span class="token punctuation">}</span></span><span class="token string">"</span></span><span class="token punctuation">;</span>
+    <span class="token keyword keyword-return">return</span> <span class="token keyword keyword-await">await</span> _context<span class="token punctuation">.</span>SyncIdempotencyRecords
+        <span class="token punctuation">.</span><span class="token function">AnyAsync</span><span class="token punctuation">(</span>r <span class="token operator">=&gt;</span> r<span class="token punctuation">.</span>IdempotencyKey <span class="token operator">==</span> key<span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token punctuation">}</span>
+
+<span class="token comment">// Trong ProcessBatchAsync:</span>
+<span class="token keyword keyword-if">if</span> <span class="token punctuation">(</span><span class="token keyword keyword-await">await</span> <span class="token function">IsAlreadyProcessedAsync</span><span class="token punctuation">(</span>item<span class="token punctuation">.</span>TableName<span class="token punctuation">,</span> item<span class="token punctuation">.</span>RecordKey<span class="token punctuation">,</span> item<span class="token punctuation">.</span>SyncVersion<span class="token punctuation">)</span><span class="token punctuation">)</span>
+<span class="token punctuation">{</span>
+    _logger<span class="token punctuation">.</span><span class="token function">LogInformation</span><span class="token punctuation">(</span><span class="token string">"Skipping already-processed: {Key}"</span><span class="token punctuation">,</span> idempotencyKey<span class="token punctuation">)</span><span class="token punctuation">;</span>
+    result<span class="token punctuation">.</span>Succeeded<span class="token operator">++</span><span class="token punctuation">;</span> <span class="token comment">// Coi như thành công</span>
+    <span class="token keyword keyword-continue">continue</span><span class="token punctuation">;</span>
+<span class="token punctuation">}</span>
+
+<span class="token comment">// Sau khi xử lý thành công:</span>
+_context<span class="token punctuation">.</span>SyncIdempotencyRecords<span class="token punctuation">.</span><span class="token function">Add</span><span class="token punctuation">(</span><span class="token keyword keyword-new">new</span> <span class="token constructor-invocation class-name">SyncIdempotencyRecord</span> <span class="token punctuation">{</span>
+    IdempotencyKey <span class="token operator">=</span> <span class="token interpolation-string"><span class="token string">$"</span><span class="token interpolation"><span class="token punctuation">{</span><span class="token expression language-csharp">tableName</span><span class="token punctuation">}</span></span><span class="token string">:</span><span class="token interpolation"><span class="token punctuation">{</span><span class="token expression language-csharp">recordKey</span><span class="token punctuation">}</span></span><span class="token string">:</span><span class="token interpolation"><span class="token punctuation">{</span><span class="token expression language-csharp">syncVersion</span><span class="token punctuation">}</span></span><span class="token string">"</span></span><span class="token punctuation">,</span>
+    ProcessedAt <span class="token operator">=</span> DateTime<span class="token punctuation">.</span>UtcNow<span class="token punctuation">,</span>
+    Succeeded <span class="token operator">=</span> <span class="token boolean">true</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+</code></pre><p><strong>Tại sao cần idempotency?</strong></p>
+<ul>
+<li>Mạng tàu không ổn định → cùng batch có thể được gửi lại nhiều lần</li>
+<li>Nếu không có idempotency → một crew member có thể bị tạo duplicate nhiều lần</li>
+</ul>
+<h3 id="câu-hỏi-8-syncbackgroundworker-chạy-như-thế-nào">Câu hỏi 8: SyncBackgroundWorker chạy như thế nào? </h3>
+<p><strong>Trả lời:</strong></p>
+<pre data-role="codeBlock" data-info="csharp" class="language-csharp csharp"><code><span class="token comment">// SyncBackgroundWorker.cs (kế thừa BackgroundService)</span>
+<span class="token keyword keyword-protected">protected</span> <span class="token keyword keyword-override">override</span> <span class="token keyword keyword-async">async</span> <span class="token return-type class-name">Task</span> <span class="token function">ExecuteAsync</span><span class="token punctuation">(</span><span class="token class-name">CancellationToken</span> stoppingToken<span class="token punctuation">)</span>
+<span class="token punctuation">{</span>
+    <span class="token keyword keyword-while">while</span> <span class="token punctuation">(</span><span class="token operator">!</span>stoppingToken<span class="token punctuation">.</span>IsCancellationRequested<span class="token punctuation">)</span>
+    <span class="token punctuation">{</span>
+        <span class="token keyword keyword-try">try</span> 
+        <span class="token punctuation">{</span>
+            <span class="token class-name"><span class="token keyword keyword-var">var</span></span> networkType <span class="token operator">=</span> <span class="token keyword keyword-await">await</span> _networkService<span class="token punctuation">.</span><span class="token function">GetCurrentNetworkTypeAsync</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+            
+            <span class="token keyword keyword-if">if</span> <span class="token punctuation">(</span>networkType <span class="token operator">!=</span> NetworkType<span class="token punctuation">.</span>None<span class="token punctuation">)</span>
+            <span class="token punctuation">{</span>
+                <span class="token comment">// PUSH: Edge → Shore</span>
+                <span class="token keyword keyword-await">await</span> <span class="token function">PushPendingItemsAsync</span><span class="token punctuation">(</span>networkType<span class="token punctuation">)</span><span class="token punctuation">;</span>
+                
+                <span class="token comment">// PULL: Shore → Edge</span>
+                <span class="token keyword keyword-await">await</span> <span class="token function">PullFromShoreAsync</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+            <span class="token punctuation">}</span>
+        <span class="token punctuation">}</span>
+        <span class="token keyword keyword-catch">catch</span> <span class="token punctuation">(</span><span class="token class-name">Exception</span> ex<span class="token punctuation">)</span> 
+        <span class="token punctuation">{</span>
+            _logger<span class="token punctuation">.</span><span class="token function">LogError</span><span class="token punctuation">(</span>ex<span class="token punctuation">,</span> <span class="token string">"Sync worker error"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+            <span class="token comment">// Không crash worker, tiếp tục ở lần sau</span>
+        <span class="token punctuation">}</span>
+        
+        <span class="token keyword keyword-await">await</span> Task<span class="token punctuation">.</span><span class="token function">Delay</span><span class="token punctuation">(</span>TimeSpan<span class="token punctuation">.</span><span class="token function">FromSeconds</span><span class="token punctuation">(</span><span class="token number">30</span><span class="token punctuation">)</span><span class="token punctuation">,</span> stoppingToken<span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+
+<span class="token keyword keyword-private">private</span> <span class="token keyword keyword-async">async</span> <span class="token return-type class-name">Task</span> <span class="token function">PushPendingItemsAsync</span><span class="token punctuation">(</span><span class="token class-name">NetworkType</span> networkType<span class="token punctuation">)</span>
+<span class="token punctuation">{</span>
+    <span class="token class-name"><span class="token keyword keyword-var">var</span></span> allowedPriorities <span class="token operator">=</span> networkType <span class="token keyword keyword-switch">switch</span> <span class="token punctuation">{</span>
+        NetworkType<span class="token punctuation">.</span>Satellite_Iridium <span class="token operator">=&gt;</span> <span class="token keyword keyword-new">new</span><span class="token punctuation">[</span><span class="token punctuation">]</span> <span class="token punctuation">{</span> <span class="token string">"Critical"</span> <span class="token punctuation">}</span><span class="token punctuation">,</span>
+        NetworkType<span class="token punctuation">.</span>Satellite_VSAT    <span class="token operator">=&gt;</span> <span class="token keyword keyword-new">new</span><span class="token punctuation">[</span><span class="token punctuation">]</span> <span class="token punctuation">{</span> <span class="token string">"Critical"</span><span class="token punctuation">,</span> <span class="token string">"Operational"</span> <span class="token punctuation">}</span><span class="token punctuation">,</span>
+        _                             <span class="token operator">=&gt;</span> <span class="token keyword keyword-new">new</span><span class="token punctuation">[</span><span class="token punctuation">]</span> <span class="token punctuation">{</span> <span class="token string">"Critical"</span><span class="token punctuation">,</span> <span class="token string">"Operational"</span><span class="token punctuation">,</span> <span class="token string">"Low"</span> <span class="token punctuation">}</span>
+    <span class="token punctuation">}</span><span class="token punctuation">;</span>
+    
+    <span class="token class-name"><span class="token keyword keyword-var">var</span></span> batch <span class="token operator">=</span> <span class="token keyword keyword-await">await</span> _context<span class="token punctuation">.</span>SyncQueue
+        <span class="token punctuation">.</span><span class="token function">Where</span><span class="token punctuation">(</span>q <span class="token operator">=&gt;</span> q<span class="token punctuation">.</span>SyncedAt <span class="token operator">==</span> <span class="token keyword keyword-null">null</span> 
+                 <span class="token operator">&amp;&amp;</span> allowedPriorities<span class="token punctuation">.</span><span class="token function">Contains</span><span class="token punctuation">(</span>q<span class="token punctuation">.</span>Priority<span class="token punctuation">)</span>
+                 <span class="token operator">&amp;&amp;</span> q<span class="token punctuation">.</span>RetryCount <span class="token operator">&lt;</span> <span class="token number">5</span><span class="token punctuation">)</span>
+        <span class="token punctuation">.</span><span class="token function">OrderBy</span><span class="token punctuation">(</span>q <span class="token operator">=&gt;</span> q<span class="token punctuation">.</span>CreatedAt<span class="token punctuation">)</span>
+        <span class="token punctuation">.</span><span class="token function">Take</span><span class="token punctuation">(</span><span class="token number">100</span><span class="token punctuation">)</span>
+        <span class="token punctuation">.</span><span class="token function">ToListAsync</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    
+    <span class="token keyword keyword-if">if</span> <span class="token punctuation">(</span><span class="token operator">!</span>batch<span class="token punctuation">.</span><span class="token function">Any</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span> <span class="token keyword keyword-return">return</span><span class="token punctuation">;</span>
+    
+    <span class="token class-name"><span class="token keyword keyword-var">var</span></span> result <span class="token operator">=</span> <span class="token keyword keyword-await">await</span> _shoreApiClient<span class="token punctuation">.</span><span class="token function">PushBatchAsync</span><span class="token punctuation">(</span>batch<span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token comment">// Cập nhật SyncedAt / RetryCount</span>
+<span class="token punctuation">}</span>
+</code></pre><h3 id="câu-hỏi-9-jwt-authorization-hoạt-động-như-thế-nào-phân-quyền-thế-nào">Câu hỏi 9: JWT Authorization hoạt động như thế nào? Phân quyền thế nào? </h3>
+<p><strong>Trả lời:</strong></p>
+<p>Hệ thống dùng <strong>JWT Bearer Token</strong> với <strong>Role-based + Policy-based Authorization</strong>.</p>
+<p><strong>Các Role:</strong></p>
+<ul>
+<li>Shore: <code>Admin</code>, <code>HRAdmin</code>, <code>CrewCoordinator</code>, <code>ComplianceOfficer</code>, <code>FleetManager</code>, <code>PortCaptain</code>, <code>SystemAdmin</code></li>
+<li>Edge: <code>Master</code> (Captain), <code>ChiefOfficer</code>, <code>ChiefEngineer</code>, <code>Officer</code>, <code>Crew</code></li>
+</ul>
+<p><strong>Ví dụ Authorization Policy:</strong></p>
+<pre data-role="codeBlock" data-info="csharp" class="language-csharp csharp"><code><span class="token comment">// Program.cs</span>
+builder<span class="token punctuation">.</span>Services<span class="token punctuation">.</span><span class="token function">AddAuthorization</span><span class="token punctuation">(</span>options <span class="token operator">=&gt;</span> <span class="token punctuation">{</span>
+    options<span class="token punctuation">.</span><span class="token function">AddPolicy</span><span class="token punctuation">(</span><span class="token string">"CanManageCrew"</span><span class="token punctuation">,</span> policy <span class="token operator">=&gt;</span>
+        policy<span class="token punctuation">.</span><span class="token function">RequireRole</span><span class="token punctuation">(</span><span class="token string">"HRAdmin"</span><span class="token punctuation">,</span> <span class="token string">"CrewCoordinator"</span><span class="token punctuation">,</span> <span class="token string">"Admin"</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    
+    options<span class="token punctuation">.</span><span class="token function">AddPolicy</span><span class="token punctuation">(</span><span class="token string">"CanApproveMaintenance"</span><span class="token punctuation">,</span> policy <span class="token operator">=&gt;</span>
+        policy<span class="token punctuation">.</span><span class="token function">RequireRole</span><span class="token punctuation">(</span><span class="token string">"Master"</span><span class="token punctuation">,</span> <span class="token string">"ChiefOfficer"</span><span class="token punctuation">,</span> <span class="token string">"ChiefEngineer"</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    
+    options<span class="token punctuation">.</span><span class="token function">AddPolicy</span><span class="token punctuation">(</span><span class="token string">"SyncAccess"</span><span class="token punctuation">,</span> policy <span class="token operator">=&gt;</span>
+        policy<span class="token punctuation">.</span><span class="token function">RequireClaim</span><span class="token punctuation">(</span><span class="token string">"node_type"</span><span class="token punctuation">,</span> <span class="token string">"edge"</span><span class="token punctuation">,</span> <span class="token string">"shore"</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+<span class="token comment">// Controller</span>
+<span class="token punctuation">[</span><span class="token function">Authorize</span><span class="token punctuation">(</span>Policy <span class="token operator">=</span> <span class="token string">"CanManageCrew"</span><span class="token punctuation">)</span><span class="token punctuation">]</span>
+<span class="token punctuation">[</span><span class="token attribute"><span class="token class-name">HttpPost</span><span class="token attribute-arguments"><span class="token punctuation">(</span><span class="token string">"crew"</span><span class="token punctuation">)</span></span></span><span class="token punctuation">]</span>
+<span class="token keyword keyword-public">public</span> <span class="token keyword keyword-async">async</span> <span class="token return-type class-name">Task<span class="token punctuation">&lt;</span>IActionResult<span class="token punctuation">&gt;</span></span> <span class="token function">CreateCrew</span><span class="token punctuation">(</span><span class="token punctuation">[</span><span class="token attribute"><span class="token class-name">FromBody</span></span><span class="token punctuation">]</span> <span class="token class-name">CreateCrewDto</span> dto<span class="token punctuation">)</span> <span class="token punctuation">{</span> <span class="token range operator">..</span><span class="token punctuation">.</span> <span class="token punctuation">}</span>
+</code></pre><p><strong>Flow xác thực:</strong></p>
+<ol>
+<li>Edge/Shore gửi <code>POST /api/auth/login</code> với username + password</li>
+<li>Server tạo JWT với claims: <code>userId</code>, <code>role</code>, <code>nodeId</code>, <code>exp</code></li>
+<li>Client gửi <code>Authorization: Bearer {token}</code> trong mọi request</li>
+<li>Middleware validate token, populate <code>HttpContext.User</code></li>
+</ol>
+<hr>
+<h2 id="nhóm-3-câu-hỏi-sâu-về-thiết-kế">Nhóm 3: Câu Hỏi Sâu Về Thiết Kế </h2>
+<h3 id="câu-hỏi-10-làm-sao-đảm-bảo-không-mất-dữ-liệu-khi-gửi-sync-bị-lỗi-giữa-chừng">Câu hỏi 10: Làm sao đảm bảo không mất dữ liệu khi gửi sync bị lỗi giữa chừng? </h3>
+<p><strong>Trả lời:</strong></p>
+<p>Hệ thống dùng <strong>Outbox Pattern</strong> kết hợp với transaction:</p>
+<pre data-role="codeBlock" data-info="" class="language-text"><code>Bước 1: ATOMIC TRANSACTION
+  BEGIN TRANSACTION
+    INSERT INTO crew_members (...) VALUES (...)   ← Ghi dữ liệu chính
+    INSERT INTO sync_queue (...) VALUES (...)     ← Ghi vào queue
+  COMMIT
+  
+  → Nếu bất kỳ bước nào fail → rollback cả hai → Không có trạng thái trung gian
+  → Nếu thành công → cả data và queue entry đều tồn tại
+</code></pre><pre data-role="codeBlock" data-info="" class="language-text"><code>Bước 2: ASYNCHRONOUS SEND (SyncBackgroundWorker)
+  Đọc từ sync_queue WHERE synced_at IS NULL
+  Gửi lên Shore
+  
+  → Nếu gửi thành công: UPDATE sync_queue SET synced_at = NOW()
+  → Nếu gửi thất bại:   UPDATE sync_queue SET retry_count = retry_count + 1
+                         (thử lại ở chu kỳ sau, tối đa 5 lần)
+</code></pre><p>Kể cả server Edge bị tắt đột ngột, khi khởi động lại: Worker đọc lại hàng chờ và gửi tiếp.</p>
+<h3 id="câu-hỏi-11-tại-sao-dùng-cursor-based-pagination-cho-pull-thay-vì-offset">Câu hỏi 11: Tại sao dùng cursor-based pagination cho pull thay vì offset? </h3>
+<p><strong>Trả lời:</strong></p>
+<p><strong>Offset pagination (<code>OFFSET 100 LIMIT 50</code>):</strong></p>
+<ul>
+<li>Vấn đề: Nếu có insert mới trong khi đang phân trang → dữ liệu bị shift → bỏ sót hoặc trùng lặp</li>
+</ul>
+<p><strong>Cursor pagination (<code>WHERE id &gt; {lastId} LIMIT 50</code>):</strong></p>
+<ul>
+<li>Ổn định: Cursor là ID cụ thể → không bị ảnh hưởng bởi insert mới</li>
+<li>Hiệu suất: Index scan trực tiếp thay vì scan + skip</li>
+</ul>
+<p>Trong ngữ cảnh sync hàng hải, tàu có thể pull dở giữa chừng rồi mất mạng → cursor pagination đảm bảo tiếp tục đúng chỗ đã dừng.</p>
+<h3 id="câu-hỏi-12-isyncableentitysyncversion-dùng-để-làm-gì">Câu hỏi 12: ISyncableEntity.SyncVersion dùng để làm gì? </h3>
+<p><strong>Trả lời:</strong></p>
+<p><code>SyncVersion</code> là <strong>optimistic concurrency control field</strong>:</p>
+<ol>
+<li><strong>Idempotency Key</strong>: <code>{TableName}:{RecordKey}:{SyncVersion}</code> — đảm bảo xử lý chính xác một lần</li>
+<li><strong>Conflict Detection</strong>: Nếu Shore nhận <code>SyncVersion=5</code> nhưng DB đang có <code>SyncVersion=7</code> → biết là có conflict</li>
+<li><strong>Version Ordering</strong>: Khi nhận nhiều updates của cùng một record → áp dụng theo thứ tự version</li>
+</ol>
+<pre data-role="codeBlock" data-info="csharp" class="language-csharp csharp"><code><span class="token comment">// Mỗi lần update, version tăng 1:</span>
+entity<span class="token punctuation">.</span>SyncVersion <span class="token operator">+=</span> <span class="token number">1</span><span class="token punctuation">;</span>
+entity<span class="token punctuation">.</span>UpdatedAt <span class="token operator">=</span> DateTime<span class="token punctuation">.</span>UtcNow<span class="token punctuation">;</span>
+</code></pre><h3 id="câu-hỏi-13-dead-letter-queue-dlq-trong-sync-là-gì">Câu hỏi 13: Dead Letter Queue (DLQ) trong sync là gì? </h3>
+<p><strong>Trả lời:</strong></p>
+<p>DLQ là nơi lưu các sync item <strong>không thể xử lý được</strong> sau nhiều lần retry:</p>
+<pre data-role="codeBlock" data-info="" class="language-text"><code>SyncQueue item: retry_count &gt;= 5
+    └─► SyncDlqService.MoveToDeadLetterAsync()
+         └─► INSERT INTO sync_dlq (item, failure_reason, moved_at)
+         └─► DELETE FROM sync_queue
+
+Monitoring: SyncHealthMonitorService kiểm tra DLQ
+    └─► Nếu DLQ có items → Alert cho SysAdmin
+    └─► SysAdmin có thể: Retry thủ công / Xóa / Điều tra nguyên nhân
+</code></pre><p>File: <code>dlq.sql</code> trong repository chứa query để kiểm tra Dead Letter Queue.</p>
+<hr>
+<h2 id="nhóm-4-câu-hỏi-về-tiêu-chuẩn-hàng-hải">Nhóm 4: Câu Hỏi Về Tiêu Chuẩn Hàng Hải </h2>
+<h3 id="câu-hỏi-14-hệ-thống-tuân-thủ-những-tiêu-chuẩn-nào">Câu hỏi 14: Hệ thống tuân thủ những tiêu chuẩn nào? </h3>
+<p><strong>Trả lời:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Tiêu chuẩn</th>
+<th>Áp dụng trong module</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>SOLAS</strong> (Safety of Life at Sea)</td>
+<td>Logbooks (DeckLogbook, Watchkeeping), SafetyAlarm, Drills</td>
+</tr>
+<tr>
+<td><strong>MARPOL</strong> (Marine Pollution)</td>
+<td>OilRecordBook, GarbageRecord, BallastWaterRecord</td>
+</tr>
+<tr>
+<td><strong>STCW</strong></td>
+<td>Crew Certificates, Rank-Certificate matrix</td>
+</tr>
+<tr>
+<td><strong>MLC 2006</strong></td>
+<td>Crew service records, working hours, rest period</td>
+</tr>
+<tr>
+<td><strong>ISM Code</strong></td>
+<td>PMS maintenance audit trail, non-conformance reports</td>
+</tr>
+<tr>
+<td><strong>IMO DCS</strong></td>
+<td>Fuel consumption data collection (NoonReport)</td>
+</tr>
+<tr>
+<td><strong>IMO MRV</strong></td>
+<td>Monitoring, Reporting, Verification — emission tracking</td>
+</tr>
+<tr>
+<td><strong>IMO CII</strong></td>
+<td>Carbon Intensity Indicator — tính từ FuelAnalytics</td>
+</tr>
+<tr>
+<td><strong>ISPS</strong></td>
+<td>Ship security compliance tracking</td>
+</tr>
+</tbody>
+</table>
+<h3 id="câu-hỏi-15-noon-report-là-gì-và-tại-sao-quan-trọng">Câu hỏi 15: Noon Report là gì và tại sao quan trọng? </h3>
+<p><strong>Trả lời:</strong></p>
+<p>Noon Report là báo cáo bắt buộc theo <strong>IMO</strong> (International Maritime Organization), được nộp mỗi ngày lúc 12:00 UTC. Nó chứa:</p>
+<ul>
+<li>Vị trí tàu (lat/lon), tốc độ trung bình, hướng đi</li>
+<li>Tiêu thụ nhiên liệu: HFO (Heavy Fuel Oil), MDO (Marine Diesel Oil)</li>
+<li>Điều kiện thời tiết: sóng (Beaufort scale), gió, áp suất</li>
+<li>Khoảng cách đã đi, khoảng cách còn lại</li>
+</ul>
+<p><strong>Dùng để:</strong></p>
+<ul>
+<li>Tính <strong>CII</strong> (Carbon Intensity Indicator) — Chỉ số phát thải carbon theo IMO 2023</li>
+<li>Tính <strong>ETA</strong> (Estimated Time of Arrival) chính xác</li>
+<li>Thanh toán charter party (hợp đồng thuê tàu theo ngày)</li>
+<li>Kiểm tra của Port State Control khi tàu vào cảng</li>
+</ul>
+<hr>
+<h2 id="nhóm-5-câu-hỏi-về-bảo-mật--độ-tin-cậy">Nhóm 5: Câu Hỏi Về Bảo Mật &amp; Độ Tin Cậy </h2>
+<h3 id="câu-hỏi-16-làm-sao-ngăn-edge-giả-mạo-gửi-dữ-liệu-lên-shore">Câu hỏi 16: Làm sao ngăn Edge giả mạo gửi dữ liệu lên Shore? </h3>
+<p><strong>Trả lời:</strong></p>
+<ol>
+<li><strong>JWT Authentication</strong>: Mỗi Edge node có credentials riêng, JWT chứa <code>nodeId</code> (Ship IMO)</li>
+<li><strong>Node Verification</strong>: Shore kiểm tra <code>SyncQueueItemDto.OriginNode</code> khớp với <code>nodeId</code> trong JWT</li>
+<li><strong>Payload Hashing</strong>: Shore tính hash của payload nhận được, so sánh với hash Edge gửi kèm</li>
+<li><strong>SyncNonceRegistryService</strong>: Mỗi request có nonce duy nhất → chống replay attack</li>
+</ol>
+<pre data-role="codeBlock" data-info="csharp" class="language-csharp csharp"><code><span class="token comment">// SyncController.cs</span>
+<span class="token punctuation">[</span><span class="token function">Authorize</span><span class="token punctuation">(</span>Policy <span class="token operator">=</span> <span class="token string">"SyncAccess"</span><span class="token punctuation">)</span><span class="token punctuation">]</span>
+<span class="token punctuation">[</span><span class="token attribute"><span class="token class-name">HttpPost</span></span><span class="token punctuation">]</span>
+<span class="token keyword keyword-public">public</span> <span class="token keyword keyword-async">async</span> <span class="token return-type class-name">Task<span class="token punctuation">&lt;</span>IActionResult<span class="token punctuation">&gt;</span></span> <span class="token function">Push</span><span class="token punctuation">(</span><span class="token punctuation">[</span><span class="token attribute"><span class="token class-name">FromBody</span></span><span class="token punctuation">]</span> <span class="token class-name">SyncBatchDto</span> dto<span class="token punctuation">)</span>
+<span class="token punctuation">{</span>
+    <span class="token class-name"><span class="token keyword keyword-var">var</span></span> claimedNodeId <span class="token operator">=</span> User<span class="token punctuation">.</span><span class="token function">FindFirst</span><span class="token punctuation">(</span><span class="token string">"nodeId"</span><span class="token punctuation">)</span><span class="token punctuation">?.</span>Value<span class="token punctuation">;</span>
+    
+    <span class="token comment">// Kiểm tra tất cả items phải có origin khớp với JWT</span>
+    <span class="token keyword keyword-if">if</span> <span class="token punctuation">(</span>dto<span class="token punctuation">.</span>Items<span class="token punctuation">.</span><span class="token function">Any</span><span class="token punctuation">(</span>i <span class="token operator">=&gt;</span> i<span class="token punctuation">.</span>OriginNode <span class="token operator">!=</span> claimedNodeId<span class="token punctuation">)</span><span class="token punctuation">)</span>
+        <span class="token keyword keyword-return">return</span> <span class="token function">Forbid</span><span class="token punctuation">(</span><span class="token string">"Origin node mismatch"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    
+    <span class="token comment">// ... xử lý</span>
+<span class="token punctuation">}</span>
+</code></pre><h3 id="câu-hỏi-17-hệ-thống-xử-lý-khi-shore-api-bị-down-thế-nào">Câu hỏi 17: Hệ thống xử lý khi Shore API bị down thế nào? </h3>
+<p><strong>Trả lời:</strong></p>
+<p>Đây là ưu điểm cốt lõi của Offline-First:</p>
+<ol>
+<li>Edge <strong>không phụ thuộc Shore</strong> để hoạt động — mọi thao tác vẫn chạy bình thường</li>
+<li><code>SyncQueue</code> tiếp tục tích lũy items</li>
+<li><code>SyncBackgroundWorker</code> retry với <strong>Exponential Backoff</strong>:
+<ul>
+<li>Lần 1: Retry sau 60s</li>
+<li>Lần 2: Retry sau 120s</li>
+<li>Lần 3: Retry sau 240s</li>
+<li>Lần 4: Retry sau 480s</li>
+<li>Lần 5: Retry sau 960s → sau đó chuyển sang DLQ</li>
+</ul>
+</li>
+<li>Khi Shore phục hồi → Worker tiếp tục gửi hàng đợi đã tích lũy</li>
+<li><code>SyncHealthMonitorService</code> trên Shore theo dõi <code>last_heartbeat</code> của mỗi tàu → alert khi tàu mất liên lạc &gt; threshold</li>
+</ol>
+<hr>
+<h2 id="tóm-tắt-nhanh-để-nhớ">Tóm Tắt Nhanh Để Nhớ </h2>
+<table>
+<thead>
+<tr>
+<th>Điểm mấu chốt</th>
+<th>Trả lời 1 câu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Hệ thống làm gì?</td>
+<td>Quản lý hạm đội tàu biển theo mô hình Edge-Shore, offline-first</td>
+</tr>
+<tr>
+<td>Bài toán chính?</td>
+<td>Tàu mất kết nối hàng tuần nhưng vẫn cần hoạt động và đồng bộ</td>
+</tr>
+<tr>
+<td>Giải pháp kỹ thuật?</td>
+<td>Store-and-Forward + Priority-based Sync + Domain Conflict Resolution</td>
+</tr>
+<tr>
+<td>Tech stack?</td>
+<td>.NET 8 + React 19 + Flutter + PostgreSQL + Docker</td>
+</tr>
+<tr>
+<td>Điểm khó nhất?</td>
+<td>Conflict Resolution — ai thắng khi cả Shore lẫn Edge cùng sửa một bản ghi</td>
+</tr>
+<tr>
+<td>Quy mô?</td>
+<td>80 controllers, 170+ bảng, 6 ứng dụng, 9 tiêu chuẩn IMO</td>
+</tr>
+<tr>
+<td>Pattern nổi bật?</td>
+<td>Outbox Pattern, Idempotency, Cursor Pagination, Interceptor Pattern</td>
+</tr>
+</tbody>
+</table>
+
+      </div>
+      
+      
+    
+    
+    <script type="module">
+// TODO: If ZenUML gets integrated into mermaid in the future,
+//      we can remove the following lines.
+
+
+var MERMAID_CONFIG = ({"startOnLoad":false});
+if (typeof MERMAID_CONFIG !== 'undefined') {
+  MERMAID_CONFIG.startOnLoad = false
+  MERMAID_CONFIG.cloneCssStyles = false
+  MERMAID_CONFIG.theme = "default"
+}
+
+mermaid.initialize(MERMAID_CONFIG || {})
+if (typeof(window['Reveal']) !== 'undefined') {
+  function mermaidRevealHelper(event) {
+    var currentSlide = event.currentSlide
+    var diagrams = currentSlide.querySelectorAll('div.mermaid')
+    for (var i = 0; i < diagrams.length; i++) {
+      var diagram = diagrams[i]
+      if (!diagram.hasAttribute('data-processed')) {
+        mermaid.init(null, diagram, ()=> {
+          Reveal.slide(event.indexh, event.indexv)
+        })
+      }
+    }
+  }
+  Reveal.addEventListener('slidetransitionend', mermaidRevealHelper)
+  Reveal.addEventListener('ready', mermaidRevealHelper)
+  await mermaid.run({
+    nodes: document.querySelectorAll('div.mermaid')
+  })
+} else {
+  await mermaid.run({
+    nodes: document.querySelectorAll('div.mermaid')
+  })
+}
+</script>
+    
+    
+    
+  
+    </body></html>
