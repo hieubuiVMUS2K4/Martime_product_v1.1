@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using MaritimeEdge.Data;
 using MaritimeEdge.DTOs;
 using MaritimeEdge.Models;
@@ -13,11 +14,16 @@ public class TelemetryController : ControllerBase
 {
     private readonly EdgeDbContext _context;
     private readonly ILogger<TelemetryController> _logger;
+    private readonly IConfiguration _configuration;
+    private readonly IMemoryCache _cache;
+    private static int _cleanupCounter = 0;
 
-    public TelemetryController(EdgeDbContext context, ILogger<TelemetryController> logger)
+    public TelemetryController(EdgeDbContext context, ILogger<TelemetryController> logger, IConfiguration configuration, IMemoryCache cache)
     {
         _context = context;
         _logger = logger;
+        _configuration = configuration;
+        _cache = cache;
     }
 
     // Position endpoints
@@ -105,6 +111,11 @@ public class TelemetryController : ControllerBase
     {
         try
         {
+            if (_cache.TryGetValue("LatestNavigation", out NavigationData cachedNav))
+            {
+                return Ok(cachedNav);
+            }
+
             var navigation = await _context.NavigationData
                 .AsNoTracking()
                 .OrderByDescending(n => n.Timestamp)
@@ -114,6 +125,8 @@ public class TelemetryController : ControllerBase
             {
                 return NotFound(new { message = "No navigation data available" });
             }
+
+            _cache.Set("LatestNavigation", navigation, TimeSpan.FromSeconds(5));
 
             return Ok(navigation);
         }
@@ -127,6 +140,10 @@ public class TelemetryController : ControllerBase
     /// <summary>
     /// POST: Nhận dữ liệu Pitch/Roll từ cảm biến MPU6050 (ESP32) qua WiFi
     /// Cho phép anonymous vì cảm biến không có cơ chế đăng nhập
+    /// 
+    /// Đồng thời auto-detect:
+    /// - Engine start/stop events (EngineEvent)
+    /// - Sensor anomalies (SafetyAlarm) như pitch/roll vượt ngưỡng
     /// </summary>
     [AllowAnonymous]
     [HttpPost("navigation")]
@@ -137,10 +154,11 @@ public class TelemetryController : ControllerBase
             if (dto == null)
                 return BadRequest(new { error = "Invalid sensor data" });
 
+            var now = DateTime.UtcNow;
             var navigation = new NavigationData
             {
                 Id = Guid.NewGuid(),
-                Timestamp = DateTime.UtcNow,
+                Timestamp = now,
                 Pitch = dto.Pitch,
                 Roll = dto.Roll,
                 HeadingTrue = dto.HeadingTrue,
@@ -148,27 +166,119 @@ public class TelemetryController : ControllerBase
                 SpeedThroughWater = dto.Speed ?? dto.SpeedThroughWater,
                 Depth = dto.Depth,
                 IsSynced = false,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = now
             };
 
             _context.NavigationData.Add(navigation);
 
-            // Giữ tối đa 1000 bản ghi navigation gần nhất trên edge
-            var count = await _context.NavigationData.CountAsync();
-            if (count > 1000)
+            // ── Đồng thời tạo EngineData để trạng thái motor được đồng bộ lên Shore ──
+            if (dto.Speed.HasValue)
             {
-                var toDelete = await _context.NavigationData
-                    .OrderBy(n => n.Timestamp)
-                    .Take(count - 1000)
-                    .ToListAsync();
-                _context.NavigationData.RemoveRange(toDelete);
+                var isRunning = dto.Speed.Value > 0;
+                var engineData = new EngineData
+                {
+                    Timestamp = now,
+                    EngineId = "MAIN_ENGINE",
+                    Rpm = dto.Speed.Value,
+                    IsRunning = isRunning,
+                    IsSynced = false,
+                    CreatedAt = now,
+                    UpdatedAt = now,
+                    OriginNode = "SHIP_01"
+                };
+                _context.EngineData.Add(engineData);
+
+                // ── Detect engine start/stop events ──
+                var lastEngine = await _context.EngineData
+                    .Where(e => e.EngineId == "MAIN_ENGINE")
+                    .OrderByDescending(e => e.Timestamp)
+                    .Skip(1) // Bỏ qua cái vừa thêm
+                    .FirstOrDefaultAsync();
+
+                if (lastEngine != null && lastEngine.IsRunning != isRunning)
+                {
+                    var eventType = isRunning ? "START" : "STOP";
+                    var engineEvent = new EngineEvent
+                    {
+                        Timestamp = now,
+                        EngineId = "MAIN_ENGINE",
+                        EventType = eventType,
+                        Rpm = dto.Speed.Value,
+                        TriggerSource = "ESP8266",
+                        IsSynced = false,
+                        CreatedAt = now,
+                        OriginNode = "SHIP_01"
+                    };
+                    _context.EngineEvents.Add(engineEvent);
+
+                    _logger.LogInformation(
+                        "[ENGINE-EVENT] {EventType} detected for MAIN_ENGINE (RPM={Rpm})",
+                        eventType, dto.Speed.Value);
+                }
+            }
+
+            // ── Check sensor thresholds → auto-create SafetyAlarm ──
+            var pitchThreshold = _configuration.GetValue<double>("Alerts:Thresholds:PitchMax", 15.0);
+            var rollThreshold = _configuration.GetValue<double>("Alerts:Thresholds:RollMax", 20.0);
+
+            if (dto.Pitch.HasValue && Math.Abs(dto.Pitch.Value) > pitchThreshold)
+            {
+                var alarm = new SafetyAlarm
+                {
+                    Timestamp = now,
+                    AlarmType = "EXCESSIVE_PITCH",
+                    AlarmCode = "PITCH_HIGH",
+                    Severity = "WARNING",
+                    Location = "HULL",
+                    Description = $"Pitch angle {dto.Pitch.Value:F1}° exceeds threshold {pitchThreshold}°",
+                    IsSynced = false,
+                    CreatedAt = now,
+                    OriginNode = "SHIP_01"
+                };
+                _context.SafetyAlarms.Add(alarm);
+                _logger.LogWarning("[ALERT] Excessive pitch: {Pitch}°", dto.Pitch.Value);
+            }
+
+            if (dto.Roll.HasValue && Math.Abs(dto.Roll.Value) > rollThreshold)
+            {
+                var alarm = new SafetyAlarm
+                {
+                    Timestamp = now,
+                    AlarmType = "EXCESSIVE_ROLL",
+                    AlarmCode = "ROLL_HIGH",
+                    Severity = "WARNING",
+                    Location = "HULL",
+                    Description = $"Roll angle {dto.Roll.Value:F1}° exceeds threshold {rollThreshold}°",
+                    IsSynced = false,
+                    CreatedAt = now,
+                    OriginNode = "SHIP_01"
+                };
+                _context.SafetyAlarms.Add(alarm);
+                _logger.LogWarning("[ALERT] Excessive roll: {Roll}°", dto.Roll.Value);
+            }
+
+            // Giữ tối đa 1000 bản ghi navigation gần nhất trên edge
+            if (Interlocked.Increment(ref _cleanupCounter) % 100 == 0)
+            {
+                var count = await _context.NavigationData.CountAsync();
+                if (count > 1000)
+                {
+                    var toDelete = await _context.NavigationData
+                        .OrderBy(n => n.Timestamp)
+                        .Take(count - 1000)
+                        .ToListAsync();
+                    _context.NavigationData.RemoveRange(toDelete);
+                }
             }
 
             await _context.SaveChangesAsync();
 
+            // Cập nhật cache ngay lập tức để dashboard nhận được data tức thì
+            _cache.Set("LatestNavigation", navigation, TimeSpan.FromSeconds(5));
+
             _logger.LogInformation(
-                "Sensor data received: Pitch={Pitch}, Roll={Roll}",
-                dto.Pitch, dto.Roll);
+                "Sensor data received: Pitch={Pitch}, Roll={Roll}, Speed={Speed}",
+                dto.Pitch, dto.Roll, dto.Speed);
 
             return CreatedAtAction(nameof(GetLatestNavigation), new { id = navigation.Id }, navigation);
         }

@@ -2,8 +2,10 @@ using Microsoft.EntityFrameworkCore;
 using MaritimeEdge.Data;
 using MaritimeEdge.Models;
 using MaritimeEdge.DTOs;
+using MaritimeEdge.DTOs.Common;
 using MaritimeEdge.Constants;
 using Maritime.Shared.Models.Documents;
+using MaritimeEdge.Services.Common;
 
 namespace MaritimeEdge.Services.Voyage;
 
@@ -17,6 +19,7 @@ public interface IVoyageManagementService
     
     // Port Calls
     Task<List<PortCallDto>> GetPortCallsAsync(Guid voyageId);
+    Task<PaginatedResponse<PortCallDto>> GetPortCallsAsync(Guid voyageId, PaginationParams pagination);
     Task<PortCallDto> CreatePortCallAsync(CreatePortCallDto dto);
     Task<PortCallDto?> UpdatePortCallAsync(Guid portCallId, UpdatePortCallDto dto);
     Task<bool> DeletePortCallAsync(Guid portCallId);
@@ -28,6 +31,7 @@ public interface IVoyageManagementService
     Task<VoyageCrewAssignmentDto?> UpdateCrewAssignmentAsync(Guid assignmentId, UpdateVoyageCrewAssignmentDto dto);
     Task<bool> RemoveCrewAssignmentAsync(Guid assignmentId);
     Task<List<VoyageCrewAssignmentDto>> GetCrewVoyageHistoryAsync(Guid crewMemberId);
+    Task<PaginatedResponse<VoyageCrewAssignmentDto>> GetCrewVoyageHistoryAsync(Guid crewMemberId, PaginationParams pagination);
     
     // FAL Form 5
     Task<FalForm5Dto?> GenerateFalForm5Async(Guid voyageId);
@@ -161,9 +165,9 @@ public class VoyageManagementService : IVoyageManagementService
         }
 
         // ── Field-level access control based on current status ──
+        // Handle read-only statuses (COMPLETED/CANCELLED) - only status transitions allowed
         if (VoyageStatus.ReadOnlyStatuses.Contains(currentStatus))
         {
-            // COMPLETED / CANCELLED: only allow status change (e.g., CANCELLED → PLANNING to reopen)
             if (nextStatus != null && nextStatus != currentStatus)
             {
                 voyage.VoyageStatus = nextStatus;
@@ -178,6 +182,7 @@ public class VoyageManagementService : IVoyageManagementService
                 $"Voyage is {currentStatus} and cannot be modified. Only status transitions are allowed.");
         }
 
+        // Handle limited edit status (UNDERWAY) - block changes to core identity fields
         if (VoyageStatus.LimitedEditStatuses.Contains(currentStatus))
         {
             // UNDERWAY: block changes to core identity fields
@@ -216,44 +221,32 @@ public class VoyageManagementService : IVoyageManagementService
         if (dto.AverageSpeed.HasValue) voyage.AverageSpeed = dto.AverageSpeed;
         if (dto.PlanLegs != null)
         {
-            if (!VoyageStatus.EditableStatuses.Contains(currentStatus))
-                throw new InvalidOperationException($"Cannot modify planning legs while voyage is {currentStatus}.");
-
+            ValidateVoyageAllowsEntityModification(voyage, "planning legs");
             await ReplacePlanLegsAsync(voyage, dto.PlanLegs);
         }
         if (dto.CargoPlans != null)
         {
-            if (!VoyageStatus.EditableStatuses.Contains(currentStatus))
-                throw new InvalidOperationException($"Cannot modify cargo plans while voyage is {currentStatus}.");
-
+            ValidateVoyageAllowsEntityModification(voyage, "cargo plans");
             await ReplaceCargoPlansAsync(voyage, dto.CargoPlans);
         }
         if (dto.BunkerPlans != null)
         {
-            if (!VoyageStatus.EditableStatuses.Contains(currentStatus))
-                throw new InvalidOperationException($"Cannot modify bunker plans while voyage is {currentStatus}.");
-
+            ValidateVoyageAllowsEntityModification(voyage, "bunker plans");
             await ReplaceBunkerPlansAsync(voyage, dto.BunkerPlans);
         }
         if (dto.CrewChangePlans != null)
         {
-            if (!VoyageStatus.EditableStatuses.Contains(currentStatus))
-                throw new InvalidOperationException($"Cannot modify crew change plans while voyage is {currentStatus}.");
-
+            ValidateVoyageAllowsEntityModification(voyage, "crew change plans");
             await ReplaceCrewChangePlansAsync(voyage, dto.CrewChangePlans);
         }
         if (dto.CostEstimates != null)
         {
-            if (!VoyageStatus.EditableStatuses.Contains(currentStatus))
-                throw new InvalidOperationException($"Cannot modify cost estimates while voyage is {currentStatus}.");
-
+            ValidateVoyageAllowsEntityModification(voyage, "cost estimates");
             await ReplaceCostEstimatesAsync(voyage, dto.CostEstimates);
         }
         if (dto.RevenueEstimates != null)
         {
-            if (!VoyageStatus.EditableStatuses.Contains(currentStatus))
-                throw new InvalidOperationException($"Cannot modify revenue estimates while voyage is {currentStatus}.");
-
+            ValidateVoyageAllowsEntityModification(voyage, "revenue estimates");
             await ReplaceRevenueEstimatesAsync(voyage, dto.RevenueEstimates);
         }
         RecalculateFinancialSummary(voyage);
@@ -320,13 +313,47 @@ public class VoyageManagementService : IVoyageManagementService
         return portCalls;
     }
 
+    /// <summary>
+    /// Gets port calls for a voyage with pagination.
+    /// Supports large voyages by limiting results per page (default 50, max 1000).
+    /// </summary>
+    public async Task<PaginatedResponse<PortCallDto>> GetPortCallsAsync(Guid voyageId, PaginationParams pagination)
+    {
+        var query = _context.PortCalls
+            .AsNoTracking()
+            .Where(p => p.VoyageId == voyageId)
+            .OrderBy(p => p.Sequence)
+            .Select(p => new PortCallDto
+            {
+                Id = p.Id,
+                VoyageId = p.VoyageId,
+                PortId = p.PortId,
+                PortCode = p.PortCode,
+                PortName = p.PortName,
+                Country = p.Country,
+                CallType = p.CallType,
+                Sequence = p.Sequence,
+                ArrivalTime = p.ArrivalTime,
+                DepartureTime = p.DepartureTime,
+                BerthNumber = p.BerthNumber,
+                PilotOnBoard = p.PilotOnBoard,
+                PilotOffBoard = p.PilotOffBoard,
+                DraftFore = p.DraftFore,
+                DraftAft = p.DraftAft,
+                CargoOpsCompleted = p.CargoOpsCompleted,
+                Remarks = p.Remarks,
+                CreatedAt = p.CreatedAt
+            });
+
+        var (total, data) = await query.GetPagedResultsAsync(pagination);
+        return PaginatedResponse<PortCallDto>.Create(data, total, pagination);
+    }
+
     public async Task<PortCallDto> CreatePortCallAsync(CreatePortCallDto dto)
     {
-        // Validate voyage status allows adding port calls
         var voyage = await _context.VoyageRecords.FindAsync(dto.VoyageId);
         if (voyage == null) throw new InvalidOperationException("Voyage not found.");
-        if (VoyageStatus.ReadOnlyStatuses.Contains(voyage.VoyageStatus))
-            throw new InvalidOperationException($"Cannot add port calls to a {voyage.VoyageStatus} voyage.");
+        ValidateVoyageAllowsPortCallModification(voyage, "add");
 
         // Auto-calculate sequence if not provided
         var sequence = dto.Sequence ?? (await _context.PortCalls
@@ -379,10 +406,9 @@ public class VoyageManagementService : IVoyageManagementService
         var portCall = await _context.PortCalls.FindAsync(portCallId);
         if (portCall == null) return null;
 
-        // Validate voyage status allows editing port calls
         var voyage = await _context.VoyageRecords.FindAsync(portCall.VoyageId);
-        if (voyage != null && VoyageStatus.ReadOnlyStatuses.Contains(voyage.VoyageStatus))
-            throw new InvalidOperationException($"Cannot modify port calls on a {voyage.VoyageStatus} voyage.");
+        if (voyage != null)
+            ValidateVoyageAllowsPortCallModification(voyage, "modify");
 
         if (dto.PortId.HasValue)
         {
@@ -424,15 +450,9 @@ public class VoyageManagementService : IVoyageManagementService
         var portCall = await _context.PortCalls.FindAsync(portCallId);
         if (portCall == null) return false;
 
-        // Validate voyage status allows deleting port calls
         var voyage = await _context.VoyageRecords.FindAsync(portCall.VoyageId);
         if (voyage != null)
-        {
-            if (VoyageStatus.ReadOnlyStatuses.Contains(voyage.VoyageStatus))
-                throw new InvalidOperationException($"Cannot delete port calls from a {voyage.VoyageStatus} voyage.");
-            if (VoyageStatus.LimitedEditStatuses.Contains(voyage.VoyageStatus))
-                throw new InvalidOperationException("Cannot delete port calls while voyage is UNDERWAY.");
-        }
+            ValidateVoyageAllowsPortCallModification(voyage, "delete");
 
         _context.PortCalls.Remove(portCall);
         await _context.SaveChangesAsync();
@@ -456,11 +476,9 @@ public class VoyageManagementService : IVoyageManagementService
 
     public async Task<VoyageCrewAssignmentDto> AssignCrewAsync(CreateVoyageCrewAssignmentDto dto)
     {
-        // Validate voyage status allows crew assignment
         var voyage = await _context.VoyageRecords.FindAsync(dto.VoyageId);
         if (voyage == null) throw new InvalidOperationException("Voyage not found.");
-        if (VoyageStatus.ReadOnlyStatuses.Contains(voyage.VoyageStatus))
-            throw new InvalidOperationException($"Cannot assign crew to a {voyage.VoyageStatus} voyage.");
+        ValidateVoyageAllowsCrewModification(voyage, "assign");
 
         // Check if already assigned
         var existing = await _context.VoyageCrewAssignments
@@ -507,11 +525,9 @@ public class VoyageManagementService : IVoyageManagementService
 
     public async Task<List<VoyageCrewAssignment>> BulkAssignCrewAsync(BulkAssignCrewDto dto)
     {
-        // Validate voyage status allows crew assignment
         var voyage = await _context.VoyageRecords.FindAsync(dto.VoyageId);
         if (voyage == null) throw new InvalidOperationException("Voyage not found.");
-        if (VoyageStatus.ReadOnlyStatuses.Contains(voyage.VoyageStatus))
-            throw new InvalidOperationException($"Cannot assign crew to a {voyage.VoyageStatus} voyage.");
+        ValidateVoyageAllowsCrewModification(voyage, "assign");
 
         var assignments = new List<VoyageCrewAssignment>();
         
@@ -551,12 +567,10 @@ public class VoyageManagementService : IVoyageManagementService
         var assignment = await _context.VoyageCrewAssignments.FindAsync(assignmentId);
         if (assignment == null) return null;
 
-        // Validate voyage status allows crew assignment updates
         var voyage = await _context.VoyageRecords.FindAsync(assignment.VoyageId);
         if (voyage != null)
         {
-            if (VoyageStatus.ReadOnlyStatuses.Contains(voyage.VoyageStatus))
-                throw new InvalidOperationException($"Cannot modify crew assignments on a {voyage.VoyageStatus} voyage.");
+            ValidateVoyageAllowsCrewModification(voyage, "modify");
             
             // UNDERWAY: only allow status changes and disembark info, not reassigning to different roles/ranks
             if (VoyageStatus.LimitedEditStatuses.Contains(voyage.VoyageStatus))
@@ -801,15 +815,9 @@ public class VoyageManagementService : IVoyageManagementService
         var assignment = await _context.VoyageCrewAssignments.FindAsync(assignmentId);
         if (assignment == null) return false;
 
-        // Validate voyage status allows crew removal
         var voyage = await _context.VoyageRecords.FindAsync(assignment.VoyageId);
         if (voyage != null)
-        {
-            if (VoyageStatus.ReadOnlyStatuses.Contains(voyage.VoyageStatus))
-                throw new InvalidOperationException($"Cannot remove crew from a {voyage.VoyageStatus} voyage.");
-            if (VoyageStatus.LimitedEditStatuses.Contains(voyage.VoyageStatus))
-                throw new InvalidOperationException("Cannot remove crew while voyage is UNDERWAY. Change status to DISEMBARKED instead.");
-        }
+            ValidateVoyageAllowsCrewModification(voyage, "remove");
 
         _context.VoyageCrewAssignments.Remove(assignment);
         await _context.SaveChangesAsync();
@@ -847,6 +855,45 @@ public class VoyageManagementService : IVoyageManagementService
                 CreatedAt = a.CreatedAt
             })
             .ToListAsync();
+    }
+
+    /// <summary>
+    /// Gets crew voyage history for a crew member with pagination.
+    /// Supports long-serving crew with many assignments by limiting results per page.
+    /// </summary>
+    public async Task<PaginatedResponse<VoyageCrewAssignmentDto>> GetCrewVoyageHistoryAsync(Guid crewMemberId, PaginationParams pagination)
+    {
+        var query = _context.VoyageCrewAssignments
+            .AsNoTracking()
+            .Where(a => a.CrewMemberId == crewMemberId)
+            .Include(a => a.Voyage)
+            .Include(a => a.Rank)
+            .OrderByDescending(a => a.EmbarkDate ?? a.CreatedAt)
+            .Select(a => new VoyageCrewAssignmentDto
+            {
+                Id = a.Id,
+                VoyageId = a.VoyageId,
+                VoyageNumber = a.Voyage != null ? a.Voyage.VoyageNumber : null,
+                CrewMemberId = a.CrewMemberId,
+                CrewId = null,
+                CrewName = null,
+                RankId = a.RankId,
+                RankName = a.Rank != null ? a.Rank.RankName : null,
+                Role = a.Role,
+                EmbarkPortCode = a.EmbarkPortCode,
+                EmbarkPortName = a.EmbarkPortName,
+                EmbarkDate = a.EmbarkDate,
+                DisembarkPortCode = a.DisembarkPortCode,
+                DisembarkPortName = a.DisembarkPortName,
+                DisembarkDate = a.DisembarkDate,
+                WatchSchedule = a.WatchSchedule,
+                Status = a.Status,
+                Remarks = a.Remarks,
+                CreatedAt = a.CreatedAt
+            });
+
+        var (total, data) = await query.GetPagedResultsAsync(pagination);
+        return PaginatedResponse<VoyageCrewAssignmentDto>.Create(data, total, pagination);
     }
 
     // ========== FAL FORM 5 ==========
@@ -1443,5 +1490,58 @@ public class VoyageManagementService : IVoyageManagementService
             Remarks = p.Remarks,
             CreatedAt = p.CreatedAt
         };
+    }
+
+    // ========== VOYAGE STATUS VALIDATION HELPERS ==========
+    // Consolidated from 12 repeated checks - single source of truth for status validation
+
+    /// <summary>
+    /// Validates if a voyage is editable based on its current status.
+    /// Throws InvalidOperationException if voyage cannot be edited.
+    /// </summary>
+    /// <param name="voyage">The voyage to validate</param>
+    /// <param name="allowLimitedEdit">If true, allows limited edits for UNDERWAY voyages</param>
+    private void ValidateVoyageIsEditable(VoyageRecord voyage, bool allowLimitedEdit = false)
+    {
+        // Read-only statuses: COMPLETED, CANCELLED - cannot be edited except for status transitions
+        if (VoyageStatus.ReadOnlyStatuses.Contains(voyage.VoyageStatus))
+            throw new InvalidOperationException($"Voyage is {voyage.VoyageStatus} and cannot be modified. Only status transitions are allowed.");
+
+        // Limited edit status: UNDERWAY - only certain fields can be updated
+        if (!allowLimitedEdit && VoyageStatus.LimitedEditStatuses.Contains(voyage.VoyageStatus))
+            throw new InvalidOperationException($"Cannot modify voyage while {voyage.VoyageStatus}. Limited editing only in {voyage.VoyageStatus} status.");
+    }
+
+    /// <summary>
+    /// Validates if a voyage allows adding/deleting port calls based on its status.
+    /// </summary>
+    private void ValidateVoyageAllowsPortCallModification(VoyageRecord voyage, string operation = "modify")
+    {
+        if (VoyageStatus.ReadOnlyStatuses.Contains(voyage.VoyageStatus))
+            throw new InvalidOperationException($"Cannot {operation} port calls on a {voyage.VoyageStatus} voyage.");
+        
+        if (VoyageStatus.LimitedEditStatuses.Contains(voyage.VoyageStatus))
+            throw new InvalidOperationException($"Cannot {operation} port calls while voyage is UNDERWAY.");
+    }
+
+    /// <summary>
+    /// Validates if a voyage allows crew assignment changes based on its status.
+    /// </summary>
+    private void ValidateVoyageAllowsCrewModification(VoyageRecord voyage, string operation = "modify")
+    {
+        if (VoyageStatus.ReadOnlyStatuses.Contains(voyage.VoyageStatus))
+            throw new InvalidOperationException($"Cannot {operation} crew assignments on a {voyage.VoyageStatus} voyage.");
+
+        if (VoyageStatus.LimitedEditStatuses.Contains(voyage.VoyageStatus) && operation == "remove")
+            throw new InvalidOperationException("Cannot remove crew while voyage is UNDERWAY. Change status to DISEMBARKED instead.");
+    }
+
+    /// <summary>
+    /// Validates if voyage allows editing a specific entity type (cargo plans, bunker plans, etc.)
+    /// </summary>
+    private void ValidateVoyageAllowsEntityModification(VoyageRecord voyage, string entityType)
+    {
+        if (!VoyageStatus.EditableStatuses.Contains(voyage.VoyageStatus))
+            throw new InvalidOperationException($"Cannot modify {entityType} while voyage is {voyage.VoyageStatus}.");
     }
 }

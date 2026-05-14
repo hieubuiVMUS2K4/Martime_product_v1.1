@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using AutoMapper;
 using MaritimeEdge.Data;
 using MaritimeEdge.Models;
 // Crew DTOs are now globally available via shared library re-exports
@@ -15,11 +16,13 @@ public class CrewController : ControllerBase
 {
     private readonly EdgeDbContext _context;
     private readonly ILogger<CrewController> _logger;
+    private readonly IMapper _mapper;
 
-    public CrewController(EdgeDbContext context, ILogger<CrewController> logger)
+    public CrewController(EdgeDbContext context, ILogger<CrewController> logger, IMapper mapper)
     {
         _context = context;
         _logger = logger;
+        _mapper = mapper;
     }
 
     [HttpGet]
@@ -67,7 +70,7 @@ public class CrewController : ControllerBase
                 .Take(pageSize)
                 .ToListAsync();
 
-            var crewDtos = crew.Select(MapToCrewMemberDto).ToList();
+            var crewDtos = crew.Select(c => _mapper.Map<CrewMemberDto>(c)).ToList();
 
             return Ok(new
             {
@@ -103,7 +106,7 @@ public class CrewController : ControllerBase
                 .OrderBy(c => c.FullName)
                 .ToListAsync();
 
-            var crewDtos = crew.Select(MapToCrewMemberDto).ToList();
+            var crewDtos = crew.Select(c => _mapper.Map<CrewMemberDto>(c)).ToList();
             return Ok(crewDtos);
         }
         catch (Exception ex)
@@ -128,7 +131,7 @@ public class CrewController : ControllerBase
                 return NotFound(new { message = "Crew member not found" });
             }
 
-            return Ok(MapToCrewMemberDto(crew));
+            return Ok(_mapper.Map<CrewMemberDto>(crew));
         }
         catch (Exception ex)
         {

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>MaritimeEdge.Benchmarks.OptimizationBenchmarks-20260511-152333</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.15.8, Windows 11 (10.0.26200.8246/25H2/2025Update/HudsonValley2)
+AMD Ryzen 7 4800H with Radeon Graphics 2.90GHz, 1 CPU, 16 logical and 8 physical cores
+.NET SDK 9.0.306
+  [Host]     : .NET 8.0.21 (8.0.21, 8.0.2125.47513), X64 RyuJIT x86-64-v3
+  Job-AMZPBM : .NET 8.0.21 (8.0.21, 8.0.2125.47513), X64 RyuJIT x86-64-v3
+</code></pre>
+<pre><code>IterationCount=5  WarmupCount=2  
+</code></pre>
+
+<table>
+<thead><tr><th>Method                      </th><th>Mean      </th><th>Error     </th><th>StdDev    </th><th>Ratio</th><th>RatioSD</th><th>Gen0</th><th>Gen1</th><th>Gen2</th><th>Allocated</th><th>Alloc Ratio</th>
+</tr>
+</thead><tbody><tr><td>String_Old_CaseSensitive</td><td>1,719.02 ns</td><td>240.49 ns</td><td>62.454 ns</td><td>-100.0%</td><td>8.6%</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-100.0%</td>
+</tr><tr><td>String_New_IsSameAs</td><td>2,184.59 ns</td><td>275.69 ns</td><td>71.597 ns</td><td>-100.0%</td><td>8.5%</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-100.0%</td>
+</tr><tr><td>String_Old_ToLower</td><td>20,849.00 ns</td><td>14,053.15 ns</td><td>3,649.559 ns</td><td>-99.9%</td><td>17.9%</td><td>14.0991</td><td>-</td><td>-</td><td>29536 B</td><td>-99.7%</td>
+</tr><tr><td>ManualProjection_1000</td><td>162,899.62 ns</td><td>23,597.68 ns</td><td>6,128.243 ns</td><td>-99.2%</td><td>8.7%</td><td>75.9277</td><td>18.3105</td><td>-</td><td>184128 B</td><td>-98.2%</td>
+</tr><tr><td>AutoMapperProjection_1000</td><td>154,398.92 ns</td><td>32,680.39 ns</td><td>8,486.993 ns</td><td>-99.2%</td><td>9.4%</td><td>75.9277</td><td>18.3105</td><td>-</td><td>184128 B</td><td>-98.2%</td>
+</tr><tr><td>Pagination_LoadAll_10000</td><td>1,400,323.20 ns</td><td>478,765.36 ns</td><td>124,333.844 ns</td><td>-93.1%</td><td>11.4%</td><td>251.9531</td><td>197.2656</td><td>-</td><td>1360056 B</td><td>-86.8%</td>
+</tr><tr><td>Pagination_Top100</td><td>1,380,160.35 ns</td><td>40,426.85 ns</td><td>6,256.100 ns</td><td>-93.2%</td><td>8.0%</td><td>251.9531</td><td>207.0313</td><td>-</td><td>1360104 B</td><td>-86.8%</td>
+</tr><tr><td>CrewBulkLoad_ManualMapping_1000</td><td>285,428.20 ns</td><td>63,238.39 ns</td><td>16,422.808 ns</td><td>-98.6%</td><td>9.6%</td><td>80.5664</td><td>29.2969</td><td>-</td><td>264096 B</td><td>-97.4%</td>
+</tr><tr><td>CrewBulkLoad_AutoMapper_1000</td><td>NA</td><td>NA</td><td>NA</td><td>?</td><td>?</td><td>NA</td><td>NA</td><td>NA</td><td>NA</td><td>?</td>
+</tr><tr><td>CrewBulkLoad_NPlus1_Simulation_100</td><td>23,978.97 ns</td><td>6,437.46 ns</td><td>1,671.787 ns</td><td>-99.9%</td><td>10.2%</td><td>8.7891</td><td>-</td><td>-</td><td>18440 B</td><td>-99.8%</td>
+</tr><tr><td>Report_LoadAll_50000</td><td>20,392,754.38 ns</td><td>7,154,639.82 ns</td><td>1,858,037.245 ns</td><td>baseline</td><td></td><td>1656.2500</td><td>1031.2500</td><td>500.0000</td><td>10320344 B</td><td></td>
+</tr><tr><td>Report_Paginated_50</td><td>21,341,303.12 ns</td><td>15,649,905.11 ns</td><td>4,064,230.668 ns</td><td>+5.3%</td><td>19.2%</td><td>1781.2500</td><td>1156.2500</td><td>500.0000</td><td>10320482 B</td><td>+0.0%</td>
+</tr><tr><td>Report_Paginated_500</td><td>23,602,514.06 ns</td><td>13,469,138.31 ns</td><td>3,497,892.455 ns</td><td>+16.5%</td><td>15.7%</td><td>1781.2500</td><td>1093.7500</td><td>468.7500</td><td>10320388 B</td><td>+0.0%</td>
+</tr><tr><td>Report_Filtered_Paginated</td><td>2,843,351.33 ns</td><td>512,697.49 ns</td><td>133,145.910 ns</td><td>-86.0%</td><td>9.1%</td><td>359.3750</td><td>308.5938</td><td>-</td><td>2064304 B</td><td>-80.0%</td>
+</tr><tr><td>GenerateNoonReport_Single</td><td>93.59 ns</td><td>15.03 ns</td><td>2.326 ns</td><td>-100.0%</td><td>8.3%</td><td>0.0459</td><td>-</td><td>-</td><td>96 B</td><td>-100.0%</td>
+</tr><tr><td>GenerateReports_Batch_100</td><td>15,506.99 ns</td><td>261.67 ns</td><td>67.955 ns</td><td>-99.9%</td><td>8.0%</td><td>7.2937</td><td>-</td><td>-</td><td>15256 B</td><td>-99.9%</td>
+</tr></tbody></table>
+</body>
+</html>

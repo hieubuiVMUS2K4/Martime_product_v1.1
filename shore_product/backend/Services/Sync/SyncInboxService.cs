@@ -215,6 +215,7 @@ public class SyncInboxService : ISyncInboxService
         ["tank_level"]             = typeof(ProductApi.Models.TankLevel),
         ["generator_data"]         = typeof(ProductApi.Models.GeneratorData),
         ["safety_alarm"]           = typeof(ProductApi.Models.SafetyAlarm),
+        ["engine_event"]           = typeof(ProductApi.Models.EngineEvent),
 
         // Reporting — master data from Edge
         ["report_type"]            = typeof(ProductApi.Models.ReportType),

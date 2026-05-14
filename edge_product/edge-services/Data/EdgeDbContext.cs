@@ -33,6 +33,7 @@ public class EdgeDbContext : DbContext
 
     // Safety & Voyages
     public DbSet<SafetyAlarm> SafetyAlarms { get; set; } = null!;
+    public DbSet<EngineEvent> EngineEvents { get; set; } = null!;
     public DbSet<VoyageRecord> VoyageRecords { get; set; } = null!;
     public DbSet<VoyagePlanLeg> VoyagePlanLegs { get; set; } = null!;
     public DbSet<VoyageStatusHistory> VoyageStatusHistories { get; set; } = null!;
@@ -2429,14 +2430,16 @@ public class EdgeDbContext : DbContext
             entity.ToTable("noon_reports");
 
             entity.HasIndex(e => e.MaritimeReportId)
-                .HasDatabaseName("idx_noon_report_id");
+                .HasDatabaseName("idx_noon_report_id")
+                .IsUnique();
 
             entity.HasIndex(e => e.ReportDate)
                 .HasDatabaseName("idx_noon_date")
                 .IsDescending();
 
-            // Foreign key to MaritimeReport (one-to-one)
-            entity.HasOne<MaritimeReport>()
+            // FK is defined via [ForeignKey] attribute on the navigation property in the model.
+            // Using the fluent API here in addition would create a duplicate shadow FK 'MaritimeReportId1'.
+            entity.HasOne(e => e.MaritimeReport)
                 .WithOne()
                 .HasForeignKey<NoonReport>(e => e.MaritimeReportId)
                 .OnDelete(DeleteBehavior.Cascade);
@@ -2457,8 +2460,8 @@ public class EdgeDbContext : DbContext
                 .HasDatabaseName("idx_departure_datetime")
                 .IsDescending();
 
-            // Foreign key to MaritimeReport
-            entity.HasOne<MaritimeReport>()
+            // FK via navigation property - use HasOne(nav) to avoid duplicate shadow FK
+            entity.HasOne(e => e.MaritimeReport)
                 .WithOne()
                 .HasForeignKey<DepartureReport>(e => e.MaritimeReportId)
                 .OnDelete(DeleteBehavior.Cascade);
@@ -2479,8 +2482,8 @@ public class EdgeDbContext : DbContext
                 .HasDatabaseName("idx_arrival_datetime")
                 .IsDescending();
 
-            // Foreign key to MaritimeReport
-            entity.HasOne<MaritimeReport>()
+            // FK via navigation property - use HasOne(nav) to avoid duplicate shadow FK
+            entity.HasOne(e => e.MaritimeReport)
                 .WithOne()
                 .HasForeignKey<ArrivalReport>(e => e.MaritimeReportId)
                 .OnDelete(DeleteBehavior.Cascade);
@@ -2501,8 +2504,8 @@ public class EdgeDbContext : DbContext
                 .HasDatabaseName("idx_bunker_date")
                 .IsDescending();
 
-            // Foreign key to MaritimeReport
-            entity.HasOne<MaritimeReport>()
+            // FK via navigation property - use HasOne(nav) to avoid duplicate shadow FK
+            entity.HasOne(e => e.MaritimeReport)
                 .WithOne()
                 .HasForeignKey<BunkerReport>(e => e.MaritimeReportId)
                 .OnDelete(DeleteBehavior.Cascade);
@@ -2520,8 +2523,8 @@ public class EdgeDbContext : DbContext
                 .HasDatabaseName("idx_position_report_datetime")
                 .IsDescending();
 
-            // Foreign key to MaritimeReport
-            entity.HasOne<MaritimeReport>()
+            // FK via navigation property - use HasOne(nav) to avoid duplicate shadow FK
+            entity.HasOne(e => e.MaritimeReport)
                 .WithOne()
                 .HasForeignKey<PositionReport>(e => e.MaritimeReportId)
                 .OnDelete(DeleteBehavior.Cascade);

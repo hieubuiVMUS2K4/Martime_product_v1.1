@@ -7,7 +7,7 @@ using ProductApi.DTOs;
 namespace ProductApi.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/vessel-telemetry")]
     public class VesselTelemetryController : ControllerBase
     {
         private readonly ITelemetryService _telemetryService;
@@ -203,6 +203,203 @@ namespace ProductApi.Controllers
         {
             await _telemetryService.ProcessAlertAsync(alert);
             return Ok(new { message = "Alert processed", alertId = alert.Id });
+        }
+
+        /// <summary>
+        /// GET: Lấy danh sách cảnh báo (SafetyAlarm) của một tàu, từ mới nhất đến cũ nhất
+        /// vesselId có thể là GUID (từ danh sách tàu) hoặc IMO/NodeId
+        /// </summary>
+        [HttpGet("vessel/{vesselId}/alerts")]
+        public async Task<IActionResult> GetVesselAlerts(string vesselId, [FromQuery] int hours = 72, [FromQuery] int limit = 50)
+        {
+            try
+            {
+                string? originNode = vesselId;
+
+                if (Guid.TryParse(vesselId, out var vesselGuid))
+                {
+                    var vessel = await _dbContext.Vessels
+                        .AsNoTracking()
+                        .Where(v => v.Id == vesselGuid)
+                        .Select(v => new { v.IMO })
+                        .FirstOrDefaultAsync();
+                    if (vessel != null && !string.IsNullOrEmpty(vessel.IMO))
+                        originNode = vessel.IMO;
+                }
+
+                var since = DateTime.UtcNow.AddHours(-hours);
+                var alerts = await _dbContext.SafetyAlarms
+                    .AsNoTracking()
+                    .Where(a => a.OriginNode == originNode && a.Timestamp >= since)
+                    .OrderByDescending(a => a.Timestamp)
+                    .ToListAsync();
+
+                // Deduplicate by Timestamp, AlarmType, and Severity
+                var deduplicatedAlerts = alerts
+                    .GroupBy(a => new { a.Timestamp, a.AlarmType, a.Severity })
+                    .Select(g => g.First())
+                    .Take(limit)
+                    .ToList();
+
+                return Ok(new
+                {
+                    data = deduplicatedAlerts.Select(a => new
+                    {
+                        id = a.Id,
+                        timestamp = a.Timestamp,
+                        alarmType = a.AlarmType,
+                        alarmCode = a.AlarmCode,
+                        severity = a.Severity,
+                        location = a.Location,
+                        description = a.Description,
+                        isAcknowledged = a.IsAcknowledged,
+                        acknowledgedAt = a.AcknowledgedAt,
+                        isResolved = a.IsResolved,
+                        resolvedAt = a.ResolvedAt
+                    }),
+                    total = deduplicatedAlerts.Count
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "Internal server error", message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// GET: Lấy danh sách sự kiện động cơ (EngineEvent) của một tàu
+        /// </summary>
+        [HttpGet("vessel/{vesselId}/engine-events")]
+        public async Task<IActionResult> GetVesselEngineEvents(string vesselId, [FromQuery] int hours = 72, [FromQuery] int limit = 100)
+        {
+            try
+            {
+                string? originNode = vesselId;
+
+                if (Guid.TryParse(vesselId, out var vesselGuid))
+                {
+                    var vessel = await _dbContext.Vessels
+                        .AsNoTracking()
+                        .Where(v => v.Id == vesselGuid)
+                        .Select(v => new { v.IMO })
+                        .FirstOrDefaultAsync();
+                    if (vessel != null && !string.IsNullOrEmpty(vessel.IMO))
+                        originNode = vessel.IMO;
+                }
+
+                var since = DateTime.UtcNow.AddHours(-hours);
+                var events = await _dbContext.EngineEvents
+                    .AsNoTracking()
+                    .Where(e => e.OriginNode == originNode && e.Timestamp >= since)
+                    .OrderByDescending(e => e.Timestamp)
+                    .ToListAsync();
+
+                // Deduplicate by Timestamp, EventType, and EngineId
+                var deduplicatedEvents = events
+                    .GroupBy(e => new { e.Timestamp, e.EventType, e.EngineId })
+                    .Select(g => g.First())
+                    .Take(limit)
+                    .ToList();
+
+                return Ok(new
+                {
+                    data = deduplicatedEvents.Select(e => new
+                    {
+                        id = e.Id,
+                        timestamp = e.Timestamp,
+                        engineId = e.EngineId,
+                        eventType = e.EventType,
+                        rpmAtEvent = e.RpmAtEvent,
+                        triggerSource = e.TriggerSource,
+                        createdAt = e.CreatedAt
+                    }),
+                    total = deduplicatedEvents.Count
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "Internal server error", message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// GET: Tổng quan alerts + engine events cho vessel detail page
+        /// </summary>
+        [HttpGet("vessel/{vesselId}/alerts-summary")]
+        public async Task<IActionResult> GetVesselAlertsSummary(string vesselId)
+        {
+            try
+            {
+                string? originNode = vesselId;
+
+                if (Guid.TryParse(vesselId, out var vesselGuid))
+                {
+                    var vessel = await _dbContext.Vessels
+                        .AsNoTracking()
+                        .Where(v => v.Id == vesselGuid)
+                        .Select(v => new { v.IMO })
+                        .FirstOrDefaultAsync();
+                    if (vessel != null && !string.IsNullOrEmpty(vessel.IMO))
+                        originNode = vessel.IMO;
+                }
+
+                var last24h = DateTime.UtcNow.AddHours(-24);
+
+                var activeAlerts = await _dbContext.SafetyAlarms
+                    .AsNoTracking()
+                    .Where(a => a.OriginNode == originNode && !a.IsResolved)
+                    .GroupBy(a => new { a.Timestamp, a.AlarmType })
+                    .CountAsync();
+
+                var alertsLast24h = await _dbContext.SafetyAlarms
+                    .AsNoTracking()
+                    .Where(a => a.OriginNode == originNode && a.Timestamp >= last24h)
+                    .GroupBy(a => new { a.Timestamp, a.AlarmType })
+                    .CountAsync();
+
+                var criticalAlerts = await _dbContext.SafetyAlarms
+                    .AsNoTracking()
+                    .Where(a => a.OriginNode == originNode && a.Severity == "CRITICAL" && !a.IsResolved)
+                    .GroupBy(a => new { a.Timestamp, a.AlarmType })
+                    .CountAsync();
+
+                var engineStarts = await _dbContext.EngineEvents
+                    .AsNoTracking()
+                    .Where(e => e.OriginNode == originNode && e.EventType == "START" && e.Timestamp >= last24h)
+                    .GroupBy(e => new { e.Timestamp, e.EngineId })
+                    .CountAsync();
+
+                var engineStops = await _dbContext.EngineEvents
+                    .AsNoTracking()
+                    .Where(e => e.OriginNode == originNode && e.EventType == "STOP" && e.Timestamp >= last24h)
+                    .GroupBy(e => new { e.Timestamp, e.EngineId })
+                    .CountAsync();
+
+                var lastEngineEvent = await _dbContext.EngineEvents
+                    .AsNoTracking()
+                    .Where(e => e.OriginNode == originNode)
+                    .OrderByDescending(e => e.Timestamp)
+                    .FirstOrDefaultAsync();
+
+                return Ok(new
+                {
+                    activeAlerts,
+                    alertsLast24h,
+                    criticalAlerts,
+                    engineStartsLast24h = engineStarts,
+                    engineStopsLast24h = engineStops,
+                    lastEngineEvent = lastEngineEvent != null ? new
+                    {
+                        timestamp = lastEngineEvent.Timestamp,
+                        eventType = lastEngineEvent.EventType,
+                        engineId = lastEngineEvent.EngineId
+                    } : null
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "Internal server error", message = ex.Message });
+            }
         }
     }
 }

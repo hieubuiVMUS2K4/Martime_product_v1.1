@@ -50,6 +50,7 @@ namespace ProductApi.Data
         public DbSet<TankLevel> TankLevels { get; set; } = null!;
         public DbSet<GeneratorData> GeneratorData { get; set; } = null!;
         public DbSet<SafetyAlarm> SafetyAlarms { get; set; } = null!;
+        public DbSet<EngineEvent> EngineEvents { get; set; } = null!;
         public DbSet<VoyageRecord> VoyageRecords { get; set; } = null!;
         public DbSet<ReportType> ReportTypes { get; set; } = null!;
         public DbSet<MaritimeReport> MaritimeReports { get; set; } = null!;

@@ -370,8 +370,16 @@ export function ReportDetailPage() {
     );
   }
 
-  const statusConfig = STATUS_CONFIG[report.status];
-  const typeConfig = REPORT_TYPE_CONFIG[report.reportTypeCode];
+  const statusConfig = STATUS_CONFIG[report.status] || {
+    badge: 'bg-slate-100 text-slate-700',
+    dot: 'bg-slate-400',
+    icon: <FileText className="h-4 w-4" />,
+    label: report.status || 'Unknown',
+  };
+  const typeConfig = REPORT_TYPE_CONFIG[report.reportTypeCode] || {
+    title: report.reportTypeCode || 'Unknown Report',
+    icon: <FileText className="h-4 w-4" />,
+  };
   const editRoute = getEditRoute(report);
 
   const commonItems: KeyValueItem[] = [

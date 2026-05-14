@@ -49,13 +49,8 @@ interface VesselOption {
   originNode: string;
 }
 
-const TIME_FILTERS = [
-  { label: '6h', hours: 6 },
-  { label: '24h', hours: 24 },
-  { label: '3d', hours: 72 },
-  { label: '7d', hours: 168 },
-  { label: '30d', hours: 720 },
-];
+// Luôn lấy toàn bộ dữ liệu (≈ 11 năm)
+const ALL_HOURS = 99999;
 
 // Color palette for vessels on the map
 const VESSEL_COLORS = [
@@ -73,14 +68,26 @@ const DASH_PATTERNS = [
   '6,9',    // Route 5: Regional
 ];
 
+// ── Helpers ──
+const statusLabel = (v: VesselTrackData) => {
+  if (v.engineRunning) return { text: 'Active', class: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10' };
+  return { text: 'Idle', class: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10' };
+};
+
+const courseToCompass = (deg: number): string => {
+  const dirs = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+  return dirs[Math.round(deg / 22.5) % 16];
+};
+
 export const VesselTrackingPage: React.FC = () => {
   const [vessels, setVessels] = useState<VesselOption[]>([]);
-  const [selectedHours, setSelectedHours] = useState<number>(24);
+  const selectedHours = ALL_HOURS;
   const [allVesselData, setAllVesselData] = useState<VesselTrackData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [focusVesselId, setFocusVesselId] = useState<string | null>(null);
   const [isFirstLoad, setIsFirstLoad] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Lấy danh sách tàu và dữ liệu vị trí của tất cả
   useEffect(() => {
@@ -118,7 +125,7 @@ export const VesselTrackingPage: React.FC = () => {
       const results = await Promise.allSettled(
         vessels.map(v =>
           axios.get<PositionResponse>(
-            `${API_BASE}/VesselTelemetry/vessel/${v.id}/realtime`,
+            `${API_BASE}/vessel-telemetry/vessel/${v.id}/realtime`,
             { headers, params: { hours: selectedHours } }
           )
         )
@@ -210,156 +217,241 @@ export const VesselTrackingPage: React.FC = () => {
     return () => clearInterval(interval);
   }, [fetchAllPositions]);
 
-  // Parse dữ liệu cho map (giữ cho backward-compat)
-  const hasData = allVesselData.length > 0;
+  // Stats
+  const activeVessels = allVesselData.filter(v => v.engineRunning).length;
+  const avgSpeed = allVesselData.length > 0
+    ? allVesselData.reduce((s, v) => s + (v.position.speedOverGround ?? 0), 0) / allVesselData.length
+    : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-      <div className="p-4 md:p-6 max-w-[1600px] mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            🗺️ Vessel Tracking
-          </h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">
-            Real-time GPS position tracking — all vessels on one map
-          </p>
-        </div>
-
-        {/* Controls Bar */}
-        <div className="flex flex-wrap items-center gap-3 mb-4 bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-200 dark:border-gray-700">
-          {/* Legend */}
-          <div className="flex flex-wrap items-center gap-4">
-            {allVesselData.map((v, idx) => (
-              <div key={v.id} className="flex items-center gap-2 text-xs">
-                <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: v.color }} />
-                <span className="font-medium text-gray-700 dark:text-gray-200">{v.name}</span>
-                <span className="text-gray-400">•</span>
-                <svg className="w-8 h-2" style={{ stroke: v.color }}>
-                  <line x1="0" y1="50%" x2="8" y2="50%" strokeWidth="1.5" strokeDasharray={v.dashArray} />
-                </svg>
+    <div className="h-screen flex flex-col bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 overflow-hidden">
+      {/* ── Header (compact) ── */}
+      <div className="relative flex-shrink-0">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 via-indigo-500/5 to-purple-600/5 dark:from-blue-600/10 dark:via-indigo-500/10 dark:to-purple-600/10" />
+        <div className="relative px-3 md:px-4 pt-2 md:pt-3 pb-1.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="hidden md:inline-flex bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-base w-8 h-8 rounded-lg flex items-center justify-center shadow-md shadow-blue-500/20 flex-shrink-0">
+                🗺️
+              </span>
+              <div className="min-w-0">
+                <h1 className="text-lg md:text-xl font-extrabold text-gray-900 dark:text-white truncate flex items-center gap-2">
+                  <span className="md:hidden bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-sm w-7 h-7 rounded-lg flex items-center justify-center shadow-md shadow-blue-500/20 flex-shrink-0">
+                    🗺️
+                  </span>
+                  Vessel Tracking
+                  <span className="hidden sm:inline text-xs font-normal text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-md">Real-time GPS</span>
+                </h1>
               </div>
-            ))}
+            </div>
+
+            {/* Quick stats + refresh — inline */}
+            {allVesselData.length > 0 && (
+              <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
+                <div className="flex items-center gap-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-lg px-2.5 py-1.5 shadow-xs border border-gray-200/60 dark:border-gray-700/60 text-[11px]">
+                  <span className="flex items-center gap-1 text-gray-500">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="font-semibold text-gray-800 dark:text-gray-200">{activeVessels}</span>
+                  </span>
+                  <span className="text-gray-300 dark:text-gray-600">|</span>
+                  <span className="text-gray-500">
+                    <span className="font-semibold text-gray-800 dark:text-gray-200">{avgSpeed.toFixed(1)}</span>
+                    <span className="hidden xs:inline"> kn</span>
+                  </span>
+                  <span className="text-gray-300 dark:text-gray-600">|</span>
+                  <span className="text-gray-500">
+                    <span className="font-semibold text-gray-800 dark:text-gray-200">{allVesselData.length}</span>
+                    <span className="hidden xs:inline"> vessel</span>
+                  </span>
+                </div>
+                <button
+                  onClick={fetchAllPositions}
+                  disabled={loading}
+                  className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-semibold hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 transition-all duration-200 flex items-center gap-1 shadow-md shadow-blue-500/15 active:scale-95"
+                >
+                  {loading ? (
+                    <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                  )}
+                  <span className="hidden sm:inline">Refresh</span>
+                </button>
+              </div>
+            )}
             {allVesselData.length === 0 && !loading && (
-              <span className="text-sm text-gray-500 italic">No vessels with position data</span>
-            )}
-          </div>
-
-          {/* Spacer */}
-          <div className="flex-1" />
-
-          {/* Time Filters */}
-          <div className="flex items-center gap-1">
-            <label className="text-sm font-medium text-gray-600 dark:text-gray-300 mr-1">Time:</label>
-            {TIME_FILTERS.map(f => (
               <button
-                key={f.hours}
-                onClick={() => setSelectedHours(f.hours)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  selectedHours === f.hours
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                }`}
+                onClick={fetchAllPositions}
+                disabled={loading}
+                className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-semibold hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 transition-all duration-200 flex items-center gap-1 shadow-md shadow-blue-500/15"
               >
-                {f.label}
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                Load Data
               </button>
-            ))}
-          </div>
-
-          {/* Manual Refresh */}
-          <button
-            onClick={fetchAllPositions}
-            disabled={loading}
-            className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-1"
-          >
-            {loading ? (
-              <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              '↻'
             )}
-            Refresh
-          </button>
+          </div>
         </div>
+      </div>
+
+      {/* ── Main content: map fills remaining space ── */}
+      <div className="flex-1 px-3 md:px-4 pb-3 md:pb-4 min-h-0 flex flex-col">
+        {/* Controls Bar */}
+        {allVesselData.length > 0 && (
+          <div className="flex-shrink-0 mb-1.5 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-xl px-2 py-1.5 shadow-sm border border-gray-200/70 dark:border-gray-700/70 overflow-x-auto">
+            <div className="flex items-center gap-1">
+              {allVesselData.map((v, idx) => (
+                <button
+                  key={v.id}
+                  onClick={() => setFocusVesselId(v.id)}
+                  className={`group flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-all duration-200 whitespace-nowrap border ${
+                    focusVesselId === v.id
+                      ? 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600'
+                      : 'border-transparent hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                  }`}
+                >
+                  <span className="inline-block w-2 h-2 rounded-full ring-2 ring-white dark:ring-gray-800" style={{ backgroundColor: v.color }} />
+                  <span className="text-gray-700 dark:text-gray-200">{v.name}</span><span className="text-[10px] text-gray-400">{v.position.speedOverGround?.toFixed(1) || '—'}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Error */}
         {error && (
-          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg text-red-700 dark:text-red-300 text-sm">
+          <div className="flex-shrink-0 mb-1.5 p-2 bg-red-50/90 dark:bg-red-900/30 backdrop-blur-sm border border-red-200 dark:border-red-700 rounded-lg text-red-700 dark:text-red-300 text-xs flex items-center gap-1.5">
+            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" /></svg>
             {error}
           </div>
         )}
 
-        {/* Map */}
+        {/* Map area */}
         {loading && allVesselData.length === 0 ? (
-          <div className="flex items-center justify-center h-[500px] bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+          <div className="flex-1 flex items-center justify-center bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl border border-gray-200/70 dark:border-gray-700/70 shadow-lg">
             <div className="text-center">
-              <div className="inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-3" />
-              <div className="text-gray-500">Loading vessel positions...</div>
+              <div className="relative inline-flex mb-4">
+                <div className="w-10 h-10 border-4 border-blue-200 dark:border-blue-800 rounded-full" />
+                <div className="absolute inset-0 w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+              </div>
+              <div className="text-gray-500 dark:text-gray-400 text-sm font-medium">Loading vessel positions...</div>
+              <div className="text-gray-400 dark:text-gray-500 text-xs mt-1">Fetching real-time GPS data</div>
             </div>
           </div>
         ) : (
-          <div className="relative mb-4">
-            {/* Danh sách tàu — overlay góc trái trên map */}
+          <div className="flex-1 relative">
+            {/* Toggle sidebar button */}
             {allVesselData.length > 0 && (
-              <div className="absolute top-3 left-3 z-[1000] max-h-[calc(100%-24px)] overflow-y-auto">
-                <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 w-64">
-                  <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-                    <h3 className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                      <span>🚢</span> Vessels
-                      <span className="ml-auto text-xs font-normal text-gray-400">({allVesselData.length})</span>
-                    </h3>
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className={`absolute top-2 left-2 z-[1001] w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200 shadow-md backdrop-blur-sm border ${
+                  sidebarOpen
+                    ? 'bg-white/90 dark:bg-gray-800/90 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300'
+                    : 'bg-blue-600/90 border-blue-500/50 text-white hover:bg-blue-700'
+                }`}
+                title={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {sidebarOpen
+                    ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                    : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                  }
+                </svg>
+              </button>
+            )}
+
+            {/* Danh sách tàu — overlay bên trái trên map */}
+            {allVesselData.length > 0 && (
+              <div
+                className={`absolute top-2 left-2 z-[1000] transition-all duration-300 ease-in-out ${
+                  sidebarOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none'
+                }`}
+                style={{ maxHeight: 'calc(100% - 16px)' }}
+              >
+                <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl rounded-xl shadow-2xl border border-gray-200/80 dark:border-gray-700/80 w-64 overflow-hidden">
+                  {/* Header */}
+                  <div className="px-3 py-2.5 border-b border-gray-100 dark:border-gray-800">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm">
+                        <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      </div>
+                      <div><h3 className="text-xs font-bold text-gray-800 dark:text-gray-100">Vessels</h3><p className="text-[9px] text-gray-400">{allVesselData.length} tracked</p></div>
+                    </div>
                   </div>
-                  <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {allVesselData.map(v => (
-                      <button
-                        key={v.id}
-                        onClick={() => setFocusVesselId(v.id)}
-                        className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800 ${
-                          focusVesselId === v.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                        }`}
-                      >
-                        <span
-                          className="inline-block w-3 h-3 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: v.color }}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
-                            {v.name}
-                          </div>
-                          {v.position.speedOverGround != null && (
-                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                              {v.position.speedOverGround.toFixed(1)} kn
-                              {v.position.courseOverGround != null && ` • ${v.position.courseOverGround.toFixed(0)}°`}
+
+                  {/* Scrollable list */}
+                  <div className="overflow-y-auto overscroll-contain" style={{ maxHeight: 'min(380px, calc(100vh - 200px))' }}>
+                    <div className="py-0.5">
+                      {allVesselData.map((v, idx) => {
+                        const isFocus = focusVesselId === v.id;
+                        return (
+                          <button
+                            key={v.id}
+                            onClick={() => setFocusVesselId(v.id)}
+                            className={`w-full text-left relative transition-all duration-150 ${
+                              isFocus
+                                ? 'bg-gradient-to-r from-blue-50 to-indigo-50/50 dark:from-blue-900/20 dark:to-indigo-900/10'
+                                : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 pl-3 pr-2 py-2">
+                              {/* Vessel icon */}
+                              <div className="relative flex-shrink-0">
+                                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${v.color}18` }}>
+                                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill={v.color}>
+                                    <path d="M12 2L4 20L8 19.5L12 17L16 19.5L20 20L12 2Z" />
+                                  </svg>
+                                </div>
+                                <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-white dark:border-gray-900 ${
+                                  v.engineRunning ? 'bg-emerald-400' : 'bg-gray-300'
+                                }`} />
+                              </div>
+                              {/* Info */}
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate">{v.name}</div><div className="text-[10px] text-gray-500">
+                                  {v.position.speedOverGround != null ? `${v.position.speedOverGround.toFixed(1)} kn` : '— kn'}{v.position.courseOverGround != null && ` • ${v.position.courseOverGround.toFixed(0)}°`}
+                                </div>
+                              </div>
                             </div>
-                          )}
-                        </div>
-                        <svg className="w-4 h-4 text-gray-300 dark:text-gray-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </button>
-                    ))}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>
             )}
+
+            {/* Map fills remaining space */}
             <VesselMap
               vessels={allVesselData.length > 0 ? allVesselData : undefined}
               positions={[]}
               currentPosition={null}
               autoFit={isFirstLoad}
-              height="600px"
+              height="100%"
               focusVesselId={focusVesselId ?? undefined}
               onVesselSelect={(id) => setFocusVesselId(id)}
             />
           </div>
         )}
 
-        {/* Summary info */}
+        {/* Compact stats bar */}
         {allVesselData.length > 0 && (
-          <div className="mt-4 p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="text-sm text-gray-600 dark:text-gray-300">
-              <span className="font-semibold text-gray-900 dark:text-white">Tracking {allVesselData.length} vessel(s)</span>
-              {' · '}Last update: {new Date().toLocaleTimeString()}
-              {' · '}Time range: {selectedHours}h
+          <div className="flex-shrink-0 flex items-center gap-1.5 mt-1.5 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-lg px-3 py-1.5 shadow-xs border border-gray-200/60 dark:border-gray-700/60">
+            <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              <span className="font-semibold text-gray-800 dark:text-gray-200">{allVesselData.length}</span> vessels
+            </div>
+            <span className="text-gray-300 dark:text-gray-600">|</span>
+            <div className="flex items-center gap-1 text-[11px] text-gray-500">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span className="font-semibold text-emerald-600 dark:text-emerald-400">{activeVessels}</span> active
+            </div>
+            <span className="text-gray-300 dark:text-gray-600">|</span>
+            <div className="text-[11px] text-gray-500">
+              <span className="font-semibold text-gray-800 dark:text-gray-200">{avgSpeed.toFixed(1)}</span> kn avg
+            </div>
+            <span className="text-gray-300 dark:text-gray-600">|</span>
+            <div className="text-[11px] text-gray-500">
+              Updated <span className="font-medium text-gray-700 dark:text-gray-300">{new Date().toLocaleTimeString()}</span>
             </div>
           </div>
         )}

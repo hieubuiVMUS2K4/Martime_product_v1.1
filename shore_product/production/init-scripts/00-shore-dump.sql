@@ -81,6 +81,7 @@ CREATE TABLE public."EngineData" (
     "FuelRate" double precision,
     "RunningHours" double precision,
     "AlarmStatus" integer,
+    "IsRunning" boolean NOT NULL DEFAULT false,
     "CreatedAt" timestamp with time zone NOT NULL,
     "UpdatedAt" timestamp with time zone NOT NULL,
     "OriginNode" character varying(50) NOT NULL

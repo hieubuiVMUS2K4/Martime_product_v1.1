@@ -321,7 +321,12 @@ namespace ProductApi.Services.AI
                 var criticalDuePms = await _context.MaintenanceTasks.CountAsync(t => t.VesselId == request.VesselId && t.Priority == "CRITICAL" && t.NextDueAt <= thirtyDaysFromNow && t.Status == "SCHEDULED", token);
                 
                 var activeAlertsCount = await _context.VesselAlerts.CountAsync(a => a.VesselId == request.VesselId && !a.IsAcknowledged, token);
-                var activeAlertsDetails = await _context.VesselAlerts.Where(a => a.VesselId == request.VesselId && !a.IsAcknowledged).Select(a => a.Message).Take(5).ToListAsync(token);
+                var activeAlertsDetails = await _context.VesselAlerts
+                    .AsNoTracking()
+                    .Where(a => a.VesselId == request.VesselId && !a.IsAcknowledged)
+                    .Select(a => a.Message)
+                    .Take(5)
+                    .ToListAsync(token);
                 
                 var expiringCertificatesCount = await _context.VesselCertificates.CountAsync(c => c.VesselId == request.VesselId && c.ExpiryDate <= thirtyDaysFromNow && c.ExpiryDate > now, token);
                 
