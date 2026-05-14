@@ -274,9 +274,6 @@ public class EngineData
     
     public double? Rpm { get; set; }
     
-    /// <summary>Propeller pitch percentage (0-100%)</summary>
-    public double? PropellerPitch { get; set; }
-    
     public double? LoadPercent { get; set; }
     
     public double? CoolantTemp { get; set; } // Celsius

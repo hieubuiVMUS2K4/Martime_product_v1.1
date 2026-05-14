@@ -232,12 +232,18 @@ namespace ProductApi.Controllers
                     .AsNoTracking()
                     .Where(a => a.OriginNode == originNode && a.Timestamp >= since)
                     .OrderByDescending(a => a.Timestamp)
-                    .Take(limit)
                     .ToListAsync();
+
+                // Deduplicate by Timestamp, AlarmType, and Severity
+                var deduplicatedAlerts = alerts
+                    .GroupBy(a => new { a.Timestamp, a.AlarmType, a.Severity })
+                    .Select(g => g.First())
+                    .Take(limit)
+                    .ToList();
 
                 return Ok(new
                 {
-                    data = alerts.Select(a => new
+                    data = deduplicatedAlerts.Select(a => new
                     {
                         id = a.Id,
                         timestamp = a.Timestamp,
@@ -251,7 +257,7 @@ namespace ProductApi.Controllers
                         isResolved = a.IsResolved,
                         resolvedAt = a.ResolvedAt
                     }),
-                    total = alerts.Count
+                    total = deduplicatedAlerts.Count
                 });
             }
             catch (Exception ex)
@@ -286,12 +292,18 @@ namespace ProductApi.Controllers
                     .AsNoTracking()
                     .Where(e => e.OriginNode == originNode && e.Timestamp >= since)
                     .OrderByDescending(e => e.Timestamp)
-                    .Take(limit)
                     .ToListAsync();
+
+                // Deduplicate by Timestamp, EventType, and EngineId
+                var deduplicatedEvents = events
+                    .GroupBy(e => new { e.Timestamp, e.EventType, e.EngineId })
+                    .Select(g => g.First())
+                    .Take(limit)
+                    .ToList();
 
                 return Ok(new
                 {
-                    data = events.Select(e => new
+                    data = deduplicatedEvents.Select(e => new
                     {
                         id = e.Id,
                         timestamp = e.Timestamp,
@@ -301,7 +313,7 @@ namespace ProductApi.Controllers
                         triggerSource = e.TriggerSource,
                         createdAt = e.CreatedAt
                     }),
-                    total = events.Count
+                    total = deduplicatedEvents.Count
                 });
             }
             catch (Exception ex)
@@ -335,23 +347,33 @@ namespace ProductApi.Controllers
 
                 var activeAlerts = await _dbContext.SafetyAlarms
                     .AsNoTracking()
-                    .CountAsync(a => a.OriginNode == originNode && !a.IsResolved);
+                    .Where(a => a.OriginNode == originNode && !a.IsResolved)
+                    .GroupBy(a => new { a.Timestamp, a.AlarmType })
+                    .CountAsync();
 
                 var alertsLast24h = await _dbContext.SafetyAlarms
                     .AsNoTracking()
-                    .CountAsync(a => a.OriginNode == originNode && a.Timestamp >= last24h);
+                    .Where(a => a.OriginNode == originNode && a.Timestamp >= last24h)
+                    .GroupBy(a => new { a.Timestamp, a.AlarmType })
+                    .CountAsync();
 
                 var criticalAlerts = await _dbContext.SafetyAlarms
                     .AsNoTracking()
-                    .CountAsync(a => a.OriginNode == originNode && a.Severity == "CRITICAL" && !a.IsResolved);
+                    .Where(a => a.OriginNode == originNode && a.Severity == "CRITICAL" && !a.IsResolved)
+                    .GroupBy(a => new { a.Timestamp, a.AlarmType })
+                    .CountAsync();
 
                 var engineStarts = await _dbContext.EngineEvents
                     .AsNoTracking()
-                    .CountAsync(e => e.OriginNode == originNode && e.EventType == "START" && e.Timestamp >= last24h);
+                    .Where(e => e.OriginNode == originNode && e.EventType == "START" && e.Timestamp >= last24h)
+                    .GroupBy(e => new { e.Timestamp, e.EngineId })
+                    .CountAsync();
 
                 var engineStops = await _dbContext.EngineEvents
                     .AsNoTracking()
-                    .CountAsync(e => e.OriginNode == originNode && e.EventType == "STOP" && e.Timestamp >= last24h);
+                    .Where(e => e.OriginNode == originNode && e.EventType == "STOP" && e.Timestamp >= last24h)
+                    .GroupBy(e => new { e.Timestamp, e.EngineId })
+                    .CountAsync();
 
                 var lastEngineEvent = await _dbContext.EngineEvents
                     .AsNoTracking()

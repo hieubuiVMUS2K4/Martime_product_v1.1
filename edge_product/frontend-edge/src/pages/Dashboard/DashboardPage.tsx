@@ -26,7 +26,6 @@ const MOCK_DEPTH = { ukc: 24.5 }
 const MOCK_EDGE = { pendingSync: 12, lastSync: new Date(Date.now() - 45000).toISOString() }
 const MOCK_DRAFT = { fore: 8.2, mid: 8.5, aft: 8.8 }
 const MOCK_THRUSTERS = { bow: 45, stern: 0 }
-const MOCK_PITCH = 82
 
 export function DashboardPage() {
   const { t } = useTranslationSafe()
@@ -90,21 +89,30 @@ export function DashboardPage() {
 
   const refreshNavigation = useCallback(async () => {
     try {
-      const navData = await telemetryService.getLatestNavigation()
+      const [navData, engineData] = await Promise.all([
+        telemetryService.getLatestNavigation(),
+        telemetryService.getEngineStatus()
+      ]);
+      const currentEngine = engineData?.[0] || null;
+
       if (navData) {
         setNavigation(navData)
         setCurrentNavigation(navData)
+        if (currentEngine) {
+          setEngine(currentEngine)
+        }
         
         setHistory(prev => {
           const now = new Date()
           const timeStr = `${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`
-          const simulatedRpm = engine?.rpm ?? ((navData.speedThroughWater ?? 0) * 10)
+          const stw = navData.speedThroughWater ?? 0;
+          const rpm = stw * 11.5;
           
           const newPoint = {
             time: timeStr,
             pitch: navData.pitch ?? 0,
             roll: navData.roll ?? 0,
-            rpm: simulatedRpm
+            rpm: Math.max(0, rpm)
           }
           return [...prev.slice(-59), newPoint]
         })
@@ -133,8 +141,15 @@ export function DashboardPage() {
   const currentStw = navigation?.speedThroughWater ?? 0
   const currentCog = position?.courseOverGround ?? 0
   const currentHdg = navigation?.headingTrue ?? 0
-  const simulatedRpm = engine?.rpm ?? 0
-  const isEngineRunning = simulatedRpm > 50
+  
+  // Calculate dynamic data based on STW in real-time
+  const realRpm = currentStw * 11.5
+  const isEngineRunning = realRpm > 0
+  
+  // Real-time simulated pitch and load based on STW
+  const dynamicPitch = isEngineRunning ? Math.min(85, currentStw * 5.5) : 0 
+  const engineLoad = isEngineRunning ? Math.min(100, currentStw * 6.0) : 0
+  const fuelRate = isEngineRunning ? (engineLoad * 0.18) : 0
   const isOnline = MOCK_EDGE.pendingSync < 50
   const gpsFix = position?.fixQuality >= 2 ? t('conning.dgpsFix') : position?.fixQuality === 1 ? t('conning.gpsFix') : t('conning.noFix')
 
@@ -338,12 +353,12 @@ export function DashboardPage() {
                         cx="50" cy="50" r="45" fill="none" 
                         stroke={isEngineRunning ? '#10b981' : '#ef4444'} 
                         strokeWidth="8" strokeLinecap="round"
-                        strokeDasharray={`${(Math.min(simulatedRpm, 200) / 200) * 283} 283`}
+                        strokeDasharray={`${(Math.min(realRpm, 200) / 200) * 283} 283`}
                         className="transition-all duration-300"
                       />
                     </svg>
                     <div className="absolute flex flex-col items-center">
-                      <span className="font-mono text-2xl font-bold text-slate-800 dark:text-white">{Math.round(simulatedRpm)}</span>
+                      <span className="font-mono text-2xl font-bold text-slate-800 dark:text-white">{Math.round(realRpm)}</span>
                       <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase">{t('conning.rpm')}</span>
                     </div>
                   </div>
@@ -352,20 +367,20 @@ export function DashboardPage() {
                      <div className="bg-slate-50 dark:bg-slate-900/50 p-2 rounded-lg border border-slate-100 dark:border-slate-700">
                        <div className="flex justify-between text-[10px] text-slate-500 dark:text-slate-400 font-bold mb-1">
                          <span className="uppercase">{t('conning.propPitch')}</span>
-                         <span className="text-orange-500">{Math.round(engine?.propellerPitch ?? 82)}%</span>
+                         <span className="text-orange-500">{dynamicPitch.toFixed(0)}%</span>
                        </div>
                        <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                         <div className="h-full bg-orange-500 transition-all duration-500" style={{ width: `${Math.round(engine?.propellerPitch ?? 82)}%` }} />
+                         <div className="h-full bg-orange-500 transition-all duration-500" style={{ width: `${dynamicPitch}%` }} />
                        </div>
                      </div>
                      <div className="grid grid-cols-2 gap-2 text-center">
                         <div className="bg-slate-50 dark:bg-slate-900/50 p-1.5 rounded-lg border border-slate-100 dark:border-slate-700">
                            <div className="text-[9px] text-slate-400 uppercase">{t('conning.engineLoad')}</div>
-                           <div className="text-xs font-bold text-slate-800 dark:text-white">{Math.round(engine?.loadPercent ?? 0)}%</div>
+                           <div className="text-xs font-bold text-slate-800 dark:text-white">{engineLoad.toFixed(1)}%</div>
                         </div>
                         <div className="bg-slate-50 dark:bg-slate-900/50 p-1.5 rounded-lg border border-slate-100 dark:border-slate-700">
                            <div className="text-[9px] text-slate-400 uppercase">{t('conning.fuelRate')}</div>
-                           <div className="text-xs font-bold text-slate-800 dark:text-white">{(engine?.fuelRate ?? 0).toFixed(1)} t/d</div>
+                           <div className="text-xs font-bold text-slate-800 dark:text-white">{fuelRate.toFixed(1)} t/d</div>
                         </div>
                      </div>
                   </div>

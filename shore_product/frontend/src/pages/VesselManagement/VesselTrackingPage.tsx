@@ -125,7 +125,7 @@ export const VesselTrackingPage: React.FC = () => {
       const results = await Promise.allSettled(
         vessels.map(v =>
           axios.get<PositionResponse>(
-            `${API_BASE}/VesselTelemetry/vessel/${v.id}/realtime`,
+            `${API_BASE}/vessel-telemetry/vessel/${v.id}/realtime`,
             { headers, params: { hours: selectedHours } }
           )
         )
@@ -309,8 +309,7 @@ export const VesselTrackingPage: React.FC = () => {
                   }`}
                 >
                   <span className="inline-block w-2 h-2 rounded-full ring-2 ring-white dark:ring-gray-800" style={{ backgroundColor: v.color }} />
-                  <span className="text-gray-700 dark:text-gray-200">{v.name}</span>
-                  <span className="text-[10px] text-gray-400">{v.position.speedOverGround?.toFixed(1) || '—'}</span>
+                  <span className="text-gray-700 dark:text-gray-200">{v.name}</span><span className="text-[10px] text-gray-400">{v.position.speedOverGround?.toFixed(1) || '—'}</span>
                 </button>
               ))}
             </div>
@@ -374,10 +373,7 @@ export const VesselTrackingPage: React.FC = () => {
                       <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm">
                         <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                       </div>
-                      <div>
-                        <h3 className="text-xs font-bold text-gray-800 dark:text-gray-100">Vessels</h3>
-                        <p className="text-[9px] text-gray-400">{allVesselData.length} tracked</p>
-                      </div>
+                      <div><h3 className="text-xs font-bold text-gray-800 dark:text-gray-100">Vessels</h3><p className="text-[9px] text-gray-400">{allVesselData.length} tracked</p></div>
                     </div>
                   </div>
 
@@ -410,10 +406,8 @@ export const VesselTrackingPage: React.FC = () => {
                               </div>
                               {/* Info */}
                               <div className="flex-1 min-w-0">
-                                <div className="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate">{v.name}</div>
-                                <div className="text-[10px] text-gray-500">
-                                  {v.position.speedOverGround != null ? `${v.position.speedOverGround.toFixed(1)} kn` : '— kn'}
-                                  {v.position.courseOverGround != null && ` • ${v.position.courseOverGround.toFixed(0)}°`}
+                                <div className="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate">{v.name}</div><div className="text-[10px] text-gray-500">
+                                  {v.position.speedOverGround != null ? `${v.position.speedOverGround.toFixed(1)} kn` : '— kn'}{v.position.courseOverGround != null && ` • ${v.position.courseOverGround.toFixed(0)}°`}
                                 </div>
                               </div>
                             </div>

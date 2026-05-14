@@ -155,28 +155,6 @@ public class TelemetryController : ControllerBase
                 return BadRequest(new { error = "Invalid sensor data" });
 
             var now = DateTime.UtcNow;
-            // --- Propulsion Correlation Logic ---
-            // dto.Speed from ESP8266 is treated as Engine RPM
-            double rpm = dto.Speed ?? 0;
-            double pitchPercent = 82.0; // Default pitch percentage for CPP simulation
-            double rpmRef = 2000.0;     // Reference max RPM for the small DC motor
-            double stwMax = 15.0;       // Max Speed Through Water in knots
-            
-            // Calculate STW: Linear relationship with RPM and Pitch
-            double ratio = Math.Clamp(rpm / rpmRef, 0, 1.2);
-            double calculatedStw = ratio * stwMax * (pitchPercent / 100.0);
-            
-            // Calculate Engine Load: Propeller Law (Load proportional to RPM^3)
-            // We use a normalized load where 100% load corresponds to rpmRef
-            double calculatedLoad = Math.Pow(ratio, 3) * 100.0;
-            
-            // Calculate Fuel Consumption: Proportional to load
-            // Assuming max fuel rate of 20 tons/day at 100% load
-            double fuelRateMax = 20.0;
-            double calculatedFuelRate = (calculatedLoad / 100.0) * fuelRateMax;
-            
-            bool isRunning = rpm > 50; // Threshold to consider engine as running
-
             var navigation = new NavigationData
             {
                 Id = Guid.NewGuid(),
@@ -185,7 +163,7 @@ public class TelemetryController : ControllerBase
                 Roll = dto.Roll,
                 HeadingTrue = dto.HeadingTrue,
                 HeadingMagnetic = dto.HeadingMagnetic,
-                SpeedThroughWater = calculatedStw,
+                SpeedThroughWater = dto.Speed ?? dto.SpeedThroughWater,
                 Depth = dto.Depth,
                 IsSynced = false,
                 CreatedAt = now
@@ -193,49 +171,50 @@ public class TelemetryController : ControllerBase
 
             _context.NavigationData.Add(navigation);
 
-            // ── Đồng thời tạo EngineData với các thông số đã tính toán ──
-            var engineData = new EngineData
+            // ── Đồng thời tạo EngineData để trạng thái motor được đồng bộ lên Shore ──
+            if (dto.Speed.HasValue)
             {
-                Timestamp = now,
-                EngineId = "MAIN_ENGINE",
-                Rpm = rpm,
-                PropellerPitch = pitchPercent,
-                LoadPercent = calculatedLoad,
-                FuelRate = calculatedFuelRate,
-                IsRunning = isRunning,
-                IsSynced = false,
-                CreatedAt = now,
-                UpdatedAt = now,
-                OriginNode = "SHIP_01"
-            };
-            _context.EngineData.Add(engineData);
-
-            // ── Detect engine start/stop events ──
-            var lastEngine = await _context.EngineData
-                .Where(e => e.EngineId == "MAIN_ENGINE")
-                .OrderByDescending(e => e.Timestamp)
-                .Skip(1)
-                .FirstOrDefaultAsync();
-
-            if (lastEngine != null && lastEngine.IsRunning != isRunning)
-            {
-                var eventType = isRunning ? "START" : "STOP";
-                var engineEvent = new EngineEvent
+                var isRunning = dto.Speed.Value > 0;
+                var engineData = new EngineData
                 {
                     Timestamp = now,
                     EngineId = "MAIN_ENGINE",
-                    EventType = eventType,
-                    Rpm = rpm,
-                    TriggerSource = "ESP8266",
+                    Rpm = dto.Speed.Value,
+                    IsRunning = isRunning,
                     IsSynced = false,
                     CreatedAt = now,
+                    UpdatedAt = now,
                     OriginNode = "SHIP_01"
                 };
-                _context.EngineEvents.Add(engineEvent);
+                _context.EngineData.Add(engineData);
 
-                _logger.LogInformation(
-                    "[ENGINE-EVENT] {EventType} detected for MAIN_ENGINE (RPM={Rpm})",
-                    eventType, rpm);
+                // ── Detect engine start/stop events ──
+                var lastEngine = await _context.EngineData
+                    .Where(e => e.EngineId == "MAIN_ENGINE")
+                    .OrderByDescending(e => e.Timestamp)
+                    .Skip(1) // Bỏ qua cái vừa thêm
+                    .FirstOrDefaultAsync();
+
+                if (lastEngine != null && lastEngine.IsRunning != isRunning)
+                {
+                    var eventType = isRunning ? "START" : "STOP";
+                    var engineEvent = new EngineEvent
+                    {
+                        Timestamp = now,
+                        EngineId = "MAIN_ENGINE",
+                        EventType = eventType,
+                        Rpm = dto.Speed.Value,
+                        TriggerSource = "ESP8266",
+                        IsSynced = false,
+                        CreatedAt = now,
+                        OriginNode = "SHIP_01"
+                    };
+                    _context.EngineEvents.Add(engineEvent);
+
+                    _logger.LogInformation(
+                        "[ENGINE-EVENT] {EventType} detected for MAIN_ENGINE (RPM={Rpm})",
+                        eventType, dto.Speed.Value);
+                }
             }
 
             // ── Check sensor thresholds → auto-create SafetyAlarm ──

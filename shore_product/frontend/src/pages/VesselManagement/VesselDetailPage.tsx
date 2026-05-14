@@ -320,7 +320,7 @@ export const VesselDetailPage: React.FC = () => {
         // Fetch vessel + telemetry + crew song song
         const [vData, posRes, crewRes] = await Promise.all([
           apiFetch<Vessel>(`${BASE}/vessels/${id}`),
-          apiFetch<any>(`${BASE}/VesselTelemetry/vessel/${id}/realtime?hours=1`).catch(() => null),
+          apiFetch<any>(`${BASE}/vessel-telemetry/vessel/${id}/realtime?hours=1`).catch(() => null),
           apiFetch<any>(`${BASE}/crew/vessel/${id}`).catch(() => null),
         ]);
 
@@ -381,7 +381,7 @@ export const VesselDetailPage: React.FC = () => {
     if (!id) return;
     const interval = setInterval(async () => {
       try {
-        const posRes = await apiFetch<any>(`${BASE}/VesselTelemetry/vessel/${id}/realtime?hours=1`).catch(() => null);
+        const posRes = await apiFetch<any>(`${BASE}/vessel-telemetry/vessel/${id}/realtime?hours=1`).catch(() => null);
         if (posRes?.latest) {
           const l = posRes.latest;
           setVesselStatus(prev => ({
