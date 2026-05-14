@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useTranslationSafe } from '@/contexts/I18nContext';
 import { VesselMap, type GpsPoint } from '@/components/ship-data/VesselMap';
+import { API_CONFIG } from '@/config/app.config';
 import axios from 'axios';
 
-const API_BASE = 'http://localhost:5001/api';
+const API_BASE = API_CONFIG.BASE_URL;
 
 interface PositionDataResponse {
   id: string;
