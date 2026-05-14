@@ -110,7 +110,7 @@ namespace ProductApi.Services
             vessel.DeadWeight = vesselDto.DeadWeight;
             if (vesselDto.BuildDate.HasValue)
             {
-                vessel.BuildDate = vesselDto.BuildDate.Value;
+                vessel.BuildDate = NormalizeUtc(vesselDto.BuildDate.Value);
             }
             vessel.Flag = vesselDto.Flag.Trim();
             vessel.IsActive = vesselDto.IsActive;
@@ -152,7 +152,7 @@ namespace ProductApi.Services
             if (commercialDto.DeadWeight.HasValue)
                 vessel.DeadWeight = commercialDto.DeadWeight.Value;
             if (commercialDto.BuildDate.HasValue)
-                vessel.BuildDate = commercialDto.BuildDate.Value;
+                vessel.BuildDate = NormalizeUtc(commercialDto.BuildDate.Value);
             if (!string.IsNullOrWhiteSpace(commercialDto.Flag))
                 vessel.Flag = commercialDto.Flag.Trim();
             if (commercialDto.IsActive.HasValue)
@@ -284,6 +284,16 @@ namespace ProductApi.Services
             nameof(UpdateCommercialDataDto.Flag),
             nameof(UpdateCommercialDataDto.IsActive)
         };
+
+        private static DateTime NormalizeUtc(DateTime value)
+        {
+            return value.Kind switch
+            {
+                DateTimeKind.Utc => value,
+                DateTimeKind.Local => value.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+            };
+        }
 
         public async Task<bool> DeleteVesselAsync(Guid id)
         {
