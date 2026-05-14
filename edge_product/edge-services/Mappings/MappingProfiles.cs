@@ -91,20 +91,71 @@ public class ReportingProfile : Profile
         // Maritime Report (parent entity)
         CreateMap<MaritimeReport, ReportSummaryDto>().ReverseMap();
 
-        // Noon Reports - Consolidates 50+ property mappings
-        CreateMap<NoonReport, NoonReportDto>().ReverseMap();
+        // Detail reports keep workflow metadata on the parent MaritimeReport.
+        CreateMap<NoonReport, NoonReportDto>()
+            .ForMember(dest => dest.ReportNumber, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.ReportNumber : string.Empty))
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.Status : string.Empty))
+            .ForMember(dest => dest.VoyageId, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.VoyageId : null))
+            .ForMember(dest => dest.VoyagePlanLegId, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.VoyagePlanLegId : null))
+            .ForMember(dest => dest.PreparedBy, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.PreparedBy : null))
+            .ForMember(dest => dest.MasterSignature, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.MasterSignature : null))
+            .ForMember(dest => dest.SignedAt, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.SignedAt : null))
+            .ForMember(dest => dest.IsTransmitted, opt => opt.MapFrom(src => src.MaritimeReport != null && src.MaritimeReport.IsTransmitted))
+            .ForMember(dest => dest.TransmittedAt, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.TransmittedAt : null))
+            .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.CreatedAt : src.CreatedAt))
+            .ForMember(dest => dest.UpdatedAt, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.UpdatedAt : null));
 
         // Departure Reports - Consolidates 30+ property mappings
-        CreateMap<DepartureReport, DepartureReportDto>().ReverseMap();
+        CreateMap<DepartureReport, DepartureReportDto>()
+            .ForMember(dest => dest.ReportNumber, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.ReportNumber : string.Empty))
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.Status : string.Empty))
+            .ForMember(dest => dest.VoyageId, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.VoyageId : src.VoyageId))
+            .ForMember(dest => dest.VoyagePlanLegId, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.VoyagePlanLegId : null))
+            .ForMember(dest => dest.PreparedBy, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.PreparedBy : null))
+            .ForMember(dest => dest.MasterSignature, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.MasterSignature : null))
+            .ForMember(dest => dest.SignedAt, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.SignedAt : null))
+            .ForMember(dest => dest.IsTransmitted, opt => opt.MapFrom(src => src.MaritimeReport != null && src.MaritimeReport.IsTransmitted))
+            .ForMember(dest => dest.TransmittedAt, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.TransmittedAt : null))
+            .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.CreatedAt : src.CreatedAt));
 
         // Arrival Reports - Consolidates 30+ property mappings
-        CreateMap<ArrivalReport, ArrivalReportDto>().ReverseMap();
+        CreateMap<ArrivalReport, ArrivalReportDto>()
+            .ForMember(dest => dest.ReportNumber, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.ReportNumber : string.Empty))
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.Status : string.Empty))
+            .ForMember(dest => dest.VoyageId, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.VoyageId : src.VoyageId))
+            .ForMember(dest => dest.VoyagePlanLegId, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.VoyagePlanLegId : null))
+            .ForMember(dest => dest.PreparedBy, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.PreparedBy : null))
+            .ForMember(dest => dest.MasterSignature, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.MasterSignature : null))
+            .ForMember(dest => dest.SignedAt, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.SignedAt : null))
+            .ForMember(dest => dest.IsTransmitted, opt => opt.MapFrom(src => src.MaritimeReport != null && src.MaritimeReport.IsTransmitted))
+            .ForMember(dest => dest.TransmittedAt, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.TransmittedAt : null))
+            .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.CreatedAt : src.CreatedAt));
 
         // Bunker Reports - Consolidates 25+ property mappings
-        CreateMap<BunkerReport, BunkerReportDto>().ReverseMap();
+        CreateMap<BunkerReport, BunkerReportDto>()
+            .ForMember(dest => dest.ReportNumber, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.ReportNumber : string.Empty))
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.Status : string.Empty))
+            .ForMember(dest => dest.VoyageId, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.VoyageId : null))
+            .ForMember(dest => dest.VoyagePlanLegId, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.VoyagePlanLegId : null))
+            .ForMember(dest => dest.PreparedBy, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.PreparedBy : null))
+            .ForMember(dest => dest.MasterSignature, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.MasterSignature : null))
+            .ForMember(dest => dest.SignedAt, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.SignedAt : null))
+            .ForMember(dest => dest.IsTransmitted, opt => opt.MapFrom(src => src.MaritimeReport != null && src.MaritimeReport.IsTransmitted))
+            .ForMember(dest => dest.TransmittedAt, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.TransmittedAt : null))
+            .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.CreatedAt : src.CreatedAt));
 
         // Position Reports - Consolidates 10+ property mappings
-        CreateMap<PositionReport, PositionReportDto>().ReverseMap();
+        CreateMap<PositionReport, PositionReportDto>()
+            .ForMember(dest => dest.ReportNumber, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.ReportNumber : string.Empty))
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.Status : string.Empty))
+            .ForMember(dest => dest.VoyageId, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.VoyageId : null))
+            .ForMember(dest => dest.VoyagePlanLegId, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.VoyagePlanLegId : null))
+            .ForMember(dest => dest.PreparedBy, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.PreparedBy : null))
+            .ForMember(dest => dest.MasterSignature, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.MasterSignature : null))
+            .ForMember(dest => dest.SignedAt, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.SignedAt : null))
+            .ForMember(dest => dest.IsTransmitted, opt => opt.MapFrom(src => src.MaritimeReport != null && src.MaritimeReport.IsTransmitted))
+            .ForMember(dest => dest.TransmittedAt, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.TransmittedAt : null))
+            .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.MaritimeReport != null ? src.MaritimeReport.CreatedAt : src.CreatedAt));
     }
 }
 
