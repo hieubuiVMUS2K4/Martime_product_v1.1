@@ -10,8 +10,7 @@ import iconUrl from 'leaflet/dist/images/marker-icon.png';
 import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
 import shadowUrl from 'leaflet/dist/images/marker-shadow.png';
 
-// @ts-expect-error _getIconUrl is internal Leaflet API
-delete L.Icon.Default.prototype._getIconUrl;
+delete (L.Icon.Default.prototype as L.Icon.Default & { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({ iconUrl, iconRetinaUrl, shadowUrl });
 
 /** Tọa độ GPS */
@@ -326,7 +325,7 @@ export const VesselMap: React.FC<VesselMapProps> = ({
                   icon={makeShipIcon(vColor, v.position.courseOverGround)}
                   eventHandlers={{
                     click: () => onVesselSelect?.(v.id),
-                    mouseover: (e) => e.target.openPopup(),
+                    mouseover: (e: L.LeafletMouseEvent) => (e.target as L.Marker).openPopup(),
                   }}
                 >
                   <Popup className="ais-popup" minWidth={340} maxWidth={340} autoPanPadding={[50,50]}>

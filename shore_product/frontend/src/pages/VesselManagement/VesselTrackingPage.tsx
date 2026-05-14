@@ -140,9 +140,10 @@ export const VesselTrackingPage: React.FC = () => {
       const vesselDetailResults = await Promise.allSettled(vesselDetailPromises);
 
       results.forEach((result, idx) => {
-        if (result.status === 'fulfilled' && result.value.data?.latest) {
+        if (result.status === 'fulfilled') {
           const d = result.value.data;
           const latest = d.latest;
+          if (!latest) return;
           const v = vessels[idx];
           
           // Lấy thông tin bổ sung từ vessel detail
