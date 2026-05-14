@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { ENV } from '../../config/env';
 import { crewApi } from '../../services/crew.service';
-import '../../pages/VesselManagement/VesselsPage.css';
+import '../../pages/CrewManagement/CrewListPage.css';
 
 interface VesselCrewTabProps {
   vesselId: string;
@@ -215,7 +215,7 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
   }
 
   return (
-    <div className="relative">
+    <div className="cl-page relative">
       {/* Edge Changes Notification Banner */}
       {unviewedChangesCount > 0 && (
         <div style={{
@@ -235,11 +235,11 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
       {/* Table */}
       {filteredCrew.length > 0 ? (
         <>
-          <div className="vp-table-card" style={{ borderRadius: 0, border: 'none', boxShadow: 'none' }}>
-            <table className="vp-table">
+          <div className="cl-table-card">
+            <table className="cl-table">
                 <thead>
                   {/* Label row */}
-                  <tr className="vp-tr-labels">
+                  <tr className="cl-tr-labels">
                     <th style={{ width: '10%', position: 'relative' }}>Mã TV
                       <SortDropdown col="crewId" options={[{ label: 'A → Z', dir: 'asc' }, { label: 'Z → A', dir: 'desc' }]} />
                     </th>
@@ -258,25 +258,25 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
                     <th style={{ width: '13%', borderRight: 'none' }}>Trạng thái</th>
                   </tr>
                   {/* Filter row */}
-                  <tr className="vp-tr-filters">
+                  <tr className="cl-tr-filters">
                     <th>
-                      <div className="vp-search-wrap">
-                        <input className="vp-cf" placeholder="Tìm kiếm" value={filterCrewId} onChange={e => { setFilterCrewId(e.target.value); setCurrentPage(1); }} />
+                      <div className="cl-search-wrap">
+                        <input className="cl-cf" placeholder="Tìm kiếm" value={filterCrewId} onChange={e => { setFilterCrewId(e.target.value); setCurrentPage(1); }} />
                       </div>
                     </th>
                     <th>
-                      <div className="vp-search-wrap">
-                        <input className="vp-cf" placeholder="Tìm kiếm" value={filterFullName} onChange={e => { setFilterFullName(e.target.value); setCurrentPage(1); }} />
+                      <div className="cl-search-wrap">
+                        <input className="cl-cf" placeholder="Tìm kiếm" value={filterFullName} onChange={e => { setFilterFullName(e.target.value); setCurrentPage(1); }} />
                       </div>
                     </th>
                     <th>
-                      <div className="vp-search-wrap">
-                        <input className="vp-cf" placeholder="Tìm kiếm" value={filterRank} onChange={e => { setFilterRank(e.target.value); setCurrentPage(1); }} />
+                      <div className="cl-search-wrap">
+                        <input className="cl-cf" placeholder="Tìm kiếm" value={filterRank} onChange={e => { setFilterRank(e.target.value); setCurrentPage(1); }} />
                       </div>
                     </th>
                     <th>
-                      <div className="vp-search-wrap">
-                        <input className="vp-cf" placeholder="Tìm kiếm" value={filterNationality} onChange={e => { setFilterNationality(e.target.value); setCurrentPage(1); }} />
+                      <div className="cl-search-wrap">
+                        <input className="cl-cf" placeholder="Tìm kiếm" value={filterNationality} onChange={e => { setFilterNationality(e.target.value); setCurrentPage(1); }} />
                       </div>
                     </th>
                     <th></th>
@@ -288,8 +288,7 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
                     <tr
                       key={crewMember.id}
                       onContextMenu={(e) => handleContextMenu(e, crewMember)}
-                      className={`vp-tr ${idx % 2 === 1 ? 'vp-tr--alt' : ''}`}
-                      style={selectedCrew === crewMember.id ? { background: '#ccfbf1' } : undefined}
+                      className={`cl-tr${idx % 2 === 1 ? ' cl-tr--alt' : ''}${selectedCrew === crewMember.id ? ' cl-tr--selected' : ''}`}
                     >
                       <td style={{ borderRight: '1px solid #edf2f8' }}>
                         <span style={{ fontFamily: 'monospace', fontSize: '12px', color: 'var(--moc-muted)' }}>{crewMember.crewId}</span>

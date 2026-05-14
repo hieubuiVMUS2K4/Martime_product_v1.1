@@ -219,6 +219,8 @@ namespace ProductApi.DTOs
         [Range(0, double.MaxValue)]
         public double DeadWeight { get; set; }
 
+        public DateTime? BuildDate { get; set; }
+
         [Required]
         [StringLength(50)]
         public string Flag { get; set; } = string.Empty;
@@ -229,6 +231,29 @@ namespace ProductApi.DTOs
     // Update Commercial Data DTO (Shore Master fields only)
     public class UpdateCommercialDataDto
     {
+        // Basic registry fields can arrive from the fleet list edit form.
+        [StringLength(200, MinimumLength = 1)]
+        public string? Name { get; set; }
+
+        [StringLength(20)]
+        public string? CallSign { get; set; }
+
+        [StringLength(50)]
+        public string? VesselType { get; set; }
+
+        [Range(0, double.MaxValue)]
+        public double? GrossTonnage { get; set; }
+
+        [Range(0, double.MaxValue)]
+        public double? DeadWeight { get; set; }
+
+        public DateTime? BuildDate { get; set; }
+
+        [StringLength(50)]
+        public string? Flag { get; set; }
+
+        public bool? IsActive { get; set; }
+
         // Shipowner
         [StringLength(300)]
         public string? ShipownerName { get; set; }

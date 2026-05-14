@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using ProductApi.Data;
 using ProductApi.Services;
 using ProductApi.DTOs;
+using System.Text.Json;
 
 namespace ProductApi.Controllers
 {
@@ -178,7 +179,117 @@ namespace ProductApi.Controllers
         /// Technical fields are synced from Edge and cannot be edited on Shore
         /// </summary>
         [HttpPut("{id:guid}")]
-        public async Task<ActionResult<VesselDto>> UpdateVessel(Guid id, [FromBody] UpdateCommercialDataDto commercialDto)
+        public async Task<ActionResult<VesselDto>> UpdateVessel(Guid id, [FromBody] JsonElement payload)
+        {
+            try
+            {
+                VesselDto? vessel;
+                var updateKind = IsBasicVesselUpdate(payload) ? "basic" : "commercial";
+                var requestedCallSign = GetStringProperty(payload, "callSign", "CallSign");
+
+                _logger.LogInformation(
+                    "Vessel update request {TraceId}: id={VesselId}, kind={UpdateKind}, requestedCallSign={RequestedCallSign}",
+                    HttpContext.TraceIdentifier,
+                    id,
+                    updateKind,
+                    requestedCallSign ?? "(not supplied)");
+
+                if (updateKind == "basic")
+                {
+                    var vesselDto = payload.Deserialize<UpdateVesselDto>(JsonOptions);
+                    if (vesselDto == null) return BadRequest("Invalid vessel update payload");
+
+                    ModelState.Clear();
+                    if (!TryValidateModel(vesselDto))
+                    {
+                        return BadRequest(ModelState);
+                    }
+
+                    vessel = await _vesselService.UpdateVesselAsync(id, vesselDto);
+                }
+                else
+                {
+                    var commercialDto = payload.Deserialize<UpdateCommercialDataDto>(JsonOptions);
+                    if (commercialDto == null) return BadRequest("Invalid commercial update payload");
+
+                    ModelState.Clear();
+                    if (!TryValidateModel(commercialDto))
+                    {
+                        return BadRequest(ModelState);
+                    }
+
+                    vessel = await _vesselService.UpdateCommercialDataAsync(id, commercialDto);
+                }
+
+                if (vessel == null)
+                {
+                    _logger.LogWarning(
+                        "Vessel update request {TraceId} not found: id={VesselId}, kind={UpdateKind}",
+                        HttpContext.TraceIdentifier,
+                        id,
+                        updateKind);
+                    return NotFound($"Vessel with ID {id} not found");
+                }
+
+                _logger.LogInformation(
+                    "Vessel update request {TraceId} completed: id={VesselId}, kind={UpdateKind}, savedCallSign={SavedCallSign}",
+                    HttpContext.TraceIdentifier,
+                    id,
+                    updateKind,
+                    vessel.CallSign);
+
+                return Ok(vessel);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating commercial data for vessel {VesselId}", id);
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        private static readonly JsonSerializerOptions JsonOptions = new()
+        {
+            PropertyNameCaseInsensitive = true
+        };
+
+        private static bool IsBasicVesselUpdate(JsonElement payload)
+        {
+            return payload.ValueKind == JsonValueKind.Object &&
+                   (payload.TryGetProperty("callSign", out _) ||
+                    payload.TryGetProperty("CallSign", out _) ||
+                    payload.TryGetProperty("vesselType", out _) ||
+                    payload.TryGetProperty("VesselType", out _) ||
+                    payload.TryGetProperty("grossTonnage", out _) ||
+                    payload.TryGetProperty("GrossTonnage", out _) ||
+                    payload.TryGetProperty("deadWeight", out _) ||
+                    payload.TryGetProperty("DeadWeight", out _) ||
+                    payload.TryGetProperty("isActive", out _) ||
+                    payload.TryGetProperty("IsActive", out _));
+        }
+
+        private static string? GetStringProperty(JsonElement payload, params string[] propertyNames)
+        {
+            if (payload.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            foreach (var propertyName in propertyNames)
+            {
+                if (payload.TryGetProperty(propertyName, out var value) && value.ValueKind == JsonValueKind.String)
+                {
+                    return value.GetString();
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Update basic vessel registry fields from the fleet list form.
+        /// </summary>
+        [HttpPut("{id:guid}/basic")]
+        public async Task<ActionResult<VesselDto>> UpdateVesselBasic(Guid id, [FromBody] UpdateVesselDto vesselDto)
         {
             try
             {
@@ -187,7 +298,7 @@ namespace ProductApi.Controllers
                     return BadRequest(ModelState);
                 }
 
-                var vessel = await _vesselService.UpdateCommercialDataAsync(id, commercialDto);
+                var vessel = await _vesselService.UpdateVesselAsync(id, vesselDto);
                 if (vessel == null)
                 {
                     return NotFound($"Vessel with ID {id} not found");
@@ -197,7 +308,7 @@ namespace ProductApi.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error updating commercial data for vessel {VesselId}", id);
+                _logger.LogError(ex, "Error updating basic vessel data for vessel {VesselId}", id);
                 return StatusCode(500, "Internal server error");
             }
         }

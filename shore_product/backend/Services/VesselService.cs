@@ -92,27 +92,86 @@ namespace ProductApi.Services
 
         public async Task<VesselDto?> UpdateVesselAsync(Guid id, UpdateVesselDto vesselDto)
         {
-            var vessel = await _context.Vessels.FindAsync(id);
-            if (vessel == null) return null;
+            var vessel = await _context.Vessels
+                .AsTracking()
+                .FirstOrDefaultAsync(v => v.Id == id);
+            if (vessel == null)
+            {
+                _logger.LogWarning("Basic vessel update skipped: vessel not found id={VesselId}", id);
+                return null;
+            }
+
+            var previousCallSign = vessel.CallSign;
 
             vessel.Name = vesselDto.Name;
-            vessel.CallSign = vesselDto.CallSign;
-            vessel.VesselType = vesselDto.VesselType;
+            vessel.CallSign = vesselDto.CallSign.Trim();
+            vessel.VesselType = vesselDto.VesselType.Trim();
             vessel.GrossTonnage = vesselDto.GrossTonnage;
             vessel.DeadWeight = vesselDto.DeadWeight;
-            vessel.Flag = vesselDto.Flag;
+            if (vesselDto.BuildDate.HasValue)
+            {
+                vessel.BuildDate = vesselDto.BuildDate.Value;
+            }
+            vessel.Flag = vesselDto.Flag.Trim();
             vessel.IsActive = vesselDto.IsActive;
 
-            await _context.SaveChangesAsync();
+            var changedRows = await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Updated vessel: {IMO} - {Name}", vessel.IMO, vessel.Name);
+            _logger.LogInformation(
+                "Basic vessel update saved: id={VesselId}, imo={IMO}, callSignBefore={CallSignBefore}, callSignAfter={CallSignAfter}, changedRows={ChangedRows}",
+                vessel.Id,
+                vessel.IMO,
+                previousCallSign,
+                vessel.CallSign,
+                changedRows);
             return MapToDto(vessel);
         }
 
         public async Task<VesselDto?> UpdateCommercialDataAsync(Guid id, UpdateCommercialDataDto commercialDto)
         {
-            var vessel = await _context.Vessels.FindAsync(id);
-            if (vessel == null) return null;
+            var vessel = await _context.Vessels
+                .AsTracking()
+                .FirstOrDefaultAsync(v => v.Id == id);
+            if (vessel == null)
+            {
+                _logger.LogWarning("Commercial vessel update skipped: vessel not found id={VesselId}", id);
+                return null;
+            }
+
+            var previousCallSign = vessel.CallSign;
+
+            // Fleet list edit form also posts to PUT /vessels/{id}.
+            if (!string.IsNullOrWhiteSpace(commercialDto.Name))
+                vessel.Name = commercialDto.Name.Trim();
+            if (!string.IsNullOrWhiteSpace(commercialDto.CallSign))
+                vessel.CallSign = commercialDto.CallSign.Trim();
+            if (!string.IsNullOrWhiteSpace(commercialDto.VesselType))
+                vessel.VesselType = commercialDto.VesselType.Trim();
+            if (commercialDto.GrossTonnage.HasValue)
+                vessel.GrossTonnage = commercialDto.GrossTonnage.Value;
+            if (commercialDto.DeadWeight.HasValue)
+                vessel.DeadWeight = commercialDto.DeadWeight.Value;
+            if (commercialDto.BuildDate.HasValue)
+                vessel.BuildDate = commercialDto.BuildDate.Value;
+            if (!string.IsNullOrWhiteSpace(commercialDto.Flag))
+                vessel.Flag = commercialDto.Flag.Trim();
+            if (commercialDto.IsActive.HasValue)
+                vessel.IsActive = commercialDto.IsActive.Value;
+
+            if (IsBasicOnlyUpdate(commercialDto))
+            {
+                vessel.LastShoreSyncAt = DateTime.UtcNow;
+                vessel.UpdatedAt = DateTime.UtcNow;
+                var changedRows = await _context.SaveChangesAsync();
+                _logger.LogInformation(
+                    "Basic-only vessel update saved through commercial route: id={VesselId}, imo={IMO}, callSignBefore={CallSignBefore}, callSignAfter={CallSignAfter}, changedRows={ChangedRows}",
+                    vessel.Id,
+                    vessel.IMO,
+                    previousCallSign,
+                    vessel.CallSign,
+                    changedRows);
+                return MapToDto(vessel);
+            }
 
             // Update Shipowner fields (Shore Master)
             vessel.ShipownerName = commercialDto.ShipownerName;
@@ -173,11 +232,17 @@ namespace ProductApi.Services
 
             // Update sync metadata
             vessel.LastShoreSyncAt = DateTime.UtcNow;
-vessel.UpdatedAt = DateTime.UtcNow;
+            vessel.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync();
+            var commercialChangedRows = await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Updated commercial data for vessel: {IMO} - {Name}", vessel.IMO, vessel.Name);
+            _logger.LogInformation(
+                "Commercial vessel update saved: id={VesselId}, imo={IMO}, callSignBefore={CallSignBefore}, callSignAfter={CallSignAfter}, changedRows={ChangedRows}",
+                vessel.Id,
+                vessel.IMO,
+                previousCallSign,
+                vessel.CallSign,
+                commercialChangedRows);
 
             // TODO: Enqueue to SyncOutbox for Shore → Edge replication
             // await EnqueueCommercialDataToSyncOutbox(vessel);
@@ -185,9 +250,46 @@ vessel.UpdatedAt = DateTime.UtcNow;
             return MapToDto(vessel);
         }
 
+        private static bool IsBasicOnlyUpdate(UpdateCommercialDataDto dto)
+        {
+            var hasBasicFields =
+                dto.Name != null ||
+                dto.CallSign != null ||
+                dto.VesselType != null ||
+                dto.GrossTonnage.HasValue ||
+                dto.DeadWeight.HasValue ||
+                dto.BuildDate.HasValue ||
+                dto.Flag != null ||
+                dto.IsActive.HasValue;
+
+            if (!hasBasicFields)
+            {
+                return false;
+            }
+
+            return typeof(UpdateCommercialDataDto)
+                .GetProperties()
+                .Where(property => !BasicVesselUpdateFields.Contains(property.Name))
+                .All(property => property.GetValue(dto) == null);
+        }
+
+        private static readonly HashSet<string> BasicVesselUpdateFields = new()
+        {
+            nameof(UpdateCommercialDataDto.Name),
+            nameof(UpdateCommercialDataDto.CallSign),
+            nameof(UpdateCommercialDataDto.VesselType),
+            nameof(UpdateCommercialDataDto.GrossTonnage),
+            nameof(UpdateCommercialDataDto.DeadWeight),
+            nameof(UpdateCommercialDataDto.BuildDate),
+            nameof(UpdateCommercialDataDto.Flag),
+            nameof(UpdateCommercialDataDto.IsActive)
+        };
+
         public async Task<bool> DeleteVesselAsync(Guid id)
         {
-            var vessel = await _context.Vessels.FindAsync(id);
+            var vessel = await _context.Vessels
+                .AsTracking()
+                .FirstOrDefaultAsync(v => v.Id == id);
             if (vessel == null) return false;
 
             vessel.IsActive = false;
