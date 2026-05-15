@@ -34,19 +34,60 @@ public class TelemetryController : ControllerBase
         {
             var position = await _context.PositionData
                 .AsNoTracking()
-                .Where(p => p.Source == "GPS")
-                .OrderByDescending(p => p.Timestamp)
-                .FirstOrDefaultAsync();
-
-            position ??= await _context.PositionData
-                .AsNoTracking()
+                .Where(p => p.Source.ToUpper() == "GPS")
                 .OrderByDescending(p => p.Timestamp)
                 .FirstOrDefaultAsync();
 
             if (position == null)
             {
-                return NotFound(new { message = "No position data available" });
+                var latestAvailable = await _context.PositionData
+                    .AsNoTracking()
+                    .OrderByDescending(p => p.Timestamp)
+                    .Select(p => new
+                    {
+                        p.Id,
+                        p.Timestamp,
+                        p.Source,
+                        p.OriginNode,
+                        p.Latitude,
+                        p.Longitude
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (latestAvailable == null)
+                {
+                    _logger.LogWarning("PositionLatest: no position records available");
+                    return NotFound(new { message = "No GPS position data available" });
+                }
+
+                _logger.LogWarning(
+                    "PositionLatest: no GPS records; latest available ignored source={Source} node={Node} ts={Timestamp:o} lat={Latitude:F6} lon={Longitude:F6} id={Id}",
+                    latestAvailable.Source,
+                    latestAvailable.OriginNode,
+                    latestAvailable.Timestamp,
+                    latestAvailable.Latitude,
+                    latestAvailable.Longitude,
+                    latestAvailable.Id);
+
+                return NotFound(new
+                {
+                    message = "No GPS position data available",
+                    latestIgnoredSource = latestAvailable.Source,
+                    latestIgnoredTimestamp = latestAvailable.Timestamp,
+                    latestIgnoredOriginNode = latestAvailable.OriginNode
+                });
             }
+
+            _logger.LogInformation(
+                "PositionLatest: selected source={Source} node={Node} ts={Timestamp:o} lat={Latitude:F6} lon={Longitude:F6} sog={Sog:F2} cog={Cog:F1} id={Id}",
+                position.Source,
+                position.OriginNode,
+                position.Timestamp,
+                position.Latitude,
+                position.Longitude,
+                position.SpeedOverGround,
+                position.CourseOverGround,
+                position.Id);
 
             return Ok(position);
         }
@@ -74,7 +115,7 @@ public class TelemetryController : ControllerBase
             
             var query = _context.PositionData
                 .AsNoTracking()
-                .Where(p => p.Timestamp >= since)
+                .Where(p => p.Timestamp >= since && p.Source.ToUpper() == "GPS")
                 .OrderByDescending(p => p.Timestamp);
 
             var totalCount = await query.CountAsync();
@@ -84,6 +125,14 @@ public class TelemetryController : ControllerBase
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
+
+            _logger.LogInformation(
+                "PositionHistory: selected source=GPS hours={Hours} page={Page} pageSize={PageSize} returned={Returned} total={Total}",
+                hours,
+                page,
+                pageSize,
+                positions.Count,
+                totalCount);
 
             return Ok(new
             {

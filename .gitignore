@@ -11,6 +11,9 @@
 *.env
 !.env.example
 
+# Production-local backend configuration
+edge_product/production/backend/appsettings.json
+
 # ====================
 # IDE & EDITORS
 # ====================
