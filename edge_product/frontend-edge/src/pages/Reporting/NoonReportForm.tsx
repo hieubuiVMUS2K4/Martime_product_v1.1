@@ -153,7 +153,11 @@ export function NoonReportForm() {
         setLoadingVoyage(true);
         const voyage = await maritimeService.voyage.getCurrent();
         if (voyage && voyage.id) {
-          setFormData(prev => ({ ...prev, voyageId: String(voyage.id) }));
+          setFormData(prev => ({ 
+            ...prev, 
+            voyageId: String(voyage.id),
+            distanceTraveled: voyage.distanceTraveled ?? prev.distanceTraveled
+          }));
           setCurrentVoyageNumber(voyage.voyageNumber || `Voyage ${String(voyage.id).slice(0, 8)}`);
           console.log('✅ Auto-loaded current voyage:', voyage.voyageNumber || voyage.id);
         }
@@ -180,6 +184,23 @@ export function NoonReportForm() {
         console.warn('⚠️ Failed to load crew data:', err);
       } finally {
         setLoadingCrew(false);
+      }
+      
+      // Auto-load position and speed
+      try {
+        const posData = await maritimeService.telemetry.getLatest('position');
+        if (posData) {
+          setFormData(prev => ({
+            ...prev,
+            latitude: posData.latitude ?? prev.latitude,
+            longitude: posData.longitude ?? prev.longitude,
+            courseOverGround: posData.courseOverGround ?? prev.courseOverGround,
+            speedOverGround: posData.speedOverGround ?? prev.speedOverGround,
+          }));
+          console.log('✅ Auto-loaded position data:', posData.latitude, posData.longitude);
+        }
+      } catch (err) {
+        console.warn('⚠️ Failed to load position data:', err);
       }
       
       // Auto-load pitch/roll from latest navigation data
