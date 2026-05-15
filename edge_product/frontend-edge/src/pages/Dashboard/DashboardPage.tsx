@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts'
 import { dashboardService, alarmService, telemetryService } from '@/services/maritime.service'
 import { useMaritimeStore } from '@/stores/maritime.store'
-import type { DashboardStats } from '@/types/maritime.types'
+import type { SafetyAlarm } from '@/types/maritime.types'
 import { useTranslationSafe } from '@/contexts/I18nContext'
 import { VesselMap } from '@/components/ship-data/VesselMap'
 import plannedRouteData from '@/assets/planned-route.json'
@@ -16,7 +16,8 @@ import {
   CloudLightning,
   Clock,
   MapPin,
-  Anchor
+  Anchor,
+  X
 } from 'lucide-react'
 
 const MOCK_WIND = { direction: 45, speed: 18 }
@@ -29,11 +30,12 @@ const MOCK_THRUSTERS = { bow: 45, stern: 0 }
 
 export function DashboardPage() {
   const { t } = useTranslationSafe()
-  const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [position, setPosition] = useState<any>(null)
   const [navigation, setNavigation] = useState<any>(null)
   const [engine, setEngine] = useState<any>(null)
+  const [activeAlarms, setActiveAlarmsState] = useState<SafetyAlarm[]>([])
+  const [isAlarmModalOpen, setIsAlarmModalOpen] = useState(false)
   const [history, setHistory] = useState<any[]>([])
   const [currentTime, setCurrentTime] = useState(new Date())
   
@@ -65,10 +67,10 @@ export function DashboardPage() {
         telemetryService.getEngineStatus(),
       ])
 
-      setStats(dashStats)
       setPosition(posData)
       setNavigation(navData)
       setEngine(engineData?.[0] || null)
+      setActiveAlarmsState(alarms)
       
       setDashboardStats(dashStats)
       setActiveAlarms(alarms)
@@ -153,8 +155,9 @@ export function DashboardPage() {
   const isOnline = MOCK_EDGE.pendingSync < 50
   const gpsFix = position?.fixQuality >= 2 ? t('conning.dgpsFix') : position?.fixQuality === 1 ? t('conning.gpsFix') : t('conning.noFix')
 
-  const criticalAlarmsCount = stats?.criticalAlarms || 0
-  const totalAlarmsCount = stats?.totalAlarms || 0
+  const activeUnresolvedAlarms = activeAlarms.filter(alarm => !alarm.isResolved)
+  const criticalAlarmsCount = activeUnresolvedAlarms.filter(alarm => alarm.severity === 'CRITICAL').length
+  const totalAlarmsCount = activeUnresolvedAlarms.length
 
   return (
     <div className="h-full w-full overflow-y-auto bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 transition-colors duration-200">
@@ -217,7 +220,11 @@ export function DashboardPage() {
           
           {/* Left: Vessel Attitude & Alarms */}
           <div className="flex flex-col gap-4">
-            <div className={`rounded-xl border p-4 shadow-sm ${criticalAlarmsCount > 0 ? 'bg-red-50 dark:bg-red-900/40 border-red-200 dark:border-red-500/50' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'}`}>
+            <button
+              type="button"
+              onClick={() => setIsAlarmModalOpen(true)}
+              className={`rounded-xl border p-4 shadow-sm text-left transition hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${criticalAlarmsCount > 0 ? 'bg-red-50 dark:bg-red-900/40 border-red-200 dark:border-red-500/50' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'}`}
+            >
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('conning.activeAlarms')}</span>
                 <AlertTriangle className={`w-5 h-5 ${criticalAlarmsCount > 0 ? 'text-red-500 dark:text-red-400' : 'text-slate-400'}`} />
@@ -226,7 +233,7 @@ export function DashboardPage() {
                 <span className={`text-4xl font-black ${criticalAlarmsCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-white'}`}>{criticalAlarmsCount}</span>
                 <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{t('conning.critical')} / {totalAlarmsCount} {t('conning.total')}</span>
               </div>
-            </div>
+            </button>
 
             <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-lg flex-1">
               <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2 border-b border-slate-100 dark:border-slate-700 pb-2 mb-4">
@@ -389,6 +396,65 @@ export function DashboardPage() {
           </div>
         </div>
 
+      </div>
+
+      {isAlarmModalOpen && (
+        <AlarmListModal alarms={activeUnresolvedAlarms} onClose={() => setIsAlarmModalOpen(false)} />
+      )}
+    </div>
+  )
+}
+
+function AlarmListModal({ alarms, onClose }: { alarms: SafetyAlarm[]; onClose: () => void }) {
+  const severityClass = (severity: SafetyAlarm['severity']) => {
+    if (severity === 'CRITICAL') return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/40 dark:text-red-200 dark:border-red-700'
+    if (severity === 'WARNING') return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-200 dark:border-amber-700'
+    return 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-200 dark:border-blue-700'
+  }
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 px-4" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="w-full max-w-3xl max-h-[80vh] overflow-hidden rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-700">
+          <div>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white uppercase tracking-wide">Cảnh báo đang hoạt động</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{alarms.length} cảnh báo chưa xử lý</p>
+          </div>
+          <button type="button" onClick={onClose} className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-white dark:hover:bg-slate-800">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto max-h-[calc(80vh-82px)] p-4">
+          {alarms.length === 0 ? (
+            <div className="py-12 text-center">
+              <AlertTriangle className="w-10 h-10 mx-auto text-slate-300 dark:text-slate-600 mb-3" />
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Không có cảnh báo đang hoạt động</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Danh sách sẽ cập nhật khi backend trả về cảnh báo mới.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {alarms.map(alarm => (
+                <div key={String(alarm.id)} className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase ${severityClass(alarm.severity)}`}>{alarm.severity}</span>
+                        {alarm.alarmCode && <span className="text-xs font-mono text-slate-500 dark:text-slate-400">{alarm.alarmCode}</span>}
+                      </div>
+                      <div className="mt-2 text-sm font-bold text-slate-900 dark:text-white">{alarm.alarmType}</div>
+                      {alarm.description && <div className="mt-1 text-sm text-slate-600 dark:text-slate-300">{alarm.description}</div>}
+                    </div>
+                    <div className="text-right text-xs text-slate-500 dark:text-slate-400">
+                      <div>{new Date(alarm.timestamp).toLocaleString('vi-VN')}</div>
+                      {alarm.location && <div className="mt-1 font-semibold uppercase">{alarm.location}</div>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

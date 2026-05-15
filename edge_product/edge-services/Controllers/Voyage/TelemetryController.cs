@@ -34,6 +34,12 @@ public class TelemetryController : ControllerBase
         {
             var position = await _context.PositionData
                 .AsNoTracking()
+                .Where(p => p.Source == "GPS")
+                .OrderByDescending(p => p.Timestamp)
+                .FirstOrDefaultAsync();
+
+            position ??= await _context.PositionData
+                .AsNoTracking()
                 .OrderByDescending(p => p.Timestamp)
                 .FirstOrDefaultAsync();
 
