@@ -36,11 +36,31 @@ namespace ProductApi.Services
             var vessels = await _context.Vessels
                 .AsNoTracking()
                 .Include(v => v.Positions.OrderByDescending(p => p.Timestamp).Take(1))
-                .Include(v => v.Alerts.Where(a => !a.IsAcknowledged))
                 .AsSplitQuery()
                 .ToListAsync();
 
-            return vessels.Select(MapToDto);
+            var imos = vessels
+                .Select(v => v.IMO)
+                .Where(imo => !string.IsNullOrWhiteSpace(imo))
+                .ToList();
+
+            var criticalAlertCounts = await _context.SafetyAlarms
+                .AsNoTracking()
+                .Where(a => imos.Contains(a.OriginNode)
+                    && a.Severity == "CRITICAL"
+                    && !a.IsResolved)
+                .GroupBy(a => new { a.OriginNode, a.Timestamp, a.AlarmType })
+                .Select(g => g.Key)
+                .GroupBy(a => a.OriginNode)
+                .Select(g => new { OriginNode = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.OriginNode, x => x.Count);
+
+            return vessels.Select(v =>
+            {
+                var dto = MapToDto(v);
+                dto.UnacknowledgedAlerts = criticalAlertCounts.TryGetValue(v.IMO, out var count) ? count : 0;
+                return dto;
+            });
         }
 
         public async Task<VesselDto?> GetVesselByIdAsync(Guid id)

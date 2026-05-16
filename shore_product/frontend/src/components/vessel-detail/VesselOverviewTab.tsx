@@ -433,7 +433,7 @@ const AlertsSection: React.FC<{ vessel: Vessel }> = ({ vessel }) => {
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
       const [alertsRes, eventsRes, summaryRes] = await Promise.all([
-        fetch(`${BASE}/vessel-telemetry/vessel/${vesselId}/alerts?hours=72&limit=20`, { headers }),
+        fetch(`${BASE}/vessel-telemetry/vessel/${vesselId}/alerts?hours=0&limit=100&activeOnly=true`, { headers }),
         fetch(`${BASE}/vessel-telemetry/vessel/${vesselId}/engine-events?hours=72&limit=20`, { headers }),
         fetch(`${BASE}/vessel-telemetry/vessel/${vesselId}/alerts-summary`, { headers }),
       ]);
@@ -453,7 +453,18 @@ const AlertsSection: React.FC<{ vessel: Vessel }> = ({ vessel }) => {
 
   if (loading && alerts.length === 0 && events.length === 0) return null;
 
-  const activeAlerts = alerts.filter(a => !a.isResolved);
+  const severityRank = (severity: string) => {
+    switch (severity.toUpperCase()) {
+      case 'CRITICAL': return 0;
+      case 'WARNING': return 1;
+      default: return 2;
+    }
+  };
+
+  const activeAlerts = alerts
+    .filter(a => !a.isResolved)
+    .sort((a, b) => severityRank(a.severity) - severityRank(b.severity)
+      || new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
   const sevClass = (s: string) => {
     switch (s.toUpperCase()) { case 'CRITICAL': return 'vo-sev--critical'; case 'WARNING': return 'vo-sev--warning'; default: return 'vo-sev--info'; }
@@ -496,7 +507,7 @@ const AlertsSection: React.FC<{ vessel: Vessel }> = ({ vessel }) => {
           {activeAlerts.length > 0 && (
             <div className="vo-alerts-list">
               <p className="vo-list-title">Cảnh báo đang hoạt động</p>
-              {activeAlerts.slice(0, 5).map(alert => (
+              {activeAlerts.map(alert => (
                 <div key={alert.id} className={`vo-alert-item ${sevClass(alert.severity)}`}>
                   <AlertTriangle size={14} className="vo-alert-item-icon" />
                   <div className="vo-alert-item-body">

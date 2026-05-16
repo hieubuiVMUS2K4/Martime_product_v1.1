@@ -210,7 +210,7 @@ namespace ProductApi.Controllers
         /// vesselId có thể là GUID (từ danh sách tàu) hoặc IMO/NodeId
         /// </summary>
         [HttpGet("vessel/{vesselId}/alerts")]
-        public async Task<IActionResult> GetVesselAlerts(string vesselId, [FromQuery] int hours = 72, [FromQuery] int limit = 50)
+        public async Task<IActionResult> GetVesselAlerts(string vesselId, [FromQuery] int? hours = 72, [FromQuery] int limit = 50, [FromQuery] bool activeOnly = false)
         {
             try
             {
@@ -227,11 +227,24 @@ namespace ProductApi.Controllers
                         originNode = vessel.IMO;
                 }
 
-                var since = DateTime.UtcNow.AddHours(-hours);
-                var alerts = await _dbContext.SafetyAlarms
+                var query = _dbContext.SafetyAlarms
                     .AsNoTracking()
-                    .Where(a => a.OriginNode == originNode && a.Timestamp >= since)
-                    .OrderByDescending(a => a.Timestamp)
+                    .Where(a => a.OriginNode == originNode);
+
+                if (activeOnly)
+                {
+                    query = query.Where(a => !a.IsResolved);
+                }
+
+                if (hours.HasValue && hours.Value > 0)
+                {
+                    var since = DateTime.UtcNow.AddHours(-hours.Value);
+                    query = query.Where(a => a.Timestamp >= since);
+                }
+
+                var alerts = await query
+                    .OrderByDescending(a => a.Severity == "CRITICAL")
+                    .ThenByDescending(a => a.Timestamp)
                     .ToListAsync();
 
                 // Deduplicate by Timestamp, AlarmType, and Severity
