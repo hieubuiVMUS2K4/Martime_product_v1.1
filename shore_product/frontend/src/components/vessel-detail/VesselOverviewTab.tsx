@@ -134,9 +134,6 @@ export const VesselOverviewTab: React.FC<Props> = ({ vessel, vesselStatus }) => 
   return (
     <div className="vo-root">
 
-      {/* ═══ Critical Alert Banner ═══ */}
-      <CriticalAlertBanner vesselId={vessel.id} />
-
       {/* ═══ ROW 1: Hero Status Strip ═══ */}
       <div className="vo-hero-strip">
         {/* Engine */}
