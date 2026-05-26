@@ -16,7 +16,7 @@ interface ItemFormModalProps {
   viewMode?: boolean
 }
 
-type TabKey = 'part' | 'remarks' | 'history'
+type TabKey = 'part' | 'remarks'
 
 const inp = 'w-full px-2 py-1.5 border border-gray-300 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white'
 const inpRo = 'w-full px-2 py-1.5 border border-gray-300 text-sm bg-gray-50 text-gray-600 outline-none'
@@ -188,7 +188,6 @@ export function ItemFormModal({
   const tabs: { key: TabKey; label: string }[] = [
     { key: 'part', label: t('materials.item.tabPart') },
     { key: 'remarks', label: t('materials.item.tabRemarks') },
-    { key: 'history', label: t('materials.item.tabHistory') },
   ]
 
   return (
@@ -458,125 +457,6 @@ export function ItemFormModal({
                     />
                   </div>
                 </div>
-              </div>
-            )}
-
-            {/* TAB: History */}
-            {activeTab === 'history' && (
-              <div className="p-5 space-y-5">
-                {/* Item info */}
-                {item && (
-                  <div>
-                    <div className="bg-slate-700 text-white text-sm font-semibold px-3 py-1.5 rounded-t">{t('materials.item.systemInfo')}</div>
-                    <div className="border border-t-0 border-gray-200 rounded-b p-4">
-                      <div className="grid grid-cols-3 gap-4 text-sm">
-                        <div><span className="text-gray-500">ID: </span><span className="font-mono text-xs">{item.id}</span></div>
-                        <div><span className="text-gray-500">{t('materials.item.createdDate')}</span>{new Date(item.createdAt).toLocaleDateString('vi-VN')}</div>
-                        <div><span className="text-gray-500">{t('materials.item.syncStatus')}</span><span className={item.isSynced ? 'text-green-600' : 'text-orange-500'}>{item.isSynced ? t('materials.item.synced') : t('materials.item.notSynced')}</span></div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Recent Receipts */}
-                <div>
-                  <div className="bg-slate-700 text-white text-sm font-semibold px-3 py-1.5 rounded-t flex items-center gap-2">
-                    <Package className="w-4 h-4" /> {t('materials.item.recentReceipts')}
-                  </div>
-                  <div className="border border-t-0 border-gray-200 rounded-b">
-                    {activityLoading ? (
-                      <div className="p-4 text-sm text-gray-400 text-center">{t('common.loading')}</div>
-                    ) : !activity?.receipts.length ? (
-                      <div className="p-4 text-sm text-gray-400 text-center">{t('materials.item.noReceipts')}</div>
-                    ) : (
-                      <table className="w-full text-sm">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('materials.item.receiptCode')}</th>
-                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('materials.item.receiptDateCol')}</th>
-                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('materials.item.supplier')}</th>
-                            <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">{t('materials.item.qtyReceived')}</th>
-                            <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">{t('materials.item.unitPrice')}</th>
-                            <th className="px-3 py-2 text-center text-xs font-medium text-gray-500">{t('materials.item.status')}</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {activity.receipts.map((r, i) => (
-                            <tr key={i} className="hover:bg-gray-50">
-                              <td className="px-3 py-2 font-mono text-xs text-blue-600">{r.code}</td>
-                              <td className="px-3 py-2 text-gray-600">{new Date(r.date).toLocaleDateString('vi-VN')}</td>
-                              <td className="px-3 py-2 text-gray-600">{r.supplierName || '—'}</td>
-                              <td className="px-3 py-2 text-right font-medium text-green-700">+{r.quantityReceived}</td>
-                              <td className="px-3 py-2 text-right text-gray-600">{r.unitCost ? `${r.unitCost.toLocaleString('vi-VN')} ${r.currency || ''}` : '—'}</td>
-                              <td className="px-3 py-2 text-center">
-                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                  r.status === 'Completed' ? 'bg-green-100 text-green-700' :
-                                  r.status === 'Approved' ? 'bg-blue-100 text-blue-700' :
-                                  'bg-gray-100 text-gray-600'
-                                }`}>{r.status}</span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
-                </div>
-
-                {/* Recent Requests */}
-                <div>
-                  <div className="bg-slate-700 text-white text-sm font-semibold px-3 py-1.5 rounded-t flex items-center gap-2">
-                    <ClipboardList className="w-4 h-4" /> {t('materials.item.recentRequests')}
-                  </div>
-                  <div className="border border-t-0 border-gray-200 rounded-b">
-                    {activityLoading ? (
-                      <div className="p-4 text-sm text-gray-400 text-center">{t('common.loading')}</div>
-                    ) : !activity?.requests.length ? (
-                      <div className="p-4 text-sm text-gray-400 text-center">{t('materials.item.noRequests')}</div>
-                    ) : (
-                      <table className="w-full text-sm">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('materials.item.requestCode')}</th>
-                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('materials.item.requestDate')}</th>
-                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('materials.item.requestedBy')}</th>
-                            <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">{t('materials.item.qty')}</th>
-                            <th className="px-3 py-2 text-center text-xs font-medium text-gray-500">{t('materials.item.priority')}</th>
-                            <th className="px-3 py-2 text-center text-xs font-medium text-gray-500">{t('materials.item.status')}</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {activity.requests.map((r, i) => (
-                            <tr key={i} className="hover:bg-gray-50">
-                              <td className="px-3 py-2 font-mono text-xs text-blue-600">{r.code}</td>
-                              <td className="px-3 py-2 text-gray-600">{new Date(r.date).toLocaleDateString('vi-VN')}</td>
-                              <td className="px-3 py-2 text-gray-600">{r.requestedBy || '—'}</td>
-                              <td className="px-3 py-2 text-right font-medium">{r.quantity}</td>
-                              <td className="px-3 py-2 text-center">
-                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                  r.urgency === 'Critical' ? 'bg-red-100 text-red-700' :
-                                  r.urgency === 'Urgent' ? 'bg-orange-100 text-orange-700' :
-                                  'bg-gray-100 text-gray-600'
-                                }`}>{r.urgency}</span>
-                              </td>
-                              <td className="px-3 py-2 text-center">
-                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                  r.status === 'Completed' ? 'bg-green-100 text-green-700' :
-                                  r.status === 'Approved' ? 'bg-blue-100 text-blue-700' :
-                                  r.status === 'Submitted' ? 'bg-yellow-100 text-yellow-700' :
-                                  r.status === 'Rejected' ? 'bg-red-100 text-red-700' :
-                                  'bg-gray-100 text-gray-600'
-                                }`}>{r.status}</span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
-                </div>
-
-                {!item && <p className="text-sm text-gray-400 text-center">{t('materials.item.saveToViewHistory')}</p>}
               </div>
             )}
 
