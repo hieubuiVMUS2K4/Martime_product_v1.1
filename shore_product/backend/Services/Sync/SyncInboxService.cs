@@ -1571,20 +1571,32 @@ public class SyncInboxService : ISyncInboxService
             return null;
         }
 
-        // Try Guid first (most crew entities), then int, then long
-        object? entity = null;
-        if (Guid.TryParse(recordKey, out var guidKey))
-            entity = await _context.FindAsync(entityType, guidKey);
-        else if (int.TryParse(recordKey, out var intKey))
-            entity = await _context.FindAsync(entityType, intKey);
-        else if (long.TryParse(recordKey, out var longKey))
-            entity = await _context.FindAsync(entityType, longKey);
-        else
+        var keyProperty = _context.Model.FindEntityType(entityType)?
+            .FindPrimaryKey()?
+            .Properties
+            .SingleOrDefault();
+        var keyType = Nullable.GetUnderlyingType(keyProperty?.ClrType ?? typeof(string))
+            ?? keyProperty?.ClrType
+            ?? typeof(string);
+
+        object? typedKey = null;
+        if (keyType == typeof(Guid) && Guid.TryParse(recordKey, out var guidKey))
+            typedKey = guidKey;
+        else if (keyType == typeof(int) && int.TryParse(recordKey, out var intKey))
+            typedKey = intKey;
+        else if (keyType == typeof(long) && long.TryParse(recordKey, out var longKey))
+            typedKey = longKey;
+        else if (keyType == typeof(string))
+            typedKey = recordKey;
+
+        if (typedKey == null)
         {
-            _logger.LogWarning("Cannot parse recordKey '{Key}' as Guid/int/long for entity {Type}",
-                recordKey, entityType.Name);
+            _logger.LogWarning("Cannot parse recordKey '{Key}' as {KeyType} for entity {Type}",
+                recordKey, keyType.Name, entityType.Name);
             return null;
         }
+
+        var entity = await _context.FindAsync(entityType, typedKey);
 
         // EF default is NoTracking — attach entity so modifications are persisted by SaveChangesAsync
         if (entity != null)

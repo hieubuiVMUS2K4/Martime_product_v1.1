@@ -14,6 +14,12 @@ import { RadioCommTab } from '../../components/vessel-detail/RadioCommTab';
 import { TanksCargoTab } from '../../components/vessel-detail/TanksCargoTab';
 import { VesselCertificateTab } from '../../components/vessel-detail/VesselCertificateTab';
 import { VesselOverviewTab } from '../../components/vessel-detail/VesselOverviewTab';
+import AssetsPage from '../PMS/AssetsPage';
+import WorkPlanningPage from '../PMS/WorkPlanningPage';
+import { MaterialPage } from '../Materials/MaterialPage';
+import MaterialRequestPage from '../Materials/MaterialRequestPage';
+import StockReceiptPage from '../Materials/StockReceiptPage';
+import InventoryPage from '../Materials/InventoryPage';
 import { useToast } from '../../components/common/Toast';
 import './VesselDetailPage.css';
 
@@ -190,9 +196,15 @@ interface Vessel {
   masterName?: string;
 }
 
-type TabId = 'overview' | 'basic-data' | 'dimensions' | 'machinery' | 'shipowner' | 'charterer' | 'class-flag-state' | 'insurance' | 'radio-comm' | 'tanks-cargo' | 'certificates' | 'crew';
+type TabId = 'overview' | 'basic-data' | 'dimensions' | 'machinery' | 'shipowner' | 'charterer' | 'class-flag-state' | 'insurance' | 'radio-comm' | 'tanks-cargo' | 'certificates' | 'crew' | 'pms-assets' | 'pms-work-planning' | 'materials-list' | 'materials-requests' | 'materials-receipts' | 'materials-inventory';
 
 const TABS: { id: TabId; label: string; edgeSource: boolean }[] = [
+  { id: 'pms-assets',       label: 'Thiết bị',             edgeSource: false },
+  { id: 'pms-work-planning', label: 'Kế hoạch công việc', edgeSource: false },
+  { id: 'materials-list',   label: 'Danh sách vật tư',    edgeSource: false },
+  { id: 'materials-requests', label: 'Yêu cầu vật tư',    edgeSource: false },
+  { id: 'materials-receipts', label: 'Phiếu nhập kho',    edgeSource: false },
+  { id: 'materials-inventory', label: 'Tồn kho',          edgeSource: false },
   { id: 'overview',         label: 'Tổng quan',          edgeSource: false },
   { id: 'basic-data',       label: 'Basic Data',        edgeSource: true },
   { id: 'dimensions',       label: 'Dimensions',         edgeSource: true },
@@ -221,27 +233,15 @@ const TAB_GROUPS: { label: string; items: TabId[] }[] = [
     label: 'Ship Data',
     items: ['basic-data', 'dimensions', 'class-flag-state', 'machinery', 'radio-comm', 'tanks-cargo', 'shipowner', 'charterer', 'insurance', 'certificates'],
   },
-  
-];
-
-// External navigation groups (navigate away from this page)
-const NAV_GROUPS: { label: string; items: { label: string; path: string }[] }[] = [
   {
     label: 'PMS',
-    items: [
-      { label: 'Thiết bị', path: '/pms/assets' },
-      { label: 'Kế hoạch công việc', path: '/pms/work-planning' },
-    ],
+    items: ['pms-assets', 'pms-work-planning'],
   },
   {
     label: 'Vật tư',
-    items: [
-      { label: 'Danh sách vật tư', path: '/materials' },
-      { label: 'Yêu cầu vật tư', path: '/materials/requests' },
-      { label: 'Phiếu nhập kho', path: '/materials/receipts' },
-      { label: 'Tồn kho', path: '/materials/inventory' },
-    ],
+    items: ['materials-list', 'materials-requests', 'materials-receipts', 'materials-inventory'],
   },
+  
 ];
 
 // ============================================================
@@ -269,8 +269,6 @@ export const VesselDetailPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const groupRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const [openNavGroup, setOpenNavGroup] = useState<string | null>(null);
-  const navGroupRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [vessel, setVessel] = useState<Vessel | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -299,11 +297,7 @@ export const VesselDetailPage: React.FC = () => {
       const insideTab = Object.values(groupRefs.current).some(
         ref => ref && ref.contains(e.target as Node)
       );
-      const insideNav = Object.values(navGroupRefs.current).some(
-        ref => ref && ref.contains(e.target as Node)
-      );
       if (!insideTab) setOpenGroup(null);
-      if (!insideNav) setOpenNavGroup(null);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -407,6 +401,15 @@ export const VesselDetailPage: React.FC = () => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setIsDirty(true);
   }, []);
+
+  const selectTab = (tabId: TabId) => {
+    setActiveTab(tabId);
+    setOpenGroup(null);
+
+    if ((tabId.startsWith('pms-') || tabId.startsWith('materials-')) && id) {
+      navigate(`/vessels/${id}?vesselId=${id}`, { replace: true });
+    }
+  };
 
   const handleSave = async () => {
     if (!id) return;
@@ -526,6 +529,24 @@ export const VesselDetailPage: React.FC = () => {
       case 'crew':
         return <VesselCrewTab vesselId={id!} vesselName={vessel.name || 'Vessel'} />;
 
+      case 'pms-assets':
+        return <AssetsPage />;
+
+      case 'pms-work-planning':
+        return <WorkPlanningPage />;
+
+      case 'materials-list':
+        return <MaterialPage />;
+
+      case 'materials-requests':
+        return <MaterialRequestPage />;
+
+      case 'materials-receipts':
+        return <StockReceiptPage />;
+
+      case 'materials-inventory':
+        return <InventoryPage />;
+
       default:
         return null;
     }
@@ -600,45 +621,13 @@ export const VesselDetailPage: React.FC = () => {
                         <button
                           key={tabId}
                           className={`vd-tab-dropdown-item${activeTab === tabId ? ' vd-tab-dropdown-item--active' : ''}`}
-                          onClick={() => { setActiveTab(tabId); setOpenGroup(null); }}
+                          onClick={() => selectTab(tabId)}
                         >
                           <span>{tab.label}</span>
                           {tab.edgeSource && <span className="vd-edge-dot" title="Synced from Edge">⚡</span>}
                         </button>
                       );
                     })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-          {/* PMS & Vật tư nav groups */}
-          {NAV_GROUPS.map(group => {
-            const isOpen = openNavGroup === group.label;
-            return (
-              <div
-                key={group.label}
-                className="vd-tab-group vd-nav-group"
-                ref={el => { navGroupRefs.current[group.label] = el; }}
-              >
-                <button
-                  className="vd-tab-btn"
-                  onClick={() => setOpenNavGroup(isOpen ? null : group.label)}
-                >
-                  {group.label}
-                  <ChevronDown size={13} className={`vd-tab-chevron${isOpen ? ' vd-tab-chevron--open' : ''}`} />
-                </button>
-                {isOpen && (
-                  <div className="vd-tab-dropdown">
-                    {group.items.map(item => (
-                      <button
-                        key={item.path}
-                        className="vd-tab-dropdown-item"
-                        onClick={() => { navigate(`${item.path}?vesselId=${id}`); setOpenNavGroup(null); }}
-                      >
-                        <span>{item.label}</span>
-                      </button>
-                    ))}
                   </div>
                 )}
               </div>
