@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Search, Package, Eye, Edit2, Trash2, ChevronsUpDown, Upload, Link2 } from 'lucide-react';
+import { Search, Package, Eye, Edit2, Trash2, ChevronsUpDown, Upload, Link2 } from 'lucide-react';
 import { materialService } from '@/services/materialService';
 import type { CreateMaterialItemDto, UpdateMaterialItemDto } from '@/services/materialService';
 import { ItemFormModal } from './ItemFormModal';
@@ -220,13 +220,6 @@ export function MaterialPage() {
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50"
           >
             {t('materials.page.manageCategories')}
-          </button>
-          <button
-            onClick={() => { setEditingItem(null); setItemModalOpen(true); }}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-teal-600 text-white rounded hover:bg-teal-700"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            {t('materials.page.addNew')}
           </button>
           <button
             onClick={() => setImportReceiptModalOpen(true)}

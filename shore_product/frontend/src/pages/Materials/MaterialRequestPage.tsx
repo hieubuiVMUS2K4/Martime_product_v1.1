@@ -257,12 +257,6 @@ export default function MaterialRequestPage() {
               <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-semibold">{total}</span>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={openCreate}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-teal-600 text-white rounded hover:bg-teal-700"
-              >
-                <Plus className="w-3.5 h-3.5" /> {t('materialRequests.addNew')}
-              </button>
             </div>
           </div>
         </div>

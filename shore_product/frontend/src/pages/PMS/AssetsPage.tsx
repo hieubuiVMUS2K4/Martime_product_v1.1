@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Upload, Download, Search, Package, Edit2, Eye, Trash2, ChevronDown, ChevronRight, FolderOpen, Copy, ChevronsUpDown } from 'lucide-react';
+import { Upload, Download, Search, Package, Edit2, Eye, Trash2, ChevronDown, ChevronRight, FolderOpen, Copy, ChevronsUpDown } from 'lucide-react';
 import { equipmentAssetService } from '@/services/equipment-asset.service';
 import { AddAssetModal } from '@/components/pms/AddAssetModal';
 import { ImportAssetsModal } from '@/components/pms/ImportAssetsModal';
@@ -324,13 +324,6 @@ export default function AssetsPage() {
             <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50">
               <Copy className="w-3.5 h-3.5" />
               {t('pms.assets.copy')}
-            </button>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-teal-600 text-white rounded hover:bg-teal-700"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              {t('pms.assets.addNew')}
             </button>
             <button onClick={handleDownloadTemplate} className="p-1.5 border border-gray-300 rounded text-gray-500 hover:bg-gray-50" title={t('pms.assets.downloadTemplate')}>
               <Download className="w-3.5 h-3.5" />

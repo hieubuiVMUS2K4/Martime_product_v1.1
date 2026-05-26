@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search, ChevronRight, ChevronDown, Package, DollarSign, AlertTriangle, ChevronsUpDown, Download, Clock, ClipboardList, SlidersHorizontal, X, Plus, Minus } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Search, Package, DollarSign, AlertTriangle, ChevronsUpDown, Download, Clock, SlidersHorizontal, X, Plus, Minus } from 'lucide-react';
 import { inventoryService } from '@/services/inventory.service';
 import { storeLocationService } from '@/services/store-location.service';
 import { materialService } from '@/services/materialService';
@@ -8,26 +8,6 @@ import type { InventoryStockItem, InventorySummary, StoreLocation } from '@/type
 import type { MaterialItem } from '@/types/maritime.types';
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50];
-
-interface TreeNode extends StoreLocation {
-  children: TreeNode[];
-  itemCount?: number;
-  totalValue?: number;
-}
-
-function buildTree(locations: StoreLocation[]): TreeNode[] {
-  const map = new Map<string, TreeNode>();
-  locations.forEach(l => map.set(l.id, { ...l, children: [] }));
-  const roots: TreeNode[] = [];
-  map.forEach(node => {
-    if (node.parentId && map.has(node.parentId)) {
-      map.get(node.parentId)!.children.push(node);
-    } else {
-      roots.push(node);
-    }
-  });
-  return roots;
-}
 
 export default function InventoryPage() {
   const { t } = useTranslationSafe();
@@ -39,10 +19,7 @@ export default function InventoryPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [searchQ, setSearchQ] = useState('');
-  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   const [locations, setLocations] = useState<StoreLocation[]>([]);
-  const [locationStats, setLocationStats] = useState<Map<string, { itemCount: number; totalValue: number }>>(new Map());
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
 
   // Modal states
   const [showHistory, setShowHistory] = useState(false);
@@ -60,14 +37,11 @@ export default function InventoryPage() {
   const [adjustQty, setAdjustQty] = useState<number>(0);
   const [adjustReason, setAdjustReason] = useState('');
 
-  const tree = useMemo(() => buildTree(locations), [locations]);
-
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const res = await inventoryService.getAll({
         page: currentPage, pageSize,
-        storeLocationId: selectedLocationId || undefined,
         q: searchQ || undefined,
       });
       setItems(res.items);
@@ -75,45 +49,26 @@ export default function InventoryPage() {
       setTotalValue(res.totalValue);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
-  }, [currentPage, pageSize, searchQ, selectedLocationId]);
+  }, [currentPage, pageSize, searchQ]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
   useEffect(() => {
     const loadMeta = async () => {
-      const [locs, sum, byLoc] = await Promise.all([
+      const [locs, sum] = await Promise.all([
         storeLocationService.getAll(),
         inventoryService.getSummary(),
-        inventoryService.getByLocation(),
       ]);
       setLocations(locs);
       setSummary(sum);
-      const statsMap = new Map<string, { itemCount: number; totalValue: number }>();
-      byLoc.forEach((b: { locationId: string; itemCount: number; totalValue: number }) => statsMap.set(b.locationId, { itemCount: b.itemCount, totalValue: b.totalValue }));
-      setLocationStats(statsMap);
-      // expand all by default
-      setExpandedNodes(new Set(locs.map(l => l.id)));
     };
     loadMeta();
   }, []);
 
-  const toggleExpand = (id: string) => {
-    setExpandedNodes(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
-
-  const selectLocation = (id: string | null) => {
-    setSelectedLocationId(id);
-    setCurrentPage(1);
-  };
-
   // ── Export Excel/CSV ──
   const handleExport = async () => {
     try {
-      const blob = await inventoryService.exportCsv(selectedLocationId || undefined);
+      const blob = await inventoryService.exportCsv();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -134,7 +89,6 @@ export default function InventoryPage() {
     setHistoryLoading(true);
     try {
       const res = await inventoryService.getHistory({
-        storeLocationId: selectedLocationId || undefined,
         page, pageSize: 20,
       });
       setHistoryItems(res.items);
@@ -189,58 +143,15 @@ export default function InventoryPage() {
   const totalPages = Math.ceil(total / pageSize);
   const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
-  const renderTreeNode = (node: TreeNode, depth: number = 0) => {
-    const hasChildren = node.children.length > 0;
-    const isExpanded = expandedNodes.has(node.id);
-    const isSelected = selectedLocationId === node.id;
-    const stats = locationStats.get(node.id);
-
-    return (
-      <div key={node.id}>
-        <div
-          className={`flex items-center gap-1.5 py-1.5 px-2 rounded cursor-pointer text-sm hover:bg-teal-50 ${isSelected ? 'bg-teal-100 text-teal-700 font-medium' : 'text-gray-700'}`}
-          style={{ paddingLeft: `${depth * 16 + 8}px` }}
-          onClick={() => selectLocation(isSelected ? null : node.id)}
-        >
-          {hasChildren ? (
-            <button onClick={e => { e.stopPropagation(); toggleExpand(node.id); }} className="p-0.5">
-              {isExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-            </button>
-          ) : (
-            <span className="w-4" />
-          )}
-          <span className="truncate flex-1">{node.name}</span>
-          {stats && stats.itemCount > 0 && (
-            <span className="text-xs bg-gray-100 text-gray-500 px-1.5 rounded">{stats.itemCount}</span>
-          )}
-        </div>
-        {hasChildren && isExpanded && node.children.map(child => renderTreeNode(child, depth + 1))}
-      </div>
-    );
-  };
-
   return (
     <div className="h-full w-full flex flex-col overflow-hidden bg-white">
       {/* ── HEADER ROW ── */}
       <div className="flex flex-shrink-0 border-b border-gray-200">
-        {/* Header trái: root node "Tất cả kho" */}
-        <button
-          onClick={() => selectLocation(null)}
-          className={`w-56 flex-shrink-0 flex items-center gap-1.5 px-3 py-3 text-sm font-semibold border-r border-gray-200 ${
-            !selectedLocationId
-              ? 'bg-blue-800 text-white'
-              : 'text-gray-700 hover:bg-gray-50 bg-white'
-          }`}
-        >
-          <Package className="w-4 h-4 flex-shrink-0" />
-          <span className="flex-1 text-left truncate">Tất cả kho ({summary?.totalItems || 0})</span>
-        </button>
-
-        {/* Header phải: title + summary badges */}
+        {/* Header: title + summary badges */}
         <div className="flex-1 flex items-center justify-between px-4 py-3 bg-white">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-gray-700">
-              ≡ {t('inventory.title')}{selectedLocationId ? ` - ${locations.find(l => l.id === selectedLocationId)?.name}` : ''}
+              ≡ {t('inventory.title')}
             </span>
           </div>
           {summary && (
@@ -265,9 +176,6 @@ export default function InventoryPage() {
                 <button onClick={openHistory} className="flex items-center gap-1 px-2.5 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50 text-gray-600">
                   <Clock size={13} /> Lịch sử tồn kho
                 </button>
-                <button onClick={openDeclare} className="flex items-center gap-1 px-2.5 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50 text-gray-600">
-                  <ClipboardList size={13} /> Khai báo tồn kho
-                </button>
               </div>
             </div>
           )}
@@ -275,14 +183,7 @@ export default function InventoryPage() {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Left Panel - Location Tree */}
-        <div className="w-56 border-r border-gray-200 bg-white overflow-y-auto flex-shrink-0">
-          <div className="p-1">
-            {tree.map(node => renderTreeNode(node))}
-          </div>
-        </div>
-
-        {/* Right Panel - Table */}
+        {/* Table */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Table */}
           <div className="flex-1 overflow-auto">

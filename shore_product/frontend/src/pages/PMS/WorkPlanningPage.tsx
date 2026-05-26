@@ -1,7 +1,7 @@
 /**
  * Danh sách công việc (Work Planning) - Avison-style
- * Gộp 6 view: Bảng | Lịch | Gantt Chart | Kanban | Counter | Cấu hình
- * Panel trái: Equipment Tree + Filters (Ngày, Người thực hiện, Loại CV, Trạng thái)
+ * Các view hiển thị: Bảng | Lịch | Gantt Chart. Cấu hình chỉ mở từ thao tác sửa.
+ * Panel trái: Equipment Tree.
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -188,13 +188,6 @@ export default function WorkPlanningPage() {
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [selectedAssetIds, setSelectedAssetIds] = useState<Set<string>>(new Set());
   const [treeSearch, setTreeSearch] = useState('');
-
-  // === Filters (left panel) ===
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [crewFilter, setCrwFilter] = useState('');
-  const [taskTypeFilter, setTaskTypeFilter] = useState<Set<string>>(new Set(['adhoc', 'periodic']));
-  const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
 
   // === Column filters ===
   const [colFilterCode, setColFilterCode] = useState('');
@@ -756,34 +749,6 @@ export default function WorkPlanningPage() {
       });
     }
 
-    // Date filter
-    if (dateFrom) {
-      f = f.filter(task => task.nextDueAt >= dateFrom);
-    }
-    if (dateTo) {
-      f = f.filter(task => task.nextDueAt <= dateTo);
-    }
-
-    // Crew filter
-    if (crewFilter) {
-      f = f.filter(task => task.assignedTo === crewFilter);
-    }
-
-    // Task type filter
-    if (taskTypeFilter.size > 0 && taskTypeFilter.size < 2) {
-      if (taskTypeFilter.has('adhoc') && !taskTypeFilter.has('periodic')) {
-        f = f.filter(task => task.taskType === 'AD_HOC' || task.taskType === 'CORRECTIVE');
-      }
-      if (taskTypeFilter.has('periodic') && !taskTypeFilter.has('adhoc')) {
-        f = f.filter(task => task.taskType !== 'AD_HOC' && task.taskType !== 'CORRECTIVE');
-      }
-    }
-
-    // Status filter
-    if (statusFilter.size > 0) {
-      f = f.filter(task => statusFilter.has(task.status));
-    }
-
     // Search
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -808,7 +773,7 @@ export default function WorkPlanningPage() {
     }
 
     return f;
-  }, [showHistory, activeTasks, historyTasks, selectedAssetIds, dateFrom, dateTo, crewFilter, taskTypeFilter, statusFilter, searchQuery, assets, colFilterCode, colFilterEquip, colFilterName, colFilterDesc, colFilterPriority, colFilterStatus, colFilterType]);
+  }, [showHistory, activeTasks, historyTasks, selectedAssetIds, searchQuery, assets, colFilterCode, colFilterEquip, colFilterName, colFilterDesc, colFilterPriority, colFilterStatus, colFilterType]);
 
   // Gantt data — derived from filteredTasks (same source as Bảng/Lịch/Kanban)
   const ganttTasksFromFiltered = useMemo((): GanttTask[] => {
@@ -1136,7 +1101,6 @@ export default function WorkPlanningPage() {
             { key: 'table' as ViewTab, label: t('pms.workPlanning.tabs.table'), icon: Table2 },
             { key: 'calendar' as ViewTab, label: t('pms.workPlanning.tabs.calendar'), icon: Calendar },
             { key: 'gantt' as ViewTab, label: t('pms.workPlanning.tabs.gantt'), icon: BarChart3 },
-            { key: 'config' as ViewTab, label: t('pms.workPlanning.tabs.config'), icon: Settings },
           ]).map(tab => (
             <button
               key={tab.key}
@@ -1149,12 +1113,6 @@ export default function WorkPlanningPage() {
             >
               <tab.icon className="w-3.5 h-3.5" />
               {tab.label}
-              {/* Tooltip for Config */}
-              {tab.key === 'config' && (
-                <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 hidden group-hover:block w-64 px-3 py-2 bg-gray-800 text-white text-[10px] rounded-lg shadow-lg leading-relaxed pointer-events-none">
-                  {t('pms.workPlanning.config.tooltip')}
-                </div>
-              )}
             </button>
           ))}
         </div>
@@ -1162,7 +1120,7 @@ export default function WorkPlanningPage() {
 
       {/* === BODY: LEFT PANEL + CONTENT === */}
       <div className="flex flex-1 overflow-hidden">
-        {/* === LEFT PANEL: Equipment Tree + Filters === */}
+        {/* === LEFT PANEL: Equipment Tree === */}
         <div className="w-64 flex-shrink-0 border-r border-gray-200 flex flex-col bg-white">
           {/* Tree nodes - scrollable */}
           <div className="flex-1 overflow-y-auto text-xs">
@@ -1180,71 +1138,6 @@ export default function WorkPlanningPage() {
             ))}
           </div>
 
-          {/* Filters - fixed at bottom */}
-          <div className="flex-shrink-0 border-t border-gray-200 p-3 space-y-3">
-            {/* Ngày bắt đầu */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">{t('pms.workPlanning.filters.dateFrom')}</label>
-              <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-teal-500" />
-            </div>
-            {/* Ngày kết thúc */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">{t('pms.workPlanning.filters.dateTo')}</label>
-              <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-teal-500" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">{t('pms.workPlanning.filters.assignee')}</label>
-              <select value={crewFilter} onChange={e => setCrwFilter(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-teal-500">
-                <option value="">{t('pms.workPlanning.filters.all')}</option>
-                {crewList.map(c => (
-                  <option key={c.crewId} value={c.crewId}>{c.fullName}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Task type */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">{t('pms.workPlanning.filters.taskType')}</label>
-              <div className="flex gap-3">
-                <label className="flex items-center gap-1.5 text-xs">
-                  <input type="checkbox" checked={taskTypeFilter.has('adhoc')} onChange={() => {
-                    setTaskTypeFilter(prev => { const n = new Set(prev); n.has('adhoc') ? n.delete('adhoc') : n.add('adhoc'); return n; });
-                  }} className="w-3.5 h-3.5 text-teal-600 rounded" />
-                  {t('pms.workPlanning.filters.adhoc')}
-                </label>
-                <label className="flex items-center gap-1.5 text-xs">
-                  <input type="checkbox" checked={taskTypeFilter.has('periodic')} onChange={() => {
-                    setTaskTypeFilter(prev => { const n = new Set(prev); n.has('periodic') ? n.delete('periodic') : n.add('periodic'); return n; });
-                  }} className="w-3.5 h-3.5 text-teal-600 rounded" />
-                  {t('pms.workPlanning.filters.periodic')}
-                </label>
-              </div>
-            </div>
-
-            {/* Status filter */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">{t('pms.workPlanning.filters.taskStatus')}</label>
-              <div className="grid grid-cols-2 gap-1">
-                {Object.entries(STATUS_LABELS).slice(0, 6).map(([key, val]) => (
-                  <label key={key} className="flex items-center gap-1.5 text-xs">
-                    <input type="checkbox" checked={statusFilter.has(key)} onChange={() => {
-                      setStatusFilter(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
-                    }} className="w-3.5 h-3.5 text-teal-600 rounded" />
-                    {getStatusLabel(key)}
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Search button */}
-            <button
-              onClick={() => { setTablePage(1); }}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-teal-600 text-white text-xs font-medium rounded-lg hover:bg-teal-700"
-            >
-              <Search className="w-3.5 h-3.5" />
-              {t('pms.workPlanning.search')}
-            </button>
-          </div>
         </div>
 
         {/* === MAIN CONTENT === */}
@@ -1254,7 +1147,7 @@ export default function WorkPlanningPage() {
             <div className="flex-1 flex flex-col overflow-hidden">
               {/* Table */}
               <div className="flex-1 overflow-auto">
-                <table className="min-w-full text-sm border-collapse">
+                <table className="min-w-[1260px] w-full text-sm border-collapse">
                   <thead className="sticky top-0 z-10">
                     {/* Row 1: headers */}
                     <tr className="bg-teal-50">
@@ -1286,8 +1179,8 @@ export default function WorkPlanningPage() {
                           <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
                         </div>
                       </th>
-                      <th className="w-24 px-3 py-2 text-center border-b border-r border-gray-200">
-                        <span className="text-xs font-semibold text-gray-600">{t('pms.workPlanning.table.riskAssessment')}</span>
+                      <th className="w-36 min-w-[144px] px-3 py-2 text-center border-b border-r border-gray-200">
+                        <span className="text-xs font-semibold text-gray-600 whitespace-nowrap">{t('pms.workPlanning.table.riskAssessment')}</span>
                       </th>
                       <th className="w-28 px-3 py-2 text-center border-b border-r border-gray-200 cursor-pointer" onClick={() => handleSort('priority')}>
                         <div className="flex items-center justify-center gap-1">
@@ -1484,39 +1377,39 @@ export default function WorkPlanningPage() {
 
           {/* ============ TAB: LỊCH ============ */}
           {activeTab === 'calendar' && (
-            <div className="p-4">
+            <div className="flex flex-col h-full min-h-0 overflow-hidden p-3">
               {/* Calendar header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <button onClick={() => setCalendarDate(d => addMonths(d, -1))} className="p-2 hover:bg-gray-100 rounded-lg">
-                    <ChevronLeft className="w-5 h-5" />
+              <div className="flex items-center justify-between mb-2 flex-shrink-0">
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setCalendarDate(d => addMonths(d, -1))} className="p-1.5 hover:bg-gray-100 rounded">
+                    <ChevronLeft className="w-4 h-4" />
                   </button>
-                  <h2 className="text-lg font-semibold text-gray-900">
+                  <h2 className="text-base font-semibold text-gray-900">
                     {format(calendarDate, 'MMMM yyyy', { locale: vi })}
                   </h2>
-                  <button onClick={() => setCalendarDate(d => addMonths(d, 1))} className="p-2 hover:bg-gray-100 rounded-lg">
-                    <ChevronRight className="w-5 h-5" />
+                  <button onClick={() => setCalendarDate(d => addMonths(d, 1))} className="p-1.5 hover:bg-gray-100 rounded">
+                    <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
-                <button onClick={() => setCalendarDate(new Date())} className="px-3 py-1.5 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700">
+                <button onClick={() => setCalendarDate(new Date())} className="px-3 py-1 text-xs bg-teal-600 text-white rounded hover:bg-teal-700">
                   {t('pms.workPlanning.calendar.today')}
                 </button>
               </div>
 
               {/* Calendar grid */}
-              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <div className="flex flex-col flex-1 min-h-0 bg-white rounded border border-gray-200 overflow-hidden">
                 {/* Day headers */}
-                <div className="grid grid-cols-7 bg-teal-600 text-white text-sm font-medium">
+                <div className="grid grid-cols-7 flex-shrink-0 bg-teal-600 text-white text-xs font-medium">
                   {t('pms.workPlanning.calendar.weekDays').split(',').map(d => (
-                    <div key={d} className="px-2 py-2 text-center">{d}</div>
+                    <div key={d} className="px-2 py-1.5 text-center">{d}</div>
                   ))}
                 </div>
 
                 {/* Calendar cells */}
-                <div className="grid grid-cols-7">
+                <div className="grid grid-cols-7 auto-rows-fr flex-1 min-h-0">
                   {/* Padding for first day */}
                   {Array.from({ length: getDay(calendarDays[0]) }).map((_, i) => (
-                    <div key={`pad-${i}`} className="min-h-[100px] border-b border-r border-gray-100 bg-gray-50/50" />
+                    <div key={`pad-${i}`} className="min-h-0 border-b border-r border-gray-100 bg-gray-50/50" />
                   ))}
                   
                   {calendarDays.map(day => {
@@ -1525,12 +1418,12 @@ export default function WorkPlanningPage() {
                     const isToday = isSameDay(day, new Date());
 
                     return (
-                      <div key={dateKey} className={`min-h-[100px] border-b border-r border-gray-100 p-1 ${isToday ? 'bg-teal-50' : 'bg-white'}`}>
+                      <div key={dateKey} className={`min-h-0 overflow-hidden border-b border-r border-gray-100 p-1 ${isToday ? 'bg-teal-50' : 'bg-white'}`}>
                         <div className={`text-xs font-medium mb-1 ${isToday ? 'text-teal-600 font-bold' : 'text-gray-600'}`}>
                           {format(day, 'd')}
                         </div>
                         <div className="space-y-0.5">
-                          {dayTasks.slice(0, 3).map(task => {
+                          {dayTasks.slice(0, 2).map(task => {
                             // Use status-based color for UPCOMING/OVERDUE, priority-based for others
                             const statusOverride: Record<string, { bg: string; text: string }> = {
                               UPCOMING: { bg: '#FEF3C7', text: '#92400E' },
@@ -1550,8 +1443,8 @@ export default function WorkPlanningPage() {
                               </button>
                             );
                           })}
-                          {dayTasks.length > 3 && (
-                            <div className="text-[10px] text-gray-400 text-center">{t('pms.workPlanning.calendar.moreItems', { count: dayTasks.length - 3 })}</div>
+                          {dayTasks.length > 2 && (
+                            <div className="text-[10px] text-gray-400 text-center">{t('pms.workPlanning.calendar.moreItems', { count: dayTasks.length - 2 })}</div>
                           )}
                         </div>
                       </div>
@@ -1561,7 +1454,7 @@ export default function WorkPlanningPage() {
               </div>
 
               {/* Legend */}
-              <div className="flex items-center gap-6 mt-3">
+              <div className="flex items-center gap-5 mt-2 flex-shrink-0">
                 {Object.entries(PRIORITY_COLORS).filter(([k]) => k !== 'NORMAL').map(([key, val]) => (
                   <div key={key} className="flex items-center gap-1.5">
                     <div className="w-3 h-3 rounded" style={{ backgroundColor: val.bar }}></div>

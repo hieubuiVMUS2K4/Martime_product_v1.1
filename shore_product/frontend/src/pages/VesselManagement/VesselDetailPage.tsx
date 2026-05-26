@@ -575,6 +575,7 @@ export const VesselDetailPage: React.FC = () => {
 
   const currentTab = TABS.find(t => t.id === activeTab);
   const isEditable = currentTab && !currentTab.edgeSource;
+  const isWorkspaceTab = activeTab.startsWith('pms-') || activeTab.startsWith('materials-');
 
   return (
     <div className="vd-page-new">
@@ -642,7 +643,7 @@ export const VesselDetailPage: React.FC = () => {
       </div>
 
       {/* Tab Content */}
-      <div className="vd-content-new">
+      <div className={`vd-content-new${isWorkspaceTab ? ' vd-content-new--flush' : ''}`}>
         {renderTabContent()}
       </div>
 
