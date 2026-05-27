@@ -186,4 +186,6 @@ public class UpdateCrewRequest
     public int? EducationPeriodYears { get; set; }
     public int? EducationGraduationYear { get; set; }
     public string? Notes { get; set; }
+    /// <summary>Seaman book number — stored in SeafarerDocuments table (type: seaman_book)</summary>
+    public string? SeamanBookNumber { get; set; }
 }

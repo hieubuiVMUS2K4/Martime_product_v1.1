@@ -4,7 +4,7 @@ import { stockReceiptService } from '@/services/stockReceipt.service';
 import { materialService } from '@/services/materialService';
 import { storeLocationService } from '@/services/store-location.service';
 import { materialRequestService } from '@/services/materialRequest.service';
-import { voyageService } from '@/services/maritime.service';
+import { maritimeService } from '@/services/maritime.service';
 import { VESSEL_CONFIG } from '@/config/app.config';
 import { useTranslationSafe } from '@/contexts/I18nContext';
 import type { StockReceipt, StockReceiptItem, StoreLocation, MaterialRequest } from '@/types/pms.types';
@@ -96,7 +96,7 @@ export default function StockReceiptPage() {
       materialService.getItems({ onlyActive: true }),
       storeLocationService.getAll(),
       materialRequestService.getApproved(),
-      voyageService.getAllVoyages().then(r => r).catch(() => []),
+      maritimeService.voyage.getAll({ pageSize: 100 }).then(r => r).catch(() => []),
     ]);
     setMaterialOptions(mats);
     setLocationOptions(locs);

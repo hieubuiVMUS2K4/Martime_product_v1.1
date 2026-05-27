@@ -9,15 +9,11 @@ import {
   XCircle,
   AlertTriangle,
   Eye,
-  Ship,
-  MapPin,
-  Calendar,
-  FileDown
+  FileDown,
+  BookOpen
 } from 'lucide-react'
-import { CrewMember, ServiceRecord } from '../../types/maritime.types'
+import { CrewMember } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
-import { voyageMgmtService } from '../../services/voyage.service'
-import type { VoyageCrewAssignment } from '../../types/voyage.types'
 import { format, differenceInDays, parseISO } from 'date-fns'
 import AddDocumentModal from '../../components/crew/AddDocumentModal'
 import AddHealthDocumentModal from '../../components/crew/AddHealthDocumentModal'
@@ -26,8 +22,9 @@ import { AddCrewCertificateModal } from './AddCrewCertificateModal'
 import { useTranslationSafe } from '@/contexts/I18nContext'
 import jsPDF from 'jspdf' 
 import 'jspdf-autotable'
+import { CrewLogbookSection } from './CrewLogbookSection'
 
-type TabType = 'basic-data' | 'documents' | 'voyage-history'
+type TabType = 'basic-data' | 'documents' | 'logbook'
 
 export function CrewDetailPage() {
   const { t } = useTranslationSafe()
@@ -62,10 +59,7 @@ export function CrewDetailPage() {
   const [pendingAvatarPreview, setPendingAvatarPreview] = useState<string | null>(null)
   const [ranks, setRanks] = useState<any[]>([])
   const [countries, setCountries] = useState<any[]>([])
-  const [voyageHistory, setVoyageHistory] = useState<VoyageCrewAssignment[]>([])
-  const [loadingVoyageHistory, setLoadingVoyageHistory] = useState(false)
-  const [serviceRecords, setServiceRecords] = useState<ServiceRecord[]>([])
-  const [loadingServiceRecords, setLoadingServiceRecords] = useState(false)
+
   const [showAddCertModal, setShowAddCertModal] = useState(false)
 
   // Section review checklist for pending crew verification
@@ -1339,37 +1333,17 @@ export function CrewDetailPage() {
             >
               {t('crew.edDetail.tabs.documents')}
             </button>
+
             <button
-              onClick={() => {
-                setActiveTab('voyage-history')
-                if (id) {
-                  if (voyageHistory.length === 0) {
-                    setLoadingVoyageHistory(true)
-                    voyageMgmtService.crewAssignments.getCrewHistory(id)
-                      .then(setVoyageHistory)
-                      .catch(() => {})
-                      .finally(() => setLoadingVoyageHistory(false))
-                  }
-                  if (serviceRecords.length === 0) {
-                    setLoadingServiceRecords(true)
-                    maritimeService.crew.getServiceRecords(id)
-                      .then(setServiceRecords)
-                      .catch(() => {})
-                      .finally(() => setLoadingServiceRecords(false))
-                  }
-                }
-              }}
+              onClick={() => setActiveTab('logbook')}
               className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
-                activeTab === 'voyage-history'
+                activeTab === 'logbook'
                   ? 'border-blue-600 text-blue-600 bg-blue-50'
                   : 'border-transparent text-gray-600 hover:text-gray-800'
               }`}
             >
-              <Ship className="w-4 h-4" />
-              {t('crew.edDetail.tabs.voyageHistory')}
-              {voyageHistory.length > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 rounded-full text-xs bg-gray-200 text-gray-600">{voyageHistory.length}</span>
-              )}
+              <BookOpen className="w-4 h-4" />
+              {t('crew.edDetail.tabs.logbook') || 'Sổ nhật ký'}
             </button>
           </div>
         </div>
@@ -2362,229 +2336,12 @@ export function CrewDetailPage() {
           </div>
         )}
 
-        {activeTab === 'voyage-history' && (
-          <div className="space-y-4">
-            {/* Voyage Assignments */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Ship className="w-5 h-5 text-blue-600" />
-                  <h3 className="text-lg font-semibold text-gray-800">{t('crew.edDetail.voyage.currentAssignments')}</h3>
-                </div>
-                <span className="text-sm text-gray-500">{t('crew.edDetail.voyage.assignments', { count: voyageHistory.length })}</span>
-              </div>
 
-            {loadingVoyageHistory ? (
-              <div className="flex items-center justify-center py-16">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                <span className="ml-3 text-gray-500">{t('crew.edDetail.voyage.loading')}</span>
-              </div>
-            ) : voyageHistory.length === 0 ? (
-              <div className="text-center py-16">
-                <Ship className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 font-medium">{t('crew.edDetail.voyage.noAssignments')}</p>
-                <p className="text-gray-400 text-sm mt-1">{t('crew.edDetail.voyage.noAssignmentsDesc')}</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-gray-50 border-b border-gray-200">
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">{t('crew.edDetail.voyage.voyage')}</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">{t('crew.edDetail.voyage.roleRank')}</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">{t('crew.edDetail.voyage.embarkation')}</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">{t('crew.edDetail.voyage.disembarkation')}</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">{t('crew.edDetail.voyage.duration')}</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">{t('crew.edDetail.docs.status')}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {voyageHistory.map((assignment) => {
-                      const statusColors: Record<string, string> = {
-                        'ASSIGNED': 'bg-yellow-100 text-yellow-700',
-                        'ONBOARD': 'bg-green-100 text-green-700',
-                        'DISEMBARKED': 'bg-gray-100 text-gray-700',
-                        'CANCELLED': 'bg-red-100 text-red-700',
-                      }
-                      const days = assignment.embarkDate && assignment.disembarkDate
-                        ? differenceInDays(parseISO(assignment.disembarkDate), parseISO(assignment.embarkDate))
-                        : assignment.embarkDate
-                          ? differenceInDays(new Date(), parseISO(assignment.embarkDate))
-                          : null
-                      return (
-                        <tr key={assignment.id} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-4 py-3">
-                            <div className="font-medium text-gray-800">{assignment.voyageNumber || assignment.remarks || '-'}</div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="text-sm text-gray-800">{assignment.role || '-'}</div>
-                            <div className="text-xs text-gray-500">{assignment.rankName || '-'}</div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-1">
-                              <MapPin className="w-3.5 h-3.5 text-green-500" />
-                              <span className="text-sm text-gray-800">{assignment.embarkPortName || assignment.embarkPortCode || '-'}</span>
-                            </div>
-                            {assignment.embarkDate && (
-                              <div className="flex items-center gap-1 mt-0.5">
-                                <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                                <span className="text-xs text-gray-500">
-                                  {format(parseISO(assignment.embarkDate), 'dd MMM yyyy')}
-                                </span>
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            {assignment.disembarkPortName || assignment.disembarkPortCode ? (
-                              <>
-                                <div className="flex items-center gap-1">
-                                  <MapPin className="w-3.5 h-3.5 text-red-500" />
-                                  <span className="text-sm text-gray-800">{assignment.disembarkPortName || assignment.disembarkPortCode}</span>
-                                </div>
-                                {assignment.disembarkDate && (
-                                  <div className="flex items-center gap-1 mt-0.5">
-                                    <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                                    <span className="text-xs text-gray-500">
-                                      {format(parseISO(assignment.disembarkDate), 'dd MMM yyyy')}
-                                    </span>
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              <span className="text-sm text-gray-400">—</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            {days !== null ? (
-                              <span className="text-sm text-gray-700 font-medium">{days} {days !== 1 ? t('crew.edDetail.voyage.days') : t('crew.edDetail.voyage.day')}</span>
-                            ) : (
-                              <span className="text-sm text-gray-400">—</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={`inline-flex px-2 py-1 rounded-full text-xs font-semibold ${statusColors[assignment.status] || 'bg-gray-100 text-gray-600'}`}>
-                              {assignment.status}
-                            </span>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
+
+        {activeTab === 'logbook' && id && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <CrewLogbookSection crewMemberId={id} onSaved={loadCrewDetails} />
           </div>
-
-          {/* Service Records (Sea Service History) */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Ship className="w-5 h-5 text-purple-600" />
-                <h3 className="text-lg font-semibold text-gray-800">{t('crew.edDetail.service.title')}</h3>
-              </div>
-              <span className="text-sm text-gray-500">{t('crew.edDetail.service.records', { count: serviceRecords.length })}</span>
-            </div>
-
-            {loadingServiceRecords ? (
-              <div className="flex items-center justify-center py-16">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                <span className="ml-3 text-gray-500">{t('crew.edDetail.service.loading')}</span>
-              </div>
-            ) : serviceRecords.length === 0 ? (
-              <div className="text-center py-16">
-                <Ship className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 font-medium">{t('crew.edDetail.service.noRecords')}</p>
-                <p className="text-gray-400 text-sm mt-1">{t('crew.edDetail.service.noRecordsDesc')}</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-gray-50 border-b border-gray-200">
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">{t('crew.edDetail.service.vessel')}</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">{t('crew.edDetail.service.typeFlag')}</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">{t('crew.edDetail.service.rank')}</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">{t('crew.edDetail.service.boarding')}</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">{t('crew.edDetail.service.disembark')}</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">{t('crew.edDetail.service.serviceDays')}</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">{t('crew.edDetail.service.grtDwt')}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {serviceRecords.map((record) => (
-                      <tr key={record.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3">
-                          <div className="font-medium text-gray-800">{record.vesselName}</div>
-                          {record.tradeArea && (
-                            <div className="text-xs text-gray-500">{record.tradeArea}</div>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="text-sm text-gray-700">{record.vesselType || '-'}</div>
-                          <div className="text-xs text-gray-500">{record.vesselFlag || '-'}</div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="inline-flex px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700">
-                            {record.rankAtTime || t('crew.edDetail.docs.na')}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          {record.boardingDate ? (
-                            <>
-                              <div className="text-sm text-gray-800">
-                                {format(parseISO(record.boardingDate), 'dd MMM yyyy')}
-                              </div>
-                              {record.boardingPort && (
-                                <div className="text-xs text-gray-500">{record.boardingPort}</div>
-                              )}
-                            </>
-                          ) : (
-                            <span className="text-sm text-gray-400">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          {record.disembarkDate ? (
-                            <>
-                              <div className="text-sm text-gray-800">
-                                {format(parseISO(record.disembarkDate), 'dd MMM yyyy')}
-                              </div>
-                              {record.disembarkPort && (
-                                <div className="text-xs text-gray-500">{record.disembarkPort}</div>
-                              )}
-                            </>
-                          ) : (
-                            <span className="inline-flex px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700">
-                              {t('crew.edDetail.service.onBoard')}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          {record.totalServiceDays ? (
-                            <span className="text-sm font-medium text-gray-700">{record.totalServiceDays} {t('crew.edDetail.voyage.days')}</span>
-                          ) : record.boardingDate && !record.disembarkDate ? (
-                            <span className="text-sm text-gray-600">
-                              {differenceInDays(new Date(), parseISO(record.boardingDate))} {t('crew.edDetail.voyage.days')}
-                            </span>
-                          ) : (
-                            <span className="text-sm text-gray-400">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="text-sm text-gray-700">
-                            {record.vesselGrt ? `${record.vesselGrt.toLocaleString()} GRT` : '-'}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {record.vesselDwt ? `${record.vesselDwt.toLocaleString()} DWT` : '-'}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
         )}
       </div>
 

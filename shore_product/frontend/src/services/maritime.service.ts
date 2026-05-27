@@ -53,10 +53,36 @@ export const maritimeService = {
       pagination: { currentPage: 1, pageSize: 100, totalCount: 0, totalPages: 0, hasNextPage: false, hasPreviousPage: false },
     }),
   },
+
+  voyage: {
+    getAll: async (params?: { page?: number; pageSize?: number; search?: string; status?: string }): Promise<VoyageRecord[]> => {
+      const response = await axios.get(`${API_BASE}/voyages`, { params });
+      return response.data.data || [];
+    },
+    getById: async (id: string): Promise<VoyageRecord> => {
+      const response = await axios.get(`${API_BASE}/voyages/${id}`);
+      return response.data;
+    },
+  },
 };
 
+/**
+ * @deprecated Use maritimeService.voyage instead.
+ */
 export const voyageService = {
-  getAllVoyages: async (): Promise<VoyageRecord[]> => [],
-  getCurrentVoyage: async (): Promise<VoyageRecord | null> => null,
+  /**
+   * @deprecated Use maritimeService.voyage.getAll instead for database-level pagination.
+   */
+  getAllVoyages: async (params?: { page?: number; pageSize?: number }): Promise<VoyageRecord[]> => {
+    return maritimeService.voyage.getAll({ page: params?.page ?? 1, pageSize: params?.pageSize ?? 100 });
+  },
+  getCurrentVoyage: async (): Promise<VoyageRecord | null> => {
+    try {
+      const response = await axios.get(`${API_BASE}/voyages/current`);
+      return response.data;
+    } catch {
+      return null;
+    }
+  },
 };
 

@@ -17,8 +17,9 @@ import { AddHealthDocumentModal } from './AddHealthDocumentModal';
 import ImageViewerModal from '../../components/common/ImageViewerModal';
 import ProtectedImage from '../../components/common/ProtectedImage';
 import { openProtectedMediaInNewTab } from '../../services/protectedMedia';
+import { CrewLogbookSection } from './CrewLogbookSection';
 
-type TabType = 'basic-data' | 'documents' | 'voyage-history' | 'onboarding' | 'doc-workflow' | 'status-history' | 'audit';
+type TabType = 'basic-data' | 'documents' | 'voyage-history' | 'onboarding' | 'doc-workflow' | 'status-history' | 'audit' | 'logbook';
 
 const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
 
@@ -478,6 +479,7 @@ export const CrewDetailPage: React.FC = () => {
           {([
             { key: 'basic-data', label: 'Thông tin cơ bản' },
             { key: 'documents', label: 'Tài liệu' },
+            { key: 'logbook', label: 'Sổ nhật ký', icon: <ClipboardList className="w-4 h-4" /> },
             /*{ key: 'voyage-history', label: 'Lịch sử đi tàu', icon: <Ship className="w-4 h-4" /> },
             { key: 'onboarding', label: 'Tiếp nhận', icon: <ClipboardList className="w-4 h-4" /> },
             { key: 'doc-workflow', label: 'Hồ sơ', icon: <FileCheck className="w-4 h-4" /> },
@@ -1216,6 +1218,13 @@ export const CrewDetailPage: React.FC = () => {
               <p className="text-gray-400 text-sm">Audit logging will track all changes to crew records, documents, and certificates.</p>
               <span className="mt-4 px-4 py-1.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">Coming Soon</span>
             </div>
+          </div>
+        )}
+
+        {/* -- Logbook Tab -- */}
+        {activeTab === 'logbook' && id && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <CrewLogbookSection crewMemberId={id} onSaved={refetch} />
           </div>
         )}
       </div>

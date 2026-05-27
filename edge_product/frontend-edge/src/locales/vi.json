@@ -921,7 +921,8 @@
       "tabs": {
         "basicData": "Dữ liệu cơ bản",
         "documents": "Tài liệu",
-        "voyageHistory": "Lịch sử chuyến đi"
+        "voyageHistory": "Lịch sử chuyến đi",
+        "logbook": "Sổ nhật ký"
       },
       "form": {
         "fullName": "Họ và tên",

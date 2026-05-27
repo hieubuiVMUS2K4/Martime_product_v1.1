@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { LogbookGrid } from '../../components/common/LogbookGrid'
+import { VirtualizedTable, Column } from '../../components/common/VirtualizedTable'
 import { abstractLogService } from '../../services/abstractlog.service'
 import { apiClient } from '../../services/api.client'
 import { toast } from 'sonner'
@@ -43,6 +44,61 @@ type TabType = 'list' | 'sum' | number  // number = leg sequence
 export const AbstractLogPage: React.FC = () => {
   const { id: urlId } = useParams<{ id: string }>()
   const navigate = useNavigate()
+
+  const columns: Column<AbstractLogListItem>[] = [
+    {
+      key: 'voyageNumber',
+      header: 'Voyage No.',
+      width: '1fr',
+      className: 'font-medium text-blue-700 text-sm',
+    },
+    {
+      key: 'shipName',
+      header: 'Ship',
+      width: '1.2fr',
+    },
+    {
+      key: 'period',
+      header: 'Period',
+      width: '2fr',
+      render: (item) => `${fmtDate(item.commencementTime)} → ${fmtDate(item.completionTime)}`,
+    },
+    {
+      key: 'grandTotalHours',
+      header: 'Total Hours',
+      width: '1fr',
+      className: 'tabular-nums',
+      render: (item) => fmt(item.grandTotalHours),
+    },
+    {
+      key: 'legCount',
+      header: 'Legs',
+      width: '0.6fr',
+    },
+    {
+      key: 'dailyEntryCount',
+      header: 'Entries',
+      width: '0.6fr',
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      width: '1fr',
+      render: (item) => (
+        <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
+          item.status === 'FINALIZED'
+            ? 'bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20'
+            : 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20'
+        }`}>{item.status}</span>
+      ),
+    },
+    {
+      key: 'createdAt',
+      header: 'Created',
+      width: '1.2fr',
+      render: (item) => fmtDate(item.createdAt),
+    },
+  ]
 
   const [activeTab, setActiveTab] = useState<TabType>(urlId ? 'sum' : 'list')
   const [listItems, setListItems] = useState<AbstractLogListItem[]>([])
@@ -361,48 +417,13 @@ export const AbstractLogPage: React.FC = () => {
             </button>
           </div>
         ) : (
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Voyage No.</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ship</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Period</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Hours</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Legs</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entries</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {listItems.map(item => (
-                <tr
-                  key={item.id}
-                  onClick={() => handleSelectLog(item)}
-                  className="hover:bg-blue-50/50 cursor-pointer transition-colors"
-                >
-                  <td className="px-4 py-3 font-medium text-blue-700 text-sm">{item.voyageNumber}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{item.shipName}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{fmtDate(item.commencementTime)} → {fmtDate(item.completionTime)}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900 tabular-nums">{fmt(item.grandTotalHours)}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{item.legCount}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{item.dailyEntryCount}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
-                      item.status === 'FINALIZED'
-                        ? 'bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20'
-                        : 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20'
-                    }`}>{item.status}</span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">{fmtDate(item.createdAt)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
-        </div>
+          <VirtualizedTable
+            data={listItems}
+            columns={columns}
+            height={500}
+            rowHeight={52}
+            onRowClick={handleSelectLog}
+          />
         )
       ) : (
         /* ── DETAIL VIEW ── */

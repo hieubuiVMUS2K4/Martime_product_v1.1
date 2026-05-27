@@ -18,6 +18,7 @@ global using SyncState = Maritime.Shared.Models.Sync.SyncState;
 
 // Crew models
 global using CrewMember = Maritime.Shared.Models.Crew.CrewMember;
+global using CrewLogbookEntry = Maritime.Shared.Models.Crew.CrewLogbookEntry;
 global using Certificate = Maritime.Shared.Models.Crew.Certificate;
 global using CrewCertificate = Maritime.Shared.Models.Crew.CrewCertificate;
 global using Country = Maritime.Shared.Models.Crew.Country;

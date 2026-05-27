@@ -24,6 +24,7 @@ import type {
   MaterialItem,
   PaginatedResponse,
   ServiceRecord,
+  CrewLogbookEntry,
 } from '@/types/maritime.types'
 import type { TaskRiskAssessment, TaskInspectionReport } from '@/types/pms.types'
 
@@ -201,6 +202,42 @@ export class MaritimeService {
       this.request<any>(`/crew/${crewMemberId}/avatar`, {
         method: 'PUT',
         body: formData,
+      }),
+  }
+
+  logbook = {
+    getEntries: (
+      crewMemberId: string,
+      params?: { search?: string; entryOrigin?: string; entryType?: string; startDate?: string; endDate?: string }
+    ) => {
+      const q = new URLSearchParams()
+      if (params?.search) q.set('search', params.search)
+      if (params?.entryOrigin) q.set('entryOrigin', params.entryOrigin)
+      if (params?.entryType) q.set('entryType', params.entryType)
+      if (params?.startDate) q.set('startDate', params.startDate)
+      if (params?.endDate) q.set('endDate', params.endDate)
+      const qs = q.toString()
+      return this.request<CrewLogbookEntry[]>(`/crew/${crewMemberId}/logbook${qs ? `?${qs}` : ''}`)
+    },
+    getPendingSync: (crewMemberId: string) =>
+      this.request<CrewLogbookEntry[]>(`/crew/${crewMemberId}/logbook/pending-sync`),
+    triggerSync: (crewMemberId: string) =>
+      this.request<{ message: string; pendingRecords: number }>(`/crew/${crewMemberId}/logbook/sync`, {
+        method: 'POST'
+      }),
+    createEntry: (crewMemberId: string, data: Partial<CrewLogbookEntry>) =>
+      this.request<CrewLogbookEntry>(`/crew/${crewMemberId}/logbook`, {
+        method: 'POST',
+        body: JSON.stringify(data)
+      }),
+    updateEntry: (crewMemberId: string, entryId: string, data: Partial<CrewLogbookEntry>) =>
+      this.request<CrewLogbookEntry>(`/crew/${crewMemberId}/logbook/${entryId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+      }),
+    deleteEntry: (crewMemberId: string, entryId: string) =>
+      this.request<{ message: string }>(`/crew/${crewMemberId}/logbook/${entryId}`, {
+        method: 'DELETE'
       }),
   }
 
@@ -397,7 +434,13 @@ export class MaritimeService {
 
   voyage = {
     getCurrent: () => this.request<VoyageRecord>('/voyages/current'),
-    getAll: () => this.request<VoyageRecord[]>('/voyages'),
+    getAll: (params?: { page?: number; pageSize?: number }) => {
+      const q = new URLSearchParams()
+      if (params?.page) q.set('page', params.page.toString())
+      if (params?.pageSize) q.set('pageSize', params.pageSize.toString())
+      const qs = q.toString()
+      return this.request<VoyageRecord[]>(`/voyages${qs ? `?${qs}` : ''}`)
+    },
     getById: (id: string) => this.request<VoyageRecord>(`/voyages/${id}`),
   }
 
@@ -533,8 +576,18 @@ export const alarmService = {
 // CREW MANAGEMENT
 // ============================================================
 
+/**
+ * @deprecated Use maritimeService.crew instead. This legacy crewService fetches unpaginated data by default.
+ */
 export const crewService = {
-  getAllCrew: () => apiClient.get<CrewMember[]>('/crew'),
+  /**
+   * @deprecated Use maritimeService.crew.getAll instead for database-level pagination.
+   */
+  getAllCrew: (params?: { page?: number; pageSize?: number }) => {
+    const page = params?.page ?? 1
+    const pageSize = params?.pageSize ?? 50
+    return apiClient.get<CrewMember[]>(`/crew?page=${page}&pageSize=${pageSize}`)
+  },
   getOnboardCrew: () => apiClient.get<CrewMember[]>('/crew/onboard'),
   getCrewById: (id: string) => apiClient.get<CrewMember>(`/crew/${id}`),
   addCrew: (crew: Partial<CrewMember>) => apiClient.post<CrewMember>('/crew', crew),
@@ -548,8 +601,18 @@ export const crewService = {
 // MAINTENANCE
 // ============================================================
 
+/**
+ * @deprecated Use maritimeService.maintenance instead. This legacy maintenanceService fetches unpaginated data by default.
+ */
 export const maintenanceService = {
-  getAllTasks: () => apiClient.get<MaintenanceTask[]>('/maintenance/tasks'),
+  /**
+   * @deprecated Use maritimeService.maintenance.getAll instead for database-level pagination.
+   */
+  getAllTasks: (params?: { page?: number; pageSize?: number }) => {
+    const page = params?.page ?? 1
+    const pageSize = params?.pageSize ?? 50
+    return apiClient.get<MaintenanceTask[]>(`/maintenance/tasks?page=${page}&pageSize=${pageSize}`)
+  },
   getPendingTasks: () => apiClient.get<MaintenanceTask[]>('/maintenance/tasks/pending'),
   getOverdueTasks: () => apiClient.get<MaintenanceTask[]>('/maintenance/tasks/overdue'),
   getTaskById: (id: string) => apiClient.get<MaintenanceTask>(`/maintenance/tasks/${id}`),
@@ -569,9 +632,19 @@ export const maintenanceService = {
 // VOYAGE & CARGO
 // ============================================================
 
+/**
+ * @deprecated Use maritimeService.voyage instead. This legacy voyageService fetches unpaginated data by default.
+ */
 export const voyageService = {
   getCurrentVoyage: () => apiClient.get<VoyageRecord>('/voyages/current'),
-  getAllVoyages: () => apiClient.get<VoyageRecord[]>('/voyages'),
+  /**
+   * @deprecated Use maritimeService.voyage.getAll instead for database-level pagination.
+   */
+  getAllVoyages: (params?: { page?: number; pageSize?: number }) => {
+    const page = params?.page ?? 1
+    const pageSize = params?.pageSize ?? 50
+    return apiClient.get<VoyageRecord[]>(`/voyages?page=${page}&pageSize=${pageSize}`)
+  },
   getVoyageById: (id: string) => apiClient.get<VoyageRecord>(`/voyages/${id}`),
   createVoyage: (voyage: Partial<VoyageRecord>) =>
     apiClient.post<VoyageRecord>('/voyages', voyage),
@@ -579,9 +652,18 @@ export const voyageService = {
     apiClient.put<VoyageRecord>(`/voyages/${id}`, voyage),
 }
 
+/**
+ * @deprecated Use maritimeService.cargo instead. This legacy cargoService fetches unpaginated data by default.
+ */
 export const cargoService = {
-  getCargoOperations: (voyageId?: number) =>
-    apiClient.get<CargoOperation[]>(`/cargo${voyageId ? `?voyageId=${voyageId}` : ''}`),
+  /**
+   * @deprecated Use maritimeService.cargo.getAll instead for database-level pagination.
+   */
+  getCargoOperations: (voyageId?: number, params?: { page?: number; pageSize?: number }) => {
+    const page = params?.page ?? 1
+    const pageSize = params?.pageSize ?? 50
+    return apiClient.get<CargoOperation[]>(`/cargo?page=${page}&pageSize=${pageSize}${voyageId ? `&voyageId=${voyageId}` : ''}`)
+  },
   getCargoById: (id: number) => apiClient.get<CargoOperation>(`/cargo/${id}`),
   createCargo: (cargo: Partial<CargoOperation>) =>
     apiClient.post<CargoOperation>('/cargo', cargo),
@@ -593,6 +675,9 @@ export const cargoService = {
 // COMPLIANCE (SOLAS/MARPOL)
 // ============================================================
 
+/**
+ * @deprecated Use maritimeService.compliance instead. This legacy complianceService fetches unpaginated data by default.
+ */
 export const complianceService = {
   // Watchkeeping Logs
   getWatchkeepingLogs: (days: number = 7) =>

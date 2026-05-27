@@ -328,6 +328,9 @@ public class SyncController : ControllerBase
             var healthDocs = await _context.HealthDocuments.AsNoTracking().ToListAsync();
             foreach (var x in healthDocs) Enqueue("health_document", x.Id.ToString(), x);
 
+            var logbookEntries = await _context.CrewLogbookEntries.AsNoTracking().ToListAsync();
+            foreach (var x in logbookEntries) Enqueue("crew_logbook_entry", x.Id.ToString(), x);
+
             if (toAdd.Count == 0)
                 return Ok(new { message = "Tất cả dữ liệu thuyền viên đã có trong hàng đợi", queued = 0 });
 
@@ -479,6 +482,9 @@ public class SyncController : ControllerBase
 
                         var healthDocs   = await _context.HealthDocuments.AsNoTracking().ToListAsync();
                         foreach (var x in healthDocs) Enqueue("health_document", x.Id.ToString(), x);
+
+                        var logbookEntries = await _context.CrewLogbookEntries.AsNoTracking().ToListAsync();
+                        foreach (var x in logbookEntries) Enqueue("crew_logbook_entry", x.Id.ToString(), x);
                         break;
                     }
 

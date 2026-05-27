@@ -342,6 +342,34 @@ public class CrewService : ICrewService
 
         await _context.SaveChangesAsync();
 
+        // Upsert seaman book number into SeafarerDocuments
+        if (!string.IsNullOrWhiteSpace(request.SeamanBookNumber))
+        {
+            var existingSeamanBook = await _context.SeafarerDocuments
+                .AsTracking()
+                .Where(d => d.CrewMemberId == id && d.DocumentType == "seaman_book")
+                .FirstOrDefaultAsync();
+
+            if (existingSeamanBook != null)
+            {
+                existingSeamanBook.DocumentNumber = request.SeamanBookNumber;
+                existingSeamanBook.UpdatedAt = DateTime.UtcNow;
+            }
+            else
+            {
+                _context.SeafarerDocuments.Add(new SeafarerDocument
+                {
+                    CrewMemberId = id,
+                    DocumentType = "seaman_book",
+                    DocumentNumber = request.SeamanBookNumber,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                });
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
         // Broadcast update to edge nodes
         if (_syncOutbox != null)
         {
