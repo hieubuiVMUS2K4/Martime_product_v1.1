@@ -447,7 +447,6 @@ export default function StockReceiptPage() {
           <div className="px-4 py-4 space-y-3 text-sm border-b border-gray-200">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-base">PHIẾU NHẬP KHO</h3>
-              <span className="text-xs text-gray-400">{detailData.itemCount || detailData.items?.length || 0}/{255}</span>
             </div>
 
             <div className="grid grid-cols-3 gap-x-6 gap-y-3">
@@ -582,10 +581,9 @@ export default function StockReceiptPage() {
             <span className="text-sm font-semibold text-gray-700 flex items-center gap-2"><Info size={14} /> Thông tin phiếu nhập kho</span>
           </div>
           <div className="px-4 py-4 space-y-3 text-sm border-b border-gray-200">
-            {/* Title + counter badge */}
+            {/* Title */}
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-base">TẠO PHIẾU NHẬP KHO</h3>
-              <span className="text-xs text-gray-400">{formItems.length}/{255}</span>
             </div>
 
             {/* Form fields: 2-col grid */}

@@ -1165,7 +1165,20 @@ export default function WorkPlanningPage() {
             <div className="flex-1 flex flex-col overflow-hidden">
               {/* Table */}
               <div className="flex-1 overflow-auto">
-                <table className="min-w-full text-sm border-collapse">
+                <table className="w-[1590px] min-w-[1590px] table-fixed text-sm border-collapse">
+                  <colgroup>
+                    <col className="w-10" />
+                    <col className="w-10" />
+                    <col className="w-[220px]" />
+                    <col className="w-[220px]" />
+                    <col className="w-[200px]" />
+                    <col className="w-[260px]" />
+                    <col className="w-[144px]" />
+                    <col className="w-[120px]" />
+                    <col className="w-[130px]" />
+                    <col className="w-[116px]" />
+                    <col className="w-[100px]" />
+                  </colgroup>
                   <thead className="sticky top-0 z-10">
                     {/* Row 1: headers */}
                     <tr className="bg-blue-50">
@@ -1175,45 +1188,45 @@ export default function WorkPlanningPage() {
                       </th>
                       <th className="min-w-[140px] px-3 py-2 text-left border-b border-r border-gray-200 cursor-pointer" onClick={() => handleSort('taskId')}>
                         <div className="flex items-center justify-between gap-1">
-                          <span className="text-xs font-semibold text-gray-600">{t('pms.workPlanning.table.taskCode')}</span>
+                          <span className="text-xs font-semibold text-gray-600 whitespace-nowrap">{t('pms.workPlanning.table.taskCode')}</span>
                           <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
                         </div>
                       </th>
                       <th className="min-w-[180px] px-3 py-2 text-left border-b border-r border-gray-200 cursor-pointer" onClick={() => handleSort('equipmentName')}>
                         <div className="flex items-center justify-between gap-1">
-                          <span className="text-xs font-semibold text-gray-600">{t('pms.workPlanning.table.equipmentName')}</span>
+                          <span className="text-xs font-semibold text-gray-600 whitespace-nowrap">{t('pms.workPlanning.table.equipmentName')}</span>
                           <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
                         </div>
                       </th>
                       <th className="min-w-[140px] px-3 py-2 text-left border-b border-r border-gray-200 cursor-pointer" onClick={() => handleSort('taskType')}>
                         <div className="flex items-center justify-between gap-1">
-                          <span className="text-xs font-semibold text-gray-600">{t('pms.workPlanning.table.taskName')}</span>
+                          <span className="text-xs font-semibold text-gray-600 whitespace-nowrap">{t('pms.workPlanning.table.taskName')}</span>
                           <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
                         </div>
                       </th>
                       <th className="min-w-[200px] px-3 py-2 text-left border-b border-r border-gray-200 cursor-pointer" onClick={() => handleSort('taskDescription')}>
                         <div className="flex items-center justify-between gap-1">
-                          <span className="text-xs font-semibold text-gray-600">{t('pms.workPlanning.table.taskDescription')}</span>
+                          <span className="text-xs font-semibold text-gray-600 whitespace-nowrap">{t('pms.workPlanning.table.taskDescription')}</span>
                           <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
                         </div>
                       </th>
-                      <th className="w-24 px-3 py-2 text-center border-b border-r border-gray-200">
-                        <span className="text-xs font-semibold text-gray-600">{t('pms.workPlanning.table.riskAssessment')}</span>
+                      <th className="px-3 py-2 text-center border-b border-r border-gray-200">
+                        <span className="text-xs font-semibold text-gray-600 whitespace-nowrap">{t('pms.workPlanning.table.riskAssessment')}</span>
                       </th>
                       <th className="w-28 px-3 py-2 text-center border-b border-r border-gray-200 cursor-pointer" onClick={() => handleSort('priority')}>
                         <div className="flex items-center justify-center gap-1">
-                          <span className="text-xs font-semibold text-gray-600">{t('pms.workPlanning.table.priority')}</span>
+                          <span className="text-xs font-semibold text-gray-600 whitespace-nowrap">{t('pms.workPlanning.table.priority')}</span>
                           <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
                         </div>
                       </th>
                       <th className="w-28 px-3 py-2 text-center border-b border-r border-gray-200 cursor-pointer" onClick={() => handleSort('status')}>
                         <div className="flex items-center justify-center gap-1">
-                          <span className="text-xs font-semibold text-gray-600">{t('pms.workPlanning.table.status')}</span>
+                          <span className="text-xs font-semibold text-gray-600 whitespace-nowrap">{t('pms.workPlanning.table.status')}</span>
                           <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
                         </div>
                       </th>
                       <th className="w-24 px-3 py-2 text-center border-b border-r border-gray-200">
-                        <span className="text-xs font-semibold text-gray-600">{t('pms.workPlanning.table.type')}</span>
+                        <span className="text-xs font-semibold text-gray-600 whitespace-nowrap">{t('pms.workPlanning.table.type')}</span>
                       </th>
                       <th className="w-24 px-3 py-2 border-b border-gray-200">
                         <span className="text-xs font-semibold text-gray-600"></span>
@@ -1331,7 +1344,7 @@ export default function WorkPlanningPage() {
                                 </span>
                               )}
                             </td>
-                            <td className="px-3 py-2 text-center text-xs text-gray-500 border-r border-gray-100">
+                            <td className="px-3 py-2 text-center text-xs text-gray-500 border-r border-gray-100 whitespace-nowrap">
                               {task.taskType === 'AD_HOC' || task.taskType === 'CORRECTIVE' ? t('pms.workPlanning.filters.adhoc') : t('pms.workPlanning.filters.periodic')}
                             </td>
                             <td className="px-2 py-2">

@@ -67,6 +67,8 @@ export default function MaterialRequestPage() {
   const [materialOptions, setMaterialOptions] = useState<MaterialItem[]>([]);
   const [voyageOptions, setVoyageOptions] = useState<VoyageRecord[]>([]);
   const [assetOptions, setAssetOptions] = useState<EquipmentAsset[]>([]);
+  const [materialIdsByEquipment, setMaterialIdsByEquipment] = useState<Record<string, string[]>>({});
+  const [loadingMaterialsByEquipment, setLoadingMaterialsByEquipment] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
 
   // Detail view
@@ -103,6 +105,36 @@ export default function MaterialRequestPage() {
     setAssetOptions(Array.isArray(assets) ? assets : []);
   };
 
+  const loadEquipmentMaterials = async (equipmentAssetId: string, force = false) => {
+    if (!force && (materialIdsByEquipment[equipmentAssetId] || loadingMaterialsByEquipment[equipmentAssetId])) return;
+    setLoadingMaterialsByEquipment(prev => ({ ...prev, [equipmentAssetId]: true }));
+    try {
+      const linkedMaterials = await materialService.getMaterialsByEquipment(equipmentAssetId);
+      setMaterialIdsByEquipment(prev => ({
+        ...prev,
+        [equipmentAssetId]: linkedMaterials.map(material => material.materialItemId),
+      }));
+    } catch {
+      setMaterialIdsByEquipment(prev => ({ ...prev, [equipmentAssetId]: [] }));
+      toast.error('Không thể tải vật tư theo thiết bị đã chọn.');
+    } finally {
+      setLoadingMaterialsByEquipment(prev => ({ ...prev, [equipmentAssetId]: false }));
+    }
+  };
+
+  const getMaterialOptions = (item: MaterialRequestItem) => {
+    if (!item.equipmentAssetId) return materialOptions;
+    const linkedIds = materialIdsByEquipment[item.equipmentAssetId];
+    if (!linkedIds) return [];
+    return materialOptions.filter(material => linkedIds.includes(material.id));
+  };
+
+  const getEquipmentLabel = (equipmentAssetId: string | null | undefined) => {
+    if (!equipmentAssetId) return '—';
+    const asset = assetOptions.find(option => option.id === equipmentAssetId);
+    return asset ? `${asset.assetCode} - ${asset.assetName}` : 'Không xác định';
+  };
+
   const openCreate = async () => {
     setFormData({
       vesselName: VESSEL_CONFIG.VESSEL_NAME,
@@ -117,6 +149,8 @@ export default function MaterialRequestPage() {
       requestCode: '',
     });
     setFormItems([]);
+    setMaterialIdsByEquipment({});
+    setLoadingMaterialsByEquipment({});
     setEditingId(null);
     await loadFormOptions();
     setShowFormModal(true);
@@ -138,8 +172,14 @@ export default function MaterialRequestPage() {
         requestCode: data.requestCode || '',
       });
       setFormItems(data.items || []);
+      setMaterialIdsByEquipment({});
+      setLoadingMaterialsByEquipment({});
       setEditingId(id);
       await loadFormOptions();
+      await Promise.all(
+        [...new Set((data.items || []).flatMap(item => item.equipmentAssetId ? [item.equipmentAssetId] : []))]
+          .map(equipmentAssetId => loadEquipmentMaterials(equipmentAssetId, true)),
+      );
       setView('list');
       setShowFormModal(true);
     } catch { /* ignore */ }
@@ -147,13 +187,21 @@ export default function MaterialRequestPage() {
 
   const openDetail = async (id: number) => {
     try {
-      const data = await materialRequestService.getById(id);
+      const [data, assets] = await Promise.all([
+        materialRequestService.getById(id),
+        equipmentAssetService.getAll().catch(() => []),
+      ]);
+      setAssetOptions(Array.isArray(assets) ? assets : []);
       setDetailData(data);
       setView('detail');
     } catch { /* ignore */ }
   };
 
   const handleSave = async (andSubmit = false) => {
+    if (formItems.some(item => !item.materialItemId)) {
+      toast.warning('Vui lòng chọn vật tư cho tất cả các dòng yêu cầu.');
+      return;
+    }
     if (formItems.length === 0) { toast.warning('Vui lòng thêm ít nhất 1 dòng vật tư.'); return; }
     try {
       setSaving(true);
@@ -258,6 +306,18 @@ export default function MaterialRequestPage() {
     } : item));
   };
 
+  const selectEquipment = async (idx: number, equipmentAssetId: string | null) => {
+    setFormItems(prev => prev.map((item, i) => i === idx ? {
+      ...item,
+      equipmentAssetId,
+      materialItemId: null,
+      itemName: '',
+      unit: 'PCS',
+      quantityOnHand: 0,
+    } : item));
+    if (equipmentAssetId) await loadEquipmentMaterials(equipmentAssetId);
+  };
+
   const selectVoyage = (voyageId: string) => {
     const v = voyageOptions.find(voy => voy.id === voyageId);
     setFormData(prev => ({
@@ -299,7 +359,6 @@ export default function MaterialRequestPage() {
           <div className="px-4 py-4 space-y-3 text-sm border-b border-gray-200">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-base">YÊU CẦU VẬT TƯ</h3>
-              <span className="text-xs text-gray-400">{formItems.length}/255</span>
             </div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-3">
               {/* Row 1 */}
@@ -374,7 +433,7 @@ export default function MaterialRequestPage() {
                   <tr key={idx} className="border-b">
                     <td className="px-2 py-1.5 text-gray-500">{idx + 1}</td>
                     <td className="px-2 py-1.5">
-                      <select value={item.equipmentAssetId || ''} onChange={e => updateFormItem(idx, 'equipmentAssetId', e.target.value || null)} className="w-full border border-gray-300 px-1 py-1 text-xs">
+                      <select value={item.equipmentAssetId || ''} onChange={e => selectEquipment(idx, e.target.value || null)} className="w-full border border-gray-300 px-1 py-1 text-xs">
                         <option value="">-- Thiết bị --</option>
                         {assetOptions.map(a => <option key={a.id} value={a.id}>{a.assetCode} - {a.assetName}</option>)}
                       </select>
@@ -382,9 +441,14 @@ export default function MaterialRequestPage() {
                     <td className="px-2 py-1.5">
                       <select value={item.materialItemId || ''} onChange={e => { if (e.target.value) selectMaterial(idx, e.target.value); else updateFormItem(idx, 'materialItemId', null); }} className="w-full border border-gray-300 px-1 py-1 text-xs">
                         <option value="">-- Chọn vật tư --</option>
-                        {materialOptions.map(m => <option key={m.id} value={m.id}>{m.itemCode} - {m.name}</option>)}
+                        {getMaterialOptions(item).map(m => <option key={m.id} value={m.id}>{m.itemCode} - {m.name}</option>)}
                       </select>
-                      {!item.materialItemId && <input type="text" value={item.itemName} onChange={e => updateFormItem(idx, 'itemName', e.target.value)} className="w-full border border-gray-300 px-1 py-1 text-xs mt-1" placeholder="Hoặc nhập tên..." />}
+                      {item.equipmentAssetId && loadingMaterialsByEquipment[item.equipmentAssetId] && (
+                        <div className="mt-1 text-xs text-gray-400">Đang tải vật tư...</div>
+                      )}
+                      {item.equipmentAssetId && !loadingMaterialsByEquipment[item.equipmentAssetId] && materialIdsByEquipment[item.equipmentAssetId]?.length === 0 && (
+                        <div className="mt-1 text-xs text-amber-600">Thiết bị chưa được gán vật tư.</div>
+                      )}
                     </td>
                     <td className="px-2 py-1.5"><input type="text" value={item.unit} onChange={e => updateFormItem(idx, 'unit', e.target.value)} className="w-full border border-gray-300 px-1 py-1 text-xs" /></td>
                     <td className="px-2 py-1.5 text-right text-xs text-gray-500">{item.quantityOnHand}</td>
@@ -630,10 +694,9 @@ export default function MaterialRequestPage() {
             <span className="text-sm font-semibold text-gray-700 flex items-center gap-2"><Info size={14} /> Thông tin yêu cầu</span>
           </div>
           <div className="px-4 py-4 space-y-3 text-sm border-b border-gray-200">
-            {/* Title + counter badge */}
+            {/* Title */}
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-base">YÊU CẦU VẬT TƯ</h3>
-              <span className="text-xs text-gray-400">{detailData.itemCount || detailData.items?.length || 0}/{255}</span>
             </div>
 
             {/* Row 1: Tàu / Voyage / Mã yêu cầu */}
@@ -721,7 +784,7 @@ export default function MaterialRequestPage() {
                 <tr key={idx} className="border-b hover:bg-blue-50">
                   <td className="px-3 py-2 text-gray-500">{idx + 1}</td>
                   <td className="px-3 py-2 text-gray-600">
-                    {item.equipmentAssetId ? (item.equipmentAssetId) : '—'}
+                    {getEquipmentLabel(item.equipmentAssetId)}
                   </td>
                   <td className="px-3 py-2 font-medium">{item.itemName}</td>
                   <td className="px-3 py-2 text-gray-500">{item.description || '—'}</td>

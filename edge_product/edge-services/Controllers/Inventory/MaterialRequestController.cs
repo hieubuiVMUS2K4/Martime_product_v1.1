@@ -153,6 +153,9 @@ public class MaterialRequestController : ControllerBase
     [HttpPost]
     public async Task<ActionResult> Create([FromBody] CreateMaterialRequestDto dto)
     {
+        var itemValidation = await ValidateItems(dto.Items);
+        if (itemValidation != null) return itemValidation;
+
         // Generate code: YC-YYYYMMDD-XXX
         var today = DateTime.UtcNow.ToString("yyyyMMdd");
         var countToday = await _context.MaterialRequests
@@ -220,6 +223,9 @@ public class MaterialRequestController : ControllerBase
         // Replace items if provided
         if (dto.Items != null)
         {
+            var itemValidation = await ValidateItems(dto.Items);
+            if (itemValidation != null) return itemValidation;
+
             _context.MaterialRequestItems.RemoveRange(request.Items);
             foreach (var item in dto.Items)
             {
@@ -241,13 +247,36 @@ public class MaterialRequestController : ControllerBase
         return Ok(new { request.Id, request.RequestCode, request.Status });
     }
 
+    private async Task<BadRequestObjectResult?> ValidateItems(IEnumerable<CreateMaterialRequestItemDto> items)
+    {
+        var requestItems = items.ToList();
+        if (requestItems.Count == 0)
+            return BadRequest("A material request must include at least one item.");
+
+        if (requestItems.Any(item => !item.MaterialItemId.HasValue))
+            return BadRequest("Each material request item must select a catalog material.");
+
+        var materialIds = requestItems.Select(item => item.MaterialItemId!.Value).Distinct().ToList();
+        var validMaterialCount = await _context.MaterialItems
+            .CountAsync(item => materialIds.Contains(item.Id) && item.IsActive);
+
+        if (validMaterialCount != materialIds.Count)
+            return BadRequest("One or more selected material items do not exist or are inactive.");
+
+        return null;
+    }
+
     /// <summary>PUT submit request (Draft → Submitted)</summary>
     [HttpPut("{id}/submit")]
     public async Task<ActionResult> Submit(int id)
     {
-        var request = await _context.MaterialRequests.FindAsync(id);
+        var request = await _context.MaterialRequests
+            .Include(item => item.Items)
+            .FirstOrDefaultAsync(item => item.Id == id);
         if (request == null || !request.IsActive) return NotFound();
         if (request.Status != "Draft") return BadRequest("Only draft requests can be submitted.");
+        if (request.Items.Any(item => !item.MaterialItemId.HasValue))
+            return BadRequest("Each material request item must select a catalog material before submission.");
 
         request.Status = "Submitted";
         request.UpdatedAt = DateTime.UtcNow;
@@ -259,9 +288,13 @@ public class MaterialRequestController : ControllerBase
     [HttpPut("{id}/approve")]
     public async Task<ActionResult> Approve(int id)
     {
-        var request = await _context.MaterialRequests.FindAsync(id);
+        var request = await _context.MaterialRequests
+            .Include(item => item.Items)
+            .FirstOrDefaultAsync(item => item.Id == id);
         if (request == null || !request.IsActive) return NotFound();
         if (request.Status != "Submitted") return BadRequest("Only submitted requests can be approved.");
+        if (request.Items.Any(item => !item.MaterialItemId.HasValue))
+            return BadRequest("Each material request item must select a catalog material before approval.");
 
         request.Status = "Approved";
         request.UpdatedAt = DateTime.UtcNow;
