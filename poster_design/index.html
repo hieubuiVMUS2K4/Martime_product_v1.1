@@ -5,10 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Poster Nghiên Cứu Khoa Học: Thiết Kế Và Xây Dựng Hệ Thống Quản Lý Đội Tàu Thông Minh Thời Đại Số. Đề tài nghiên cứu khoa học công nghệ cấp trường.">
     <title>Poster Nghiên Cứu Khoa Học - Hệ Thống Quản Lý Quá Trình Vận Hành Tàu Thủy Thông Minh</title>
-    <!-- Google Fonts - Be Vietnam Pro specifically designed for flawless Vietnamese diacritics -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Roboto:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
     
     <style>
         /* CSS Reset & Variables for Academic Layout */
@@ -20,12 +16,16 @@
             --color-bg-light: #ffffff; /* Nền giấy trắng tuyết */
             --color-bg-subtle: #f8fafc; /* Nền các mục màu xám xanh nhẹ */
             --color-border: #cbd5e1; /* Viền mỏng */
-            --color-text-dark: #1e293b; /* Chữ chính */
-            --color-text-dim: #475569; /* Chữ phụ */
+            --color-text-dark: #0f172a; /* Chữ chính - Tăng tương phản từ #1e293b thành #0f172a */
+            --color-text-dim: #334155; /* Chữ phụ - Tăng tương phản từ #475569 thành #334155 */
             
-            /* Fonts */
-            --font-title: 'Be Vietnam Pro', sans-serif;
-            --font-body: 'Roboto', sans-serif;
+            /* 
+               Fonts - Thay đổi sang các Font hệ thống cực mạnh, hỗ trợ tiếng Việt hoàn hảo,
+               đã được cài sẵn trên Windows/Mac. Điều này giúp loại bỏ triệt để lỗi subsetting font ToUnicode CMAP
+               khi xuất PDF trên Chrome (lỗi dính chữ, biến dạng ký tự thành tiếng Nga/ký tự lạ).
+            */
+            --font-title: "Segoe UI", -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+            --font-body: "Segoe UI", -apple-system, BlinkMacSystemFont, Arial, sans-serif;
             
             /* 60x160cm standee aspect ratio (scaled to screen pixels 1:2.666) */
             --poster-width: 600px;
@@ -74,13 +74,13 @@
             width: 100%;
             background: linear-gradient(135deg, var(--color-primary-navy-dark) 0%, var(--color-primary-navy) 100%);
             border-radius: 8px;
-            padding: 16px 20px;
+            padding: 11px 18px; /* Giảm padding để kéo footer lên tránh bị che khuất */
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 15px;
             color: #ffffff;
-            margin-bottom: 12px;
+            margin-bottom: 6px; /* Giảm nhẹ margin để tối ưu không gian dọc */
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
 
@@ -150,15 +150,30 @@
             flex-grow: 1;
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
+            gap: 24px; /* Tăng khoảng cách 2 cột để mạch đọc thoáng đãng hơn */
             margin-bottom: 10px;
             align-content: start;
+            position: relative;
+        }
+
+        /* Vách kẻ dọc mảnh thanh lịch phân tách rõ 2 cột, hướng mắt người đọc dọc xuống */
+        .poster-body::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            width: 1px;
+            background-color: var(--color-border);
+            transform: translateX(-50%);
+            opacity: 0.7;
         }
 
         .column-left, .column-right {
             display: flex;
             flex-direction: column;
-            gap: 11px; /* Tighter layout to completely avoid bottom overflow */
+            gap: 8px; /* Giảm gap dọc từ 11px xuống 8px để kéo nội dung lên trên */
+            z-index: 1;
         }
 
         /* Section Container styled for Academic paper */
@@ -166,22 +181,22 @@
             background-color: var(--color-bg-subtle);
             border: 1px solid var(--color-border);
             border-radius: 8px;
-            padding: 7px 11px; /* Highly optimized padding so text fits perfectly */
+            padding: 9px 12px; /* Tinh chỉnh nhẹ padding để giải phóng khoảng trống chống che khuất footer */
             box-shadow: 0 2px 4px rgba(0,0,0,0.02);
             display: flex;
             flex-direction: column;
-            gap: 5px;
+            gap: 4px; /* Tối ưu gap bên trong */
         }
 
         .section-header {
             font-family: var(--font-title);
-            font-size: 11.5px;
+            font-size: 12.5px;
             font-weight: 700;
             text-transform: uppercase;
             color: var(--color-primary-navy);
             border-bottom: 2px solid var(--color-accent-teal);
-            padding-bottom: 2px;
-            margin-bottom: 2px;
+            padding-bottom: 3px;
+            margin-bottom: 3px;
             letter-spacing: 0.5px;
             display: flex;
             align-items: center;
@@ -202,12 +217,12 @@
         }
 
         .academic-bullets li {
-            font-size: 11px; /* Increased font size for maximum legibility */
-            line-height: 1.45;
+            font-size: 11.5px; /* Increased font size for maximum legibility */
+            line-height: 1.48;
             color: var(--color-text-dark);
             position: relative;
             padding-left: 14px;
-            font-weight: 400;
+            font-weight: 500;
         }
 
         .academic-bullets li::before {
@@ -225,7 +240,7 @@
         }
 
         .section-intro-desc {
-            font-size: 11px;
+            font-size: 11.5px;
             line-height: 1.5;
             color: var(--color-text-dim);
             margin-bottom: 4px;
@@ -270,7 +285,7 @@
 
         .arch-vector-header {
             font-family: var(--font-title);
-            font-size: 8.5px;
+            font-size: 9.5px;
             font-weight: 700;
             color: var(--color-primary-navy-dark);
             text-transform: uppercase;
@@ -286,7 +301,7 @@
         }
 
         .arch-vector-steps {
-            font-size: 7.5px;
+            font-size: 8.5px;
             color: var(--color-text-dim);
             line-height: 1.4;
             display: flex;
@@ -309,7 +324,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            font-size: 7px;
+            font-size: 8px;
             font-weight: 700;
             color: var(--color-accent-teal);
             padding: 1px 0;
@@ -343,33 +358,38 @@
         .module-card {
             background: #ffffff;
             border: 1px solid var(--color-border);
-            border-top: 3px solid var(--color-primary-navy);
+            border-top: 3px solid var(--color-primary-navy); /* Đồng bộ duy nhất 1 viền Navy sẫm sang trọng */
             border-radius: 6px;
-            padding: 6px 8px;
+            padding: 8px 10px; /* Tăng padding */
             box-shadow: 0 2px 6px rgba(0,0,0,0.03);
             display: flex;
             flex-direction: column;
-            gap: 3px;
-        }
-
-        .module-card:nth-child(even) {
-            border-top-color: var(--color-accent-teal);
+            gap: 4px;
         }
 
         .module-card-header {
             font-family: var(--font-title);
-            font-size: 9px;
+            font-size: 10px;
             font-weight: 700;
             color: var(--color-primary-navy-dark);
             border-bottom: 1px solid #f1f5f9;
-            padding-bottom: 2px;
+            padding-bottom: 2.5px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .module-card-icon {
+            width: 11px;
+            height: 11px;
+            color: var(--color-accent-teal);
         }
 
         .module-card-body {
-            font-size: 8px;
+            font-size: 9px;
             color: var(--color-text-dim);
             line-height: 1.45;
-            font-weight: 400;
+            font-weight: 500;
         }
 
         /* 3-System Visual Showcase Grid */
@@ -393,14 +413,14 @@
 
         .demo-system-title {
             font-family: var(--font-title);
-            font-size: 9.5px;
+            font-size: 10.5px;
             font-weight: 700;
             color: var(--color-primary-navy);
             text-transform: uppercase;
         }
 
         .demo-system-desc {
-            font-size: 9px;
+            font-size: 10px;
             line-height: 1.45;
             color: var(--color-text-dark);
         }
@@ -477,7 +497,7 @@
            ---------------------------------------------------- */
         .browser-content-vector {
             width: 100%;
-            height: 185px; /* Restored to full height to show entire dashboards without clipping */
+            height: 155px; /* Tuned to sweet spot height to prevent footer overlap */
             background-color: #f8fafc;
             display: flex;
             flex-direction: column;
@@ -497,7 +517,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 7.5px;
+            font-size: 9px;
             font-weight: 700;
             border-bottom: 1px solid rgba(255,255,255,0.1);
         }
@@ -509,7 +529,7 @@
 
         .edge-nav {
             color: #94a3b8;
-            font-size: 6.5px;
+            font-size: 7.5px;
             font-weight: 500;
         }
 
@@ -518,7 +538,7 @@
             color: #ffffff;
             padding: 1px 4px;
             border-radius: 2px;
-            font-size: 6px;
+            font-size: 7px;
             font-weight: 700;
             letter-spacing: 0.2px;
         }
@@ -543,12 +563,12 @@
 
         .mini-chart-svg {
             width: 100%;
-            height: 110px; /* Restored map height for premium detailed rendering */
+            height: 95px; /* Tuned to sweet spot to prevent vertical overflow */
             border-radius: 3px;
         }
 
         .edge-map-legend {
-            font-size: 6px;
+            font-size: 7px;
             font-weight: 700;
             color: var(--color-primary-navy-dark);
             text-align: center;
@@ -574,14 +594,14 @@
         }
 
         .metric-mini-card .label {
-            font-size: 4.8px;
+            font-size: 5.5px;
             color: var(--color-text-dim);
             font-weight: 700;
             text-transform: uppercase;
         }
 
         .metric-mini-card .value {
-            font-size: 7.5px;
+            font-size: 8.5px;
             font-weight: 800;
             color: var(--color-primary-navy);
             margin-top: 1px;
@@ -609,7 +629,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 7.5px;
+            font-size: 9px;
             font-weight: 700;
             border-bottom: 1px solid rgba(255,255,255,0.1);
         }
@@ -621,7 +641,7 @@
 
         .shore-nav {
             color: #94a3b8;
-            font-size: 6px;
+            font-size: 7px;
             font-weight: 500;
         }
 
@@ -630,7 +650,7 @@
             color: #ffffff;
             padding: 1px 4px;
             border-radius: 2px;
-            font-size: 6px;
+            font-size: 7px;
             font-weight: 700;
         }
 
@@ -653,7 +673,7 @@
         }
 
         .shore-panel-title {
-            font-size: 6.8px;
+            font-size: 8px;
             font-weight: 800;
             color: var(--color-primary-navy);
             border-bottom: 0.5px solid #cbd5e1;
@@ -662,7 +682,7 @@
         }
 
         .shore-mini-row {
-            font-size: 5.5px;
+            font-size: 6.5px;
             color: var(--color-text-dark);
             line-height: 1.25;
             font-weight: 500;
@@ -672,7 +692,7 @@
             background-color: #f0fdf4;
             border: 0.5px solid #bbf7d0;
             color: #166534;
-            font-size: 4.8px;
+            font-size: 5.5px;
             font-weight: 700;
             padding: 1.5px;
             border-radius: 2px;
@@ -691,7 +711,7 @@
         }
 
         .chatbot-header {
-            font-size: 6px;
+            font-size: 7px;
             font-weight: 700;
             color: #38bdf8;
             border-bottom: 0.5px solid #334155;
@@ -710,7 +730,7 @@
         .chat-msg {
             padding: 3px;
             border-radius: 3px;
-            font-size: 5.4px;
+            font-size: 6.2px;
             line-height: 1.3;
         }
 
@@ -755,7 +775,7 @@
             padding: 1.5px 4px;
             display: flex;
             justify-content: space-between;
-            font-size: 4.5px;
+            font-size: 5.5px;
             font-weight: 600;
         }
 
@@ -763,7 +783,7 @@
             background-color: var(--color-primary-navy);
             color: #ffffff;
             text-align: center;
-            font-size: 6.5px;
+            font-size: 7.5px;
             font-weight: 700;
             padding: 3px;
             letter-spacing: 0.2px;
@@ -778,7 +798,7 @@
         }
 
         .phone-section-title {
-            font-size: 5.8px;
+            font-size: 6.8px;
             font-weight: 800;
             color: var(--color-primary-navy-dark);
             text-transform: uppercase;
@@ -816,12 +836,12 @@
         }
 
         .phone-task-info strong {
-            font-size: 6.2px;
+            font-size: 7.2px;
             color: var(--color-text-dark);
         }
 
         .phone-task-info span {
-            font-size: 5.2px;
+            font-size: 6.2px;
             color: var(--color-text-dim);
         }
 
@@ -829,7 +849,7 @@
             background-color: var(--color-accent-teal);
             color: #ffffff;
             text-align: center;
-            font-size: 6.2px;
+            font-size: 7.2px;
             font-weight: 800;
             padding: 3px;
             border-radius: 3px;
@@ -851,7 +871,7 @@
             border-radius: 10px;
             overflow: hidden;
             width: 120px;
-            height: 180px; /* Restored height to display task checklist and buttons fully */
+            height: 150px; /* Tuned to sweet spot height to prevent vertical overflow */
             box-shadow: 0 4px 8px rgba(0,0,0,0.08);
             background: #000000;
         }
@@ -894,7 +914,7 @@
         }
 
         .mobile-bullets-mini li {
-            font-size: 8.5px;
+            font-size: 10px;
             line-height: 1.35;
             color: var(--color-text-dark);
             position: relative;
@@ -908,20 +928,21 @@
             top: 0;
             color: var(--color-accent-teal);
             font-weight: 700;
-            font-size: 8.5px;
+            font-size: 10px;
         }
 
         .mobile-bullets-mini li strong {
             color: var(--color-primary-navy-dark);
             font-weight: 700;
         }
+
         /* ----------------------------------------------------
            BẢNG SO SÁNH HIỆU NĂNG - TĂNG ĐỘ TƯƠNG PHẢN CỰC ĐẠI
            ---------------------------------------------------- */
         .performance-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 9.5px;
+            font-size: 11px;
             margin-top: 4px;
             background-color: #ffffff;
             box-shadow: 0 2px 4px rgba(0,0,0,0.02);
@@ -938,24 +959,24 @@
 
         .performance-table td {
             padding: 6px 8px;
-            border: 1.5px solid #475569; /* Darker borders for contrast */
-            color: var(--color-primary-navy-dark);
+            border: 1.5px solid #475569; /* Viền sẫm màu rõ ràng */
+            color: #020617; /* Tăng từ var(--color-primary-navy-dark) để chữ sẫm hơn, tăng tương phản */
             font-weight: 700; /* Bold text for readability */
             background-color: #ffffff !important; /* Pure white background */
         }
 
         .performance-table tr:nth-child(even) td {
-            background-color: #f8fafc !important; /* Extremely light contrast tint */
+            background-color: #f8fafc !important; /* Nền xám nhạt */
         }
 
         .highlight-gain {
-            color: #065f46; /* Deep Emerald green for bold contrast */
+            color: #022c22 !important; /* Xanh lục sẫm, độ tương phản tuyệt đối trên nền xám nhạt */
             font-weight: 800;
         }
 
         .highlight-loss {
-            color: #991b1b;
-            font-weight: 700;
+            color: #7f1d1d !important; /* Đỏ sẫm sẫm màu, độ tương phản tuyệt đối trên nền trắng/xám */
+            font-weight: 800;
         }
 
         /* ----------------------------------------------------
@@ -964,15 +985,15 @@
         .comparison-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 8.5px;
+            font-size: 10px;
             margin-top: 4px;
         }
 
         .comparison-table th {
-            padding: 3px 5px;
+            padding: 4px 6px;
             font-weight: 700;
             text-align: left;
-            font-size: 8px;
+            font-size: 9.5px;
             text-transform: uppercase;
         }
 
@@ -983,34 +1004,33 @@
         }
 
         .comparison-table th:nth-child(2) {
-            background-color: #991b1b;
+            background-color: #475569; /* Thay màu đỏ lòe loẹt cũ bằng màu Slate sang trọng */
             color: #ffffff;
             width: 36%;
         }
 
         .comparison-table th:nth-child(3) {
-            background-color: #065f46;
+            background-color: var(--color-primary-navy); /* Thay màu xanh lá lòe loẹt cũ bằng Navy nhất quán */
             color: #ffffff;
             width: 36%;
         }
 
         .comparison-table td {
-            padding: 2.5px 5px;
+            padding: 4px 6px;
             border: 1px solid var(--color-border);
-            font-size: 8px;
-            line-height: 1.35;
+            font-size: 9.5px;
+            line-height: 1.4;
             color: var(--color-text-dark);
         }
 
         .comparison-table td:nth-child(2) {
             color: #991b1b;
-            text-decoration: line-through;
-            opacity: 0.75;
+            font-weight: 600;
         }
 
         .comparison-table td:nth-child(3) {
-            color: #065f46;
-            font-weight: 700;
+            color: #064e3b; /* Xanh lá sẫm sang trọng tương phản tốt */
+            font-weight: 800;
         }
 
         /* ----------------------------------------------------
@@ -1029,7 +1049,7 @@
             border-radius: 4px;
             padding: 3px 4px;
             text-align: center;
-            font-size: 7px;
+            font-size: 8.5px;
             font-weight: 700;
             color: var(--color-primary-navy-dark);
             display: flex;
@@ -1039,7 +1059,7 @@
         }
 
         .tech-chip .tech-emoji {
-            font-size: 9px;
+            font-size: 10.5px;
         }
 
         /* ----------------------------------------------------
@@ -1048,7 +1068,7 @@
         .sync-matrix-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 8px;
+            font-size: 9.5px;
             margin-top: 4px;
         }
 
@@ -1056,10 +1076,10 @@
             background-color: var(--color-primary-navy-dark);
             color: #ffffff;
             font-weight: 700;
-            padding: 3px 4px;
+            padding: 4px;
             text-align: center;
-            font-size: 7.5px;
-            border: 1px solid #334155;
+            font-size: 9px;
+            border: 1.5px solid #334155;
         }
 
         .sync-matrix-table th:first-child {
@@ -1067,33 +1087,34 @@
         }
 
         .sync-matrix-table td {
-            padding: 2.5px 4px;
-            border: 1px solid var(--color-border);
+            padding: 3px 5px;
+            border: 1.5px solid #475569; /* Tăng độ dày viền sẫm màu */
             text-align: center;
-            font-size: 7.5px;
-            font-weight: 600;
+            font-size: 9px;
+            font-weight: 700; /* Đậm nét hẳn để đọc rõ */
+            color: #020617; /* Đen sẫm */
         }
 
         .sync-matrix-table td:first-child {
             text-align: left;
-            font-weight: 700;
+            font-weight: 800;
             color: var(--color-primary-navy-dark);
-            background-color: #f8fafc;
+            background-color: #f1f5f9;
         }
 
         .sync-cell-ok {
-            color: #065f46;
-            background-color: #ecfdf5;
+            color: #022c22 !important; /* Xanh lá cực sẫm */
+            background-color: #d1fae5 !important; /* Tông xanh lá nhạt tươi tương phản tốt */
         }
 
         .sync-cell-wait {
-            color: #92400e;
-            background-color: #fffbeb;
+            color: #451a03 !important; /* Tông màu nâu mật ong sẫm */
+            background-color: #ffedd5 !important; /* Tông cam nhạt tương phản tốt */
         }
 
         .sync-cell-queue {
-            color: #991b1b;
-            background-color: #fef2f2;
+            color: #450a0a !important; /* Tông màu đỏ rượu sẫm */
+            background-color: #fee2e2 !important; /* Tông hồng nhạt tương phản tốt */
         }
 
         .sync-scenario-box {
@@ -1101,10 +1122,10 @@
             border: 1px solid var(--color-border);
             border-left: 3px solid var(--color-accent-teal);
             border-radius: 4px;
-            padding: 5px 7px;
+            padding: 6px 8px;
             margin-top: 4px;
-            font-size: 8px;
-            line-height: 1.4;
+            font-size: 11.5px; /* Tăng 2 cỡ chữ giúp đứng xa đọc cực dễ */
+            line-height: 1.5;
             color: var(--color-text-dark);
         }
 
@@ -1125,7 +1146,7 @@
         .standard-badge {
             background: #ffffff;
             border: 1px solid var(--color-border);
-            border-top: 2.5px solid var(--color-primary-navy);
+            border-top: 2.5px solid var(--color-primary-navy); /* Đồng bộ duy nhất 1 viền Navy sẫm sang trọng */
             border-radius: 5px;
             padding: 3px 4px;
             text-align: center;
@@ -1134,58 +1155,60 @@
             gap: 1px;
         }
 
-        .standard-badge:nth-child(even) {
-            border-top-color: var(--color-accent-teal);
-        }
-
         .standard-badge .std-name {
             font-family: var(--font-title);
-            font-size: 7.5px;
+            font-size: 9px;
             font-weight: 800;
             color: var(--color-primary-navy-dark);
         }
 
         .standard-badge .std-desc {
-            font-size: 6px;
+            font-size: 7.5px;
             color: var(--color-text-dim);
             line-height: 1.2;
+            font-weight: 600;
         }
 
         /* ----------------------------------------------------
            C. ACADEMIC FOOTER SECTION (CTA, Contact & QR Code)
            ---------------------------------------------------- */
         .poster-footer {
-            border-top: 2px solid var(--color-primary-navy);
-            padding-top: 10px;
-            padding-bottom: 8px; /* Push content up to avoid bottom clipping */
+            /* 
+               Chuyển Footer thành khối màu Gradient sẫm tương đương với Header, 
+               tạo sự cân đối đối xứng (Top & Bottom Blocks) và giải quyết triệt để 
+               lỗi tương phản 0% của thông tin liên hệ.
+            */
+            background: linear-gradient(135deg, var(--color-primary-navy-dark) 0%, var(--color-primary-navy) 100%);
+            border-radius: 8px;
+            padding: 8px 14px; /* Tinh chỉnh padding để kéo footer lên hoàn toàn */
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 15px;
-            margin-top: 10px;
+            margin-top: 5px; /* Giảm margin-top từ 8px xuống 5px */
             margin-bottom: 4px; /* Normal margin on screen; print uses margin-top:auto */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            color: #ffffff;
         }
 
         /* Author and contact card */
         .author-contact-card {
             flex-grow: 1;
-        }
-
-        .footer-logo-title {
+        }        .footer-logo-title {
             font-family: var(--font-title);
             font-weight: 700;
-            font-size: 10.5px;
-            color: var(--color-primary-navy);
+            font-size: 12px;
+            color: #f59e0b; /* Màu vàng Gold cực sang trọng và tương phản cực tốt trên nền tối */
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            margin-bottom: 2px;
+            margin-bottom: 2.5px;
         }
 
         .author-names {
-            font-size: 9.5px;
+            font-size: 11px;
             font-weight: 600;
-            color: var(--color-text-dark);
-            line-height: 1.3;
+            color: #ffffff; /* Trắng sáng */
+            line-height: 1.35;
             margin-bottom: 4px;
         }
 
@@ -1193,14 +1216,26 @@
             display: flex;
             align-items: center;
             gap: 4px;
-            font-size: 9px;
-            color: var(--color-text-dim);
+            font-size: 10.5px;
+            color: #e2e8f0; /* Màu xám trắng nhạt sắc nét */
+        }
+        
+        /* Định dạng hiển thị liên kết để trình duyệt tự nhận dạng Email/Web vẫn sắc nét tươi sáng */
+        .contact-email-row a {
+            color: #38bdf8; /* Xanh da trời sáng nổi bật trên nền xanh sẫm */
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        .contact-email-row a:hover {
+            color: #f59e0b; /* Vàng Gold khi di chuột */
+            text-decoration: underline;
         }
 
         .contact-email-row svg {
             width: 11px;
             height: 11px;
-            color: var(--color-accent-teal);
+            color: #38bdf8; /* Đồng nhất màu với link */
         }
 
         /* QR Code layout block */
@@ -1208,8 +1243,8 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            background: var(--color-bg-subtle);
-            border: 1px solid var(--color-border);
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             padding: 6px 10px;
             border-radius: 6px;
         }
@@ -1241,17 +1276,17 @@
         .qr-caption-title {
             font-family: var(--font-title);
             font-weight: 700;
-            font-size: 8px;
-            color: var(--color-primary-navy);
+            font-size: 9.5px;
+            color: #f59e0b; /* Vàng Gold sặc sỡ tương đồng */
             text-transform: uppercase;
         }
 
         .qr-caption-sub {
-            font-size: 7px;
-            color: var(--color-text-dim);
+            font-size: 8.5px;
+            color: #e2e8f0;
             line-height: 1.2;
+            font-weight: 500;
         }
-
         /* ----------------------------------------------------
            SAFE ZONE OUTLINE OVERLAY (Academic 1cm Boundary)
            ---------------------------------------------------- */
@@ -1386,8 +1421,8 @@
 
             /* ===== HEADER ===== */
             .poster-header {
-                padding: 50pt 36pt !important;
-                margin-bottom: 36pt !important;
+                padding: 36pt 28pt !important; /* Tinh chỉnh padding in */
+                margin-bottom: 24pt !important; /* Giảm margin-bottom in */
                 border-radius: 22pt !important;
             }
 
@@ -1414,26 +1449,34 @@
             /* ===== BODY GRID ===== */
             .poster-body {
                 flex-grow: 1 !important;
-                gap: 40pt !important;
+                gap: 40pt !important; /* Giảm gap giữa 2 cột lúc in */
                 margin-bottom: 30pt !important;
                 align-content: stretch !important; /* Stretch columns to fill available height */
             }
 
+            /* Kẻ dọc phân tách cột lúc in */
+            .poster-body::after {
+                left: 50% !important;
+                width: 2.5pt !important;
+                background-color: var(--color-border) !important;
+                transform: translateX(-50%) !important;
+            }
+
             .column-left, .column-right {
-                gap: 32pt !important;
+                gap: 22pt !important; /* Giảm gap dọc các section lúc in để tránh lấp footer */
                 justify-content: space-between !important; /* Evenly distribute sections vertically */
             }
 
             /* ===== ACADEMIC SECTIONS ===== */
             .academic-section {
-                padding: 22pt 26pt !important;
+                padding: 22pt 30pt !important; /* Tinh chỉnh padding section lúc in */
                 border-radius: 18pt !important;
-                gap: 12pt !important;
+                gap: 10pt !important; /* Giảm gap trong section lúc in */
                 border-width: 2pt !important;
             }
 
             .section-header {
-                font-size: 32pt !important;
+                font-size: 34pt !important;
                 border-bottom-width: 6pt !important;
                 padding-bottom: 10pt !important;
                 margin-bottom: 10pt !important;
@@ -1444,17 +1487,17 @@
             }
 
             .academic-bullets li {
-                font-size: 24pt !important;
+                font-size: 25pt !important;
                 padding-left: 32pt !important;
                 line-height: 1.5 !important;
             }
 
             .academic-bullets li::before {
-                font-size: 26pt !important;
+                font-size: 27pt !important;
             }
 
             .section-intro-desc {
-                font-size: 22pt !important;
+                font-size: 23pt !important;
                 line-height: 1.55 !important;
                 margin-bottom: 10pt !important;
             }
@@ -1504,6 +1547,7 @@
                 padding: 16pt 18pt !important;
                 border-top-width: 7pt !important;
                 gap: 8pt !important;
+                border-top-color: var(--color-primary-navy) !important; /* Unified border print */
             }
 
             .module-card-header {
@@ -1521,7 +1565,7 @@
                 line-height: 1.5 !important;
             }
 
-            /* ===== UI DEMO SHOWCASE (Section V) ===== */
+            /* ===== UI DEMO SHOWCASE (Section VII) ===== */
             .demo-systems-showcase {
                 gap: 18pt !important;
             }
@@ -1533,11 +1577,11 @@
             }
 
             .demo-system-title {
-                font-size: 22pt !important;
+                font-size: 26pt !important;
             }
 
             .demo-system-desc {
-                font-size: 19pt !important;
+                font-size: 22pt !important;
                 line-height: 1.45 !important;
             }
 
@@ -1569,12 +1613,12 @@
             }
 
             .browser-content {
-                height: 380pt !important;
+                height: 340pt !important;
             }
 
             /* Print scale overrides for vector mockups - INCREASED to fill space */
             .browser-content-vector {
-                height: 380pt !important;
+                height: 340pt !important;
             }
 
             .edge-mockup-header {
@@ -1603,7 +1647,7 @@
             }
 
             .mini-chart-svg {
-                height: 200pt !important;
+                height: 190pt !important; /* Tuned to sweet spot print height */
                 border-radius: 8pt !important;
             }
 
@@ -1762,7 +1806,7 @@
                 border-width: 9pt !important;
                 border-radius: 28pt !important;
                 width: 240pt !important;
-                height: 380pt !important;
+                height: 340pt !important;
             }
 
             /* Mobile Section Split Columns for Print */
@@ -1791,7 +1835,7 @@
             }
 
             .mobile-bullets-mini li {
-                font-size: 18pt !important;
+                font-size: 21pt !important;
                 line-height: 1.4 !important;
                 position: relative !important;
                 padding-left: 24pt !important;
@@ -1804,12 +1848,12 @@
                 top: 0 !important;
                 color: var(--color-accent-teal) !important;
                 font-weight: 700 !important;
-                font-size: 18pt !important;
+                font-size: 21pt !important;
             }
 
-            /* ===== PERFORMANCE TABLE ===== */
+            /* ===== PERFORMANCE TABLE (MỤC V MỚI) ===== */
             .performance-table {
-                font-size: 20pt !important;
+                font-size: 24pt !important;
                 margin-top: 10pt !important;
             }
 
@@ -1817,38 +1861,62 @@
                 padding: 12pt 16pt !important;
             }
 
+            .highlight-gain {
+                color: #022c22 !important;
+                font-weight: 800 !important;
+            }
+
+            .highlight-loss {
+                color: #7f1d1d !important;
+                font-weight: 800 !important;
+            }
+
             /* ===== FOOTER ===== */
             .poster-footer {
-                border-top-width: 6pt !important;
-                padding-top: 28pt !important;
-                padding-bottom: 16pt !important;
+                border-top: none !important;
+                background: linear-gradient(135deg, var(--color-primary-navy-dark) 0%, var(--color-primary-navy) 100%) !important;
+                border-radius: 20pt !important;
+                padding: 18pt 24pt !important; /* Tinh chỉnh padding footer lúc in */
                 margin-top: auto !important; /* Push footer to bottom naturally */
                 margin-bottom: 0pt !important;
+                box-shadow: none !important;
             }
 
             .footer-logo-title {
-                font-size: 24pt !important;
+                font-size: 28pt !important;
+                color: #f59e0b !important; /* Gold in print */
             }
 
             .author-names {
-                font-size: 20pt !important;
+                font-size: 24pt !important;
+                color: #ffffff !important;
                 margin-bottom: 10pt !important;
             }
 
             .contact-email-row {
-                font-size: 18pt !important;
+                font-size: 21pt !important;
+                color: #e2e8f0 !important;
                 gap: 10pt !important;
+            }
+            
+            .contact-email-row a {
+                color: #38bdf8 !important;
+                text-decoration: none !important;
+                font-weight: 700 !important;
             }
             
             .contact-email-row svg {
                 width: 22pt !important;
                 height: 22pt !important;
+                color: #38bdf8 !important;
             }
 
             .footer-qr-block {
                 padding: 16pt 24pt !important;
                 border-radius: 20pt !important;
                 gap: 22pt !important;
+                background: rgba(255, 255, 255, 0.1) !important;
+                border: 1px solid rgba(255, 255, 255, 0.2) !important;
             }
 
             .qr-code-box {
@@ -1858,30 +1926,32 @@
             }
 
             .qr-caption-title {
-                font-size: 20pt !important;
+                font-size: 24pt !important;
+                color: #f59e0b !important;
             }
 
             .qr-caption-sub {
-                font-size: 16pt !important;
+                font-size: 19pt !important;
                 line-height: 1.35 !important;
+                color: #e2e8f0 !important;
             }
 
             /* ===== NEW COMPONENTS PRINT CSS ===== */
 
             /* Comparison Table (Section I) */
             .comparison-table {
-                font-size: 18pt !important;
+                font-size: 21pt !important;
                 margin-top: 10pt !important;
             }
 
             .comparison-table th {
                 padding: 8pt 12pt !important;
-                font-size: 16pt !important;
+                font-size: 19pt !important;
             }
 
             .comparison-table td {
                 padding: 8pt 12pt !important;
-                font-size: 17pt !important;
+                font-size: 20pt !important;
                 line-height: 1.4 !important;
                 border-width: 1.5pt !important;
             }
@@ -1895,43 +1965,59 @@
             .tech-chip {
                 border-radius: 10pt !important;
                 padding: 8pt 10pt !important;
-                font-size: 16pt !important;
+                font-size: 19pt !important;
                 gap: 4pt !important;
                 border-width: 1.5pt !important;
             }
 
             .tech-chip .tech-emoji {
-                font-size: 18pt !important;
+                font-size: 21pt !important;
             }
 
-            /* Sync Priority Matrix (Section IV.b) */
+            /* Sync Priority Matrix (Section VI) */
             .sync-matrix-table {
-                font-size: 18pt !important;
+                font-size: 21pt !important;
                 margin-top: 10pt !important;
             }
 
             .sync-matrix-table th {
                 padding: 8pt 10pt !important;
-                font-size: 16pt !important;
+                font-size: 19pt !important;
                 border-width: 1.5pt !important;
             }
 
             .sync-matrix-table td {
                 padding: 8pt 10pt !important;
-                font-size: 16pt !important;
+                font-size: 19pt !important;
                 border-width: 1.5pt !important;
+                color: #020617 !important;
+            }
+
+            .sync-cell-ok {
+                color: #022c22 !important;
+                background-color: #d1fae5 !important;
+            }
+
+            .sync-cell-wait {
+                color: #451a03 !important;
+                background-color: #ffedd5 !important;
+            }
+
+            .sync-cell-queue {
+                color: #450a0a !important;
+                background-color: #fee2e2 !important;
             }
 
             .sync-scenario-box {
                 padding: 12pt 16pt !important;
                 margin-top: 10pt !important;
                 border-radius: 10pt !important;
-                font-size: 17pt !important;
+                font-size: 25pt !important; /* Tăng tỷ lệ đồng dạng giúp bản in PDF cực rõ nét */
                 line-height: 1.45 !important;
                 border-left-width: 6pt !important;
             }
 
-            /* Standards Grid (Section VI.b) */
+            /* Standards Grid (Section VIII) */
             .standards-grid {
                 gap: 10pt !important;
                 margin-top: 10pt !important;
@@ -1943,22 +2029,16 @@
                 gap: 3pt !important;
                 border-top-width: 5pt !important;
                 border-width: 1.5pt !important;
-                border-top-width: 5pt !important;
+                border-top-color: var(--color-primary-navy) !important; /* Unified border color print */
             }
 
             .standard-badge .std-name {
-                font-size: 17pt !important;
+                font-size: 20pt !important;
             }
 
             .standard-badge .std-desc {
-                font-size: 13pt !important;
+                font-size: 16pt !important;
                 line-height: 1.3 !important;
-            }
-
-            /* highlight-loss for performance table */
-            .highlight-loss {
-                color: #991b1b !important;
-                font-weight: 700 !important;
             }
         }
     </style>
@@ -2025,14 +2105,14 @@
             <!-- ================= LEFT COLUMN ================= -->
             <div class="column-left">
                 
-                <!-- 1. Introduction -->
+                <!-- I. Introduction -->
                 <section class="academic-section">
                     <div class="section-header"><span>I.</span> Giới thiệu & Đặt vấn đề</div>
                     <ul class="academic-bullets">
-                        <li><strong>Bài toán Tàu - Bờ:</strong> Đội tàu giữa biển khơi cần truyền tải dữ liệu liên tục về bờ.</li>
+                        <li><strong>Bài toán Kết nối Tàu - Bờ:</strong> Đội tàu giữa biển khơi cần truyền tải dữ liệu liên tục về bờ.</li>
                         <li><strong>Thách thức:</strong> Băng thông vệ tinh cực kỳ yếu, chập chờn và chi phí cước siêu đắt đỏ.</li>
-                        <li><strong>Hạn chế công nghệ cũ:</strong> Web thông thường mất kết nối sẽ ngừng hoạt động hoàn toàn.</li>
-                        <li><strong>Đề xuất giải pháp:</strong> Hệ thống chạy <strong>Ngoại tuyến trên Tàu</strong>, tự động nén vi phân Delta gửi hàng đợi khi có sóng, tích hợp <strong>Trợ lý AI hỗ trợ ở Bờ</strong>.</li>
+                        <li><strong>Hạn chế công nghệ cũ:</strong> WebApp thông thường mất kết nối sẽ ngừng hoạt động hoàn toàn.</li>
+                        <li><strong>Đề xuất giải pháp:</strong> Hệ thống chạy <strong>Ngoại tuyến trên Tàu</strong>, tự động lưu trữ dữ liệu và gửi hàng đợi khi có sóng, tích hợp <strong>Trợ lý AI hỗ trợ ở Bờ</strong>.</li>
                     </ul>
                     <!-- Bảng so sánh Hiện trạng cũ vs Giải pháp dự án -->
                     <table class="comparison-table">
@@ -2040,7 +2120,7 @@
                             <tr>
                                 <th>Vấn đề</th>
                                 <th>❌ Cách làm cũ</th>
-                                <th>✅ Giải pháp dự án</th>
+                                <th>✅ Giải pháp </th>
                             </tr>
                         </thead>
                         <tbody>
@@ -2068,18 +2148,18 @@
                     </table>
                 </section>
 
-                <!-- 2. Research Objectives -->
+                <!-- II. Research Objectives -->
                 <section class="academic-section">
                     <div class="section-header"><span>II.</span> Mục tiêu nghiên cứu</div>
                     <ul class="academic-bullets">
-                        <li><strong>Hoạt động Ngoại tuyến 100%:</strong> Ghi nhật ký, vật tư bình thường khi tàu mất kết nối mạng.</li>
-                        <li><strong>Tiết kiệm 90% cước mạng:</strong> Giảm tối đa dữ liệu truyền nhờ đồng bộ gói tin Delta siêu nhẹ.</li>
+                        <li><strong>Hoạt động Ngoại tuyến 100%:</strong> Ghi nhật ký, vật tư bình thường khi tàu mất kết nối Internet.</li>
+                        <li><strong>Tiết kiệm đáng kể băng thông:</strong> Giảm tối đa dữ liệu truyền nhờ đồng bộ gói tin Delta siêu nhẹ.</li>
                         <li><strong>Tích hợp Trợ lý AI ở Bờ:</strong> Hỏi đáp đàm thoại tiếng Việt tự nhiên về máy tàu và thời tiết.</li>
                         <li><strong>Hệ sinh thái liên thông:</strong> Kết nối tức thời giữa Tàu (Edge), Bờ (Shore) và di động (Mobile).</li>
                     </ul>
                 </section>
 
-                <!-- 3. Methodology & System Architecture -->
+                <!-- III. Methodology & System Architecture -->
                 <section class="academic-section">
                     <div class="section-header"><span>III.</span> Phương pháp & Kiến trúc hệ thống</div>
                     <p class="section-intro-desc">
@@ -2128,76 +2208,10 @@
                     </div>
                 </section>
 
-                <!-- 6. Discussion & Performance Evaluation -->
-                <section class="academic-section">
-                    <div class="section-header"><span>VI.</span> Thảo luận & Đánh giá hiệu năng</div>
-                    <p class="section-intro-desc">
-                        <strong>Kết quả thực nghiệm:</strong> Thuật toán nén giúp giảm 90% dung lượng, đảm bảo truyền nhận thành công 100% trên băng thông vệ tinh cực yếu (64Kbps) - nơi mạng thông thường bị lỗi.
-                    </p>
-                    <table class="performance-table">
-                        <thead>
-                            <tr>
-                                <th>Chỉ số thực nghiệm</th>
-                                <th>REST API thông thường</th>
-                                <th>Shore-Edge Sync của dự án</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>Băng thông yêu cầu tối thiểu</td>
-                                <td>2.0 Mbps (Mạng tốc độ cao)</td>
-                                <td><strong>64 Kbps (Mạng vệ tinh cực yếu)</strong></td>
-                            </tr>
-                            <tr>
-                                <td>Dung lượng gói / Báo cáo</td>
-                                <td>3.50 MB (Nặng, dễ nghẽn)</td>
-                                <td class="highlight-gain">0.35 MB (Tiết kiệm 90% cước)</td>
-                            </tr>
-                            <tr>
-                                <td>Tỷ lệ truyền tin thành công</td>
-                                <td>68.4% (Thường xuyên lỗi)</td>
-                                <td class="highlight-gain">100.0% (Nhờ hàng đợi tự gửi)</td>
-                            </tr>
-                            <tr>
-                                <td>Tự động khôi phục khi mất mạng</td>
-                                <td>Không hỗ trợ (Gây mất dữ liệu)</td>
-                                <td><strong>Hỗ trợ tự động hoàn toàn</strong></td>
-                            </tr>
-                            <tr>
-                                <td>Thời gian xử lý / báo cáo</td>
-                                <td class="highlight-loss">20.39 ms (Tải toàn bộ 50K bản ghi)</td>
-                                <td class="highlight-gain">2.84 ms (Lọc + Phân trang, giảm 86%)</td>
-                            </tr>
-                            <tr>
-                                <td>Bộ nhớ tiêu thụ / phiên</td>
-                                <td class="highlight-loss">10.3 MB (Không phân trang)</td>
-                                <td class="highlight-gain">2.06 MB (Giảm 80% bộ nhớ)</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </section>
-
-                <!-- 7. Conclusion & Future Work -->
-                <section class="academic-section">
-                    <div class="section-header"><span>VII.</span> Kết luận & Hướng phát triển</div>
-                    <ul class="academic-bullets">
-                        <li><strong>Hệ sinh thái liên thông:</strong> Xây dựng thành công 3 phân hệ (Edge tàu, Shore bờ, App di động) hoạt động 24/7, đồng bộ chính xác 99.9% dữ liệu.</li>
-                        <li><strong>Giá trị thực tiễn:</strong> Giải quyết bài toán cô lập thông tin tàu biển, giúp quản lý tức thời với chi phí vệ tinh tối thiểu.</li>
-                        <li><strong>Tuân thủ quốc tế:</strong> Đáp ứng 9 tiêu chuẩn hàng hải: SOLAS, MARPOL, ISM Code, STCW, MLC, IMO DCS/MRV/CII, ISPS.</li>
-                        <li><strong>Quy mô hệ thống:</strong> 80+ Controllers, 170+ bảng CSDL, 90+ trang giao diện, ứng dụng di động Flutter đa nền tảng.</li>
-                        <li><strong>Hướng phát triển:</strong> Nâng cấp AI tự động tính toán lộ trình chạy tàu tối ưu nhất dựa trên dự báo thời tiết biển (Weather Routing AI).</li>
-                    </ul>
-                </section>
-
-            </div>
-
-            <!-- ================= RIGHT COLUMN ================= -->
-            <div class="column-right">
-                
-                <!-- 4. Database Subsystems Map (Replaced code tables with high-fidelity modules map) -->
+                <!-- IV. Database Subsystems Map (Di chuyển từ Cột phải sang Cột trái cho đúng tuần tự mạch truyện) -->
                 <section class="academic-section">
                     <div class="section-header"><span>IV.</span> Phân hệ dữ liệu & Tính năng cốt lõi</div>
-                    <p style="font-size: 8.5px; color: var(--color-text-dim); line-height: 1.4;">
+                    <p class="section-intro-desc">
                         <strong>Mô hình đồng bộ:</strong> Cơ sở dữ liệu chia tách thành các phân hệ độc lập, chỉ truyền gói tin thay đổi (Delta) siêu nhẹ để tránh nghẽn mạng vệ tinh.
                     </p>
                     
@@ -2242,9 +2256,63 @@
                     </div>
                 </section>
 
-                <!-- IV.b NEW: Cơ chế đồng bộ thông minh -->
+                <!-- V. Discussion & Performance Evaluation (Đổi số thứ tự từ VI cũ sang V và giữ nguyên ở cột trái để tạo sự cân đối chiều cao) -->
                 <section class="academic-section">
-                    <div class="section-header"><span>IV.b</span> Cơ chế đồng bộ thông minh (Store-and-Forward)</div>
+                    <div class="section-header"><span>V.</span> Thảo luận & Đánh giá hiệu năng</div>
+                    <p class="section-intro-desc">
+                        <strong>Kết quả thực nghiệm:</strong> Thuật toán nén giúp giảm 90% dung lượng, đảm bảo truyền nhận thành công 100% trên băng thông vệ tinh cực yếu (64Kbps) - nơi kết nối thông thường bị lỗi.
+                    </p>
+                    <table class="performance-table">
+                        <thead>
+                            <tr>
+                                <th>Chỉ số thực nghiệm</th>
+                                <th>REST API thông thường</th>
+                                <th>Shore-Edge Sync của dự án</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Băng thông yêu cầu tối thiểu</td>
+                                <td class="highlight-loss">2.0 Mbps (Mạng tốc độ cao)</td>
+                                <td class="highlight-gain">64 Kbps (Mạng vệ tinh cực yếu)</td>
+                            </tr>
+                            <tr>
+                                <td>Dung lượng gói / Báo cáo</td>
+                                <td class="highlight-loss">3.50 MB (Nặng, dễ nghẽn)</td>
+                                <td class="highlight-gain">0.35 MB (Tiết kiệm 90% cước)</td>
+                            </tr>
+                            <tr>
+                                <td>Tỷ lệ truyền tin thành công</td>
+                                <td class="highlight-loss">68.4% (Thường xuyên lỗi)</td>
+                                <td class="highlight-gain">100.0% (Nhờ hàng đợi tự gửi)</td>
+                            </tr>
+                            <tr>
+                                <td>Tự động khôi phục khi mất kết nối</td>
+                                <td class="highlight-loss">Không hỗ trợ (Gây mất dữ liệu)</td>
+                                <td class="highlight-gain">Hỗ trợ tự động hoàn toàn</td>
+                            </tr>
+                            <tr>
+                                <td>Thời gian xử lý / báo cáo</td>
+                                <td class="highlight-loss">20.39 ms (Tải toàn bộ 50K bản ghi)</td>
+                                <td class="highlight-gain">2.84 ms (Lọc + Phân trang, giảm 86%)</td>
+                            </tr>
+                            <tr>
+                                <td>Bộ nhớ tiêu thụ / phiên</td>
+                                <td class="highlight-loss">10.3 MB (Không phân trang)</td>
+                                <td class="highlight-gain">2.06 MB (Giảm 80% bộ nhớ)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </section>
+
+            </div>
+            
+            <!-- ================= RIGHT COLUMN ================= -->
+            <div class="column-right">
+                
+                <!-- VI. Cơ chế đồng bộ thông minh (Đổi từ mục IV.b cũ sang mục VI và di chuyển sang cột phải cho mạch lạc) -->
+                <section class="academic-section">
+                    <div class="section-header"><span>VI.</span> Cơ chế đồng bộ thông minh (Store-and-Forward)</div>
                     <p class="section-intro-desc">
                         <strong>Nguyên lý:</strong> Dữ liệu được xếp hàng đợi cục bộ trên tàu, tự động phân loại ưu tiên và gửi khi có sóng. Hệ thống lọc thông minh theo loại kết nối mạng:
                     </p>
@@ -2278,7 +2346,7 @@
                                 <td class="sync-cell-ok">✅ Gửi ngay</td>
                             </tr>
                             <tr>
-                                <td>❌ Mất mạng hoàn toàn</td>
+                                <td>❌ Mất kết nối hoàn toàn</td>
                                 <td class="sync-cell-queue">📦 Xếp hàng đợi</td>
                                 <td class="sync-cell-queue">📦 Xếp hàng đợi</td>
                                 <td class="sync-cell-queue">📦 Xếp hàng đợi</td>
@@ -2287,16 +2355,16 @@
                     </table>
                     <!-- Kịch bản thực tế -->
                     <div class="sync-scenario-box">
-                        <strong>🌊 Kịch bản mất mạng 48h:</strong> Tàu gặp bão, mất VSAT hoàn toàn. Hệ thống vẫn hoạt động bình thường offline. Khi mạng phục hồi → tự động gửi theo thứ tự: 🔴 Cảnh báo an toàn ➔ 🟡 Báo cáo Noon Report ➔ 🟢 Nhật ký kho vật tư. <strong>Không mất một bản ghi nào.</strong>
+                        <strong>🌊 Kịch bản mất kết nối 48h:</strong> Tàu gặp bão, mất VSAT hoàn toàn. Hệ thống vẫn hoạt động bình thường offline. Khi kết nối phục hồi → tự động gửi theo thứ tự: 🔴 Cảnh báo an toàn ➔ 🟡 Báo cáo Noon Report ➔ 🟢 Nhật ký kho vật tư. <strong>Không mất một bản ghi nào.</strong>
                     </div>
                     <div class="sync-scenario-box">
                         <strong>⚖️ Xử lý xung đột:</strong> Bờ và Tàu cùng sửa dữ liệu khi offline → Hệ thống áp dụng quy tắc: <strong>Nhân sự → Bờ thắng</strong>; <strong>Vận hành → Tàu thắng</strong>; <strong>Thuyền viên → Merge từng trường</strong> (tên do HR quản lý, trạng thái lên/xuống tàu do Edge quản lý).
                     </div>
                 </section>
                 
-                <!-- 5. Restructured UI Demo Showcase (Highly readable screenshots) -->
+                <!-- VII. Giao diện & Kết quả thực nghiệm (Đổi số thứ tự mục từ V cũ sang VII) -->
                 <section class="academic-section">
-                    <div class="section-header"><span>V.</span> Giao diện & Kết quả thực nghiệm</div>
+                    <div class="section-header"><span>VII.</span> Giao diện & Kết quả thực nghiệm</div>
                     
                     <div class="demo-systems-showcase">
                         <!-- System 1: Edge (Vessel) -->
@@ -2318,17 +2386,55 @@
                                     </div>
                                     <div class="edge-mockup-body">
                                         <div class="edge-map-side">
-                                            <svg viewBox="0 0 120 80" class="mini-chart-svg">
-                                                <rect width="100%" height="100%" fill="#f0f9ff"/>
-                                                <!-- Coastline vector path -->
-                                                <path d="M 0 35 Q 25 15 55 45 T 120 30 L 120 80 L 0 80 Z" fill="#e2e8f0" stroke="#cbd5e1" stroke-width="0.8"/>
-                                                <!-- Island vector -->
-                                                <circle cx="95" cy="18" r="4.5" fill="#cbd5e1" stroke="#94a3b8" stroke-width="0.5"/>
-                                                <!-- Ship route vector line -->
-                                                <path d="M 15 65 Q 35 40 65 50 T 105 32" stroke="#0ea5e9" stroke-width="1.2" stroke-dasharray="2 1.5" fill="none"/>
-                                                <!-- Ship coordinates point -->
-                                                <circle cx="65" cy="50" r="3.2" fill="#ef4444"/>
-                                                <path d="M 65 47 L 67 53 L 63 53 Z" fill="#ef4444"/>
+                                            <svg viewBox="0 0 120 90" class="mini-chart-svg">
+                                                <!-- Ocean blue background -->
+                                                <rect width="100%" height="100%" fill="#e0f2fe"/>
+                                                
+                                                <!-- Grid lines for authentic GIS chart lookup -->
+                                                <path d="M 30 0 V 90 M 60 0 V 90 M 90 0 V 90 M 0 30 H 120 M 0 60 H 120" stroke="rgba(14, 165, 233, 0.15)" stroke-width="0.3" stroke-dasharray="1 1"/>
+                                                
+                                                <!-- Vietnam Mainland Land Mass (Fills the left side with a highly accurate curved coast) -->
+                                                <path d="M 0 0 L 32 0 C 26 6 18 10 16 16 C 14 20 22 22 28 26 C 36 30 38 38 43 45 C 48 52 35 62 25 66 C 18 69 12 73 8 80 L 0 80 Z" fill="#f1f5f9" stroke="#94a3b8" stroke-width="0.6"/>
+                                                
+                                                <!-- Hainan Island (Đảo Hải Nam) landmass -->
+                                                <path d="M 44 14 C 50 10 56 12 58 18 C 60 24 54 28 46 26 C 40 24 40 18 44 14 Z" fill="#f1f5f9" stroke="#94a3b8" stroke-width="0.6"/>
+                                                
+                                                <!-- Quần đảo Hoàng Sa (Paracel Islands) - Extremely important and authentic -->
+                                                <g fill="#94a3b8" stroke="none">
+                                                    <circle cx="68" cy="30" r="1.1"/>
+                                                    <circle cx="71" cy="31" r="0.9"/>
+                                                    <circle cx="69" cy="33" r="1.0"/>
+                                                    <circle cx="73" cy="33" r="0.8"/>
+                                                </g>
+                                                <text x="75" y="32.5" fill="#0f172a" font-family="var(--font-body)" font-size="4.6" font-weight="bold">Q.đ Hoàng Sa (VN)</text>
+                                                
+                                                <!-- Quần đảo Trường Sa (Spratly Islands) - Extremely important and authentic -->
+                                                <g fill="#94a3b8" stroke="none">
+                                                    <circle cx="78" cy="56" r="0.9"/>
+                                                    <circle cx="81" cy="58" r="1.1"/>
+                                                    <circle cx="79" cy="61" r="0.8"/>
+                                                    <circle cx="83" cy="62" r="1.0"/>
+                                                    <circle cx="85" cy="59" r="0.9"/>
+                                                </g>
+                                                <text x="83" y="60.5" fill="#0f172a" font-family="var(--font-body)" font-size="4.6" font-weight="bold">Q.đ Trường Sa (VN)</text>
+                                                
+                                                <!-- Sailing Sea Route (Dashed high-tech route line from Haiphong to Singapore) -->
+                                                <path d="M 18 18 C 28 24 38 32 45 42 C 50 50 48 60 38 72 L 34 78" stroke="#0ea5e9" stroke-width="1.2" stroke-dasharray="3 1.8" fill="none"/>
+                                                
+                                                <!-- Active Vessel Symbol (Positioned along Central Vietnam coast, rotating towards Singapore) -->
+                                                <g transform="translate(45, 42)">
+                                                    <!-- Pulse radar circles -->
+                                                    <circle cx="0" cy="0" r="4.5" fill="#ef4444" opacity="0.35"/>
+                                                    <circle cx="0" cy="0" r="2.2" fill="#ef4444"/>
+                                                    <!-- Heading direction arrow (COG 185° S, rotated accordingly) -->
+                                                    <path d="M -1.8 1.8 L 0 -3.6 L 1.8 1.8 Z" fill="#ffffff" transform="rotate(205)"/>
+                                                </g>
+                                                
+                                                <!-- Navigation Labels -->
+                                                <text x="21" y="15" fill="#0f172a" font-family="var(--font-title)" font-size="4.8" font-weight="bold">Hải Phòng</text>
+                                                <text x="36" y="80" fill="#0f172a" font-family="var(--font-title)" font-size="4.8" font-weight="bold">Singapore</text>
+                                                <text x="49" y="8" fill="#475569" font-family="var(--font-body)" font-size="3.6">Đảo Hải Nam</text>
+                                                <text x="48" y="60" fill="#0369a1" font-family="var(--font-body)" font-size="4.6" font-weight="bold">BIỂN ĐÔNG</text>
                                             </svg>
                                             <div class="edge-map-legend">Hải trình: Hải Phòng ➔ Singapore</div>
                                         </div>
@@ -2344,6 +2450,10 @@
                                             <div class="metric-mini-card">
                                                 <span class="label">Tiêu hao dầu</span>
                                                 <span class="value">1.15 tấn/ngày</span>
+                                            </div>
+                                            <div class="metric-mini-card">
+                                                <span class="label">Hướng COG</span>
+                                                <span class="value">185° (Nam)</span>
                                             </div>
                                             <div class="metric-mini-card highlight-queue">
                                                 <span class="label">Bản tin chờ</span>
@@ -2447,9 +2557,9 @@
                     </div>
                 </section>
 
-                <!-- V.b NEW: Tiêu chuẩn quốc tế tuân thủ -->
+                <!-- VIII. Tiêu chuẩn hàng hải quốc tế tuân thủ (Đổi từ mục VI.b cũ sang mục VIII) -->
                 <section class="academic-section">
-                    <div class="section-header"><span>VI.b</span> Tiêu chuẩn hàng hải quốc tế tuân thủ</div>
+                    <div class="section-header"><span>VIII.</span> Tiêu chuẩn hàng hải quốc tế tuân thủ</div>
                     <div class="standards-grid">
                         <div class="standard-badge">
                             <span class="std-name">SOLAS</span>
@@ -2489,6 +2599,19 @@
                         </div>
                     </div>
                 </section>
+
+                <!-- IX. Conclusion & Future Work (Đổi từ mục VII cũ sang mục IX) -->
+                <section class="academic-section">
+                    <div class="section-header"><span>IX.</span> Kết luận & Hướng phát triển</div>
+                    <ul class="academic-bullets">
+                        <li><strong>Hệ sinh thái liên thông:</strong> Xây dựng thành công 3 phân hệ (Edge tàu, Shore bờ, App di động) hoạt động 24/7, đồng bộ chính xác 100% dữ liệu.</li>
+                        <li><strong>Giá trị thực tiễn:</strong> Giải quyết bài toán cô lập thông tin tàu biển, giúp quản lý tức thời với chi phí vệ tinh tối thiểu.</li>
+                        <li><strong>Tuân thủ quốc tế:</strong> Đáp ứng 9 tiêu chuẩn hàng hải: SOLAS, MARPOL, ISM Code, STCW, MLC, IMO DCS/MRV/CII, ISPS.</li>
+                        <li><strong>Quy mô hệ thống:</strong> 80+ Controllers, 170+ bảng CSDL, 90+ trang giao diện, ứng dụng di động Flutter đa nền tảng.</li>
+                        <li><strong>Hướng phát triển:</strong> Nâng cấp AI tự động tính toán lộ trình chạy tàu tối ưu nhất dựa trên dự báo thời tiết biển (Weather Routing AI).</li>
+                    </ul>
+                </section>
+
             </div>
 
         </main>
@@ -2507,7 +2630,7 @@
                         <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
                         <polyline points="22,6 12,13 2,6"/>
                     </svg>
-                    <span>Liên hệ: tinhvdth@gmail.com | Website: https://vesselmaritimevmu.site/</span>
+                    <span>Liên hệ: <a href="mailto:tinhvdth@gmail.com">tinhvdth@gmail.com</a> | Website: <a href="https://vesselmaritimevmu.site/" target="_blank">https://vesselmaritimevmu.site/</a></span>
                 </div>
             </div>
 
