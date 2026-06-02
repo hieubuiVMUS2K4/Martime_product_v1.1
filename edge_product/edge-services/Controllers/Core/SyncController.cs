@@ -565,10 +565,13 @@ public class SyncController : ControllerBase
                         var reportTypes = await _context.ReportTypes.AsNoTracking().ToListAsync();
                         foreach (var x in reportTypes) Enqueue("report_type", x.Id.ToString(), x);
 
-                        // MaritimeReports with optional date filter
+                        // MaritimeReports with optional date filter.
+                        // Shore only accepts transmitted reports; APPROVED reports must stay on Edge
+                        // until the user explicitly transmits them.
                         var allReports = await _context.MaritimeReports.AsNoTracking().ToListAsync();
                         var reports = allReports.Where(r =>
                         {
+                            if (!string.Equals(r.Status, "TRANSMITTED", StringComparison.OrdinalIgnoreCase)) return false;
                             if (request.FromDate.HasValue && r.ReportDateTime < request.FromDate.Value) return false;
                             if (request.ToDate.HasValue   && r.ReportDateTime > request.ToDate.Value.AddDays(1)) return false;
                             return true;

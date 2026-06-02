@@ -23,7 +23,7 @@ interface SeamanBookMetadata {
   height: string;
   eyeColor: string;
   distinguishingMarks: string;
-  bearerSignature: string;
+  bearerSignature?: string;
   
   issuingAuthority: string;
   placeOfIssue: string;

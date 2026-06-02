@@ -26,6 +26,7 @@ export interface CrewMember {
   emergencyContact?: string;
   emailAddress?: string;
   phoneNumber?: string;
+  seamanBookNumber?: string;
   address?: string;
   placeOfBirth?: string;
   idCardNumber?: string;

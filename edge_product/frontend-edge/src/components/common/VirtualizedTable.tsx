@@ -1,6 +1,5 @@
 import React from 'react';
-// @ts-ignore
-import { FixedSizeList as List } from 'react-window';
+import { List, type RowComponentProps } from 'react-window';
 
 export interface Column<T> {
   key: string;
@@ -78,7 +77,7 @@ export function VirtualizedTable<T>({
   }
 
   // Row renderer component for react-window FixedSizeList
-  const Row = ({ index, style }: { index: number; style: React.CSSProperties }) => {
+  const Row = ({ index, style }: RowComponentProps) => {
     const item = data[index];
     const isEven = index % 2 === 0;
 
@@ -116,13 +115,13 @@ export function VirtualizedTable<T>({
       {renderHeader()}
       <div style={{ height: `${height}px` }}>
         <List
-          height={height}
-          itemCount={data.length}
-          itemSize={rowHeight}
-          width="100%"
-        >
-          {Row}
-        </List>
+          defaultHeight={height}
+          rowComponent={Row}
+          rowCount={data.length}
+          rowHeight={rowHeight}
+          rowProps={{}}
+          style={{ height: `${height}px`, width: '100%' }}
+        />
       </div>
     </div>
   );
