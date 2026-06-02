@@ -263,4 +263,7 @@ public class CrewMember : ISyncableEntity
 
     [NotMapped]
     public DateTime? MedicalIssue => GetLatestMedicalCertificate()?.IssueDate;
+
+    [NotMapped]
+    public string? SeamanBookNumber { get; set; }
 }

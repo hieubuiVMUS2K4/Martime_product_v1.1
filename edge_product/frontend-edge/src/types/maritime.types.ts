@@ -938,3 +938,33 @@ export interface MaterialItem {
   isSynced: boolean;
   createdAt: string;
 }
+
+export interface CrewLogbookEntry {
+  id: string;
+  crewMemberId: string;
+  entryOrigin: string; // SHORE, EDGE
+  entryType: string; // SHORE, WATCH, INCIDENT, TRAINING
+  title: string;
+  description: string;
+  entryDate: string;
+  createdBy?: string;
+  status: string; // Draft, Approved
+  notes?: string;
+  shoreActivity?: string;
+  trainingCourse?: string;
+  shoreLocation?: string;
+  supervisor?: string;
+  watchDuty?: string;
+  navigationPhase?: string;
+  incidentType?: string;
+  weatherConditions?: string;
+  vesselPosition?: string;
+  operationalNotes?: string;
+  edgeDeviceId?: string;
+  edgeLocalCreatedAt?: string;
+  isSynced: boolean;
+  originNode: string;
+  syncVersion: number;
+  createdAt: string;
+  updatedAt: string;
+}

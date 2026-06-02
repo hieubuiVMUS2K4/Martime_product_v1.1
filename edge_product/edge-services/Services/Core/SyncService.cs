@@ -374,6 +374,59 @@ public class SyncService : ISyncService
     // PRIVATE METHODS
     // ============================================================
 
+    private async Task MarkOriginalRecordSyncedAsync(EdgeDbContext context, string tableName, string recordKey)
+    {
+        string? pluralTableName = tableName switch
+        {
+            "crew_member" => "crew_members",
+            "crew_logbook_entry" => "crew_logbook_entries",
+            "crew_certificate" => "crew_certificates",
+            "travel_document" => "travel_documents",
+            "seafarer_document" => "seafarer_documents",
+            "employment_document" => "employment_documents",
+            "health_document" => "health_documents",
+            "service_record" => "service_records",
+            "maintenance_task" => "maintenance_tasks",
+            "cargo_operation" => "cargo_operations",
+            "watchkeeping_log" => "watchkeeping_logs",
+            "oil_record_book" => "oil_record_books",
+            "deck_log_book" => "deck_log_books",
+            "engine_log_book" => "engine_log_books",
+            "garbage_record_book" => "garbage_record_books",
+            "ballast_water_record_book" => "ballast_water_record_books",
+            "maritime_report" => "maritime_reports",
+            _ => null
+        };
+
+        if (pluralTableName == null) return;
+
+        try
+        {
+            if (Guid.TryParse(recordKey, out var guidId))
+            {
+                await context.Database.ExecuteSqlRawAsync(
+                    $"UPDATE {pluralTableName} SET is_synced = true WHERE id = {{0}}", 
+                    guidId);
+            }
+            else if (long.TryParse(recordKey, out var longId))
+            {
+                await context.Database.ExecuteSqlRawAsync(
+                    $"UPDATE {pluralTableName} SET is_synced = true WHERE id = {{0}}", 
+                    longId);
+            }
+            else
+            {
+                await context.Database.ExecuteSqlRawAsync(
+                    $"UPDATE {pluralTableName} SET is_synced = true WHERE id = {{0}}", 
+                    recordKey);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to mark record {Key} in {Table} as synced", recordKey, pluralTableName);
+        }
+    }
+
     /// <summary>
     /// Send a batch of sync items to Shore API via HTTP POST.
     /// Maps SyncQueue items to the shared SyncQueueItemDto wire format.
@@ -392,10 +445,7 @@ public class SyncService : ISyncService
             {
                 item.SyncedAt = DateTime.UtcNow;
                 item.LastError = "DEV_MODE: Shore API not configured";
-                if (Guid.TryParse(item.RecordKey, out var id) && item.TableName == "maritime_report")
-                {
-                    try { await context.Database.ExecuteSqlRawAsync($"UPDATE maritime_reports SET is_synced = true WHERE id = '{id}'"); } catch { }
-                }
+                await MarkOriginalRecordSyncedAsync(context, item.TableName, item.RecordKey);
             }
             await context.SaveChangesAsync(cancellationToken);
             return;
@@ -497,10 +547,7 @@ public class SyncService : ISyncService
                         {
                             item.SyncedAt = now;
                             item.LastError = null;
-                            if (Guid.TryParse(item.RecordKey, out var id) && item.TableName == "maritime_report")
-                            {
-                                try { await context.Database.ExecuteSqlRawAsync($"UPDATE maritime_reports SET is_synced = true WHERE id = '{id}'"); } catch { }
-                            }
+                            await MarkOriginalRecordSyncedAsync(context, item.TableName, item.RecordKey);
                             continue;
                         }
 
@@ -517,10 +564,7 @@ public class SyncService : ISyncService
                         item.LastError = null;
                         item.NextRetryAt = null;
                         _previousRetryDelaySeconds.TryRemove(item.Id, out _);
-                        if (Guid.TryParse(item.RecordKey, out var id) && item.TableName == "maritime_report")
-                        {
-                            try { await context.Database.ExecuteSqlRawAsync($"UPDATE maritime_reports SET is_synced = true WHERE id = '{id}'"); } catch { }
-                        }
+                        await MarkOriginalRecordSyncedAsync(context, item.TableName, item.RecordKey);
                     }
                     _logger.LogInformation("Shore accepted batch: {Count} items synced", items.Count);
                 }

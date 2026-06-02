@@ -71,6 +71,7 @@ namespace ProductApi.Data
         public DbSet<CountryCertificate> CountryCertificates { get; set; } = null!;
         public DbSet<ServiceRecord> ServiceRecords { get; set; } = null!;
         public DbSet<VesselCertificateAssignment> VesselCertificateAssignments { get; set; } = null!;
+        public DbSet<CrewLogbookEntry> CrewLogbookEntries { get; set; } = null!;
 
         // Crew Documents
         public DbSet<TravelDocument> TravelDocuments { get; set; } = null!;
@@ -819,6 +820,37 @@ namespace ProductApi.Data
                 entity.HasIndex(e => e.VesselId);
 
                 entity.Property(e => e.Weight).HasPrecision(5, 2);
+            });
+
+            // Configure CrewLogbookEntry
+            modelBuilder.Entity<CrewLogbookEntry>(entity =>
+            {
+                entity.ToTable("crew_logbook_entries");
+                entity.HasKey(e => e.Id);
+                
+                // Enforce UTC conversion
+                entity.Property(e => e.EntryDate)
+                    .HasConversion(v => v.ToUniversalTime(),
+                                   v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+                entity.Property(e => e.EdgeLocalCreatedAt)
+                    .HasConversion(v => v.HasValue ? v.Value.ToUniversalTime() : (DateTime?)null,
+                                   v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : (DateTime?)null);
+                entity.Property(e => e.CreatedAt)
+                    .HasConversion(v => v.ToUniversalTime(),
+                                   v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+                entity.Property(e => e.UpdatedAt)
+                    .HasConversion(v => v.ToUniversalTime(),
+                                   v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+
+                entity.HasIndex(e => e.CrewMemberId);
+                entity.HasIndex(e => e.EntryOrigin);
+                entity.HasIndex(e => e.EntryDate);
+                entity.HasIndex(e => e.IsSynced);
+
+                entity.HasOne(e => e.CrewMember)
+                    .WithMany()
+                    .HasForeignKey(e => e.CrewMemberId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             // Configure Certificate (Crew Certificate Types)

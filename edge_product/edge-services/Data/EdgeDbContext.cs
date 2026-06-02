@@ -70,6 +70,7 @@ public class EdgeDbContext : DbContext
     public DbSet<EmploymentDocument> EmploymentDocuments { get; set; } = null!;
     public DbSet<HealthDocument> HealthDocuments { get; set; } = null!;
     public DbSet<ServiceRecord> ServiceRecords { get; set; } = null!;
+    public DbSet<CrewLogbookEntry> CrewLogbookEntries { get; set; } = null!;
     public DbSet<MaintenanceTask> MaintenanceTasks { get; set; } = null!;
     public DbSet<TaskChecklistItem> TaskChecklistItems { get; set; } = null!;
     public DbSet<MaintenanceTaskDetail> MaintenanceTaskDetails { get; set; } = null!;
@@ -975,6 +976,28 @@ public class EdgeDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.RankId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ========== CREW LOGBOOK ENTRIES ==========
+        modelBuilder.Entity<CrewLogbookEntry>(entity =>
+        {
+            entity.ToTable("crew_logbook_entries");
+            entity.HasKey(e => e.Id);
+
+            entity.HasIndex(e => e.CrewMemberId)
+                .HasDatabaseName("idx_crew_logbook_crew_member");
+            entity.HasIndex(e => e.EntryOrigin)
+                .HasDatabaseName("idx_crew_logbook_origin");
+            entity.HasIndex(e => e.EntryDate)
+                .HasDatabaseName("idx_crew_logbook_date");
+            entity.HasIndex(e => e.IsSynced)
+                .HasDatabaseName("idx_crew_logbook_synced")
+                .HasFilter("is_synced = false");
+
+            entity.HasOne(e => e.CrewMember)
+                .WithMany()
+                .HasForeignKey(e => e.CrewMemberId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // ========== ABSTRACT LOG ==========

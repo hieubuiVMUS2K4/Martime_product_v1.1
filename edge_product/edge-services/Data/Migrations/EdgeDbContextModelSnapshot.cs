@@ -296,6 +296,161 @@ namespace MaritimeEdge.Data.Migrations
                     b.ToTable("crew_certificates", "public");
                 });
 
+            modelBuilder.Entity("Maritime.Shared.Models.Crew.CrewLogbookEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid>("CrewMemberId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("crew_member_id");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("EdgeDeviceId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("edge_device_id");
+
+                    b.Property<DateTime?>("EdgeLocalCreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("edge_local_created_at");
+
+                    b.Property<DateTime>("EntryDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("entry_date");
+
+                    b.Property<string>("EntryOrigin")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("entry_origin");
+
+                    b.Property<string>("EntryType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("entry_type");
+
+                    b.Property<string>("IncidentType")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("incident_type");
+
+                    b.Property<bool>("IsSynced")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_synced");
+
+                    b.Property<string>("NavigationPhase")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("navigation_phase");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("OperationalNotes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("operational_notes");
+
+                    b.Property<string>("OriginNode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("origin_node");
+
+                    b.Property<string>("ShoreActivity")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("shore_activity");
+
+                    b.Property<string>("ShoreLocation")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("shore_location");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Supervisor")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("supervisor");
+
+                    b.Property<long>("SyncVersion")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sync_version");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<string>("TrainingCourse")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("training_course");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("VesselPosition")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("vessel_position");
+
+                    b.Property<string>("WatchDuty")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("watch_duty");
+
+                    b.Property<string>("WeatherConditions")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("weather_conditions");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_crew_logbook_entries");
+
+                    b.HasIndex("CrewMemberId")
+                        .HasDatabaseName("idx_crew_logbook_crew_member");
+
+                    b.HasIndex("EntryDate")
+                        .HasDatabaseName("idx_crew_logbook_date");
+
+                    b.HasIndex("EntryOrigin")
+                        .HasDatabaseName("idx_crew_logbook_origin");
+
+                    b.HasIndex("IsSynced")
+                        .HasDatabaseName("idx_crew_logbook_synced")
+                        .HasFilter("is_synced = false");
+
+                    b.ToTable("crew_logbook_entries", "public");
+                });
+
             modelBuilder.Entity("Maritime.Shared.Models.Crew.CrewMember", b =>
                 {
                     b.Property<Guid>("Id")
@@ -602,112 +757,112 @@ namespace MaritimeEdge.Data.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2026, 5, 13, 10, 27, 34, 341, DateTimeKind.Utc).AddTicks(8153),
+                            CreatedAt = new DateTime(2026, 5, 26, 2, 24, 34, 187, DateTimeKind.Utc).AddTicks(8231),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "MAST",
                             RankName = "Master (Captain)",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 5, 13, 10, 27, 34, 341, DateTimeKind.Utc).AddTicks(8155)
+                            UpdatedAt = new DateTime(2026, 5, 26, 2, 24, 34, 187, DateTimeKind.Utc).AddTicks(8232)
                         },
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2026, 5, 13, 10, 27, 34, 341, DateTimeKind.Utc).AddTicks(8157),
+                            CreatedAt = new DateTime(2026, 5, 26, 2, 24, 34, 187, DateTimeKind.Utc).AddTicks(8234),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "C/O",
                             RankName = "Chief Officer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 5, 13, 10, 27, 34, 341, DateTimeKind.Utc).AddTicks(8157)
+                            UpdatedAt = new DateTime(2026, 5, 26, 2, 24, 34, 187, DateTimeKind.Utc).AddTicks(8234)
                         },
                         new
                         {
                             Id = 3,
-                            CreatedAt = new DateTime(2026, 5, 13, 10, 27, 34, 341, DateTimeKind.Utc).AddTicks(8158),
+                            CreatedAt = new DateTime(2026, 5, 26, 2, 24, 34, 187, DateTimeKind.Utc).AddTicks(8235),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "2/O",
                             RankName = "Second Officer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 5, 13, 10, 27, 34, 341, DateTimeKind.Utc).AddTicks(8158)
+                            UpdatedAt = new DateTime(2026, 5, 26, 2, 24, 34, 187, DateTimeKind.Utc).AddTicks(8235)
                         },
                         new
                         {
                             Id = 4,
-                            CreatedAt = new DateTime(2026, 5, 13, 10, 27, 34, 341, DateTimeKind.Utc).AddTicks(8159),
+                            CreatedAt = new DateTime(2026, 5, 26, 2, 24, 34, 187, DateTimeKind.Utc).AddTicks(8257),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "3/O",
                             RankName = "Third Officer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 5, 13, 10, 27, 34, 341, DateTimeKind.Utc).AddTicks(8159)
+                            UpdatedAt = new DateTime(2026, 5, 26, 2, 24, 34, 187, DateTimeKind.Utc).AddTicks(8257)
                         },
                         new
                         {
                             Id = 5,
-                            CreatedAt = new DateTime(2026, 5, 13, 10, 27, 34, 341, DateTimeKind.Utc).AddTicks(8160),
+                            CreatedAt = new DateTime(2026, 5, 26, 2, 24, 34, 187, DateTimeKind.Utc).AddTicks(8258),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "C/E",
                             RankName = "Chief Engineer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 5, 13, 10, 27, 34, 341, DateTimeKind.Utc).AddTicks(8161)
+                            UpdatedAt = new DateTime(2026, 5, 26, 2, 24, 34, 187, DateTimeKind.Utc).AddTicks(8258)
                         },
                         new
                         {
                             Id = 6,
-                            CreatedAt = new DateTime(2026, 5, 13, 10, 27, 34, 341, DateTimeKind.Utc).AddTicks(8161),
+                            CreatedAt = new DateTime(2026, 5, 26, 2, 24, 34, 187, DateTimeKind.Utc).AddTicks(8259),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "2/E",
                             RankName = "Second Engineer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 5, 13, 10, 27, 34, 341, DateTimeKind.Utc).AddTicks(8162)
+                            UpdatedAt = new DateTime(2026, 5, 26, 2, 24, 34, 187, DateTimeKind.Utc).AddTicks(8260)
                         },
                         new
                         {
                             Id = 7,
-                            CreatedAt = new DateTime(2026, 5, 13, 10, 27, 34, 341, DateTimeKind.Utc).AddTicks(8163),
+                            CreatedAt = new DateTime(2026, 5, 26, 2, 24, 34, 187, DateTimeKind.Utc).AddTicks(8260),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "BOSN",
                             RankName = "Bosun",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 5, 13, 10, 27, 34, 341, DateTimeKind.Utc).AddTicks(8163)
+                            UpdatedAt = new DateTime(2026, 5, 26, 2, 24, 34, 187, DateTimeKind.Utc).AddTicks(8261)
                         },
                         new
                         {
                             Id = 8,
-                            CreatedAt = new DateTime(2026, 5, 13, 10, 27, 34, 341, DateTimeKind.Utc).AddTicks(8164),
+                            CreatedAt = new DateTime(2026, 5, 26, 2, 24, 34, 187, DateTimeKind.Utc).AddTicks(8262),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "AB",
                             RankName = "Able Seaman",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 5, 13, 10, 27, 34, 341, DateTimeKind.Utc).AddTicks(8164)
+                            UpdatedAt = new DateTime(2026, 5, 26, 2, 24, 34, 187, DateTimeKind.Utc).AddTicks(8262)
                         },
                         new
                         {
                             Id = 9,
-                            CreatedAt = new DateTime(2026, 5, 13, 10, 27, 34, 341, DateTimeKind.Utc).AddTicks(8165),
+                            CreatedAt = new DateTime(2026, 5, 26, 2, 24, 34, 187, DateTimeKind.Utc).AddTicks(8263),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "OILR",
                             RankName = "Oiler",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 5, 13, 10, 27, 34, 341, DateTimeKind.Utc).AddTicks(8165)
+                            UpdatedAt = new DateTime(2026, 5, 26, 2, 24, 34, 187, DateTimeKind.Utc).AddTicks(8263)
                         },
                         new
                         {
                             Id = 10,
-                            CreatedAt = new DateTime(2026, 5, 13, 10, 27, 34, 341, DateTimeKind.Utc).AddTicks(8166),
+                            CreatedAt = new DateTime(2026, 5, 26, 2, 24, 34, 187, DateTimeKind.Utc).AddTicks(8264),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "COOK",
                             RankName = "Chief Cook",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 5, 13, 10, 27, 34, 341, DateTimeKind.Utc).AddTicks(8166)
+                            UpdatedAt = new DateTime(2026, 5, 26, 2, 24, 34, 187, DateTimeKind.Utc).AddTicks(8264)
                         });
                 });
 
@@ -3838,10 +3993,6 @@ namespace MaritimeEdge.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("origin_node");
-
-                    b.Property<double?>("PropellerPitch")
-                        .HasColumnType("double precision")
-                        .HasColumnName("propeller_pitch");
 
                     b.Property<double?>("Rpm")
                         .HasColumnType("decimal(6,2)")
@@ -13726,6 +13877,18 @@ namespace MaritimeEdge.Data.Migrations
                     b.Navigation("Certificate");
 
                     b.Navigation("Country");
+
+                    b.Navigation("CrewMember");
+                });
+
+            modelBuilder.Entity("Maritime.Shared.Models.Crew.CrewLogbookEntry", b =>
+                {
+                    b.HasOne("Maritime.Shared.Models.Crew.CrewMember", "CrewMember")
+                        .WithMany()
+                        .HasForeignKey("CrewMemberId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_crew_logbook_entries__crew_members_crew_member_id");
 
                     b.Navigation("CrewMember");
                 });

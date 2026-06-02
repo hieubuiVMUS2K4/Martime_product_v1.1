@@ -131,7 +131,34 @@ public class CrewController : ControllerBase
                 return NotFound(new { message = "Crew member not found" });
             }
 
-            return Ok(_mapper.Map<CrewMemberDto>(crew));
+            var dto = _mapper.Map<CrewDetailDto>(crew);
+
+            // Load passport info from travel documents
+            var passport = await _context.TravelDocuments
+                .AsNoTracking()
+                .Where(d => d.CrewMemberId == id && d.DocumentType == "passport")
+                .OrderByDescending(d => d.ExpiryDate)
+                .FirstOrDefaultAsync();
+
+            if (passport != null)
+            {
+                dto.PassportNumber = passport.DocumentNumber;
+                dto.PassportExpiry = passport.ExpiryDate;
+            }
+
+            // Load seaman book
+            var seamanBook = await _context.SeafarerDocuments
+                .AsNoTracking()
+                .Where(d => d.CrewMemberId == id && d.DocumentType == "seaman_book")
+                .OrderByDescending(d => d.ExpiryDate)
+                .FirstOrDefaultAsync();
+
+            if (seamanBook != null)
+            {
+                dto.SeamanBookNumber = seamanBook.DocumentNumber;
+            }
+
+            return Ok(dto);
         }
         catch (Exception ex)
         {
@@ -719,6 +746,33 @@ public class CrewController : ControllerBase
             existing.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
+
+            // Upsert seaman book number into SeafarerDocuments if provided
+            if (!string.IsNullOrWhiteSpace(crew.SeamanBookNumber))
+            {
+                var existingSeamanBook = await _context.SeafarerDocuments
+                    .Where(d => d.CrewMemberId == id && d.DocumentType == "seaman_book")
+                    .FirstOrDefaultAsync();
+
+                if (existingSeamanBook != null)
+                {
+                    existingSeamanBook.DocumentNumber = crew.SeamanBookNumber;
+                    existingSeamanBook.UpdatedAt = DateTime.UtcNow;
+                }
+                else
+                {
+                    _context.SeafarerDocuments.Add(new SeafarerDocument
+                    {
+                        CrewMemberId = id,
+                        DocumentType = "seaman_book",
+                        DocumentNumber = crew.SeamanBookNumber,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    });
+                }
+
+                await _context.SaveChangesAsync();
+            }
 
             // Enqueue crew_member update to SyncQueue so changes sync to Shore
             var syncPayload = System.Text.Json.JsonSerializer.Serialize(existing, new System.Text.Json.JsonSerializerOptions

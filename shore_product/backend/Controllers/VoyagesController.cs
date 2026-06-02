@@ -147,6 +147,7 @@ public class VoyagesController : ControllerBase
         {
             var voyage = await _context.VoyageRecords
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Where(v => v.Id == id)
                 .Select(v => new
                 {

@@ -921,7 +921,8 @@
       "tabs": {
         "basicData": "Basic Data",
         "documents": "Documents",
-        "voyageHistory": "Voyage History"
+        "voyageHistory": "Voyage History",
+        "logbook": "Logbook"
       },
       "form": {
         "fullName": "Full Name",

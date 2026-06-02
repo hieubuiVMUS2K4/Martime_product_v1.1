@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { Plus, Edit2, Trash2, Send, Eye, Search, X, Paperclip, Info, ChevronsUpDown, CheckCircle, XCircle } from 'lucide-react';
 import { materialRequestService } from '@/services/materialRequest.service';
 import { materialService } from '@/services/materialService';
-import { voyageService } from '@/services/maritime.service';
+import { maritimeService } from '@/services/maritime.service';
 import { equipmentAssetService } from '@/services/equipment-asset.service';
 import { VESSEL_CONFIG } from '@/config/app.config';
 import { useTranslationSafe } from '@/contexts/I18nContext';
@@ -97,7 +97,7 @@ export default function MaterialRequestPage() {
   const loadFormOptions = async () => {
     const [mats, voyages, assets] = await Promise.all([
       materialService.getItems({ onlyActive: true }),
-      voyageService.getAllVoyages().then(r => r).catch(() => []),
+      maritimeService.voyage.getAll({ pageSize: 100 }).then(r => r).catch(() => []),
       equipmentAssetService.getAll().catch(() => []),
     ]);
     setMaterialOptions(mats);

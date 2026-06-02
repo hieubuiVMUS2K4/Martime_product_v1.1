@@ -166,6 +166,7 @@ public class SyncInboxService : ISyncInboxService
 
         // Crew Management
         ["crew_member"]         = typeof(CrewMember),
+        ["crew_logbook_entry"]  = typeof(CrewLogbookEntry),
         ["certificate"]         = typeof(Certificate),
         ["crew_certificate"]    = typeof(CrewCertificate),
         ["country"]             = typeof(Country),
@@ -225,6 +226,7 @@ public class SyncInboxService : ISyncInboxService
     // Canonicalize them early so downstream conflict and idempotency rules are consistent.
     private static readonly Dictionary<string, string> _tableAliases = new(StringComparer.OrdinalIgnoreCase)
     {
+        ["crew_logbook_entries"] = "crew_logbook_entry",
         ["voyage_records"] = "voyage_record",
         ["voyage_plan_legs"] = "voyage_plan_leg",
         ["voyage_status_histories"] = "voyage_status_history",
@@ -281,6 +283,7 @@ public class SyncInboxService : ISyncInboxService
     // so these tables must be allowed to CREATE from a missing UPDATE payload.
     private static readonly HashSet<string> _createOnMissingUpdateTables = new(StringComparer.OrdinalIgnoreCase)
     {
+        "crew_logbook_entry",
         "voyage_record",
         "port",
         "voyage_plan_leg",

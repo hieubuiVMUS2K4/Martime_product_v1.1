@@ -18,62 +18,66 @@ public class InventoryController : ControllerBase
         [FromQuery] int page = 1, [FromQuery] int pageSize = 50,
         [FromQuery] string? storeLocationId = null, [FromQuery] string? q = null)
     {
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+
         var stockQuery = _context.InventoryStocks.AsNoTracking();
         if (!string.IsNullOrEmpty(storeLocationId) && Guid.TryParse(storeLocationId, out var locId))
             stockQuery = stockQuery.Where(s => s.StoreLocationId == locId);
 
-        var stocks = await stockQuery.ToListAsync();
-        var matIds = stocks.Select(s => s.MaterialItemId).Distinct().ToList();
-        var locIds = stocks.Select(s => s.StoreLocationId).Distinct().ToList();
+        var query = from s in stockQuery
+                    join m in _context.MaterialItems.AsNoTracking() on s.MaterialItemId equals m.Id
+                    join l in _context.StoreLocations.AsNoTracking() on s.StoreLocationId equals l.Id
+                    where m.IsActive
+                    select new
+                    {
+                        s.Id,
+                        s.MaterialItemId,
+                        s.StoreLocationId,
+                        itemCode = m.ItemCode,
+                        itemName = m.Name,
+                        unit = m.Unit,
+                        storeLocationName = l.Name,
+                        s.Quantity,
+                        s.UnitCost,
+                        totalValue = s.Quantity * s.UnitCost,
+                        isLowStock = m.MinStock != null && (double)s.Quantity <= m.MinStock.Value,
+                        minStock = m.MinStock,
+                        s.LastReceiptDate
+                    };
 
-        var materials = await _context.MaterialItems
-            .Where(m => matIds.Contains(m.Id) && m.IsActive).AsNoTracking()
-            .ToDictionaryAsync(m => m.Id);
-        var locations = await _context.StoreLocations
-            .Where(l => locIds.Contains(l.Id)).AsNoTracking()
-            .ToDictionaryAsync(l => l.Id, l => l.Name);
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            var normalized = q.Trim().ToLower();
+            query = query.Where(x => x.itemCode.ToLower().Contains(normalized) || x.itemName.ToLower().Contains(normalized));
+        }
 
-        var items = stocks
-            .Where(s => materials.ContainsKey(s.MaterialItemId))
-            .Select(s =>
-            {
-                var m = materials[s.MaterialItemId];
-                return new
-                {
-                    s.Id, s.MaterialItemId, s.StoreLocationId,
-                    itemCode = m.ItemCode, itemName = m.Name, unit = m.Unit,
-                    storeLocationName = locations.GetValueOrDefault(s.StoreLocationId, ""),
-                    s.Quantity, s.UnitCost, totalValue = s.Quantity * s.UnitCost,
-                    isLowStock = m.MinStock.HasValue && (double)s.Quantity <= m.MinStock.Value,
-                    minStock = m.MinStock, s.LastReceiptDate
-                };
-            })
-            .Where(x => string.IsNullOrEmpty(q) ||
-                x.itemCode.Contains(q, StringComparison.OrdinalIgnoreCase) ||
-                x.itemName.Contains(q, StringComparison.OrdinalIgnoreCase))
+        var total = await query.CountAsync();
+        
+        var pagedItems = await query
             .OrderBy(x => x.itemCode)
-            .ToList();
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
 
-        var total = items.Count;
-        var pagedItems = items.Skip((page - 1) * pageSize).Take(pageSize).ToList();
-        var totalValue = items.Sum(x => x.totalValue);
+        var totalValue = await query.SumAsync(x => x.totalValue);
+
         return Ok(new { items = pagedItems, total, totalValue, page, pageSize });
     }
 
     [HttpGet("summary")]
     public async Task<IActionResult> GetSummary()
     {
-        var stocks = await _context.InventoryStocks.AsNoTracking().ToListAsync();
-        var matIds = stocks.Select(s => s.MaterialItemId).Distinct().ToList();
-        var materials = await _context.MaterialItems
-            .Where(m => matIds.Contains(m.Id)).AsNoTracking().ToListAsync();
-        var matMap = materials.ToDictionary(m => m.Id);
-
-        var totalItems = stocks.Count;
-        var totalValue = stocks.Sum(s => s.Quantity * s.UnitCost);
-        var lowStockCount = stocks.Count(s => matMap.ContainsKey(s.MaterialItemId)
-            && matMap[s.MaterialItemId].MinStock.HasValue
-            && (double)s.Quantity <= matMap[s.MaterialItemId].MinStock!.Value);
+        var totalItems = await _context.InventoryStocks.CountAsync();
+        
+        var totalValue = await _context.InventoryStocks.SumAsync(s => s.Quantity * s.UnitCost);
+        
+        var lowStockCount = await (
+            from s in _context.InventoryStocks.AsNoTracking()
+            join m in _context.MaterialItems.AsNoTracking() on s.MaterialItemId equals m.Id
+            where m.MinStock != null && (double)s.Quantity <= m.MinStock.Value
+            select s
+        ).CountAsync();
 
         return Ok(new { totalItems, totalValue, lowStockCount });
     }

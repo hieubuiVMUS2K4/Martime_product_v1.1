@@ -5,7 +5,7 @@ import type {
   CertificateType, Rank, Country, ComplianceReport,
   CreateCrewRequest, UpdateCrewRequest, CrewCertificateRequest,
   CreateServiceRecordRequest, CreateDocumentRequest,
-  PaginatedResponse, VesselSimple,
+  PaginatedResponse, VesselSimple, CrewLogbookEntry,
 } from '../types/crew.types';
 
 const BASE = ENV.API_BASE_URL;
@@ -317,3 +317,29 @@ export const referenceApi = {
   /** Get all countries */
   getCountries: (): Promise<Country[]> => request(`${BASE}/countries`),
 };
+
+// ============================================================
+// LOGBOOK API
+// ============================================================
+
+export const logbookApi = {
+  getEntries: (
+    crewMemberId: string,
+    params?: { search?: string; entryOrigin?: string; entryType?: string; startDate?: string; endDate?: string }
+  ): Promise<CrewLogbookEntry[]> => {
+    const sp = new URLSearchParams();
+    if (params?.search) sp.set('search', params.search);
+    if (params?.entryOrigin) sp.set('entryOrigin', params.entryOrigin);
+    if (params?.entryType) sp.set('entryType', params.entryType);
+    if (params?.startDate) sp.set('startDate', params.startDate);
+    if (params?.endDate) sp.set('endDate', params.endDate);
+    return request<CrewLogbookEntry[]>(`${BASE}/crew/${crewMemberId}/logbook${sp.toString() ? `?${sp.toString()}` : ''}`);
+  },
+  createEntry: (crewMemberId: string, data: Partial<CrewLogbookEntry>): Promise<CrewLogbookEntry> =>
+    request(`${BASE}/crew/${crewMemberId}/logbook`, { method: 'POST', body: JSON.stringify(data) }),
+  updateEntry: (crewMemberId: string, entryId: string, data: Partial<CrewLogbookEntry>): Promise<CrewLogbookEntry> =>
+    request(`${BASE}/crew/${crewMemberId}/logbook/${entryId}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteEntry: (crewMemberId: string, entryId: string): Promise<void> =>
+    request(`${BASE}/crew/${crewMemberId}/logbook/${entryId}`, { method: 'DELETE' }),
+};
+

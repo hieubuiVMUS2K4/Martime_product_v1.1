@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Anchor, MapPin, Save, Send, Ship, User } from 'lucide-react';
 import { useCurrentAccountName } from '../../hooks/useCurrentAccountName';
+import { useOfflineDraft } from '../../hooks/useOfflineDraft';
 import { maritimeService } from '../../services/maritime.service';
 import { ReportingService } from '../../services/reporting.service';
 import type { CreateDepartureReportDto } from '../../types/reporting.types';
@@ -63,6 +64,12 @@ export function DepartureReportForm() {
     draftForward: 0,
     draftAft: 0,
   });
+
+  const { hasDraft, restoreDraft, clearDraft, restoredDraft, lastSaved } = useOfflineDraft<CreateDepartureReportDto>(
+    isEditMode ? `departure-report-edit-${id}` : 'departure-report-new',
+    formData,
+    (restored) => setFormData(restored)
+  );
 
   useEffect(() => {
     if (isEditMode || formData.voyageId) {
@@ -309,6 +316,7 @@ export function DepartureReportForm() {
         }
       }
 
+      await clearDraft();
       navigate('/reporting/reports');
     } catch (err) {
       const backendFieldErrors = extractBackendFieldErrors(err, DEPARTURE_FIELD_NAME_MAP, mapValidationMessageToField);
@@ -340,6 +348,31 @@ export function DepartureReportForm() {
         </h1>
         <p className="text-gray-600 mt-2">SOLAS Compliant Port Departure Notification</p>
       </div>
+
+      {hasDraft && restoredDraft && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-lg mb-6 flex items-center justify-between shadow-sm">
+          <div>
+            <p className="font-semibold text-sm">Phát hiện bản nháp chưa lưu!</p>
+            <p className="text-xs text-gray-600 mt-0.5">Tự động sao lưu ngoại tuyến vào lúc {lastSaved ? new Date(lastSaved).toLocaleTimeString() : ''}. Bạn có muốn khôi phục không?</p>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={restoreDraft}
+              className="bg-amber-600 hover:bg-amber-700 text-white text-xs px-3 py-1.5 rounded font-semibold transition-colors shadow-sm"
+            >
+              Khôi phục
+            </button>
+            <button
+              type="button"
+              onClick={clearDraft}
+              className="bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 text-xs px-3 py-1.5 rounded transition-colors"
+            >
+              Xóa nháp
+            </button>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
@@ -736,6 +769,13 @@ export function DepartureReportForm() {
             {isEditMode ? 'Update & Submit' : 'Submit Report'}
           </button>
         </div>
+
+        {lastSaved && (
+          <p className="text-xs text-gray-400 text-right mt-2 italic flex items-center justify-end gap-1 select-none">
+            <span className="inline-block w-1.5 h-1.5 bg-green-500 rounded-full animate-ping"></span>
+            Tự động sao lưu ngoại tuyến hoạt động: Đã lưu nháp lúc {new Date(lastSaved).toLocaleTimeString()}
+          </p>
+        )}
       </form>
     </div>
   );
