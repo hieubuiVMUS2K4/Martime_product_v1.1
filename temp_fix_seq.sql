@@ -1,1 +1,0 @@
-﻿ALTER TABLE crew_certificates ALTER COLUMN "Id" RESTART WITH 77;
