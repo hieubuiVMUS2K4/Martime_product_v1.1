@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth.store'
-import { User, LogOut, Shield, ChevronDown, Monitor } from 'lucide-react'
+import { User, LogOut, Shield, ChevronDown, Monitor, Users } from 'lucide-react'
 import { useTranslationSafe } from '@/contexts/I18nContext'
 
 // ============================================================
@@ -27,6 +28,7 @@ function getRoleBadgeColor(roleCode?: string): string {
 export function UserMenu() {
   const { user, logout } = useAuthStore()
   const { t } = useTranslationSafe()
+  const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -65,6 +67,7 @@ export function UserMenu() {
 
   const displayName = user.fullName || user.username
   const roleLabel = user.rankName || user.roleName || user.roleCode
+  const isAdmin = user.roleCode?.toUpperCase() === 'ADMIN'
 
   return (
     <div ref={menuRef} className="relative">
@@ -152,6 +155,20 @@ export function UserMenu() {
               <User className="w-4 h-4 text-gray-400" />
               <span>{t('header.profile')}</span>
             </button>
+
+            {isAdmin && (
+              <button
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300
+                           hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                onClick={() => {
+                  setIsOpen(false)
+                  navigate('/admin/accounts')
+                }}
+              >
+                <Users className="w-4 h-4 text-gray-400" />
+                <span>{t('header.accountManagement')}</span>
+              </button>
+            )}
 
             {/* Device Info */}
             <div className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-500 dark:text-gray-400">

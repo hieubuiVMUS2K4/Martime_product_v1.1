@@ -110,7 +110,8 @@
     "syncing": "Đang đồng bộ...",
     "lastSync": "Đồng bộ lần cuối: {time}",
     "online": "Trực tuyến",
-    "offline": "Ngoại tuyến"
+    "offline": "Ngoại tuyến",
+    "accountManagement": "Quản lý tài khoản"
   },
   "dashboard": {
     "title": "Bảng điều khiển tàu",
@@ -3390,6 +3391,51 @@
       "byCategory": "Theo danh mục",
       "byLevel": "Theo mức độ",
       "topActions": "Hành động phổ biến"
+    }
+  },
+  "accountManagement": {
+    "title": "Quản lý tài khoản",
+    "subtitle": "Quản lý vai trò, khóa/mở tài khoản và đặt lại mật khẩu thuyền viên.",
+    "refresh": "Làm mới",
+    "accessDenied": "Không có quyền truy cập",
+    "accessDeniedDescription": "Chức năng quản lý tài khoản chỉ dành cho Admin.",
+    "listTitle": "Danh sách tài khoản",
+    "searchPlaceholder": "Tìm username, tên, mã thuyền viên...",
+    "loading": "Đang tải danh sách tài khoản...",
+    "noAccounts": "Không có tài khoản phù hợp.",
+    "columns": {
+      "account": "Tài khoản",
+      "crew": "Thuyền viên",
+      "role": "Vai trò",
+      "lastLogin": "Đăng nhập cuối",
+      "status": "Trạng thái",
+      "actions": "Thao tác"
+    },
+    "status": {
+      "active": "Đang hoạt động",
+      "locked": "Đã khóa"
+    },
+    "actions": {
+      "reset": "Đặt lại",
+      "lock": "Khóa",
+      "unlock": "Mở"
+    },
+    "pagination": {
+      "showing": "Hiển thị {start} - {end} trong {total} tài khoản",
+      "previous": "Trước",
+      "next": "Sau",
+      "page": "Trang {current} / {total}"
+    },
+    "toast": {
+      "loadFailed": "Không tải được danh sách tài khoản",
+      "roleUpdated": "Đã cập nhật vai trò cho {username}",
+      "roleUpdateFailed": "Cập nhật vai trò thất bại",
+      "accountLocked": "Đã khóa tài khoản {username}",
+      "accountUnlocked": "Đã mở tài khoản {username}",
+      "toggleFailed": "Cập nhật trạng thái tài khoản thất bại",
+      "passwordReset": "Đã đặt lại mật khẩu cho {username}",
+      "passwordResetWithDefault": "Đã đặt lại mật khẩu cho {username}. Mật khẩu mặc định: {password}",
+      "passwordResetFailed": "Đặt lại mật khẩu thất bại"
     }
   },
   "shipData": {

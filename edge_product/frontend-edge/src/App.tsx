@@ -66,6 +66,7 @@ import { DrillTimelinePage } from './pages/Safety/DrillTimelinePage'
 
 // System Pages
 import { AuditLogPage } from './pages/AuditLog/AuditLogPage'
+import { AccountManagementPage } from './pages/Admin/AccountManagementPage'
 
 function App() {
   return (
@@ -136,6 +137,7 @@ function App() {
         {/* Reporting Routes */}
         {/* System Routes */}
         <Route path="audit-log" element={<AuditLogPage />} />
+        <Route path="admin/accounts" element={<AccountManagementPage />} />
 
         <Route path="reporting" element={<ReportingDashboard />} />
         <Route path="reporting/reports" element={<ReportsPage />} />

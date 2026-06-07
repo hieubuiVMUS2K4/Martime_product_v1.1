@@ -14,6 +14,10 @@ import type {
   CreateUserResponse,
   UpdateUserRoleRequest,
   UserInfo,
+  RoleInfo,
+  UsersResponse,
+  UserResponse,
+  RolesResponse,
   SessionInfo,
 } from '@/types/auth.types'
 
@@ -67,23 +71,31 @@ export const authService = {
   },
 
   /** Lấy danh sách users */
-  getUsers(): Promise<UserInfo[]> {
-    return apiClient.get<UserInfo[]>(`${AUTH_BASE}/users`)
+  async getUsers(): Promise<UserInfo[]> {
+    const response = await apiClient.get<UsersResponse>(`${AUTH_BASE}/users`)
+    return response.users ?? []
   },
 
   /** Lấy thông tin user theo ID */
-  getUserById(id: number): Promise<UserInfo> {
-    return apiClient.get<UserInfo>(`${AUTH_BASE}/users/${id}`)
+  async getUserById(id: number): Promise<UserInfo> {
+    const response = await apiClient.get<UserResponse>(`${AUTH_BASE}/users/${id}`)
+    return response.user
   },
 
   /** Toggle active/inactive user */
   toggleUserActive(id: number): Promise<{ success: boolean; message: string }> {
-    return apiClient.patch<{ success: boolean; message: string }>(`${AUTH_BASE}/users/${id}/toggle-active`, {})
+    return apiClient.put<{ success: boolean; message: string }>(`${AUTH_BASE}/users/${id}/toggle-active`, {})
   },
 
   /** Cập nhật role user */
   updateUserRole(data: UpdateUserRoleRequest): Promise<{ success: boolean; message: string }> {
     return apiClient.put<{ success: boolean; message: string }>(`${AUTH_BASE}/users/${data.userId}/role`, data)
+  },
+
+  /** Lay danh sach roles */
+  async getRoles(): Promise<RoleInfo[]> {
+    const response = await apiClient.get<RolesResponse>(`${AUTH_BASE}/roles`)
+    return response.roles ?? []
   },
 
   // ─── Session Management ────────────────────────────────────

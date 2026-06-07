@@ -110,7 +110,8 @@
     "syncing": "Syncing...",
     "lastSync": "Last sync: {time}",
     "online": "Online",
-    "offline": "Offline"
+    "offline": "Offline",
+    "accountManagement": "Account management"
   },
   "dashboard": {
     "title": "Vessel Dashboard",
@@ -3390,6 +3391,51 @@
       "byCategory": "By Category",
       "byLevel": "By Level",
       "topActions": "Top Actions"
+    }
+  },
+  "accountManagement": {
+    "title": "Account Management",
+    "subtitle": "Manage roles, lock/unlock accounts, and reset crew passwords.",
+    "refresh": "Refresh",
+    "accessDenied": "Access denied",
+    "accessDeniedDescription": "Account management is available to Admin users only.",
+    "listTitle": "Account list",
+    "searchPlaceholder": "Search username, name, crew ID...",
+    "loading": "Loading accounts...",
+    "noAccounts": "No matching accounts.",
+    "columns": {
+      "account": "Account",
+      "crew": "Crew",
+      "role": "Role",
+      "lastLogin": "Last login",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "status": {
+      "active": "Active",
+      "locked": "Locked"
+    },
+    "actions": {
+      "reset": "Reset",
+      "lock": "Lock",
+      "unlock": "Unlock"
+    },
+    "pagination": {
+      "showing": "Showing {start} - {end} of {total} accounts",
+      "previous": "Previous",
+      "next": "Next",
+      "page": "Page {current} / {total}"
+    },
+    "toast": {
+      "loadFailed": "Failed to load accounts",
+      "roleUpdated": "Updated role for {username}",
+      "roleUpdateFailed": "Failed to update role",
+      "accountLocked": "Locked account {username}",
+      "accountUnlocked": "Unlocked account {username}",
+      "toggleFailed": "Failed to update account status",
+      "passwordReset": "Reset password for {username}",
+      "passwordResetWithDefault": "Reset password for {username}. Default password: {password}",
+      "passwordResetFailed": "Failed to reset password"
     }
   },
   "shipData": {

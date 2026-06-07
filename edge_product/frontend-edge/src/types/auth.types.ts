@@ -17,6 +17,17 @@ export interface UserInfo {
   lastLoginAt?: string | null
 }
 
+/** Thong tin role */
+export interface RoleInfo {
+  id: number
+  roleCode: string
+  roleName: string
+  description?: string | null
+  permissions?: string | null
+  isActive: boolean
+  createdAt?: string | null
+}
+
 /** Device types cho maritime environment */
 export type DeviceType = 'BRIDGE_PC' | 'ENGINE_PC' | 'MOBILE' | 'TABLET'
 
@@ -97,6 +108,21 @@ export interface CreateUserResponse {
   message: string
   defaultPassword?: string | null
   user?: UserInfo | null
+}
+
+export interface UsersResponse {
+  success: boolean
+  users: UserInfo[]
+}
+
+export interface UserResponse {
+  success: boolean
+  user: UserInfo
+}
+
+export interface RolesResponse {
+  success: boolean
+  roles: RoleInfo[]
 }
 
 export interface ValidateSessionResponse {
