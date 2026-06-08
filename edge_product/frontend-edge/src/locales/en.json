@@ -2370,7 +2370,11 @@
       "deleteAsset": "Delete asset",
       "addRootAssetContext": "Add root asset",
       "confirmDelete": "Are you sure you want to delete \"{name}\"?",
-      "confirmBulkDelete": "Are you sure you want to delete {count} selected items?"
+      "confirmBulkDelete": "Are you sure you want to delete {count} selected items?",
+      "deleteSuccess": "Deleted asset {name}",
+      "deleteManySuccess": "Deleted {count} assets",
+      "createSuccess": "Created asset {name}",
+      "saveSuccess": "Saved asset {name}"
     },
     "groups": {
       "title": "Equipment Groups",
@@ -3551,7 +3555,7 @@
       "fatigueRiskLevel": "Fatigue Risk Level",
       "fatigueAssessmentCompleted": "Fatigue Assessment Completed",
       "watchHandover": "Watch Handover (Mandatory at Watch Change)",
-      "handoverNotesPlaceholder": "Handover Notes (for Relieving Officer)",
+      "handoverNotesPlaceholder": "Important information for the relieving officer: vessel traffic, weather changes, course changes, ongoing situations...",
       "saveWatchEntry": "Save Watch Entry",
       "cancel": "Cancel",
       "recentNotableEvents": "Recent Notable Events",
@@ -3601,7 +3605,6 @@
       "watchStartTimeLabel": "Watch Start Time",
       "watchEndTimeLabel": "Watch End Time",
       "handoverNotesLabel": "Handover Notes (for Relieving Officer)",
-      "handoverNotesPlaceholder": "Important information for the relieving officer: vessel traffic, weather changes, course changes, ongoing situations...",
       "handoverChecklistCheckbox": "Handover Checklist Completed",
       "saveWatchEntryButton": "Save Watch Entry",
       "dateHeader": "Date",

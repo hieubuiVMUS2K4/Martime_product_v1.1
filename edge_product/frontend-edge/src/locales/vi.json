@@ -2370,7 +2370,11 @@
       "deleteAsset": "Xóa thiết bị",
       "addRootAssetContext": "Thêm thiết bị gốc",
       "confirmDelete": "Bạn có chắc muốn xóa \"{name}\"?",
-      "confirmBulkDelete": "Bạn có chắc muốn xóa {count} mục đã chọn?"
+      "confirmBulkDelete": "Bạn có chắc muốn xóa {count} mục đã chọn?",
+      "deleteSuccess": "Đã xóa thiết bị {name}",
+      "deleteManySuccess": "Đã xóa {count} thiết bị",
+      "createSuccess": "Đã tạo thiết bị {name}",
+      "saveSuccess": "Đã lưu thiết bị {name}"
     },
     "groups": {
       "title": "Nhóm thiết bị",

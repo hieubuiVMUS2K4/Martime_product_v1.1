@@ -1,7 +1,21 @@
-import React, { useState, useRef } from 'react';
-import { X, Upload, FileSpreadsheet, AlertCircle, CheckCircle } from 'lucide-react';
-import { equipmentAssetService } from '@/services/equipment-asset.service';
+import React, { useRef, useState } from 'react';
+import { AlertCircle, CheckCircle, FileSpreadsheet, Upload, X } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
+import { equipmentAssetService } from '@/services/equipment-asset.service';
+
+type ImportAssetRow = {
+  assetCode: string;
+  assetName: string;
+  category: string;
+  manufacturer?: string;
+  model?: string;
+  serialNumber?: string;
+  location?: string;
+  criticality?: string;
+  equipmentGroupCode?: string;
+  parentAssetCode?: string;
+};
 
 interface ImportAssetsModalProps {
   isOpen: boolean;
@@ -9,91 +23,86 @@ interface ImportAssetsModalProps {
   onSuccess: () => void;
 }
 
+const columns: Record<string, keyof ImportAssetRow> = {
+  AssetCode: 'assetCode',
+  AssetName: 'assetName',
+  Category: 'category',
+  Manufacturer: 'manufacturer',
+  Model: 'model',
+  SerialNumber: 'serialNumber',
+  Location: 'location',
+  Criticality: 'criticality',
+  EquipmentGroupCode: 'equipmentGroupCode',
+  ParentAssetCode: 'parentAssetCode',
+};
+
+function readAssetsFromWorkbook(workbook: XLSX.WorkBook): ImportAssetRow[] {
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
+
+  return rows
+    .map(row => {
+      const asset: Partial<ImportAssetRow> = {};
+      Object.entries(columns).forEach(([excelColumn, field]) => {
+        const value = String(row[excelColumn] ?? '').trim();
+        if (value) asset[field] = value;
+      });
+      return asset as ImportAssetRow;
+    })
+    .filter(asset => asset.assetCode && asset.assetName && asset.category);
+}
+
+async function parseAssetFile(file: File): Promise<ImportAssetRow[]> {
+  const data = await file.arrayBuffer();
+  const workbook = XLSX.read(data, { type: 'array' });
+  return readAssetsFromWorkbook(workbook);
+}
+
 export function ImportAssetsModal({ isOpen, onClose, onSuccess }: ImportAssetsModalProps) {
   const [loading, setLoading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
-  const [importResult, setImportResult] = useState<{
-    success: boolean;
-    imported: number;
-    errors?: string[];
-  } | null>(null);
+  const [assets, setAssets] = useState<ImportAssetRow[]>([]);
+  const [result, setResult] = useState<{ success: boolean; imported: number; errors?: string[] } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      if (selectedFile.name.endsWith('.csv') || selectedFile.name.endsWith('.xlsx')) {
-        setFile(selectedFile);
-        setImportResult(null);
-      } else {
-        toast.error('Please select a CSV or Excel file');
-      }
+  if (!isOpen) return null;
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files?.[0];
+    if (!selected) return;
+
+    try {
+      setFile(selected);
+      setResult(null);
+      const parsed = await parseAssetFile(selected);
+      setAssets(parsed);
+      if (parsed.length === 0) toast.error('Không tìm thấy thiết bị hợp lệ trong file Excel');
+    } catch (error) {
+      console.error('Parse equipment asset file failed:', error);
+      setAssets([]);
+      toast.error('Không đọc được file Excel. Vui lòng kiểm tra lại định dạng.');
     }
-  };
-
-  const parseCSV = (text: string): any[] => {
-    const lines = text.split('\n').filter(line => line.trim());
-    if (lines.length < 2) return [];
-
-    const headers = lines[0].split(',').map(h => h.trim());
-    const assets = [];
-
-    for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map(v => v.trim());
-      const asset: any = {};
-      
-      headers.forEach((header, index) => {
-        const value = values[index];
-        if (value) {
-          // Map CSV headers to DTO properties
-          if (header === 'AssetCode') asset.assetCode = value;
-          else if (header === 'AssetName') asset.assetName = value;
-          else if (header === 'Category') asset.category = value;
-          else if (header === 'Manufacturer') asset.manufacturer = value;
-          else if (header === 'Model') asset.model = value;
-          else if (header === 'SerialNumber') asset.serialNumber = value;
-          else if (header === 'Location') asset.location = value;
-          else if (header === 'Criticality') asset.criticality = value;
-          else if (header === 'EquipmentGroupCode') asset.equipmentGroupCode = value;
-        }
-      });
-
-      if (asset.assetCode && asset.assetName && asset.category) {
-        assets.push(asset);
-      }
-    }
-
-    return assets;
   };
 
   const handleImport = async () => {
-    if (!file) {
-      toast.error('Please select a file');
+    if (assets.length === 0) {
+      toast.error('Vui lòng chọn file Excel có dữ liệu hợp lệ');
       return;
     }
 
     try {
       setLoading(true);
-      const text = await file.text();
-      const assets = parseCSV(text);
-
-      if (assets.length === 0) {
-        toast.error('No valid assets found in file');
-        return;
-      }
-
-      const result = await equipmentAssetService.bulkImport(assets);
-      setImportResult(result);
-
-      if (result.success) {
-        toast.success(`Successfully imported ${result.imported} assets`);
+      const importResult = await equipmentAssetService.bulkImport(assets);
+      setResult(importResult);
+      if (importResult.success) {
+        toast.success(`Đã nhập ${importResult.imported} thiết bị`);
         onSuccess();
       } else {
-        toast.error('Import completed with errors');
+        toast.error('Nhập Excel hoàn tất nhưng có lỗi');
       }
     } catch (error: any) {
-      console.error('Error importing assets:', error);
-      toast.error(error.response?.data?.message || 'Failed to import assets');
+      console.error('Import equipment assets failed:', error);
+      toast.error(error.response?.data?.error || error.response?.data?.message || 'Nhập Excel thất bại');
     } finally {
       setLoading(false);
     }
@@ -101,138 +110,109 @@ export function ImportAssetsModal({ isOpen, onClose, onSuccess }: ImportAssetsMo
 
   const handleClose = () => {
     setFile(null);
-    setImportResult(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    setAssets([]);
+    setResult(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
     onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full">
-        <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">Import Equipment Assets</h2>
-          <button
-            onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <X className="w-6 h-6" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-2xl rounded-lg bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+          <h2 className="text-lg font-semibold text-gray-900">Nhập thiết bị từ Excel</h2>
+          <button onClick={handleClose} className="text-gray-400 hover:text-gray-600">
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
-          {/* Instructions */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 className="text-sm font-semibold text-blue-900 mb-2">Import Instructions</h3>
-            <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
-              <li>Download the CSV template first</li>
-              <li>Fill in asset information (AssetCode, AssetName, Category are required)</li>
-              <li>Optional: Add EquipmentGroupCode to assign assets to groups</li>
-              <li>Save as CSV format</li>
-              <li>Upload the file below</li>
-            </ul>
+        <div className="space-y-5 p-6">
+          <div className="rounded border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+            File cần có các cột: AssetCode, AssetName, Category. Dùng ParentAssetCode để đặt thiết bị con vào đúng thiết bị cha.
           </div>
 
-          {/* File Upload */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select CSV File
-            </label>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv,.xlsx"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-              
-              {file ? (
-                <div className="flex items-center justify-center gap-3">
-                  <FileSpreadsheet className="w-8 h-8 text-green-600" />
-                  <div className="text-left">
-                    <p className="font-medium text-gray-900">{file.name}</p>
-                    <p className="text-sm text-gray-600">{(file.size / 1024).toFixed(2)} KB</p>
-                  </div>
-                  <button
-                    onClick={() => setFile(null)}
-                    className="ml-4 text-red-600 hover:text-red-800"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+          <div className="rounded-lg border-2 border-dashed border-gray-300 p-8 text-center">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+
+            {file ? (
+              <div className="flex items-center justify-center gap-3">
+                <FileSpreadsheet className="h-8 w-8 text-green-600" />
+                <div className="text-left">
+                  <p className="font-medium text-gray-900">{file.name}</p>
+                  <p className="text-sm text-gray-600">{assets.length} thiết bị hợp lệ</p>
                 </div>
-              ) : (
-                <div>
-                  <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="text-blue-600 hover:text-blue-800 font-medium"
-                  >
-                    Click to select file
-                  </button>
-                  <p className="text-sm text-gray-600 mt-2">or drag and drop</p>
-                </div>
-              )}
+                <button onClick={() => { setFile(null); setAssets([]); }} className="ml-4 text-red-600 hover:text-red-800">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            ) : (
+              <>
+                <Upload className="mx-auto mb-4 h-10 w-10 text-gray-400" />
+                <button onClick={() => fileInputRef.current?.click()} className="font-medium text-blue-600 hover:text-blue-800">
+                  Chọn file Excel
+                </button>
+                <p className="mt-2 text-sm text-gray-500">Hỗ trợ .xlsx, .xls, .csv</p>
+              </>
+            )}
+          </div>
+
+          {assets.length > 0 && !result && (
+            <div className="max-h-44 overflow-auto rounded border border-gray-200">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-gray-50 text-gray-500">
+                  <tr>
+                    <th className="px-3 py-2">Mã</th>
+                    <th className="px-3 py-2">Tên thiết bị</th>
+                    <th className="px-3 py-2">Loại</th>
+                    <th className="px-3 py-2">Vị trí</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {assets.map(asset => (
+                    <tr key={asset.assetCode} className="border-t border-gray-100">
+                      <td className="px-3 py-2 font-mono">{asset.assetCode}</td>
+                      <td className="px-3 py-2">{asset.assetName}</td>
+                      <td className="px-3 py-2">{asset.category}</td>
+                      <td className="px-3 py-2">{asset.location || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </div>
+          )}
 
-          {/* Import Result */}
-          {importResult && (
-            <div className={`border rounded-lg p-4 ${
-              importResult.success ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'
-            }`}>
-              <div className="flex items-start gap-3">
-                {importResult.success ? (
-                  <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
-                ) : (
-                  <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
-                )}
-                <div className="flex-1">
-                  <h3 className={`font-semibold mb-2 ${
-                    importResult.success ? 'text-green-900' : 'text-yellow-900'
-                  }`}>
-                    Import {importResult.success ? 'Successful' : 'Completed with Errors'}
-                  </h3>
-                  <p className="text-sm mb-2">
-                    Successfully imported: <strong>{importResult.imported}</strong> assets
-                  </p>
-                  {importResult.errors && importResult.errors.length > 0 && (
-                    <div className="mt-3">
-                      <p className="text-sm font-medium mb-1">Errors:</p>
-                      <ul className="text-sm space-y-1 list-disc list-inside">
-                        {importResult.errors.map((error, idx) => (
-                          <li key={idx} className="text-red-700">{error}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+          {result && (
+            <div className={`rounded border p-4 ${result.success ? 'border-green-200 bg-green-50' : 'border-yellow-200 bg-yellow-50'}`}>
+              <div className="flex gap-3">
+                {result.success ? <CheckCircle className="h-5 w-5 text-green-600" /> : <AlertCircle className="h-5 w-5 text-yellow-600" />}
+                <div className="text-sm">
+                  <p className="font-semibold">Đã nhập {result.imported} thiết bị</p>
+                  {result.errors?.map(error => <p key={error} className="mt-1 text-red-700">{error}</p>)}
                 </div>
               </div>
             </div>
           )}
+        </div>
 
-          {/* Actions */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+        <div className="flex justify-end gap-3 border-t border-gray-200 px-6 py-4">
+          <button onClick={handleClose} disabled={loading} className="rounded border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50">
+            {result ? 'Đóng' : 'Hủy'}
+          </button>
+          {!result && (
             <button
-              onClick={handleClose}
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-              disabled={loading}
+              onClick={handleImport}
+              disabled={loading || assets.length === 0}
+              className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
             >
-              {importResult ? 'Close' : 'Cancel'}
+              {loading ? 'Đang nhập...' : 'Nhập Excel'}
             </button>
-            {!importResult && (
-              <button
-                onClick={handleImport}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                disabled={loading || !file}
-              >
-                {loading ? 'Importing...' : 'Import Assets'}
-              </button>
-            )}
-          </div>
+          )}
         </div>
       </div>
     </div>

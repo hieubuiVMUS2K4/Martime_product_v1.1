@@ -213,9 +213,30 @@ public class EquipmentAssetController : ControllerBase
         {
             var assets = new List<EquipmentAsset>();
             var errors = new List<string>();
+            var importedByCode = new Dictionary<string, EquipmentAsset>(StringComparer.OrdinalIgnoreCase);
+            var pendingParents = new List<(EquipmentAsset Asset, string ParentAssetCode)>();
+            var pendingGroups = new List<(EquipmentAsset Asset, Guid GroupId)>();
 
             foreach (var dto in dtos)
             {
+                dto.AssetCode = (dto.AssetCode ?? string.Empty).Trim();
+                dto.AssetName = (dto.AssetName ?? string.Empty).Trim();
+                dto.Category = (dto.Category ?? string.Empty).Trim();
+
+                if (string.IsNullOrWhiteSpace(dto.AssetCode) ||
+                    string.IsNullOrWhiteSpace(dto.AssetName) ||
+                    string.IsNullOrWhiteSpace(dto.Category))
+                {
+                    errors.Add("AssetCode, AssetName and Category are required");
+                    continue;
+                }
+
+                if (importedByCode.ContainsKey(dto.AssetCode))
+                {
+                    errors.Add($"Asset code '{dto.AssetCode}' is duplicated in import file");
+                    continue;
+                }
+
                 // Validate asset code
                 if (await _assetRepository.AssetCodeExistsAsync(dto.AssetCode))
                 {
@@ -255,31 +276,70 @@ public class EquipmentAssetController : ControllerBase
                 };
 
                 assets.Add(asset);
+                importedByCode[asset.AssetCode] = asset;
+
+                if (!string.IsNullOrWhiteSpace(dto.ParentAssetCode))
+                    pendingParents.Add((asset, dto.ParentAssetCode.Trim()));
 
                 // Add to group if found
                 if (groupId.HasValue)
                 {
-                    _context.EquipmentGroupMembers.Add(new EquipmentGroupMember
-                    {
-                        GroupId = groupId.Value,
-                        AssetId = asset.Id,
-                        CreatedAt = DateTime.UtcNow
-                    });
+                    pendingGroups.Add((asset, groupId.Value));
                 }
             }
 
             if (assets.Count == 0)
                 return BadRequest(new { error = "No valid assets to import", errors });
 
-            var count = await _assetRepository.BulkCreateAsync(assets);
+            var parentCodesFromDb = pendingParents
+                .Select(p => p.ParentAssetCode)
+                .Where(code => !importedByCode.ContainsKey(code))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var parentAssetsFromDb = parentCodesFromDb.Count == 0
+                ? new Dictionary<string, EquipmentAsset>(StringComparer.OrdinalIgnoreCase)
+                : await _context.EquipmentAssets
+                    .Where(a => parentCodesFromDb.Contains(a.AssetCode))
+                    .ToDictionaryAsync(a => a.AssetCode, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var pending in pendingParents)
+            {
+                if (importedByCode.TryGetValue(pending.ParentAssetCode, out var parent) ||
+                    parentAssetsFromDb.TryGetValue(pending.ParentAssetCode, out parent))
+                {
+                    pending.Asset.ParentId = parent.Id;
+                }
+                else
+                {
+                    errors.Add($"Parent asset '{pending.ParentAssetCode}' not found for asset '{pending.Asset.AssetCode}'");
+                    assets.Remove(pending.Asset);
+                }
+            }
+
+            if (assets.Count == 0)
+                return BadRequest(new { error = "No valid assets to import", errors });
+
+            foreach (var pending in pendingGroups.Where(p => assets.Contains(p.Asset)))
+            {
+                _context.EquipmentGroupMembers.Add(new EquipmentGroupMember
+                {
+                    GroupId = pending.GroupId,
+                    AssetId = pending.Asset.Id,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
+            var importedCount = assets.Count;
+            await _assetRepository.BulkCreateAsync(assets);
             await _context.SaveChangesAsync(); // Save group memberships
             
-            _logger.LogInformation("Imported {Count} equipment assets", count);
+            _logger.LogInformation("Imported {Count} equipment assets", importedCount);
 
             return Ok(new
             {
-                success = true,
-                imported = count,
+                success = errors.Count == 0,
+                imported = importedCount,
                 errors = errors.Count > 0 ? errors : null
             });
         }

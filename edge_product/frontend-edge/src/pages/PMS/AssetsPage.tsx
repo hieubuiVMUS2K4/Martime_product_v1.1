@@ -3,6 +3,7 @@ import { Plus, Upload, Download, Search, Package, Trash2, ChevronDown, ChevronRi
 import { equipmentAssetService } from '@/services/equipment-asset.service';
 import { ImportAssetsModal } from '@/components/pms/ImportAssetsModal';
 import { useTranslationSafe } from '@/contexts/I18nContext';
+import { toast } from 'sonner';
 import type { EquipmentAsset } from '@/types/pms.types';
 
 const STATUS_VALUES = ['', 'ACTIVE', 'STANDBY', 'UNDER_MAINTENANCE', 'DECOMMISSIONED', 'IN_STORAGE'] as const;
@@ -154,12 +155,24 @@ export default function AssetsPage() {
   };
   const handleBulkDelete = async () => {
     if (selectedRows.size === 0) return;
-    if (!confirm(t('pms.assets.confirmBulkDelete', { count: selectedRows.size }))) return;
-    try {
-      await Promise.all([...selectedRows].map(id => equipmentAssetService.delete(id)));
-      setSelectedRows(new Set());
-      await loadAssets();
-    } catch (err: any) { alert(err?.response?.data?.error || t('pms.assets.deleteFailed')); }
+    toast(t('pms.assets.confirmBulkDelete', { count: selectedRows.size }), {
+      action: {
+        label: t('pms.assets.delete'),
+        onClick: async () => {
+          try {
+            const count = selectedRows.size;
+            await Promise.all([...selectedRows].map(id => equipmentAssetService.delete(id)));
+            setSelectedRows(new Set());
+            await loadAssets();
+            toast.success(t('pms.assets.deleteManySuccess', { count }));
+          } catch (err: any) {
+            toast.error(err?.response?.data?.error || t('pms.assets.deleteFailed'));
+          }
+        },
+      },
+      cancel: { label: t('common.cancel'), onClick: () => {} },
+      duration: 8000,
+    });
   };
 
   const getStatusBadgeColor = (status: string) => {
@@ -209,14 +222,23 @@ export default function AssetsPage() {
   }, [contextMenu]);
 
   const handleDelete = async (asset: EquipmentAsset) => {
-    if (!confirm(t('pms.assets.confirmDelete', { name: asset.assetName }))) return;
-    try {
-      await equipmentAssetService.delete(asset.id);
-      if (selectedNodeId === asset.id) setSelectedNodeId(null);
-      await loadAssets();
-    } catch (err: any) {
-      alert(err?.response?.data?.error || t('pms.assets.deleteFailed'));
-    }
+    toast(t('pms.assets.confirmDelete', { name: asset.assetName }), {
+      action: {
+        label: t('pms.assets.delete'),
+        onClick: async () => {
+          try {
+            await equipmentAssetService.delete(asset.id);
+            if (selectedNodeId === asset.id) setSelectedNodeId(null);
+            await loadAssets();
+            toast.success(t('pms.assets.deleteSuccess', { name: asset.assetName }));
+          } catch (err: any) {
+            toast.error(err?.response?.data?.error || t('pms.assets.deleteFailed'));
+          }
+        },
+      },
+      cancel: { label: t('common.cancel'), onClick: () => {} },
+      duration: 8000,
+    });
   };
 
   const startInlineNew = (parentId: string | null) => {
@@ -243,8 +265,9 @@ export default function AssetsPage() {
         setInlineNew(null);
         await loadAssets();
         setSelectedNodeId(created.id);
+        toast.success(t('pms.assets.createSuccess', { name: created.assetName }));
       } catch (err: any) {
-        alert(err?.response?.data?.error || t('pms.assets.createFailed'));
+        toast.error(err?.response?.data?.error || t('pms.assets.createFailed'));
       }
     }
   };
@@ -259,25 +282,42 @@ export default function AssetsPage() {
       setSaving(true);
       await equipmentAssetService.update(detailAsset.id, detailForm);
       await loadAssets();
+      toast.success(t('pms.assets.saveSuccess', { name: detailForm.assetName || detailAsset.assetName }));
     } catch (err: any) {
-      alert(err?.response?.data?.error || t('pms.assets.saveFailed'));
+      toast.error(err?.response?.data?.error || t('pms.assets.saveFailed'));
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDownloadTemplate = () => {
-    const template = [
+  const handleDownloadTemplate = async () => {
+    const XLSX = await import('xlsx');
+    const rows = [
       ['AssetCode', 'AssetName', 'Category', 'Manufacturer', 'Model', 'SerialNumber', 'Location', 'Criticality', 'ParentAssetCode'],
-      ['PROP-SYS', 'Hệ thống Động lực', 'SYSTEM', '', '', '', 'Engine Room', 'CRITICAL', ''],
-      ['ME-01', 'Main Engine', 'ENGINE', 'MAN B&W', '6S50MC', 'ME001', 'Engine Room', 'CRITICAL', 'PROP-SYS'],
-      ['ME-01-CYL', 'Cylinder Unit', 'COMPONENT', '', '', '', 'Engine Room', 'HIGH', 'ME-01'],
+      ['TREE-SYS-001', 'Engine Room Tree System', 'SYSTEM', '', '', '', 'Engine Room', 'CRITICAL', ''],
+      ['TREE-ME-001', 'Main Engine Tree Test', 'ENGINE', 'MAN B&W', '6S50MC-C', 'ME-TREE-001', 'Engine Room', 'CRITICAL', 'TREE-SYS-001'],
+      ['TREE-PUMP-001', 'Cooling Sea Water Pump Tree Test', 'PUMP', 'Grundfos', 'CRN 45', 'PMP-TREE-001', 'Engine Room', 'HIGH', 'TREE-SYS-001'],
+      ['TREE-GEN-001', 'Emergency Generator Tree Test', 'GENERATOR', 'Cummins', 'QSB7', 'GEN-TREE-001', 'Emergency Generator Room', 'CRITICAL', 'TREE-SYS-001'],
     ];
-    const csv = template.map(r => r.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'equipment-assets-template.csv'; a.click();
+    const worksheet = XLSX.utils.aoa_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Equipment Assets');
+    XLSX.writeFile(workbook, 'equipment-assets-tree-template.xlsx');
+    return;
+
+    {
+    const template = [
+      ['AssetCode', 'AssetName', 'Category', 'Manufacturer', 'Model', 'SerialNumber', 'Location', 'Criticality', 'EquipmentGroupCode', 'ParentAssetCode'],
+      ['PROP-SYS', 'Hệ thống Động lực', 'SYSTEM', '', '', '', 'Engine Room', 'CRITICAL', ''],
+      ['ME-TEST-001', 'Main Engine Test', 'ENGINE', 'MAN B&W', '6S50MC-C', 'ME-T001', 'Engine Room', 'CRITICAL', '', 'ER-SYS-TEST'],
+      ['PUMP-TEST-001', 'Cooling Sea Water Pump Test', 'PUMP', 'Grundfos', 'CRN 45', 'PMP-T001', 'Engine Room', 'HIGH', '', 'ER-SYS-TEST'],
+      ['GEN-TEST-001', 'Emergency Generator Test', 'GENERATOR', 'Cummins', 'QSB7', 'GEN-T001', 'Emergency Generator Room', 'CRITICAL', '', 'ER-SYS-TEST'],
+    ];
+    const worksheet = XLSX.utils.aoa_to_sheet(template);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Equipment Assets');
+    XLSX.writeFile(workbook, 'equipment-assets-template.xlsx');
+    }
   };
 
   const selectedNodeName = selectedNodeId ? assetMap.get(selectedNodeId)?.assetName : null;

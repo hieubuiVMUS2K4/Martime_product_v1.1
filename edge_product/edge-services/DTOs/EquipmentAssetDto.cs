@@ -165,4 +165,5 @@ public class ImportEquipmentAssetDto
     public string? Location { get; set; }
     public string Criticality { get; set; } = "NORMAL";
     public string? EquipmentGroupCode { get; set; }
+    public string? ParentAssetCode { get; set; }
 }
