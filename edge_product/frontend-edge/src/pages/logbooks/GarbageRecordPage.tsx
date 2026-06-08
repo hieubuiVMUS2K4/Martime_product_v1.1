@@ -5,6 +5,7 @@ import { CoordinatePicker } from '../../components/common/CoordinatePicker';
 import { toast } from 'sonner';
 import { logbookService } from '../../services/logbook.service';
 import type { GarbageRecordResponseDto } from '../../types/logbook.types';
+import { useTranslationSafe } from '@/contexts/I18nContext';
 
 // MARPOL Annex V Garbage Categories
 const GARBAGE_CATEGORIES = [
@@ -29,6 +30,38 @@ const OPERATION_TYPES = [
 ];
 
 export const GarbageRecordPage: React.FC = () => {
+  const { locale, t } = useTranslationSafe();
+  const isVi = locale === 'vi';
+
+  const translatedCategories = GARBAGE_CATEGORIES.map(cat => {
+    let name = cat.name;
+    if (isVi) {
+      if (cat.code === 'A') name = 'Chất dẻo (Nhựa)';
+      else if (cat.code === 'B') name = 'Chất thải thực phẩm';
+      else if (cat.code === 'C') name = 'Chất thải sinh hoạt';
+      else if (cat.code === 'D') name = 'Dầu ăn';
+      else if (cat.code === 'E') name = 'Tro lò đốt';
+      else if (cat.code === 'F') name = 'Chất thải khai thác';
+      else if (cat.code === 'G') name = 'Dư lượng hàng hóa (không HME)';
+      else if (cat.code === 'H') name = 'Dư lượng hàng hóa (HME)';
+      else if (cat.code === 'I') name = 'Xác động vật';
+      else if (cat.code === 'J') name = 'Dụng cụ đánh cá';
+      else if (cat.code === 'K') name = 'Rác thải điện tử';
+    }
+    return { ...cat, name };
+  });
+
+  const translatedOperations = OPERATION_TYPES.map(op => {
+    let name = op.name;
+    if (isVi) {
+      if (op.code === '1') name = 'Xả ra biển';
+      else if (op.code === '2') name = 'Xả tại cơ sở tiếp nhận';
+      else if (op.code === '3') name = 'Thiêu đốt';
+      else if (op.code === '4') name = 'Xả ngoại lệ hoặc sự cố';
+    }
+    return { ...op, name };
+  });
+
   const [entries, setEntries] = useState<GarbageRecordResponseDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -53,7 +86,7 @@ export const GarbageRecordPage: React.FC = () => {
       setEntries(response.data);
     } catch (error) {
       console.error(error);
-      toast.error('Failed to load garbage record entries');
+      toast.error(t('logbooks.garbageRecord.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -66,10 +99,16 @@ export const GarbageRecordPage: React.FC = () => {
   const handleCategorySelect = (category: typeof GARBAGE_CATEGORIES[0]) => {
     setSelectedCategory(category);
     
+    const transCat = translatedCategories.find(c => c.code === category.code);
+    const catName = transCat?.name || category.name;
     // Auto-restrict discharge to sea for prohibited categories
     if (!category.dischargeAllowed && formData.operationType === '1') {
       setFormData({ ...formData, operationType: '' });
-      toast.warning(`${category.name} cannot be discharged to sea (MARPOL Annex V)`);
+      toast.warning(
+        isVi
+          ? `${catName} không được phép xả ra biển (MARPOL Phụ lục V)`
+          : `${category.name} cannot be discharged to sea (MARPOL Annex V)`
+      );
     }
     
     setStep(2);
@@ -78,7 +117,13 @@ export const GarbageRecordPage: React.FC = () => {
   const handleOperationSelect = (opCode: string) => {
     // Validate discharge to sea for restricted categories
     if (opCode === '1' && selectedCategory && !selectedCategory.dischargeAllowed) {
-      toast.error(`Cannot discharge ${selectedCategory.name} to sea - MARPOL Violation!`);
+      const transCat = translatedCategories.find(c => c.code === selectedCategory.code);
+      const catName = transCat?.name || selectedCategory.name;
+      toast.error(
+        isVi
+          ? `Không thể xả ${catName} ra biển - Vi phạm MARPOL!`
+          : `Cannot discharge ${selectedCategory.name} to sea - MARPOL Violation!`
+      );
       return;
     }
     
@@ -89,17 +134,17 @@ export const GarbageRecordPage: React.FC = () => {
   const handleSave = async () => {
     // Validation
     if (!formData.quantity || parseFloat(formData.quantity) <= 0) {
-      toast.error('Please enter quantity');
+      toast.error(t('logbooks.garbageRecord.enterQuantity'));
       return;
     }
     
     if (formData.operationType === '1' && (!formData.latitude || !formData.longitude)) {
-      toast.error('Position is required for discharge to sea');
+      toast.error(t('logbooks.garbageRecord.positionRequired'));
       return;
     }
     
     if (formData.operationType === '2' && !formData.portName) {
-      toast.error('Port name is required for discharge to facility');
+      toast.error(t('logbooks.garbageRecord.portRequired'));
       return;
     }
     
@@ -120,7 +165,7 @@ export const GarbageRecordPage: React.FC = () => {
       };
       
       await logbookService.createGarbageEntry(entry);
-      toast.success('Garbage Record Entry Saved!');
+      toast.success(t('logbooks.garbageRecord.entrySaved'));
       fetchEntries();
       setShowForm(false);
       
@@ -140,19 +185,19 @@ export const GarbageRecordPage: React.FC = () => {
       });
     } catch (error) {
       console.error(error);
-      toast.error('Failed to save entry');
+      toast.error(t('logbooks.garbageRecord.saveFailed'));
     }
   };
 
   return (
     <LogbookGrid 
-      title="Garbage Record Book - MARPOL Annex V"
+      title={t('logbooks.garbageRecord.marpolTitle')}
       actions={
         <button
           onClick={() => setShowForm(!showForm)}
           className="bg-blue-600 text-white font-semibold py-2.5 px-6 rounded-lg shadow-md hover:bg-blue-700 "
         >
-          {showForm ? 'Cancel' : '+ New Entry'}
+          {showForm ? t('common.cancel') : t('logbooks.garbageRecord.newEntry')}
         </button>
       }
     >
@@ -179,10 +224,10 @@ export const GarbageRecordPage: React.FC = () => {
         {step === 1 && (
           <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
             <h2 className="text-blue-600 font-sans text-xl font-bold mb-6">
-              Step 1: Select Garbage Category
+              {t('logbooks.garbageRecord.step1Title')}
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {GARBAGE_CATEGORIES.map(cat => (
+              {translatedCategories.map(cat => (
                 <button
                   key={cat.code}
                   onClick={() => handleCategorySelect(cat)}
@@ -196,8 +241,8 @@ export const GarbageRecordPage: React.FC = () => {
                       <div className="text-gray-900 font-sans text-sm">{cat.name}</div>
                     </div>
                     {!cat.dischargeAllowed && (
-                      <div className="text-red-500 text-xs font-sans border border-red-500 px-1 py-0.5">
-                        NO SEA
+                      <div className="text-red-500 text-xs font-sans border border-red-500 px-1 py-0.5 font-bold">
+                        {t('logbooks.garbageRecord.noSeaBadge')}
                       </div>
                     )}
                   </div>
@@ -211,16 +256,16 @@ export const GarbageRecordPage: React.FC = () => {
         {step === 2 && selectedCategory && (
           <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
             <h2 className="text-blue-600 font-sans text-xl font-bold mb-4">
-              Step 2: Select Operation Type
+              {t('logbooks.garbageRecord.step2Title')}
             </h2>
             <div className="bg-gray-50/30 p-4 mb-6 border border-gray-200">
-              <span className="text-gray-400 font-sans text-sm">Selected Category: </span>
+              <span className="text-gray-400 font-sans text-sm">{t('logbooks.garbageRecord.selectedCategory')} </span>
               <span className="text-blue-600 font-sans font-bold text-lg">
-                {selectedCategory.code} - {selectedCategory.name}
+                {selectedCategory.code} - {translatedCategories.find(c => c.code === selectedCategory.code)?.name}
               </span>
             </div>
             <div className="flex flex-col gap-3">
-              {OPERATION_TYPES.map(op => {
+              {translatedOperations.map(op => {
                 const isDisabled = op.code === '1' && !selectedCategory.dischargeAllowed;
                 return (
                   <button
@@ -236,11 +281,13 @@ export const GarbageRecordPage: React.FC = () => {
                     `}
                   >
                     <span className="text-blue-600 font-bold font-sans mr-4">
-                      Code {op.code}
+                      {t('logbooks.garbageRecord.code')} {op.code}
                     </span>
                     <span className="text-gray-900 font-sans">{op.name}</span>
                     {isDisabled && (
-                      <span className="ml-4 text-red-500 text-xs font-sans">(PROHIBITED BY MARPOL)</span>
+                      <span className="ml-4 text-red-500 text-xs font-sans font-bold">
+                        ({t('logbooks.garbageRecord.prohibitedByMarpol')})
+                      </span>
                     )}
                   </button>
                 );
@@ -250,7 +297,7 @@ export const GarbageRecordPage: React.FC = () => {
               onClick={() => setStep(1)} 
               className="mt-6 text-gray-900 font-sans underline hover:text-blue-600"
             >
-              ← Back to Categories
+              {t('logbooks.garbageRecord.backToCategories')}
             </button>
           </div>
         )}
@@ -259,18 +306,20 @@ export const GarbageRecordPage: React.FC = () => {
         {step === 3 && selectedCategory && (
           <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
             <h2 className="text-blue-600 font-sans text-xl font-bold mb-6">
-              Step 3: Enter Details
+              {t('logbooks.garbageRecord.step3Title')}
             </h2>
             
             <div className="bg-gray-50/30 p-4 mb-6 border border-gray-200 flex justify-between">
               <div>
-                <span className="text-gray-400 font-sans text-sm">Category: </span>
-                <span className="text-gray-900 font-sans font-bold">{selectedCategory.code} - {selectedCategory.name}</span>
+                <span className="text-gray-400 font-sans text-sm">{t('logbooks.garbageRecord.category')}: </span>
+                <span className="text-gray-900 font-sans font-bold">
+                  {selectedCategory.code} - {translatedCategories.find(c => c.code === selectedCategory.code)?.name}
+                </span>
               </div>
               <div>
-                <span className="text-gray-400 font-sans text-sm">Operation: </span>
+                <span className="text-gray-400 font-sans text-sm">{t('logbooks.garbageRecord.operation')}: </span>
                 <span className="text-gray-900 font-sans font-bold">
-                  {OPERATION_TYPES.find(o => o.code === formData.operationType)?.name}
+                  {translatedOperations.find(o => o.code === formData.operationType)?.name}
                 </span>
               </div>
             </div>
@@ -280,7 +329,7 @@ export const GarbageRecordPage: React.FC = () => {
               <div className="grid grid-cols-3 gap-4">
                 <div className="col-span-2">
                   <MaritimeInput
-                    label="Estimated Quantity"
+                    label={t('logbooks.garbageRecord.estimatedAmount')}
                     type="number"
                     step="0.01"
                     value={formData.quantity}
@@ -290,7 +339,7 @@ export const GarbageRecordPage: React.FC = () => {
                 </div>
                 <div>
                   <label className="text-blue-600 font-sans text-sm  block mb-2">
-                    Unit
+                    {t('logbooks.garbageRecord.unit')}
                   </label>
                   <select
                     value={formData.unit}
@@ -299,7 +348,7 @@ export const GarbageRecordPage: React.FC = () => {
                   >
                     <option value="m³">m³</option>
                     <option value="kg">kg</option>
-                    <option value="liters">liters</option>
+                    <option value="liters">{t('logbooks.garbageRecord.liters')}</option>
                   </select>
                 </div>
               </div>
@@ -308,20 +357,20 @@ export const GarbageRecordPage: React.FC = () => {
               {formData.operationType === '1' && (
                 <div className="border border-yellow-600 bg-yellow-900/10 p-4">
                   <div className="text-yellow-500 font-sans text-sm font-semibold mb-4">
-                    ⚠ Position Required for Discharge to Sea
+                    ⚠ {t('logbooks.garbageRecord.positionRequiredSea')}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <CoordinatePicker
-                      label="Latitude"
+                      label={t('voyageLog.form.latitude')}
                       type="latitude"
                       value={formData.latitude}
-                      onChange={lat => setFormData({ ...formData, latitude: lat })}
+                      onChange={lat => setFormData(prev => ({ ...prev, latitude: lat }))}
                     />
                     <CoordinatePicker
-                      label="Longitude"
+                      label={t('voyageLog.form.longitude')}
                       type="longitude"
                       value={formData.longitude}
-                      onChange={lon => setFormData({ ...formData, longitude: lon })}
+                      onChange={lon => setFormData(prev => ({ ...prev, longitude: lon }))}
                     />
                   </div>
                 </div>
@@ -331,13 +380,13 @@ export const GarbageRecordPage: React.FC = () => {
               {formData.operationType === '2' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border border-blue-600 bg-blue-900/10 p-4">
                   <MaritimeInput
-                    label="Port Name"
+                    label={t('logbooks.garbageRecord.portName')}
                     value={formData.portName}
                     onChange={e => setFormData({ ...formData, portName: e.target.value })}
                     placeholder="e.g., Port of Singapore"
                   />
                   <MaritimeInput
-                    label="Reception Facility"
+                    label={t('logbooks.garbageRecord.receptionFacilityName')}
                     value={formData.receptionFacility}
                     onChange={e => setFormData({ ...formData, receptionFacility: e.target.value })}
                     placeholder="Facility name"
@@ -347,7 +396,7 @@ export const GarbageRecordPage: React.FC = () => {
 
               {/* Officer & Remarks */}
               <MaritimeInput
-                label="Officer In Charge"
+                label={t('logbooks.garbageRecord.officerInCharge')}
                 value={formData.officerInCharge}
                 onChange={e => setFormData({ ...formData, officerInCharge: e.target.value })}
                 placeholder="Name / Rank"
@@ -355,7 +404,7 @@ export const GarbageRecordPage: React.FC = () => {
               
               <div>
                 <label className="text-blue-600 font-sans text-sm  block mb-2">
-                  Remarks (Optional)
+                  {t('logbooks.garbageRecord.remarks')}
                 </label>
                 <textarea
                   value={formData.remarks}
@@ -371,13 +420,13 @@ export const GarbageRecordPage: React.FC = () => {
                   onClick={() => setStep(2)}
                   className="text-gray-900 font-sans underline hover:text-blue-600"
                 >
-                  ← Back
+                  {t('logbooks.garbageRecord.back')}
                 </button>
                 <button
                   onClick={handleSave}
                   className="bg-green-600 text-white font-semibold py-2.5 px-8 rounded-lg shadow-md hover:bg-green-700 "
                 >
-                  Save Entry
+                  {t('logbooks.garbageRecord.saveEntry')}
                 </button>
               </div>
             </div>
@@ -391,43 +440,44 @@ export const GarbageRecordPage: React.FC = () => {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-gray-50 text-blue-600 font-sans text-sm font-semibold">
-              <th className="p-4 border-b border-gray-200">Date</th>
-              <th className="p-4 border-b border-gray-200">Operation</th>
-              <th className="p-4 border-b border-gray-200">Category</th>
-              <th className="p-4 border-b border-gray-200">Quantity</th>
-              <th className="p-4 border-b border-gray-200">Location</th>
-              <th className="p-4 border-b border-gray-200">Officer</th>
-              <th className="p-4 border-b border-gray-200">Status</th>
+              <th className="p-4 border-b border-gray-200">{t('logbooks.garbageRecord.dateTime')}</th>
+              <th className="p-4 border-b border-gray-200">{t('logbooks.garbageRecord.operation')}</th>
+              <th className="p-4 border-b border-gray-200">{t('logbooks.garbageRecord.category')}</th>
+              <th className="p-4 border-b border-gray-200">{t('logbooks.garbageRecord.amount')}</th>
+              <th className="p-4 border-b border-gray-200">{t('logbooks.garbageRecord.location')}</th>
+              <th className="p-4 border-b border-gray-200">{t('logbooks.garbageRecord.officer')}</th>
+              <th className="p-4 border-b border-gray-200">{t('logbooks.garbageRecord.status')}</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr>
                 <td colSpan={7} className="p-4 text-center text-green-600 font-sans">
-                  Loading...
+                  {t('common.loading')}
                 </td>
               </tr>
             )}
             {!loading && entries.length === 0 && (
               <tr>
                 <td colSpan={7} className="p-4 text-center text-gray-500 font-sans">
-                  No garbage records. Click "+ New Entry" to start logging.
+                  {t('logbooks.garbageRecord.noEntries')}
                 </td>
               </tr>
             )}
             {entries.map(entry => {
-              const operation = OPERATION_TYPES.find(op => op.code === entry.operationCode);
-              const category = GARBAGE_CATEGORIES.find(cat => cat.code === entry.garbageCategory);
+              const operation = translatedOperations.find(op => op.code === entry.operationCode);
+              const category = translatedCategories.find(cat => cat.code === entry.garbageCategory);
+              const catName = category?.name || entry.description;
               return (
                 <tr key={entry.id} className="border-b border-gray-200 hover:bg-gray-50">
                   <td className="p-4 font-sans text-gray-900">{new Date(entry.operationDateTime).toLocaleDateString()}</td>
                   <td className="p-4 font-sans text-gray-900 text-sm">{operation?.name || entry.operationCode}</td>
                   <td className="p-4 font-sans text-gray-900">
-                    <span className={`px-2 py-1 text-xs bg-${category?.color}-600`}>
-                      {entry.garbageCategory}: {entry.description}
+                    <span className={`px-2 py-1 text-xs bg-${category?.color}-600 text-white`}>
+                      {entry.garbageCategory}: {catName}
                     </span>
                   </td>
-                  <td className="p-4 font-sans text-gray-900">{entry.quantity} {entry.quantityUnit}</td>
+                  <td className="p-4 font-sans text-gray-900">{entry.quantity} {entry.quantityUnit === 'liters' ? t('logbooks.garbageRecord.liters') : entry.quantityUnit}</td>
                   <td className="p-4 font-sans text-gray-900 text-xs">
                     {entry.portName || `${entry.latitude?.toFixed(2)}°, ${entry.longitude?.toFixed(2)}°`}
                   </td>
@@ -435,11 +485,11 @@ export const GarbageRecordPage: React.FC = () => {
                   <td className="p-4">
                     {entry.masterSignature ? (
                       <span className="bg-green-600 text-white text-xs px-2 py-1 font-sans font-bold">
-                        SIGNED
+                        {t('logbooks.deckLog.signed')}
                       </span>
                     ) : (
                       <span className="bg-yellow-600 text-black text-xs px-2 py-1 font-sans font-bold">
-                        DRAFT
+                        {t('logbooks.abstractLog.draft')}
                       </span>
                     )}
                   </td>

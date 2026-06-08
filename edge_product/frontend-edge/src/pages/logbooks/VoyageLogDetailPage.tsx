@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { LogbookGrid } from '../../components/common/LogbookGrid';
-import { SignaturePad } from '../../components/common/SignaturePad';
 import { toast } from 'sonner';
 import { logbookService } from '../../services/logbook.service';
 import type { VoyageLogEntryResponseDto } from '../../types/logbook.types';
@@ -26,6 +25,7 @@ export const VoyageLogDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showSignature, setShowSignature] = useState(false);
   const [signing, setSigning] = useState(false);
+  const [masterSignature, setMasterSignature] = useState('Captain');
 
   useEffect(() => {
     if (id) {
@@ -427,18 +427,52 @@ export const VoyageLogDetailPage: React.FC = () => {
       {showSignature && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Sign Voyage Log Entry</h3>
+            <h3 className="text-xl font-bold text-gray-900 mb-4 font-sans">Sign Voyage Log Entry</h3>
             
-            <div className="mb-4 p-4 bg-blue-50 rounded-lg text-sm text-blue-800">
+            <div className="mb-4 p-4 bg-blue-50 rounded-lg text-sm text-blue-800 font-sans">
               <strong>Note:</strong> By signing this entry, you confirm that all information 
               recorded is accurate and complete according to maritime regulations.
             </div>
 
-            <SignaturePad
-              onSave={handleSign}
-              onCancel={() => setShowSignature(false)}
-              disabled={signing}
-            />
+            <div className="mb-6">
+              <label className="text-blue-600 font-sans text-sm font-semibold block mb-2">
+                Master Signature *
+              </label>
+              <input
+                type="text"
+                value={masterSignature}
+                onChange={e => setMasterSignature(e.target.value)}
+                className="w-full bg-white border border-gray-300 text-gray-900 font-sans p-3 rounded-lg focus:border-blue-500 focus:outline-none"
+                placeholder="Enter master's name"
+                autoFocus
+              />
+            </div>
+            
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowSignature(false);
+                  setMasterSignature('Captain');
+                }}
+                className="px-6 py-2.5 border border-gray-300 text-gray-700 font-sans font-semibold rounded-lg hover:bg-gray-50"
+                disabled={signing}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (!masterSignature.trim()) {
+                    toast.error("Master signature is required");
+                    return;
+                  }
+                  handleSign(masterSignature.trim());
+                }}
+                className="px-6 py-2.5 bg-green-600 text-white font-sans font-semibold rounded-lg hover:bg-green-700"
+                disabled={signing}
+              >
+                ✓ Sign Entry
+              </button>
+            </div>
           </div>
         </div>
       )}

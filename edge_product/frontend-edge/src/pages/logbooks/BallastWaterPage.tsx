@@ -5,6 +5,7 @@ import { CoordinatePicker } from '../../components/common/CoordinatePicker';
 import { toast } from 'sonner';
 import { logbookService } from '../../services/logbook.service';
 import type { BallastWaterRecordResponseDto } from '../../types/logbook.types';
+import { useTranslationSafe } from '@/contexts/I18nContext';
 
 // BWM Convention Operation Codes
 const BWM_OPERATIONS = [
@@ -32,9 +33,11 @@ const TREATMENT_SYSTEMS = [
 ];
 
 export const BallastWaterPage: React.FC = () => {
+  const { t } = useTranslationSafe();
   const [entries, setEntries] = useState<BallastWaterRecordResponseDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [step, setStep] = useState(1);
   const [selectedOperation, setSelectedOperation] = useState<typeof BWM_OPERATIONS[0] | null>(null);
   const [formData, setFormData] = useState({
@@ -59,6 +62,73 @@ export const BallastWaterPage: React.FC = () => {
     remarks: ''
   });
 
+  const handleStartEdit = (entry: BallastWaterRecordResponseDto) => {
+    const op = BWM_OPERATIONS.find(o => o.code === entry.operationCode) || null;
+    setSelectedOperation(op);
+    setFormData({
+      ballastTank: entry.ballastTank || '',
+      volume: entry.volume?.toString() || '',
+      startLat: entry.startLatitude ?? 0,
+      startLon: entry.startLongitude ?? 0,
+      endLat: entry.endLatitude ?? 0,
+      endLon: entry.endLongitude ?? 0,
+      waterDepth: entry.waterDepth?.toString() || '',
+      distanceFromLand: entry.distanceFromLand?.toString() || '',
+      exchangeMethod: entry.exchangeMethod || '',
+      exchangeVolumePercent: entry.exchangeVolumePercent?.toString() || '',
+      treatmentSystemUsed: entry.treatmentSystemUsed ?? false,
+      treatmentSystemType: entry.treatmentSystemType || '',
+      treatmentSuccessful: entry.treatmentSuccessful ?? true,
+      salinityBefore: entry.salinityBefore?.toString() || '',
+      salinityAfter: entry.salinityAfter?.toString() || '',
+      portName: entry.portName || '',
+      receptionFacility: entry.receptionFacility || '',
+      officerInCharge: entry.officerInCharge || '',
+      remarks: entry.remarks || ''
+    });
+    setEditingId(entry.id);
+    setStep(2);
+    setShowForm(true);
+  };
+
+  const [signModal, setSignModal] = useState<{
+    show: boolean;
+    entryId: string | null;
+  }>({ show: false, entryId: null });
+  const [masterSignature, setMasterSignature] = useState('Captain');
+
+  const handleSignEntry = (entryId: string, alreadySigned: boolean) => {
+    if (alreadySigned) {
+      toast.info(t('logbooks.common.alreadySigned') || 'This entry is already signed');
+      return;
+    }
+    setSignModal({ show: true, entryId });
+  };
+
+  const confirmSign = async () => {
+    if (!signModal.entryId || !masterSignature.trim()) {
+      toast.error('Master signature is required');
+      return;
+    }
+
+    try {
+      const signData = {
+        signature: masterSignature.trim(),
+        signedAt: new Date().toISOString()
+      };
+
+      await logbookService.signBallastWaterEntry(signModal.entryId, signData);
+      toast.success(t('logbooks.common.signSuccess'));
+      
+      setSignModal({ show: false, entryId: null });
+      setMasterSignature('Captain');
+      fetchEntries();
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.response?.data?.error || t('logbooks.common.signFailed'));
+    }
+  };
+
   const fetchEntries = async () => {
     try {
       setLoading(true);
@@ -66,7 +136,7 @@ export const BallastWaterPage: React.FC = () => {
       setEntries(response.data);
     } catch (error) {
       console.error(error);
-      toast.error('Failed to load ballast water entries');
+      toast.error(t('logbooks.ballastWater.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -84,18 +154,18 @@ export const BallastWaterPage: React.FC = () => {
   const handleSave = async () => {
     // Validation
     if (!formData.ballastTank || !formData.volume) {
-      toast.error('Tank and volume are required');
+      toast.error(t('logbooks.ballastWater.tankVolumeRequired'));
       return;
     }
 
     // D-2 Treatment validation
     if (selectedOperation?.code === '5' || selectedOperation?.code === '8') {
       if (!formData.treatmentSystemUsed) {
-        toast.error('D-2 treatment system required for discharge at sea (BWM Convention)');
+        toast.error(t('logbooks.ballastWater.d2Required'));
         return;
       }
       if (!formData.treatmentSystemType) {
-        toast.error('Please select treatment system type');
+        toast.error(t('logbooks.ballastWater.selectTreatment'));
         return;
       }
     }
@@ -103,7 +173,7 @@ export const BallastWaterPage: React.FC = () => {
     // Exchange validation (codes 2, 3, 4)
     if (['2', '3', '4'].includes(selectedOperation?.code || '')) {
       if (!formData.exchangeMethod) {
-        toast.error('Please select exchange method');
+        toast.error(t('logbooks.ballastWater.selectExchangeMethod'));
         return;
       }
       if (!formData.distanceFromLand || parseFloat(formData.distanceFromLand) < 200) {
@@ -140,13 +210,19 @@ export const BallastWaterPage: React.FC = () => {
         remarks: formData.remarks || undefined
       };
 
-      await logbookService.createBallastWaterEntry(entry);
-      toast.success('Ballast Water Record Entry Saved!');
+      if (editingId) {
+        await logbookService.updateBallastWaterEntry(editingId, entry);
+        toast.success(t('logbooks.ballastWater.entryUpdated') || 'Entry updated successfully');
+      } else {
+        await logbookService.createBallastWaterEntry(entry);
+        toast.success(t('logbooks.ballastWater.entrySaved'));
+      }
       fetchEntries();
       setShowForm(false);
       
       // Reset
       setStep(1);
+      setEditingId(null);
       setSelectedOperation(null);
       setFormData({
         ballastTank: '',
@@ -171,19 +247,49 @@ export const BallastWaterPage: React.FC = () => {
       });
     } catch (error) {
       console.error(error);
-      toast.error('Failed to save entry');
+      toast.error(t('logbooks.ballastWater.saveFailed'));
     }
   };
 
   return (
     <LogbookGrid 
-      title="Ballast Water Record Book - BWM Convention"
+      title={t('logbooks.ballastWater.bwmTitle')}
       actions={
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => {
+            if (showForm) {
+              setShowForm(false);
+              setStep(1);
+              setEditingId(null);
+              setSelectedOperation(null);
+              setFormData({
+                ballastTank: '',
+                volume: '',
+                startLat: 0,
+                startLon: 0,
+                endLat: 0,
+                endLon: 0,
+                waterDepth: '',
+                distanceFromLand: '',
+                exchangeMethod: '',
+                exchangeVolumePercent: '',
+                treatmentSystemUsed: false,
+                treatmentSystemType: '',
+                treatmentSuccessful: true,
+                salinityBefore: '',
+                salinityAfter: '',
+                portName: '',
+                receptionFacility: '',
+                officerInCharge: '',
+                remarks: ''
+              });
+            } else {
+              setShowForm(true);
+            }
+          }}
           className="bg-blue-600 text-white font-semibold py-2.5 px-6 rounded-lg shadow-md hover:bg-blue-700 "
         >
-          {showForm ? 'Cancel' : '+ New Entry'}
+          {showForm ? t('common.cancel') : t('logbooks.ballastWater.newEntry')}
         </button>
       }
     >
@@ -208,23 +314,23 @@ export const BallastWaterPage: React.FC = () => {
 
         {/* Step 1: Select Operation */}
         {step === 1 && (
-          <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
-            <h2 className="text-blue-600 font-sans text-xl font-bold mb-6">
-              Step 1: Select BWM Operation
+          <div className="bg-white dark:bg-gray-800 p-6 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
+            <h2 className="text-blue-600 dark:text-blue-400 font-sans text-xl font-bold mb-6">
+              {t('logbooks.ballastWater.step1Title')}
             </h2>
             <div className="flex flex-col gap-3">
               {BWM_OPERATIONS.map(op => (
                 <button
                   key={op.code}
                   onClick={() => handleOperationSelect(op)}
-                  className="text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-blue-500 transition-colors"
+                  className="text-left p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-blue-500 transition-colors"
                 >
                   <div className="flex justify-between items-center">
                     <div>
-                      <span className="text-blue-600 font-bold font-sans mr-4">
-                        Code {op.code}
+                      <span className="text-blue-600 dark:text-blue-400 font-bold font-sans mr-4">
+                        {t('logbooks.oilRecord.codeLabel')} {op.code}
                       </span>
-                      <span className="text-gray-900 font-sans">{op.name}</span>
+                      <span className="text-gray-900 dark:text-white font-sans">{op.name}</span>
                     </div>
                     {op.requiresTreatment && (
                       <span className="bg-blue-600 text-white text-xs px-2 py-1 font-sans rounded">
@@ -240,15 +346,15 @@ export const BallastWaterPage: React.FC = () => {
 
         {/* Step 2: Enter Details */}
         {step === 2 && selectedOperation && (
-          <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
-            <h2 className="text-blue-600 font-sans text-xl font-bold mb-4">
-              Step 2: Ballast Operation Details
+          <div className="bg-white dark:bg-gray-800 p-6 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
+            <h2 className="text-blue-600 dark:text-blue-400 font-sans text-xl font-bold mb-4">
+              {t('logbooks.ballastWater.step2Title')}
             </h2>
             
-            <div className="bg-gray-50/30 p-4 mb-6 border border-gray-200">
-              <span className="text-gray-400 font-sans text-sm">Operation: </span>
-              <span className="text-gray-900 font-sans font-bold">
-                Code {selectedOperation.code} - {selectedOperation.name}
+            <div className="bg-gray-50/30 dark:bg-gray-700/30 p-4 mb-6 border border-gray-200 dark:border-gray-700">
+              <span className="text-gray-400 font-sans text-sm">{t('logbooks.ballastWater.operation')}: </span>
+              <span className="text-gray-900 dark:text-white font-sans font-bold">
+                {t('logbooks.oilRecord.codeLabel')} {selectedOperation.code} - {selectedOperation.name}
               </span>
             </div>
 
@@ -256,13 +362,13 @@ export const BallastWaterPage: React.FC = () => {
               {/* Tank & Volume */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <MaritimeInput
-                  label="Ballast Tank ID"
+                  label={t('logbooks.ballastWater.ballastTankId')}
                   value={formData.ballastTank}
                   onChange={e => setFormData({ ...formData, ballastTank: e.target.value })}
                   placeholder="e.g., No. 1 Port"
                 />
                 <MaritimeInput
-                  label="Volume (m³)"
+                  label={t('logbooks.oilRecord.quantity')}
                   type="number"
                   step="0.1"
                   value={formData.volume}
@@ -272,46 +378,46 @@ export const BallastWaterPage: React.FC = () => {
               </div>
 
               {/* Position at Start */}
-              <div className="border border-blue-600 bg-blue-900/10 p-4">
-                <div className="text-blue-600 font-sans text-sm font-semibold mb-4">Start Position</div>
+              <div className="border border-blue-600/30 bg-blue-900/10 p-4">
+                <div className="text-blue-600 dark:text-blue-400 font-sans text-sm font-semibold mb-4">{t('logbooks.ballastWater.startPosition')}</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <CoordinatePicker
-                    label="Start Latitude"
+                    label={t('logbooks.deckLog.latitude')}
                     type="latitude"
                     value={formData.startLat}
-                    onChange={lat => setFormData({ ...formData, startLat: lat })}
+                    onChange={lat => setFormData(prev => ({ ...prev, startLat: lat }))}
                   />
                   <CoordinatePicker
-                    label="Start Longitude"
+                    label={t('logbooks.deckLog.longitude')}
                     type="longitude"
                     value={formData.startLon}
-                    onChange={lon => setFormData({ ...formData, startLon: lon })}
+                    onChange={lon => setFormData(prev => ({ ...prev, startLon: lon }))}
                   />
                 </div>
               </div>
 
               {/* Exchange-specific fields (codes 2, 3, 4) */}
               {['2', '3', '4'].includes(selectedOperation.code) && (
-                <div className="border border-green-600 bg-green-900/10 p-4">
-                  <div className="text-green-600 font-sans text-sm font-semibold mb-4">D-1 Exchange Parameters</div>
+                <div className="border border-green-600/30 bg-green-900/10 p-4">
+                  <div className="text-green-600 dark:text-green-400 font-sans text-sm font-semibold mb-4">{t('logbooks.ballastWater.d1ExchangeParams')}</div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-blue-600 font-sans text-sm  block mb-2">
-                        Exchange Method
+                      <label className="text-blue-600 dark:text-blue-400 font-sans text-sm block mb-2">
+                        {t('logbooks.ballastWater.exchangeMethod')}
                       </label>
                       <select
                         value={formData.exchangeMethod}
                         onChange={e => setFormData({ ...formData, exchangeMethod: e.target.value })}
-                        className="w-full bg-white border-2 border-gray-200 text-gray-900 font-sans text-lg p-4 rounded-lg focus:border-blue-500 focus:outline-none"
+                        className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white font-sans text-base p-3 rounded-lg focus:border-blue-500 focus:outline-none"
                       >
-                        <option value="">Select Method</option>
+                        <option value="">{t('logbooks.ballastWater.selectExchangeMethod')}</option>
                         {EXCHANGE_METHODS.map(m => (
                           <option key={m.value} value={m.value}>{m.label}</option>
                         ))}
                       </select>
                     </div>
                     <MaritimeInput
-                      label="Exchange Volume (%)"
+                      label={t('logbooks.ballastWater.exchangeVolumePercent')}
                       type="number"
                       min="0"
                       max="100"
@@ -320,21 +426,21 @@ export const BallastWaterPage: React.FC = () => {
                       placeholder="95%"
                     />
                     <MaritimeInput
-                      label="Water Depth (m)"
+                      label={t('logbooks.ballastWater.waterDepth')}
                       type="number"
                       value={formData.waterDepth}
                       onChange={e => setFormData({ ...formData, waterDepth: e.target.value })}
                       placeholder="Min 200m recommended"
                     />
                     <MaritimeInput
-                      label="Distance from Land (NM)"
+                      label={t('logbooks.ballastWater.distanceFromLand')}
                       type="number"
                       value={formData.distanceFromLand}
                       onChange={e => setFormData({ ...formData, distanceFromLand: e.target.value })}
                       placeholder="Min 200 NM"
                     />
                     <MaritimeInput
-                      label="Salinity Before (PPT)"
+                      label={t('logbooks.ballastWater.salinityBefore')}
                       type="number"
                       step="0.1"
                       value={formData.salinityBefore}
@@ -342,7 +448,7 @@ export const BallastWaterPage: React.FC = () => {
                       placeholder="e.g., 15.0"
                     />
                     <MaritimeInput
-                      label="Salinity After (PPT)"
+                      label={t('logbooks.ballastWater.salinityAfter')}
                       type="number"
                       step="0.1"
                       value={formData.salinityAfter}
@@ -352,16 +458,16 @@ export const BallastWaterPage: React.FC = () => {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                     <CoordinatePicker
-                      label="End Latitude"
+                      label={t('logbooks.deckLog.latitude')}
                       type="latitude"
                       value={formData.endLat}
-                      onChange={lat => setFormData({ ...formData, endLat: lat })}
+                      onChange={lat => setFormData(prev => ({ ...prev, endLat: lat }))}
                     />
                     <CoordinatePicker
-                      label="End Longitude"
+                      label={t('logbooks.deckLog.longitude')}
                       type="longitude"
                       value={formData.endLon}
-                      onChange={lon => setFormData({ ...formData, endLon: lon })}
+                      onChange={lon => setFormData(prev => ({ ...prev, endLon: lon }))}
                     />
                   </div>
                 </div>
@@ -369,9 +475,9 @@ export const BallastWaterPage: React.FC = () => {
 
               {/* D-2 Treatment System (codes 5, 8) */}
               {(selectedOperation.code === '5' || selectedOperation.code === '8') && (
-                <div className="border border-purple-600 bg-purple-900/10 p-4">
-                  <div className="text-purple-600 font-sans text-sm mb-4 flex items-center gap-2">
-                    D-2 Treatment System (MANDATORY)
+                <div className="border border-purple-600/30 bg-purple-900/10 p-4">
+                  <div className="text-purple-600 dark:text-purple-400 font-sans text-sm mb-4 flex items-center gap-2">
+                    {t('logbooks.ballastWater.d2TreatmentSystem')}
                     <span className="bg-red-600 text-white text-xs px-2 py-1 rounded">REQUIRED</span>
                   </div>
                   <div className="flex items-center gap-4 mb-4">
@@ -382,37 +488,37 @@ export const BallastWaterPage: React.FC = () => {
                         onChange={e => setFormData({ ...formData, treatmentSystemUsed: e.target.checked })}
                         className="w-6 h-6"
                       />
-                      <span className="text-gray-900 font-sans">Treatment System Used</span>
+                      <span className="text-gray-900 dark:text-white font-sans">{t('logbooks.ballastWater.treatmentSystemUsed')}</span>
                     </label>
                   </div>
                   {formData.treatmentSystemUsed && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="text-blue-600 font-sans text-sm  block mb-2">
-                          Treatment System Type
+                        <label className="text-blue-600 dark:text-blue-400 font-sans text-sm block mb-2">
+                          {t('logbooks.ballastWater.treatmentSystemType')}
                         </label>
                         <select
                           value={formData.treatmentSystemType}
                           onChange={e => setFormData({ ...formData, treatmentSystemType: e.target.value })}
-                          className="w-full bg-white border-2 border-gray-200 text-gray-900 font-sans text-lg p-4 rounded-lg focus:border-blue-500 focus:outline-none"
+                          className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white font-sans text-base p-3 rounded-lg focus:border-blue-500 focus:outline-none"
                         >
-                          <option value="">Select System</option>
-                          {TREATMENT_SYSTEMS.map(t => (
-                            <option key={t.value} value={t.value}>{t.label}</option>
+                          <option value="">{t('logbooks.ballastWater.selectTreatment')}</option>
+                          {TREATMENT_SYSTEMS.map(tOption => (
+                            <option key={tOption.value} value={tOption.value}>{tOption.label}</option>
                           ))}
                         </select>
                       </div>
                       <div>
-                        <label className="text-blue-600 font-sans text-sm  block mb-2">
-                          Treatment Result
+                        <label className="text-blue-600 dark:text-blue-400 font-sans text-sm block mb-2">
+                          {t('logbooks.ballastWater.treatmentResult')}
                         </label>
                         <select
                           value={formData.treatmentSuccessful ? 'SUCCESS' : 'FAILURE'}
                           onChange={e => setFormData({ ...formData, treatmentSuccessful: e.target.value === 'SUCCESS' })}
-                          className="w-full bg-white border-2 border-gray-200 text-gray-900 font-sans text-lg p-4 rounded-lg focus:border-blue-500 focus:outline-none"
+                          className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white font-sans text-base p-3 rounded-lg focus:border-blue-500 focus:outline-none"
                         >
-                          <option value="SUCCESS">Successful</option>
-                          <option value="FAILURE">Failed / Partial</option>
+                          <option value="SUCCESS">{t('logbooks.ballastWater.successful')}</option>
+                          <option value="FAILURE">{t('logbooks.ballastWater.failedPartial')}</option>
                         </select>
                       </div>
                     </div>
@@ -424,13 +530,13 @@ export const BallastWaterPage: React.FC = () => {
               {selectedOperation.code === '6' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <MaritimeInput
-                    label="Port Name"
+                    label={t('voyageLog.form.portName')}
                     value={formData.portName}
                     onChange={e => setFormData({ ...formData, portName: e.target.value })}
                     placeholder="Port of discharge"
                   />
                   <MaritimeInput
-                    label="Reception Facility"
+                    label={t('logbooks.ballastWater.receptionFacility')}
                     value={formData.receptionFacility}
                     onChange={e => setFormData({ ...formData, receptionFacility: e.target.value })}
                     placeholder="Facility name"
@@ -440,21 +546,21 @@ export const BallastWaterPage: React.FC = () => {
 
               {/* Officer & Remarks */}
               <MaritimeInput
-                label="Officer In Charge"
+                label={t('logbooks.oilRecord.officerInCharge')}
                 value={formData.officerInCharge}
                 onChange={e => setFormData({ ...formData, officerInCharge: e.target.value })}
                 placeholder="Name / Rank"
               />
               
               <div>
-                <label className="text-blue-600 font-sans text-sm  block mb-2">
-                  Remarks
+                <label className="text-blue-600 dark:text-blue-400 font-sans text-sm block mb-2">
+                  {t('voyageLog.form.remarks')}
                 </label>
                 <textarea
                   value={formData.remarks}
                   onChange={e => setFormData({ ...formData, remarks: e.target.value })}
-                  className="w-full bg-white border-2 border-gray-200 text-gray-900 font-sans p-4 rounded-lg focus:border-blue-500 focus:outline-none h-24 resize-none"
-                  placeholder="Additional notes..."
+                  className="w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white font-sans p-4 rounded-lg focus:border-blue-500 focus:outline-none h-24 resize-none"
+                  placeholder={t('voyageLog.form.remarksPlaceholder')}
                 />
               </div>
 
@@ -462,15 +568,15 @@ export const BallastWaterPage: React.FC = () => {
               <div className="flex justify-between mt-6">
                 <button 
                   onClick={() => setStep(1)}
-                  className="text-gray-900 font-sans underline hover:text-blue-600"
+                  className="text-gray-900 dark:text-white font-sans underline hover:text-blue-600"
                 >
-                  ← Back
+                  {t('common.back')}
                 </button>
                 <button
                   onClick={handleSave}
                   className="bg-green-600 text-white font-semibold py-2.5 px-8 rounded-lg shadow-md hover:bg-green-700 "
                 >
-                  Save Entry
+                  {t('voyageLog.saveEntry')}
                 </button>
               </div>
             </div>
@@ -484,35 +590,44 @@ export const BallastWaterPage: React.FC = () => {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-gray-50 text-blue-600 font-sans text-sm font-semibold">
-              <th className="p-4 border-b border-gray-200">Date</th>
-              <th className="p-4 border-b border-gray-200">Operation</th>
-              <th className="p-4 border-b border-gray-200">Tank</th>
-              <th className="p-4 border-b border-gray-200">Volume (m³)</th>
-              <th className="p-4 border-b border-gray-200">Position</th>
-              <th className="p-4 border-b border-gray-200">Treatment</th>
-              <th className="p-4 border-b border-gray-200">Officer</th>
-              <th className="p-4 border-b border-gray-200">Status</th>
+              <th className="p-4 border-b border-gray-200">{t('voyageLog.dateTime')}</th>
+              <th className="p-4 border-b border-gray-200">{t('voyageLog.event')}</th>
+              <th className="p-4 border-b border-gray-200">{t('logbooks.oilRecord.tankLocation')}</th>
+              <th className="p-4 border-b border-gray-200">{t('logbooks.oilRecord.quantity')}</th>
+              <th className="p-4 border-b border-gray-200">{t('voyageLog.form.position')}</th>
+              <th className="p-4 border-b border-gray-200">{t('logbooks.ballastWater.d2TreatmentSystem')}</th>
+              <th className="p-4 border-b border-gray-200">{t('voyageLog.officer')}</th>
+              <th className="p-4 border-b border-gray-200">{t('voyageLog.status')}</th>
+              <th className="p-4 border-b border-gray-200">{t('common.action') || 'Action'}</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={8} className="p-4 text-center text-green-600 font-sans">
-                  Loading...
+                <td colSpan={9} className="p-4 text-center text-green-600 font-sans">
+                  {t('common.loading')}
                 </td>
               </tr>
             )}
             {!loading && entries.length === 0 && (
               <tr>
-                <td colSpan={8} className="p-4 text-center text-gray-500 font-sans">
-                  No ballast water records. Click "+ New Entry" to start logging.
+                <td colSpan={9} className="p-4 text-center text-gray-500 font-sans">
+                  {t('logbooks.ballastWater.noEntries')}
                 </td>
               </tr>
             )}
             {entries.map(entry => {
               const operation = BWM_OPERATIONS.find(op => op.code === entry.operationCode);
+              const isSigned = !!entry.masterSignature;
               return (
-                <tr key={entry.id} className="border-b border-gray-200 hover:bg-gray-50">
+                <tr 
+                  key={entry.id} 
+                  onClick={() => handleSignEntry(entry.id, isSigned)}
+                  className={`border-b border-gray-200 hover:bg-gray-50 ${
+                    !isSigned ? 'cursor-pointer hover:bg-blue-50' : ''
+                  }`}
+                  title={!isSigned ? 'Click to sign this entry' : 'Already signed'}
+                >
                   <td className="p-4 font-sans text-gray-900">{new Date(entry.operationDateTime).toLocaleDateString()}</td>
                   <td className="p-4 font-sans text-gray-900 text-sm">
                     <span className="bg-blue-600 text-white px-2 py-1 text-xs">
@@ -531,20 +646,46 @@ export const BallastWaterPage: React.FC = () => {
                         {entry.treatmentSystemType}
                       </span>
                     ) : (
-                      <span className="text-gray-500">No treatment</span>
+                      <span className="text-gray-500">{t('logbooks.ballastWater.noTreatment')}</span>
                     )}
                   </td>
                   <td className="p-4 font-sans text-gray-900 text-sm">{entry.officerInCharge}</td>
                   <td className="p-4">
                     {entry.masterSignature ? (
                       <span className="bg-green-600 text-white text-xs px-2 py-1 font-sans font-bold">
-                        SIGNED
+                        {t('logbooks.deckLog.signed')}
                       </span>
                     ) : (
-                      <span className="bg-yellow-600 text-white text-xs px-2 py-1 font-sans font-bold">
-                        DRAFT
+                      <span className="bg-yellow-600 text-black text-xs px-2 py-1 font-sans font-bold">
+                        {t('voyageLog.draft')}
                       </span>
                     )}
+                  </td>
+                  <td className="p-4">
+                    <div className="flex gap-2">
+                      {!isSigned && (
+                        <>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStartEdit(entry);
+                            }}
+                            className="text-amber-600 hover:underline font-sans text-sm font-semibold"
+                          >
+                            {t('common.edit') || 'EDIT'}
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSignEntry(entry.id, false);
+                            }}
+                            className="text-green-600 hover:underline font-sans text-sm font-semibold"
+                          >
+                            {t('common.sign') || 'SIGN'}
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
@@ -552,12 +693,51 @@ export const BallastWaterPage: React.FC = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Sign Confirmation Modal */}
+      {signModal.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-bold text-blue-600 font-sans mb-4">
+              🖊 {t('logbooks.deckLog.sign')} {t('logbooks.ballastWater.title')}
+            </h3>
+            <p className="text-gray-700 font-sans mb-4">
+              By signing this entry, you confirm that all information is accurate and complete.
+              This action cannot be undone.
+            </p>
+            <div className="mb-6">
+              <label className="text-blue-600 font-sans text-sm font-semibold block mb-2">
+                Master Signature *
+              </label>
+              <input
+                type="text"
+                value={masterSignature}
+                onChange={e => setMasterSignature(e.target.value)}
+                className="w-full bg-white border-2 border-gray-200 text-gray-900 font-sans p-3 focus:border-blue-500 focus:outline-none"
+                placeholder="Enter master's name"
+                autoFocus
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setSignModal({ show: false, entryId: null });
+                  setMasterSignature('Captain');
+                }}
+                className="px-6 py-2.5 border-2 border-gray-300 text-gray-700 font-sans font-semibold rounded hover:bg-gray-50"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={confirmSign}
+                className="px-6 py-2.5 bg-green-600 text-white font-sans font-semibold rounded hover:bg-green-700"
+              >
+                ✓ {t('logbooks.deckLog.sign')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </LogbookGrid>
   );
 };
-
-
-
-
-
-
