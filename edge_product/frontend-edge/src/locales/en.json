@@ -244,7 +244,12 @@
     "lastSync": "Last sync: {time}",
     "online": "Online",
     "offline": "Offline",
-    "accountManagement": "Account management"
+    "accountManagement": "Account management",
+    "profile": "Profile",
+    "bridgeTerminal": "Bridge terminal",
+    "signOut": "Sign out",
+    "signingOut": "Signing out...",
+    "ispsSession": "ISPS session"
   },
   "dashboard": {
     "title": "Vessel Dashboard",

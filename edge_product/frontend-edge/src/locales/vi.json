@@ -244,7 +244,12 @@
     "lastSync": "Đồng bộ lần cuối: {time}",
     "online": "Trực tuyến",
     "offline": "Ngoại tuyến",
-    "accountManagement": "Quản lý tài khoản"
+    "accountManagement": "Quản lý tài khoản",
+    "profile": "Hồ sơ",
+    "bridgeTerminal": "Máy trạm buồng lái",
+    "signOut": "Đăng xuất",
+    "signingOut": "Đang đăng xuất...",
+    "ispsSession": "Phiên ISPS"
   },
   "dashboard": {
     "title": "Bảng điều khiển tàu",
