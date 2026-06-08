@@ -4,6 +4,7 @@ import { MaritimeInput } from '../../components/common/MaritimeInput';
 import { logbookService } from '../../services/logbook.service';
 import { CreateOilRecordEntryDto, OilRecordEntryResponseDto } from '../../types/logbook.types';
 import { toast } from 'sonner';
+import { useTranslationSafe } from '@/contexts/I18nContext';
 
 const OPERATIONS = [
   { code: 'A', desc: 'Ballasting or cleaning of oil fuel tanks' },
@@ -14,9 +15,11 @@ const OPERATIONS = [
 ];
 
 export const OilRecordPage: React.FC = () => {
+  const { t } = useTranslationSafe();
   const [entries, setEntries] = useState<OilRecordEntryResponseDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     operationCode: '',
@@ -26,6 +29,37 @@ export const OilRecordPage: React.FC = () => {
     officerInCharge: ''
   });
 
+  const handleStartEdit = (entry: OilRecordEntryResponseDto) => {
+    // Parse itemNo from remarks or description
+    const itemNo = entry.remarks?.replace('Item No: ', '') || 
+                   entry.operationDescription?.match(/Item:\s*([^\s)]+)/)?.[1] || '';
+    setFormData({
+      operationCode: entry.operationCode || '',
+      itemNo: itemNo,
+      quantity: entry.quantity?.toString() || '',
+      tank: entry.tankFrom || '',
+      officerInCharge: entry.officerInCharge || ''
+    });
+    setEditingId(entry.id);
+    setStep(2); // Go directly to details page
+    setShowForm(true);
+  };
+
+  const handleSign = async (id: string) => {
+    try {
+      await logbookService.signOilEntry(id, {
+        signature: 'Chief Engineer Signature',
+        remarks: 'Signed',
+        signedAt: new Date().toISOString()
+      });
+      toast.success(t('logbooks.common.signSuccess'));
+      fetchEntries();
+    } catch (error) {
+      console.error(error);
+      toast.error(t('logbooks.common.signFailed'));
+    }
+  };
+
   const fetchEntries = async () => {
     try {
       setLoading(true);
@@ -33,7 +67,7 @@ export const OilRecordPage: React.FC = () => {
       setEntries(response.data);
     } catch (error) {
       console.error(error);
-      toast.error('Failed to load oil record entries');
+      toast.error(t('logbooks.oilRecord.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -60,12 +94,18 @@ export const OilRecordPage: React.FC = () => {
         remarks: `Item No: ${formData.itemNo}`
       };
 
-      await logbookService.createOilEntry(entry);
-      toast.success('Oil Record Entry Saved!');
+      if (editingId) {
+        await logbookService.updateOilEntry(editingId, entry);
+        toast.success(t('logbooks.oilRecord.entryUpdated') || 'Entry updated successfully');
+      } else {
+        await logbookService.createOilEntry(entry);
+        toast.success(t('logbooks.oilRecord.entrySaved'));
+      }
       fetchEntries();
       setShowForm(false);
       // Reset
       setStep(1);
+      setEditingId(null);
       setFormData({
         operationCode: '',
         itemNo: '',
@@ -75,19 +115,34 @@ export const OilRecordPage: React.FC = () => {
       });
     } catch (error) {
       console.error(error);
-      toast.error('Failed to save entry');
+      toast.error(t('logbooks.oilRecord.saveFailed'));
     }
   };
 
   return (
     <LogbookGrid 
-      title="Oil Record Book - Part I (Machinery Space)"
+      title={t('logbooks.oilRecord.partITitle')}
       actions={
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => {
+            if (showForm) {
+              setShowForm(false);
+              setStep(1);
+              setEditingId(null);
+              setFormData({
+                operationCode: '',
+                itemNo: '',
+                quantity: '',
+                tank: '',
+                officerInCharge: ''
+              });
+            } else {
+              setShowForm(true);
+            }
+          }}
           className="bg-blue-600 text-white font-semibold py-2.5 px-6 rounded-lg shadow-md hover:bg-blue-700 "
         >
-          {showForm ? 'Cancel' : '+ New Entry'}
+          {showForm ? t('common.cancel') : t('logbooks.oilRecord.newEntry')}
         </button>
       }
     >
@@ -113,7 +168,7 @@ export const OilRecordPage: React.FC = () => {
         {/* Step 1: Select Operation */}
         {step === 1 && (
           <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
-            <h2 className="text-blue-600 font-sans text-xl font-bold mb-4">Step 1: Select Operation</h2>
+            <h2 className="text-blue-600 font-sans text-xl font-bold mb-4">{t('logbooks.oilRecord.step1Title')}</h2>
             <div className="flex flex-col gap-2">
               {OPERATIONS.map(op => (
                 <button
@@ -135,39 +190,39 @@ export const OilRecordPage: React.FC = () => {
         {/* Step 2: Enter Details */}
         {step === 2 && (
           <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
-            <h2 className="text-blue-600 font-sans text-xl font-bold mb-4">Step 2: Enter Details (Code {formData.operationCode})</h2>
+            <h2 className="text-blue-600 font-sans text-xl font-bold mb-4">{t('logbooks.oilRecord.step2Title')} (Code {formData.operationCode})</h2>
             <div className="flex flex-col gap-4">
               <MaritimeInput 
-                label="Item No." 
+                label={t('logbooks.oilRecord.itemNo')} 
                 placeholder="e.g., 12.1"
                 value={formData.itemNo}
                 onChange={e => setFormData({ ...formData, itemNo: e.target.value })}
               />
               <MaritimeInput 
-                label="Quantity (m3)" 
+                label={t('logbooks.oilRecord.quantity')} 
                 type="number"
                 value={formData.quantity}
                 onChange={e => setFormData({ ...formData, quantity: e.target.value })}
               />
               <MaritimeInput 
-                label="Tank / Location" 
+                label={t('logbooks.oilRecord.tankLocation')} 
                 placeholder="e.g., Sludge Tank #1"
                 value={formData.tank}
                 onChange={e => setFormData({ ...formData, tank: e.target.value })}
               />
               <MaritimeInput 
-                label="Officer In Charge" 
+                label={t('logbooks.oilRecord.officerInCharge')} 
                 placeholder="Name / Rank"
                 value={formData.officerInCharge}
                 onChange={e => setFormData({ ...formData, officerInCharge: e.target.value })}
               />
               <div className="flex justify-between mt-4">
-                <button onClick={handleBack} className="text-gray-900 font-sans underline">Back</button>
+                <button onClick={handleBack} className="text-gray-900 font-sans underline">{t('common.back')}</button>
                 <button 
                   onClick={handleNext}
                   className="bg-blue-600 text-white font-semibold py-2.5 px-6 rounded-lg shadow-md hover:bg-blue-700"
                 >
-                  Next
+                  {t('common.next')}
                 </button>
               </div>
             </div>
@@ -177,33 +232,33 @@ export const OilRecordPage: React.FC = () => {
         {/* Step 3: Review & Sign */}
         {step === 3 && (
           <div className="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
-            <h2 className="text-blue-600 font-sans text-xl font-bold mb-4">Step 3: Review & Confirm</h2>
+            <h2 className="text-blue-600 font-sans text-xl font-bold mb-4">{t('logbooks.oilRecord.step3Title')}</h2>
             <div className="bg-gray-50/30 p-4 mb-6 border border-gray-200 font-sans text-sm">
               <div className="grid grid-cols-2 gap-2">
-                <span className="text-gray-400">Operation Code:</span>
+                <span className="text-gray-400">{t('logbooks.oilRecord.codeLabel')}:</span>
                 <span className="text-gray-900">{formData.operationCode}</span>
                 
-                <span className="text-gray-400">Item No:</span>
+                <span className="text-gray-400">{t('logbooks.oilRecord.itemNo')}:</span>
                 <span className="text-gray-900">{formData.itemNo}</span>
                 
-                <span className="text-gray-400">Quantity:</span>
+                <span className="text-gray-400">{t('logbooks.oilRecord.quantity')}:</span>
                 <span className="text-gray-900">{formData.quantity} m3</span>
                 
-                <span className="text-gray-400">Tank:</span>
+                <span className="text-gray-400">{t('logbooks.oilRecord.tankLocation')}:</span>
                 <span className="text-gray-900">{formData.tank}</span>
 
-                <span className="text-gray-400">Officer:</span>
+                <span className="text-gray-400">{t('logbooks.oilRecord.officerInCharge')}:</span>
                 <span className="text-gray-900">{formData.officerInCharge}</span>
               </div>
             </div>
             
             <div className="flex justify-between mt-4">
-              <button onClick={handleBack} className="text-gray-900 font-sans underline">Back</button>
+              <button onClick={handleBack} className="text-gray-900 font-sans underline">{t('common.back')}</button>
               <button 
                 onClick={handleSave}
                 className="bg-green-600 text-white font-semibold py-2.5 px-6 rounded-lg shadow-md hover:bg-green-700"
               >
-                CONFIRM & SAVE
+                {t('common.confirm')}
               </button>
             </div>
           </div>
@@ -216,27 +271,28 @@ export const OilRecordPage: React.FC = () => {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-gray-50 text-blue-600 font-sans text-sm font-semibold">
-              <th className="p-4 border-b border-gray-200">Date</th>
-              <th className="p-4 border-b border-gray-200">Code</th>
-              <th className="p-4 border-b border-gray-200">Operation</th>
-              <th className="p-4 border-b border-gray-200">Quantity</th>
-              <th className="p-4 border-b border-gray-200">Tank</th>
-              <th className="p-4 border-b border-gray-200">Officer</th>
-              <th className="p-4 border-b border-gray-200">Status</th>
+              <th className="p-4 border-b border-gray-200">{t('voyageLog.dateTime')}</th>
+              <th className="p-4 border-b border-gray-200">{t('logbooks.oilRecord.codeLabel')}</th>
+              <th className="p-4 border-b border-gray-200">{t('voyageLog.event')}</th>
+              <th className="p-4 border-b border-gray-200">{t('logbooks.oilRecord.quantity')}</th>
+              <th className="p-4 border-b border-gray-200">{t('logbooks.oilRecord.tankLocation')}</th>
+              <th className="p-4 border-b border-gray-200">{t('logbooks.oilRecord.officerInCharge')}</th>
+              <th className="p-4 border-b border-gray-200">{t('voyageLog.status')}</th>
+              <th className="p-4 border-b border-gray-200">{t('common.action') || 'Action'}</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={7} className="p-4 text-center text-green-600 font-sans">
-                  Loading...
+                <td colSpan={8} className="p-4 text-center text-green-600 font-sans">
+                  {t('common.loading')}
                 </td>
               </tr>
             )}
             {!loading && entries.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-4 text-center text-gray-500 font-sans">
-                  No oil record entries. Click "+ New Entry" to start logging.
+                <td colSpan={8} className="p-4 text-center text-gray-500 font-sans">
+                  {t('logbooks.oilRecord.noEntries')}
                 </td>
               </tr>
             )}
@@ -251,13 +307,33 @@ export const OilRecordPage: React.FC = () => {
                 <td className="p-4">
                   {entry.masterSignature ? (
                     <span className="bg-green-600 text-white text-xs px-2 py-1 font-sans font-bold">
-                      SIGNED
+                      {t('logbooks.deckLog.signed')}
                     </span>
                   ) : (
                     <span className="bg-yellow-600 text-black text-xs px-2 py-1 font-sans font-bold">
-                      DRAFT
+                      {t('voyageLog.draft')}
                     </span>
                   )}
+                </td>
+                <td className="p-4">
+                  <div className="flex gap-2">
+                    {!entry.masterSignature && (
+                      <>
+                        <button
+                          onClick={() => handleStartEdit(entry)}
+                          className="text-amber-600 hover:underline font-sans text-sm font-semibold"
+                        >
+                          {t('common.edit') || 'EDIT'}
+                        </button>
+                        <button
+                          onClick={() => handleSign(entry.id)}
+                          className="text-green-600 hover:underline font-sans text-sm font-semibold"
+                        >
+                          {t('common.sign') || 'SIGN'}
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

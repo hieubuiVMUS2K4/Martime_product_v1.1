@@ -311,13 +311,13 @@ export const VoyageLogPage: React.FC = () => {
                       label={t('voyageLog.form.latitude')}
                       type="latitude"
                       value={formData.latitude || 0}
-                      onChange={lat => setFormData({ ...formData, latitude: lat })}
+                      onChange={lat => setFormData(prev => ({ ...prev, latitude: lat }))}
                     />
                     <CoordinatePicker
                       label={t('voyageLog.form.longitude')}
                       type="longitude"
                       value={formData.longitude || 0}
-                      onChange={lon => setFormData({ ...formData, longitude: lon })}
+                      onChange={lon => setFormData(prev => ({ ...prev, longitude: lon }))}
                     />
                   </div>
                 </div>

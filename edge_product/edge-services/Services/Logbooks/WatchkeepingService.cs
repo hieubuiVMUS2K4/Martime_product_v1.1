@@ -35,7 +35,13 @@ namespace MaritimeEdge.Services.Logbooks
                     WatchPeriod = dto.WatchPeriod,
                     WatchType = dto.WatchType,
                     OfficerOnWatch = dto.OfficerOnWatch,
+                    ReliefOfficer = dto.ReliefOfficer,
                     Lookout = dto.Lookout,
+                    WorkHours = dto.WorkHours,
+                    RestHoursLast24h = dto.RestHoursLast24h,
+                    RestHoursLast7Days = dto.RestHoursLast7Days,
+                    RestHoursCompliant = dto.RestHoursCompliant,
+                    RestHoursException = dto.RestHoursException,
                     WeatherConditions = dto.WeatherConditions,
                     SeaState = dto.SeaState,
                     Visibility = dto.Visibility,
@@ -45,7 +51,23 @@ namespace MaritimeEdge.Services.Logbooks
                     PositionLon = dto.PositionLon,
                     DistanceRun = dto.DistanceRun,
                     EngineStatus = dto.EngineStatus,
+                    RadarOperational = dto.RadarOperational,
+                    ECDISOperational = dto.ECDISOperational,
+                    AISOperational = dto.AISOperational,
+                    GyroOperational = dto.GyroOperational,
+                    AutopilotEngaged = dto.AutopilotEngaged,
+                    EquipmentDefects = dto.EquipmentDefects,
+                    GMDSSWatchMaintained = dto.GMDSSWatchMaintained,
+                    NavigationWarningsReceived = dto.NavigationWarningsReceived,
                     NotableEvents = dto.NotableEvents,
+                    HandoverNotes = dto.HandoverNotes,
+                    HandoverChecklistCompleted = dto.HandoverChecklistCompleted,
+                    WatchStartTime = dto.WatchStartTime,
+                    WatchEndTime = dto.WatchEndTime,
+                    BridgeManningLevel = dto.BridgeManningLevel,
+                    LookoutPosted = dto.LookoutPosted,
+                    FatigueRiskLevel = dto.FatigueRiskLevel,
+                    FatigueAssessmentDone = dto.FatigueAssessmentDone,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow,
                     OriginNode = Environment.MachineName,
@@ -144,7 +166,13 @@ namespace MaritimeEdge.Services.Logbooks
                         WatchPeriod = x.WatchPeriod,
                         WatchType = x.WatchType,
                         OfficerOnWatch = x.OfficerOnWatch,
+                        ReliefOfficer = x.ReliefOfficer,
                         Lookout = x.Lookout,
+                        WorkHours = x.WorkHours,
+                        RestHoursLast24h = x.RestHoursLast24h,
+                        RestHoursLast7Days = x.RestHoursLast7Days,
+                        RestHoursCompliant = x.RestHoursCompliant,
+                        RestHoursException = x.RestHoursException,
                         WeatherConditions = x.WeatherConditions,
                         SeaState = x.SeaState,
                         Visibility = x.Visibility,
@@ -154,8 +182,25 @@ namespace MaritimeEdge.Services.Logbooks
                         PositionLon = x.PositionLon,
                         DistanceRun = x.DistanceRun,
                         EngineStatus = x.EngineStatus,
+                        RadarOperational = x.RadarOperational,
+                        ECDISOperational = x.ECDISOperational,
+                        AISOperational = x.AISOperational,
+                        GyroOperational = x.GyroOperational,
+                        AutopilotEngaged = x.AutopilotEngaged,
+                        EquipmentDefects = x.EquipmentDefects,
+                        GMDSSWatchMaintained = x.GMDSSWatchMaintained,
+                        NavigationWarningsReceived = x.NavigationWarningsReceived,
                         NotableEvents = x.NotableEvents,
+                        HandoverNotes = x.HandoverNotes,
+                        HandoverChecklistCompleted = x.HandoverChecklistCompleted,
+                        WatchStartTime = x.WatchStartTime,
+                        WatchEndTime = x.WatchEndTime,
+                        BridgeManningLevel = x.BridgeManningLevel,
+                        LookoutPosted = x.LookoutPosted,
+                        FatigueRiskLevel = x.FatigueRiskLevel,
+                        FatigueAssessmentDone = x.FatigueAssessmentDone,
                         MasterSignature = x.MasterSignature,
+                        SignedAt = x.SignedAt,
                         IsSynced = x.IsSynced,
                         CreatedAt = x.CreatedAt,
                         UpdatedAt = x.UpdatedAt,
@@ -197,7 +242,13 @@ namespace MaritimeEdge.Services.Logbooks
                     WatchPeriod = entry.WatchPeriod,
                     WatchType = entry.WatchType,
                     OfficerOnWatch = entry.OfficerOnWatch,
+                    ReliefOfficer = entry.ReliefOfficer,
                     Lookout = entry.Lookout,
+                    WorkHours = entry.WorkHours,
+                    RestHoursLast24h = entry.RestHoursLast24h,
+                    RestHoursLast7Days = entry.RestHoursLast7Days,
+                    RestHoursCompliant = entry.RestHoursCompliant,
+                    RestHoursException = entry.RestHoursException,
                     WeatherConditions = entry.WeatherConditions,
                     SeaState = entry.SeaState,
                     Visibility = entry.Visibility,
@@ -207,8 +258,25 @@ namespace MaritimeEdge.Services.Logbooks
                     PositionLon = entry.PositionLon,
                     DistanceRun = entry.DistanceRun,
                     EngineStatus = entry.EngineStatus,
+                    RadarOperational = entry.RadarOperational,
+                    ECDISOperational = entry.ECDISOperational,
+                    AISOperational = entry.AISOperational,
+                    GyroOperational = entry.GyroOperational,
+                    AutopilotEngaged = entry.AutopilotEngaged,
+                    EquipmentDefects = entry.EquipmentDefects,
+                    GMDSSWatchMaintained = entry.GMDSSWatchMaintained,
+                    NavigationWarningsReceived = entry.NavigationWarningsReceived,
                     NotableEvents = entry.NotableEvents,
+                    HandoverNotes = entry.HandoverNotes,
+                    HandoverChecklistCompleted = entry.HandoverChecklistCompleted,
+                    WatchStartTime = entry.WatchStartTime,
+                    WatchEndTime = entry.WatchEndTime,
+                    BridgeManningLevel = entry.BridgeManningLevel,
+                    LookoutPosted = entry.LookoutPosted,
+                    FatigueRiskLevel = entry.FatigueRiskLevel,
+                    FatigueAssessmentDone = entry.FatigueAssessmentDone,
                     MasterSignature = entry.MasterSignature,
+                    SignedAt = entry.SignedAt,
                     IsSynced = entry.IsSynced,
                     CreatedAt = entry.CreatedAt,
                     UpdatedAt = entry.UpdatedAt,
@@ -269,18 +337,40 @@ namespace MaritimeEdge.Services.Logbooks
                 entry.WatchType = dto.WatchType;
                 entry.OfficerOnWatch = dto.OfficerOnWatch;
 
-                // Nullable fields - only update if provided
-                if (dto.Lookout != null) entry.Lookout = dto.Lookout;
-                if (dto.WeatherConditions != null) entry.WeatherConditions = dto.WeatherConditions;
-                if (dto.SeaState != null) entry.SeaState = dto.SeaState;
-                if (dto.Visibility != null) entry.Visibility = dto.Visibility;
-                if (dto.CourseLogged.HasValue) entry.CourseLogged = dto.CourseLogged;
-                if (dto.SpeedLogged.HasValue) entry.SpeedLogged = dto.SpeedLogged;
-                if (dto.PositionLat.HasValue) entry.PositionLat = dto.PositionLat;
-                if (dto.PositionLon.HasValue) entry.PositionLon = dto.PositionLon;
-                if (dto.DistanceRun.HasValue) entry.DistanceRun = dto.DistanceRun;
-                if (dto.EngineStatus != null) entry.EngineStatus = dto.EngineStatus;
-                if (dto.NotableEvents != null) entry.NotableEvents = dto.NotableEvents;
+                // All fields
+                entry.ReliefOfficer = dto.ReliefOfficer;
+                entry.Lookout = dto.Lookout;
+                entry.WorkHours = dto.WorkHours;
+                entry.RestHoursLast24h = dto.RestHoursLast24h;
+                entry.RestHoursLast7Days = dto.RestHoursLast7Days;
+                entry.RestHoursCompliant = dto.RestHoursCompliant;
+                entry.RestHoursException = dto.RestHoursException;
+                entry.WeatherConditions = dto.WeatherConditions;
+                entry.SeaState = dto.SeaState;
+                entry.Visibility = dto.Visibility;
+                entry.CourseLogged = dto.CourseLogged;
+                entry.SpeedLogged = dto.SpeedLogged;
+                entry.PositionLat = dto.PositionLat;
+                entry.PositionLon = dto.PositionLon;
+                entry.DistanceRun = dto.DistanceRun;
+                entry.EngineStatus = dto.EngineStatus;
+                entry.RadarOperational = dto.RadarOperational;
+                entry.ECDISOperational = dto.ECDISOperational;
+                entry.AISOperational = dto.AISOperational;
+                entry.GyroOperational = dto.GyroOperational;
+                entry.AutopilotEngaged = dto.AutopilotEngaged;
+                entry.EquipmentDefects = dto.EquipmentDefects;
+                entry.GMDSSWatchMaintained = dto.GMDSSWatchMaintained;
+                entry.NavigationWarningsReceived = dto.NavigationWarningsReceived;
+                entry.NotableEvents = dto.NotableEvents;
+                entry.HandoverNotes = dto.HandoverNotes;
+                entry.HandoverChecklistCompleted = dto.HandoverChecklistCompleted;
+                entry.WatchStartTime = dto.WatchStartTime;
+                entry.WatchEndTime = dto.WatchEndTime;
+                entry.BridgeManningLevel = dto.BridgeManningLevel;
+                entry.LookoutPosted = dto.LookoutPosted;
+                entry.FatigueRiskLevel = dto.FatigueRiskLevel;
+                entry.FatigueAssessmentDone = dto.FatigueAssessmentDone;
                 
                 entry.UpdatedAt = DateTime.UtcNow;
                 entry.IsSynced = false;

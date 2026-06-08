@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LogbookGrid } from '../../components/common/LogbookGrid';
 import { MaritimeInput } from '../../components/common/MaritimeInput';
-import { SignaturePad } from '../../components/common/SignaturePad';
 import { logbookService } from '../../services/logbook.service';
 import { DeckLogEntryResponseDto, CreateDeckLogEntryDto } from '../../types/logbook.types';
 import { toast } from 'sonner';
@@ -11,6 +10,7 @@ export const DeckLogPage: React.FC = () => {
   const { t } = useTranslationSafe();
   const [entries, setEntries] = useState<DeckLogEntryResponseDto[]>([]);
   const [loading, setLoading] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<CreateDeckLogEntryDto>({
     logDateTime: new Date().toISOString().slice(0, 16),
     watchPeriod: '00-04',
@@ -23,6 +23,40 @@ export const DeckLogPage: React.FC = () => {
     speedOverGround: 0,
     remarks: ''
   });
+
+  const resetForm = () => {
+    setFormData({
+      logDateTime: new Date().toISOString().slice(0, 16),
+      watchPeriod: '00-04',
+      officerOnWatch: '',
+      entryType: 'ROUTINE',
+      description: '',
+      latitude: 0,
+      longitude: 0,
+      courseOverGround: 0,
+      speedOverGround: 0,
+      remarks: ''
+    });
+    setEditingId(null);
+  };
+
+  const handleStartEdit = (entry: DeckLogEntryResponseDto) => {
+    setEditingId(entry.id);
+    setFormData({
+      logDateTime: entry.logDateTime ? new Date(entry.logDateTime).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
+      watchPeriod: entry.watchPeriod || '00-04',
+      officerOnWatch: entry.officerOnWatch || '',
+      entryType: entry.entryType || 'ROUTINE',
+      description: entry.description || '',
+      latitude: entry.latitude ?? 0,
+      longitude: entry.longitude ?? 0,
+      courseOverGround: entry.courseOverGround ?? 0,
+      speedOverGround: entry.speedOverGround ?? 0,
+      remarks: entry.remarks || ''
+    });
+    // Scroll to form if needed
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const fetchEntries = async () => {
     try {
@@ -51,21 +85,22 @@ export const DeckLogPage: React.FC = () => {
 
   const handleSubmit = async () => {
     try {
-      await logbookService.createDeckEntry({
+      const payload = {
         ...formData,
         logDateTime: new Date(formData.logDateTime).toISOString()
-      });
-      toast.success(t('logbooks.deckLog.entryAdded'));
+      };
+      if (editingId) {
+        await logbookService.updateDeckEntry(editingId, payload);
+        toast.success(t('logbooks.deckLog.entryUpdated') || 'Entry updated successfully');
+      } else {
+        await logbookService.createDeckEntry(payload);
+        toast.success(t('logbooks.deckLog.entryAdded'));
+      }
       fetchEntries();
-      setFormData(prev => ({
-        ...prev,
-        logDateTime: new Date().toISOString().slice(0, 16),
-        description: '',
-        remarks: ''
-      }));
+      resetForm();
     } catch (error) {
       console.error(error);
-      toast.error(t('logbooks.deckLog.createFailed'));
+      toast.error(editingId ? 'Failed to update entry' : t('logbooks.deckLog.createFailed'));
     }
   };
 
@@ -88,7 +123,9 @@ export const DeckLogPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Input Form */}
         <div className="lg:col-span-1 bg-white dark:bg-gray-800 p-6 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{t('logbooks.deckLog.newEntry')}</h2>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+            {editingId ? (t('logbooks.deckLog.editEntry') || 'Edit Entry') : t('logbooks.deckLog.newEntry')}
+          </h2>
           <div className="flex flex-col gap-4">
             <MaritimeInput 
               label={t('logbooks.deckLog.dateTimeUtc')} 
@@ -156,12 +193,22 @@ export const DeckLogPage: React.FC = () => {
               value={formData.description}
               onChange={handleInputChange}
             />
-            <button 
-              onClick={handleSubmit}
-              className="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              {t('logbooks.deckLog.addEntry')}
-            </button>
+            <div className="flex gap-2 w-full">
+              {editingId && (
+                <button
+                  onClick={resetForm}
+                  className="flex-1 bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors"
+                >
+                  {t('common.cancel') || 'Cancel'}
+                </button>
+              )}
+              <button 
+                onClick={handleSubmit}
+                className="flex-1 bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                {editingId ? (t('logbooks.deckLog.updateEntry') || 'Update Entry') : t('logbooks.deckLog.addEntry')}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -192,8 +239,42 @@ export const DeckLogPage: React.FC = () => {
               <p className="text-gray-900 dark:text-white mt-2 border-t border-gray-200 dark:border-gray-700 pt-2">{entry.description}</p>
               
               {!entry.masterSignature && (
-                <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
-                  <SignaturePad onSign={(sig) => handleSign(entry.id, sig)} label={t('logbooks.deckLog.sign')} />
+                <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4 flex flex-col gap-3 max-w-md">
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1">
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">
+                        {t('logbooks.deckLog.sign')}
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Enter master's name"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        id={`sig-input-${entry.id}`}
+                      />
+                    </div>
+                    <button
+                      onClick={() => {
+                        const input = document.getElementById(`sig-input-${entry.id}`) as HTMLInputElement;
+                        const sigVal = input?.value || '';
+                        if (!sigVal.trim()) {
+                          toast.error("Master signature is required");
+                          return;
+                        }
+                        handleSign(entry.id, sigVal.trim());
+                      }}
+                      className="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Sign
+                    </button>
+                  </div>
+                  <div>
+                    <button
+                      onClick={() => handleStartEdit(entry)}
+                      className="text-amber-600 dark:text-amber-400 hover:underline text-sm font-semibold flex items-center gap-1"
+                    >
+                      ✏️ {t('common.edit') || 'Edit Entry'}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

@@ -1519,9 +1519,6 @@ public class VoyageManagementService : IVoyageManagementService
     {
         if (VoyageStatus.ReadOnlyStatuses.Contains(voyage.VoyageStatus))
             throw new InvalidOperationException($"Cannot {operation} port calls on a {voyage.VoyageStatus} voyage.");
-        
-        if (VoyageStatus.LimitedEditStatuses.Contains(voyage.VoyageStatus))
-            throw new InvalidOperationException($"Cannot {operation} port calls while voyage is UNDERWAY.");
     }
 
     /// <summary>

@@ -5,6 +5,7 @@ import { CoordinatePicker } from '../../components/common/CoordinatePicker';
 import { toast } from 'sonner';
 import { logbookService } from '../../services/logbook.service';
 import type { WatchkeepingLogResponseDto } from '../../types/logbook.types';
+import { useTranslationSafe } from '@/contexts/I18nContext';
 
 // Watch periods (4-hour watches)
 const WATCH_PERIODS = [
@@ -48,11 +49,118 @@ const FATIGUE_LEVELS = [
 ];
 
 export const WatchkeepingPage: React.FC = () => {
+  const { locale, t } = useTranslationSafe();
+  const isVi = locale === 'vi';
+
+  const translatedWatchPeriods = WATCH_PERIODS.map(wp => {
+    let name = wp.name;
+    if (isVi) {
+      if (wp.code === '00-04') name = '00:00 - 04:00 (Middle Watch - Giữa ca)';
+      else if (wp.code === '04-08') name = '04:00 - 08:00 (Morning Watch - Sáng)';
+      else if (wp.code === '08-12') name = '08:00 - 12:00 (Forenoon Watch - Trưa)';
+      else if (wp.code === '12-16') name = '12:00 - 16:00 (Afternoon Watch - Chiều)';
+      else if (wp.code === '16-20') name = '16:00 - 20:00 (Dog Watches - Ca gãy)';
+      else if (wp.code === '20-24') name = '20:00 - 24:00 (First Watch - Tối)';
+    }
+    return { ...wp, name };
+  });
+
+  const translatedWatchTypes = WATCH_TYPES.map(wt => {
+    let label = wt.label;
+    if (isVi) {
+      if (wt.value === 'NAVIGATION') label = 'Ca trực Boong (Buồng lái)';
+      else if (wt.value === 'ENGINE') label = 'Ca trực Máy (Buồng máy)';
+    }
+    return { ...wt, label };
+  });
+
+  const translatedSeaStates = SEA_STATES.map(ss => {
+    let label = ss.label;
+    if (isVi) {
+      if (ss.value === 'Calm') label = '0 - Biển lặng (Kính)';
+      else if (ss.value === 'Smooth') label = '1 - Sóng nhỏ';
+      else if (ss.value === 'Slight') label = '2 - Sóng nhẹ';
+      else if (ss.value === 'Moderate') label = '3 - Sóng vừa';
+      else if (ss.value === 'Rough') label = '4 - Biển động';
+      else if (ss.value === 'Very Rough') label = '5 - Biển động mạnh';
+      else if (ss.value === 'High') label = '6 - Sóng cao';
+      else if (ss.value === 'Very High') label = '7 - Sóng rất cao';
+      else if (ss.value === 'Phenomenal') label = '8 - Sóng dữ dội';
+    }
+    return { ...ss, label };
+  });
+
+  const translatedVisibility = VISIBILITY_CONDITIONS.map(vc => {
+    let label = vc.label;
+    if (isVi) {
+      if (vc.value === 'Good') label = 'Tốt (>5 hải lý)';
+      else if (vc.value === 'Moderate') label = 'Trung bình (2-5 hải lý)';
+      else if (vc.value === 'Poor') label = 'Kém (0.5-2 hải lý)';
+      else if (vc.value === 'Fog') label = 'Sương mù (<0.5 hải lý)';
+    }
+    return { ...vc, label };
+  });
+
+  const translatedFatigue = FATIGUE_LEVELS.map(fl => {
+    let label = fl.label;
+    if (isVi) {
+      if (fl.value === 'LOW') label = '🟢 Nguy cơ thấp';
+      else if (fl.value === 'MEDIUM') label = '🟡 Nguy cơ trung bình';
+      else if (fl.value === 'HIGH') label = '🔴 Nguy cơ cao';
+    }
+    return { ...fl, label };
+  });
+
   const [entries, setEntries] = useState<WatchkeepingLogResponseDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<WatchkeepingLogResponseDto | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+
+  const handleStartEdit = (entry: WatchkeepingLogResponseDto) => {
+    setEditingId(entry.id);
+    setFormData({
+      watchDate: entry.watchDate ? entry.watchDate.slice(0, 10) : new Date().toISOString().slice(0, 10),
+      watchPeriod: entry.watchPeriod || '08-12',
+      watchType: entry.watchType || 'NAVIGATION',
+      officerOnWatch: entry.officerOnWatch || '',
+      reliefOfficer: entry.reliefOfficer || '',
+      lookout: entry.lookout || '',
+      workHours: entry.workHours ?? 4,
+      restHoursLast24h: entry.restHoursLast24h ?? 10,
+      restHoursLast7Days: entry.restHoursLast7Days ?? 77,
+      restHoursCompliant: entry.restHoursCompliant ?? true,
+      restHoursException: entry.restHoursException || '',
+      weatherConditions: entry.weatherConditions || '',
+      seaState: entry.seaState || 'Moderate',
+      visibility: entry.visibility || 'Good',
+      courseLogged: entry.courseLogged ?? 0,
+      speedLogged: entry.speedLogged ?? 0,
+      positionLat: entry.positionLat ?? 0,
+      positionLon: entry.positionLon ?? 0,
+      distanceRun: entry.distanceRun ?? 0,
+      engineStatus: entry.engineStatus || '',
+      radarOperational: entry.radarOperational ?? true,
+      ecdisOperational: entry.ecdisOperational ?? true,
+      aisOperational: entry.aisOperational ?? true,
+      gyroOperational: entry.gyroOperational ?? true,
+      autopilotEngaged: entry.autopilotEngaged ?? false,
+      equipmentDefects: entry.equipmentDefects || '',
+      gmdssWatchMaintained: entry.gmdssWatchMaintained ?? true,
+      navigationWarningsReceived: entry.navigationWarningsReceived || '',
+      notableEvents: entry.notableEvents || '',
+      handoverNotes: entry.handoverNotes || '',
+      handoverChecklistCompleted: entry.handoverChecklistCompleted ?? false,
+      watchStartTime: entry.watchStartTime || '',
+      watchEndTime: entry.watchEndTime || '',
+      bridgeManningLevel: entry.bridgeManningLevel ?? 2,
+      lookoutPosted: entry.lookoutPosted ?? true,
+      fatigueRiskLevel: entry.fatigueRiskLevel || 'LOW',
+      fatigueAssessmentDone: entry.fatigueAssessmentDone ?? false,
+    });
+    setShowForm(true);
+  };
   const [formData, setFormData] = useState({
     watchDate: new Date().toISOString().slice(0, 10),
     watchPeriod: '08-12',
@@ -117,7 +225,7 @@ export const WatchkeepingPage: React.FC = () => {
       setEntries(response.data);
     } catch (error) {
       console.error(error);
-      toast.error('Failed to load watchkeeping entries');
+      toast.error(t('logbooks.watchkeeping.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -180,30 +288,41 @@ export const WatchkeepingPage: React.FC = () => {
       fatigueRiskLevel: 'LOW' as 'LOW' | 'MEDIUM' | 'HIGH',
       fatigueAssessmentDone: false,
     });
+    setEditingId(null);
   };
 
   const handleSubmit = async () => {
     // Validation
     if (!formData.officerOnWatch) {
-      toast.error('Officer on Watch is required');
+      toast.error(t('logbooks.watchkeeping.officerRequired'));
       return;
     }
 
     // STCW compliance warning
     if (!formData.restHoursCompliant && !formData.restHoursException) {
-      toast.error('Rest hours non-compliant! Exception reason is required (STCW A-VIII/1)');
+      toast.error(t('logbooks.watchkeeping.restHoursNonCompliant'));
       return;
     }
 
     try {
-      await logbookService.createWatchkeepingEntry(formData);
-      toast.success('Watchkeeping entry added successfully');
+      const payload = {
+        ...formData,
+        watchStartTime: formData.watchStartTime || undefined,
+        watchEndTime: formData.watchEndTime || undefined,
+      };
+      if (editingId) {
+        await logbookService.updateWatchkeepingEntry(editingId, payload);
+        toast.success(t('logbooks.watchkeeping.entryUpdated') || 'Watch entry updated successfully');
+      } else {
+        await logbookService.createWatchkeepingEntry(payload);
+        toast.success(t('logbooks.watchkeeping.entryAdded'));
+      }
       fetchEntries();
       setShowForm(false);
       resetForm();
     } catch (error) {
       console.error(error);
-      toast.error('Failed to create entry');
+      toast.error(editingId ? 'Failed to update watch entry' : t('logbooks.watchkeeping.createFailed'));
     }
   };
 
@@ -213,11 +332,11 @@ export const WatchkeepingPage: React.FC = () => {
         signature, 
         signedAt: new Date().toISOString() 
       });
-      toast.success('Entry signed by Master');
+      toast.success(t('logbooks.watchkeeping.entrySignedByMaster'));
       fetchEntries();
     } catch (error) {
       console.error(error);
-      toast.error('Failed to sign entry');
+      toast.error(t('logbooks.watchkeeping.signFailed'));
     }
   };
 
@@ -244,9 +363,9 @@ export const WatchkeepingPage: React.FC = () => {
           <div className="bg-blue-600 text-white p-6 rounded-t-xl">
             <div className="flex justify-between items-start">
               <div>
-                <h2 className="text-2xl font-bold">Watchkeeping Log Detail</h2>
+                <h2 className="text-2xl font-bold">{t('logbooks.watchkeeping.watchkeepingDetails')}</h2>
                 <p className="text-blue-100 mt-1">
-                  {new Date(entry.watchDate).toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                  {new Date(entry.watchDate).toLocaleDateString(isVi ? 'vi-VN' : 'en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                 </p>
               </div>
               <button
@@ -260,15 +379,17 @@ export const WatchkeepingPage: React.FC = () => {
             </div>
             <div className="flex gap-3 mt-4">
               <span className={`px-3 py-1 rounded-full text-sm font-medium ${entry.watchType === 'NAVIGATION' ? 'bg-blue-500' : 'bg-orange-500'}`}>
-                {entry.watchType === 'NAVIGATION' ? '🧭 Navigation Watch' : '⚙️ Engine Watch'}
+                {entry.watchType === 'NAVIGATION' 
+                  ? `🧭 ${t('logbooks.watchkeeping.navigationWatch')}` 
+                  : `⚙️ ${t('logbooks.watchkeeping.engineWatch')}`}
               </span>
               <span className="px-3 py-1 bg-blue-500 rounded-full text-sm font-medium">
                 ⏰ {entry.watchPeriod}
               </span>
               {entry.masterSignature ? (
-                <span className="px-3 py-1 bg-green-500 rounded-full text-sm font-medium">✓ Signed</span>
+                <span className="px-3 py-1 bg-green-500 rounded-full text-sm font-medium">✓ {t('logbooks.watchkeeping.signed')}</span>
               ) : (
-                <span className="px-3 py-1 bg-yellow-500 text-black rounded-full text-sm font-medium">Draft</span>
+                <span className="px-3 py-1 bg-yellow-500 text-black rounded-full text-sm font-medium">{t('logbooks.abstractLog.draft')}</span>
               )}
             </div>
           </div>
@@ -278,42 +399,44 @@ export const WatchkeepingPage: React.FC = () => {
             {/* Basic Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
-                <h3 className="font-semibold text-gray-900 border-b pb-2">👤 Watch Personnel</h3>
+                <h3 className="font-semibold text-gray-900 border-b pb-2">👤 {t('logbooks.watchkeeping.watchPersonnel')}</h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="text-gray-500">Officer on Watch:</span>
+                    <span className="text-gray-500">{t('logbooks.watchkeeping.officerOnWatch')}:</span>
                     <p className="font-medium text-gray-900">{entry.officerOnWatch}</p>
                   </div>
                   <div>
-                    <span className="text-gray-500">Relief Officer:</span>
+                    <span className="text-gray-500">{t('logbooks.watchkeeping.reliefOfficer')}:</span>
                     <p className="font-medium text-gray-900">{entry.reliefOfficer || '-'}</p>
                   </div>
                   <div>
-                    <span className="text-gray-500">Lookout:</span>
+                    <span className="text-gray-500">{t('logbooks.watchkeeping.lookout')}:</span>
                     <p className="font-medium text-gray-900">{entry.lookout || '-'}</p>
                   </div>
                   <div>
-                    <span className="text-gray-500">Bridge Manning:</span>
-                    <p className="font-medium text-gray-900">{entry.bridgeManningLevel || 2} persons</p>
+                    <span className="text-gray-500">{t('logbooks.watchkeeping.bridgeManning')}</span>
+                    <p className="font-medium text-gray-900">
+                      {entry.bridgeManningLevel || 2} {t('logbooks.watchkeeping.persons')}
+                    </p>
                   </div>
                 </div>
               </div>
 
               <div className="space-y-4">
-                <h3 className="font-semibold text-gray-900 border-b pb-2">🧭 Navigation</h3>
+                <h3 className="font-semibold text-gray-900 border-b pb-2">🧭 {t('logbooks.watchkeeping.navigationSection')}</h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="text-gray-500">Position:</span>
+                    <span className="text-gray-500">{t('logbooks.watchkeeping.position')}</span>
                     <p className="font-medium text-gray-900">
                       {entry.positionLat?.toFixed(4)}°, {entry.positionLon?.toFixed(4)}°
                     </p>
                   </div>
                   <div>
-                    <span className="text-gray-500">Course/Speed:</span>
+                    <span className="text-gray-500">{t('logbooks.watchkeeping.courseSpeed')}</span>
                     <p className="font-medium text-gray-900">{entry.courseLogged}° / {entry.speedLogged} kts</p>
                   </div>
                   <div>
-                    <span className="text-gray-500">Distance Run:</span>
+                    <span className="text-gray-500">{t('logbooks.watchkeeping.distanceRun')}:</span>
                     <p className="font-medium text-gray-900">{entry.distanceRun || 0} NM</p>
                   </div>
                 </div>
@@ -322,18 +445,22 @@ export const WatchkeepingPage: React.FC = () => {
 
             {/* Weather */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-gray-900 border-b pb-2">🌤️ Weather & Sea Conditions</h3>
+              <h3 className="font-semibold text-gray-900 border-b pb-2">🌤️ {t('logbooks.watchkeeping.weatherAndSea')}</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
-                  <span className="text-gray-500">Sea State:</span>
-                  <p className="font-medium text-gray-900">{entry.seaState || '-'}</p>
+                  <span className="text-gray-500">{t('logbooks.watchkeeping.seaState')}:</span>
+                  <p className="font-medium text-gray-900">
+                    {translatedSeaStates.find(s => s.value === entry.seaState)?.label || entry.seaState || '-'}
+                  </p>
                 </div>
                 <div>
-                  <span className="text-gray-500">Visibility:</span>
-                  <p className="font-medium text-gray-900">{entry.visibility || '-'}</p>
+                  <span className="text-gray-500">{t('logbooks.watchkeeping.visibility')}:</span>
+                  <p className="font-medium text-gray-900">
+                    {translatedVisibility.find(v => v.value === entry.visibility)?.label || entry.visibility || '-'}
+                  </p>
                 </div>
                 <div className="col-span-2">
-                  <span className="text-gray-500">Weather Conditions:</span>
+                  <span className="text-gray-500">{t('logbooks.watchkeeping.weatherConditions')}:</span>
                   <p className="font-medium text-gray-900">{entry.weatherConditions || '-'}</p>
                 </div>
               </div>
@@ -342,35 +469,35 @@ export const WatchkeepingPage: React.FC = () => {
             {/* STCW Rest Hours */}
             <div className={`p-4 rounded-lg ${entry.restHoursCompliant !== false ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
               <h3 className="font-semibold text-gray-900 border-b pb-2 mb-4">
-                ⚠️ STCW Rest Hours Compliance
+                ⚠️ {t('logbooks.watchkeeping.restHoursCompliant')}
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
-                  <span className="text-gray-500">Work Hours:</span>
+                  <span className="text-gray-500">{t('logbooks.watchkeeping.workHours')}:</span>
                   <p className="font-medium text-gray-900">{entry.workHours || 4}h</p>
                 </div>
                 <div>
-                  <span className="text-gray-500">Rest (24h):</span>
+                  <span className="text-gray-500">{t('logbooks.watchkeeping.restLast24hLabel')}</span>
                   <p className={`font-medium ${(entry.restHoursLast24h || 0) >= 10 ? 'text-green-600' : 'text-red-600'}`}>
                     {entry.restHoursLast24h || 0}h (min 10h)
                   </p>
                 </div>
                 <div>
-                  <span className="text-gray-500">Rest (7 days):</span>
+                  <span className="text-gray-500">{t('logbooks.watchkeeping.restLast7DaysLabel')}</span>
                   <p className={`font-medium ${(entry.restHoursLast7Days || 0) >= 77 ? 'text-green-600' : 'text-red-600'}`}>
                     {entry.restHoursLast7Days || 0}h (min 77h)
                   </p>
                 </div>
                 <div>
-                  <span className="text-gray-500">Status:</span>
+                  <span className="text-gray-500">{t('logbooks.watchkeeping.statusLabel')}</span>
                   <p className={`font-bold ${entry.restHoursCompliant !== false ? 'text-green-600' : 'text-red-600'}`}>
-                    {entry.restHoursCompliant !== false ? '✓ COMPLIANT' : '✗ EXCEPTION'}
+                    {entry.restHoursCompliant !== false ? t('logbooks.watchkeeping.compliantStatus') : t('logbooks.watchkeeping.exceptionStatus')}
                   </p>
                 </div>
               </div>
               {entry.restHoursException && (
                 <div className="mt-3 p-3 bg-red-100 rounded text-sm">
-                  <span className="text-red-700 font-medium">Exception Reason: </span>
+                  <span className="text-red-700 font-medium">{t('logbooks.watchkeeping.restHoursException')}: </span>
                   <span className="text-red-600">{entry.restHoursException}</span>
                 </div>
               )}
@@ -378,7 +505,7 @@ export const WatchkeepingPage: React.FC = () => {
 
             {/* Bridge Equipment */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-gray-900 border-b pb-2">🖥️ Bridge Equipment Status</h3>
+              <h3 className="font-semibold text-gray-900 border-b pb-2">🖥️ {t('logbooks.watchkeeping.bridgeEquipment')}</h3>
               <div className="flex flex-wrap gap-3">
                 <span className={`px-3 py-1 rounded-full text-sm ${entry.radarOperational !== false ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                   {entry.radarOperational !== false ? '✓' : '✗'} Radar
@@ -393,12 +520,12 @@ export const WatchkeepingPage: React.FC = () => {
                   {entry.gyroOperational !== false ? '✓' : '✗'} Gyro
                 </span>
                 <span className={`px-3 py-1 rounded-full text-sm ${entry.autopilotEngaged ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600'}`}>
-                  {entry.autopilotEngaged ? '⚡ Autopilot ON' : 'Autopilot OFF'}
+                  {entry.autopilotEngaged ? `⚡ ${t('logbooks.watchkeeping.autopilotOn')}` : t('logbooks.watchkeeping.autopilotOff')}
                 </span>
               </div>
               {entry.equipmentDefects && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded text-sm">
-                  <span className="text-red-700 font-medium">Equipment Defects: </span>
+                  <span className="text-red-700 font-medium">{t('logbooks.watchkeeping.equipmentDefects')}: </span>
                   <span className="text-red-600">{entry.equipmentDefects}</span>
                 </div>
               )}
@@ -407,34 +534,42 @@ export const WatchkeepingPage: React.FC = () => {
             {/* GMDSS & Fatigue */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
-                <h3 className="font-semibold text-gray-900 border-b pb-2">📡 GMDSS Watch</h3>
+                <h3 className="font-semibold text-gray-900 border-b pb-2">📡 {t('logbooks.watchkeeping.gmdssWatch')}</h3>
                 <div className="text-sm">
                   <p className={`font-medium ${entry.gmdssWatchMaintained !== false ? 'text-green-600' : 'text-red-600'}`}>
-                    {entry.gmdssWatchMaintained !== false ? '✓ GMDSS Watch Maintained' : '✗ GMDSS Watch NOT Maintained'}
+                    {entry.gmdssWatchMaintained !== false 
+                      ? t('logbooks.watchkeeping.gmdssWatchMaintainedText') 
+                      : t('logbooks.watchkeeping.gmdssWatchNotMaintained')}
                   </p>
                   {entry.navigationWarningsReceived && (
                     <p className="mt-2 text-gray-600">
-                      <span className="font-medium">Warnings Received:</span> {entry.navigationWarningsReceived}
+                      <span className="font-medium">{t('logbooks.watchkeeping.navigationWarningsReceived')}:</span> {entry.navigationWarningsReceived}
                     </p>
                   )}
                 </div>
               </div>
 
               <div className="space-y-4">
-                <h3 className="font-semibold text-gray-900 border-b pb-2">😴 Fatigue Assessment</h3>
+                <h3 className="font-semibold text-gray-900 border-b pb-2">😴 {t('logbooks.watchkeeping.fatigueAssessment')}</h3>
                 <div className="text-sm">
                   <p className="font-medium">
-                    Risk Level: 
+                    {t('logbooks.watchkeeping.riskLevel')} 
                     <span className={`ml-2 px-2 py-1 rounded ${
                       entry.fatigueRiskLevel === 'LOW' ? 'bg-green-100 text-green-700' :
                       entry.fatigueRiskLevel === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
                       entry.fatigueRiskLevel === 'HIGH' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'
                     }`}>
-                      {entry.fatigueRiskLevel || 'Not Assessed'}
+                      {entry.fatigueRiskLevel 
+                        ? (isVi 
+                            ? (entry.fatigueRiskLevel === 'LOW' ? 'Thấp' : entry.fatigueRiskLevel === 'MEDIUM' ? 'Trung bình' : 'Cao') 
+                            : entry.fatigueRiskLevel) 
+                        : t('logbooks.watchkeeping.notAssessed')}
                     </span>
                   </p>
                   <p className={`mt-2 ${entry.fatigueAssessmentDone ? 'text-green-600' : 'text-gray-500'}`}>
-                    {entry.fatigueAssessmentDone ? '✓ Assessment Completed' : '○ Assessment Not Done'}
+                    {entry.fatigueAssessmentDone 
+                      ? t('logbooks.watchkeeping.assessmentCompleted') 
+                      : t('logbooks.watchkeeping.assessmentNotDone')}
                   </p>
                 </div>
               </div>
@@ -443,24 +578,26 @@ export const WatchkeepingPage: React.FC = () => {
             {/* Handover */}
             {(entry.handoverNotes || entry.watchStartTime || entry.watchEndTime) && (
               <div className="space-y-4">
-                <h3 className="font-semibold text-gray-900 border-b pb-2">🔄 Watch Handover</h3>
+                <h3 className="font-semibold text-gray-900 border-b pb-2">🔄 {t('logbooks.watchkeeping.watchHandoverSection')}</h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="text-gray-500">Watch Time:</span>
+                    <span className="text-gray-500">{t('logbooks.watchkeeping.watchTime')}</span>
                     <p className="font-medium text-gray-900">
                       {entry.watchStartTime || '-'} → {entry.watchEndTime || '-'}
                     </p>
                   </div>
                   <div>
-                    <span className="text-gray-500">Checklist:</span>
+                    <span className="text-gray-500">{t('logbooks.watchkeeping.checklist')}</span>
                     <p className={`font-medium ${entry.handoverChecklistCompleted ? 'text-green-600' : 'text-gray-500'}`}>
-                      {entry.handoverChecklistCompleted ? '✓ Completed' : '○ Not Completed'}
+                      {entry.handoverChecklistCompleted 
+                        ? t('logbooks.watchkeeping.checklistCompleted') 
+                        : t('logbooks.watchkeeping.checklistNotCompleted')}
                     </p>
                   </div>
                 </div>
                 {entry.handoverNotes && (
                   <div className="p-3 bg-gray-50 rounded">
-                    <span className="text-gray-500 text-sm">Handover Notes:</span>
+                    <span className="text-gray-500 text-sm">{t('logbooks.watchkeeping.handoverNotes')}:</span>
                     <p className="text-gray-900 mt-1">{entry.handoverNotes}</p>
                   </div>
                 )}
@@ -470,7 +607,7 @@ export const WatchkeepingPage: React.FC = () => {
             {/* Notable Events */}
             {entry.notableEvents && (
               <div className="space-y-4">
-                <h3 className="font-semibold text-gray-900 border-b pb-2">📝 Notable Events</h3>
+                <h3 className="font-semibold text-gray-900 border-b pb-2">📝 {t('logbooks.watchkeeping.notableEventsSection')}</h3>
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-gray-900 whitespace-pre-wrap">{entry.notableEvents}</p>
                 </div>
@@ -480,7 +617,7 @@ export const WatchkeepingPage: React.FC = () => {
             {/* Engine Status (for Engine Watch) */}
             {entry.watchType === 'ENGINE' && entry.engineStatus && (
               <div className="space-y-4">
-                <h3 className="font-semibold text-gray-900 border-b pb-2">⚙️ Engine Status</h3>
+                <h3 className="font-semibold text-gray-900 border-b pb-2">⚙️ {t('logbooks.watchkeeping.engineStatus')}</h3>
                 <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
                   <p className="text-gray-900">{entry.engineStatus}</p>
                 </div>
@@ -491,17 +628,17 @@ export const WatchkeepingPage: React.FC = () => {
             <div className="border-t pt-4">
               <div className="flex justify-between items-center">
                 <div className="text-sm text-gray-500">
-                  Created: {new Date(entry.createdAt).toLocaleString('vi-VN')}
+                  {t('logbooks.watchkeeping.created')} {new Date(entry.createdAt).toLocaleString(isVi ? 'vi-VN' : 'en-US')}
                   {entry.updatedAt && entry.updatedAt !== entry.createdAt && (
-                    <span className="ml-4">Updated: {new Date(entry.updatedAt).toLocaleString('vi-VN')}</span>
+                    <span className="ml-4">{t('logbooks.watchkeeping.updated')} {new Date(entry.updatedAt).toLocaleString(isVi ? 'vi-VN' : 'en-US')}</span>
                   )}
                 </div>
                 {entry.masterSignature && (
                   <div className="text-right">
-                    <p className="text-sm text-gray-500">Signed by Master</p>
+                    <p className="text-sm text-gray-500">{t('logbooks.watchkeeping.signedByMaster')}</p>
                     <p className="font-medium text-green-600">{entry.masterSignature}</p>
                     {entry.signedAt && (
-                      <p className="text-xs text-gray-400">{new Date(entry.signedAt).toLocaleString('vi-VN')}</p>
+                      <p className="text-xs text-gray-400">{new Date(entry.signedAt).toLocaleString(isVi ? 'vi-VN' : 'en-US')}</p>
                     )}
                   </div>
                 )}
@@ -512,21 +649,32 @@ export const WatchkeepingPage: React.FC = () => {
           {/* Footer Actions */}
           <div className="bg-gray-50 px-6 py-4 rounded-b-xl flex justify-end gap-3">
             {!entry.masterSignature && (
-              <button
-                onClick={() => {
-                  handleSign(entry.id, 'Master Signature');
-                  closeDetailModal();
-                }}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
-              >
-                ✍️ Sign Entry
-              </button>
+              <>
+                <button
+                  onClick={() => {
+                    handleStartEdit(entry);
+                    closeDetailModal();
+                  }}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  ✏️ {t('common.edit') || 'Edit'}
+                </button>
+                <button
+                  onClick={() => {
+                    handleSign(entry.id, 'Master Signature');
+                    closeDetailModal();
+                  }}
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  ✍️ {t('logbooks.watchkeeping.signAsMaster')}
+                </button>
+              </>
             )}
             <button
               onClick={closeDetailModal}
               className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors"
             >
-              Close
+              {t('logbooks.watchkeeping.close')}
             </button>
           </div>
         </div>
@@ -539,7 +687,15 @@ export const WatchkeepingPage: React.FC = () => {
       title="Watchkeeping Log - SOLAS Chapter V/28"
       actions={
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => {
+            if (showForm) {
+              setShowForm(false);
+              resetForm();
+            } else {
+              resetForm();
+              setShowForm(true);
+            }
+          }}
           className="bg-blue-600 text-white font-semibold py-2.5 px-6 rounded-lg hover:bg-blue-700 transition-colors shadow-md"
         >
           {showForm ? '✕ Cancel' : '+ New Watch'}
@@ -548,7 +704,9 @@ export const WatchkeepingPage: React.FC = () => {
     >
       {showForm && (
         <div className="bg-white p-6 border border-blue-200 rounded-lg shadow-lg mb-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Record Watch Details</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-6">
+            {editingId ? 'Edit Watch Details' : 'Record Watch Details'}
+          </h2>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Left Column - Basic Info */}
@@ -575,7 +733,7 @@ export const WatchkeepingPage: React.FC = () => {
                   onChange={handleInputChange}
                   className="w-full bg-white border border-gray-300 rounded-lg text-gray-900 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  {WATCH_PERIODS.map(wp => (
+                  {translatedWatchPeriods.map(wp => (
                     <option key={wp.code} value={wp.code}>{wp.name}</option>
                   ))}
                 </select>
@@ -591,7 +749,7 @@ export const WatchkeepingPage: React.FC = () => {
                   onChange={handleInputChange}
                   className="w-full bg-white border-2 border-gray-200 text-gray-900 font-sans text-lg p-4 focus:border-blue-500 focus:outline-none"
                 >
-                  {WATCH_TYPES.map(wt => (
+                  {translatedWatchTypes.map(wt => (
                     <option key={wt.value} value={wt.value}>{wt.label}</option>
                   ))}
                 </select>
@@ -684,14 +842,14 @@ export const WatchkeepingPage: React.FC = () => {
                 label="Position - Latitude"
                 type="latitude"
                 value={formData.positionLat}
-                onChange={lat => setFormData({ ...formData, positionLat: lat })}
+                onChange={lat => setFormData(prev => ({ ...prev, positionLat: lat }))}
               />
 
               <CoordinatePicker
                 label="Position - Longitude"
                 type="longitude"
                 value={formData.positionLon}
-                onChange={lon => setFormData({ ...formData, positionLon: lon })}
+                onChange={lon => setFormData(prev => ({ ...prev, positionLon: lon }))}
               />
 
               <div className="grid grid-cols-2 gap-4">
@@ -705,7 +863,7 @@ export const WatchkeepingPage: React.FC = () => {
                     onChange={handleInputChange}
                     className="w-full bg-white border-2 border-gray-200 text-gray-900 font-sans text-lg p-4 focus:border-blue-500 focus:outline-none"
                   >
-                    {SEA_STATES.map(ss => (
+                    {translatedSeaStates.map(ss => (
                       <option key={ss.value} value={ss.value}>{ss.label}</option>
                     ))}
                   </select>
@@ -721,7 +879,7 @@ export const WatchkeepingPage: React.FC = () => {
                     onChange={handleInputChange}
                     className="w-full bg-white border-2 border-gray-200 text-gray-900 font-sans text-lg p-4 focus:border-blue-500 focus:outline-none"
                   >
-                    {VISIBILITY_CONDITIONS.map(vc => (
+                    {translatedVisibility.map(vc => (
                       <option key={vc.value} value={vc.value}>{vc.label}</option>
                     ))}
                   </select>
@@ -939,7 +1097,7 @@ export const WatchkeepingPage: React.FC = () => {
                     onChange={handleInputChange}
                     className="w-full bg-white border-2 border-gray-200 text-gray-900 font-sans p-3 focus:border-orange-500 focus:outline-none"
                   >
-                    {FATIGUE_LEVELS.map(fl => (
+                    {translatedFatigue.map(fl => (
                       <option key={fl.value} value={fl.value}>{fl.label}</option>
                     ))}
                   </select>
@@ -1011,7 +1169,10 @@ export const WatchkeepingPage: React.FC = () => {
           {/* Submit Button */}
           <div className="flex justify-end gap-4 mt-6">
             <button
-              onClick={() => setShowForm(false)}
+              onClick={() => {
+                setShowForm(false);
+                resetForm();
+              }}
               className="px-6 py-2 text-gray-600 font-medium hover:text-gray-900 transition-colors"
             >
               Cancel
@@ -1020,7 +1181,7 @@ export const WatchkeepingPage: React.FC = () => {
               onClick={handleSubmit}
               className="bg-green-600 text-white font-semibold py-2.5 px-8 rounded-lg hover:bg-green-700 transition-colors shadow-md"
             >
-              Save Watch Entry
+              {editingId ? 'Update Watch Entry' : 'Save Watch Entry'}
             </button>
           </div>
         </div>
@@ -1115,15 +1276,26 @@ export const WatchkeepingPage: React.FC = () => {
                       VIEW
                     </button>
                     {!entry.masterSignature && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSign(entry.id, 'Master Signature');
-                        }}
-                        className="text-green-600 hover:underline font-sans text-sm"
-                      >
-                        SIGN
-                      </button>
+                      <>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleStartEdit(entry);
+                          }}
+                          className="text-amber-600 hover:underline font-sans text-sm"
+                        >
+                          EDIT
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSign(entry.id, 'Master Signature');
+                          }}
+                          className="text-green-600 hover:underline font-sans text-sm"
+                        >
+                          SIGN
+                        </button>
+                      </>
                     )}
                   </div>
                 </td>

@@ -48,6 +48,10 @@ class LogbookService {
     return await apiClient.post<DeckLogEntryResponseDto>('/logbooks/deck', data);
   }
 
+  async updateDeckEntry(id: string, data: CreateDeckLogEntryDto) {
+    return await apiClient.put<DeckLogEntryResponseDto>(`/logbooks/deck/${id}`, data);
+  }
+
   async signDeckEntry(id: string, data: SignLogbookDto) {
     return await apiClient.post(`/logbooks/deck/${id}/sign`, {
       masterSignature: data.signature,
@@ -63,6 +67,10 @@ class LogbookService {
 
   async createEngineEntry(data: CreateEngineLogEntryDto) {
     return await apiClient.post<EngineLogEntryResponseDto>('/logbooks/engine', data);
+  }
+
+  async updateEngineEntry(id: string, data: CreateEngineLogEntryDto) {
+    return await apiClient.put<EngineLogEntryResponseDto>(`/logbooks/engine/${id}`, data);
   }
 
   async signEngineEntry(id: string, data: SignLogbookDto) {
@@ -83,6 +91,10 @@ class LogbookService {
     return await apiClient.post<OilRecordEntryResponseDto>('/logbooks/oil', data);
   }
 
+  async updateOilEntry(id: string, data: CreateOilRecordEntryDto) {
+    return await apiClient.put<OilRecordEntryResponseDto>(`/logbooks/oil/${id}`, data);
+  }
+
   async signOilEntry(id: string, data: SignLogbookDto) {
     return await apiClient.post(`/logbooks/oil/${id}/sign`, {
       masterSignature: data.signature,
@@ -100,6 +112,10 @@ class LogbookService {
     return await apiClient.post<WatchkeepingLogResponseDto>('/logbooks/watchkeeping', data);
   }
 
+  async updateWatchkeepingEntry(id: string, data: CreateWatchkeepingLogDto) {
+    return await apiClient.put<WatchkeepingLogResponseDto>(`/logbooks/watchkeeping/${id}`, data);
+  }
+
   async signWatchkeepingEntry(id: string, data: SignLogbookDto) {
     return await apiClient.post(`/logbooks/watchkeeping/${id}/sign`, {
       masterSignature: data.signature,
@@ -115,6 +131,10 @@ class LogbookService {
 
   async createGarbageEntry(data: CreateGarbageRecordDto) {
     return await apiClient.post<GarbageRecordResponseDto>('/logbooks/garbage', data);
+  }
+
+  async updateGarbageEntry(id: string, data: CreateGarbageRecordDto) {
+    return await apiClient.put<GarbageRecordResponseDto>(`/logbooks/garbage/${id}`, data);
   }
 
   async signGarbageEntry(id: string, data: SignLogbookDto) {
@@ -182,6 +202,10 @@ class LogbookService {
 
   async createBallastWaterEntry(data: CreateBallastWaterRecordDto) {
     return await apiClient.post<BallastWaterRecordResponseDto>('/logbooks/ballast', data);
+  }
+
+  async updateBallastWaterEntry(id: string, data: CreateBallastWaterRecordDto) {
+    return await apiClient.put<BallastWaterRecordResponseDto>(`/logbooks/ballast/${id}`, data);
   }
 
   async signBallastWaterEntry(id: string, data: SignLogbookDto) {

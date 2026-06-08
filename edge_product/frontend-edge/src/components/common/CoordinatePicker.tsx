@@ -1,4 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { apiClient } from '@/services/api.client';
+
+// Cache the latest position request to avoid duplicate concurrent API calls
+let latestPositionPromise: Promise<{ latitude: number; longitude: number }> | null = null;
+
+const getLatestPositionDeduplicated = (): Promise<{ latitude: number; longitude: number }> => {
+  if (!latestPositionPromise) {
+    latestPositionPromise = apiClient.get<{ latitude: number; longitude: number }>('/telemetry/position/latest')
+      .catch(err => {
+        // Clear promise on error so next attempt can retry
+        latestPositionPromise = null;
+        throw err;
+      });
+    
+    // Cache for 2 seconds to cover concurrent mounts
+    setTimeout(() => {
+      latestPositionPromise = null;
+    }, 2000);
+  }
+  return latestPositionPromise;
+};
+
 
 interface CoordinatePickerProps {
   label?: string;
@@ -37,6 +59,37 @@ export const CoordinatePicker: React.FC<CoordinatePickerProps> = ({
       } else {
         setHemisphere(value >= 0 ? 'E' : 'W');
       }
+    }
+  }, [value, type]);
+
+  // Keep latest onChange in a ref to avoid triggering effect cleanup when it changes
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  // Auto-fill coordinates from latest telemetry on mount if value is 0 or unset
+  useEffect(() => {
+    if (value === 0 || value === undefined || value === null) {
+      let isMounted = true;
+      const autoFetch = async () => {
+        try {
+          const data = await getLatestPositionDeduplicated();
+          if (data && isMounted) {
+            const gpsVal = type === 'latitude' ? data.latitude : data.longitude;
+            if (gpsVal !== undefined && gpsVal !== null && gpsVal !== 0) {
+              console.log(`[CoordinatePicker] Auto-filled ${type}:`, gpsVal);
+              onChangeRef.current(parseFloat(gpsVal.toFixed(6)));
+            }
+          }
+        } catch (e) {
+          console.error('Auto-fetch GPS failed in CoordinatePicker:', e);
+        }
+      };
+      autoFetch();
+      return () => {
+        isMounted = false;
+      };
     }
   }, [value, type]);
 
@@ -89,7 +142,7 @@ export const CoordinatePicker: React.FC<CoordinatePickerProps> = ({
   return (
     <div className="flex flex-col gap-2">
       {label && (
-        <label className="text-industrial-text-amber font-mono text-sm uppercase tracking-wider">
+        <label className="text-sm font-semibold text-gray-700 font-sans">
           {label}
         </label>
       )}
@@ -99,12 +152,12 @@ export const CoordinatePicker: React.FC<CoordinatePickerProps> = ({
           type="number"
           value={degrees}
           onChange={handleDegreesChange}
-          className="bg-industrial-surface border-2 border-industrial-border text-white font-mono text-lg p-3 w-20 text-center focus:border-industrial-text-amber focus:outline-none"
+          className="bg-white border border-gray-300 text-gray-900 font-sans text-base p-2.5 w-20 text-center rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none"
           placeholder="00"
           min="0"
           max={type === 'latitude' ? '90' : '180'}
         />
-        <span className="text-industrial-text-amber font-mono text-2xl">°</span>
+        <span className="text-gray-500 font-sans text-xl font-bold">°</span>
 
         {/* Minutes */}
         <input
@@ -112,24 +165,25 @@ export const CoordinatePicker: React.FC<CoordinatePickerProps> = ({
           value={minutes}
           onChange={handleMinutesChange}
           step="0.01"
-          className="bg-industrial-surface border-2 border-industrial-border text-white font-mono text-lg p-3 w-24 text-center focus:border-industrial-text-amber focus:outline-none"
+          className="bg-white border border-gray-300 text-gray-900 font-sans text-base p-2.5 w-24 text-center rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none"
           placeholder="00.00"
           min="0"
           max="59.99"
         />
-        <span className="text-industrial-text-amber font-mono text-2xl">'</span>
+        <span className="text-gray-500 font-sans text-xl font-bold">'</span>
 
         {/* Hemisphere Selector */}
-        <div className="flex border-2 border-industrial-border">
+        <div className="flex border border-gray-300 rounded-lg overflow-hidden">
           {hemisphereOptions.map(h => (
             <button
               key={h}
+              type="button"
               onClick={() => handleHemisphereChange(h)}
               className={`
-                px-4 py-3 font-mono font-bold text-lg
+                px-4 py-2.5 font-sans font-bold text-base transition-colors
                 ${hemisphere === h 
-                  ? 'bg-industrial-text-amber text-black' 
-                  : 'bg-industrial-surface text-gray-500 hover:bg-white/5'
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
                 }
               `}
             >
@@ -140,9 +194,10 @@ export const CoordinatePicker: React.FC<CoordinatePickerProps> = ({
       </div>
       
       {/* Decimal Display */}
-      <div className="text-xs font-mono text-gray-500 mt-1">
-        Decimal: <span className="text-industrial-text-green">{value.toFixed(6)}°</span>
+      <div className="text-xs font-sans text-gray-500 mt-1">
+        Decimal: <span className="text-blue-600 font-semibold">{value.toFixed(6)}°</span>
       </div>
     </div>
   );
 };
+
