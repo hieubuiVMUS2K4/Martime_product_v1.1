@@ -2374,7 +2374,27 @@
       "deleteSuccess": "Đã xóa thiết bị {name}",
       "deleteManySuccess": "Đã xóa {count} thiết bị",
       "createSuccess": "Đã tạo thiết bị {name}",
-      "saveSuccess": "Đã lưu thiết bị {name}"
+      "saveSuccess": "Đã lưu thiết bị {name}",
+      "importModal": {
+        "title": "Nhập thiết bị từ Excel",
+        "instructions": "File cần có các cột: AssetCode, AssetName, Category. Dùng ParentAssetCode để đặt thiết bị con vào đúng thiết bị cha.",
+        "noValidAssets": "Không tìm thấy thiết bị hợp lệ trong file Excel",
+        "parseFailed": "Không đọc được file Excel. Vui lòng kiểm tra lại định dạng.",
+        "selectValidFile": "Vui lòng chọn file Excel có dữ liệu hợp lệ",
+        "importSuccess": "Đã nhập {count} thiết bị",
+        "importWithErrors": "Nhập Excel hoàn tất nhưng có lỗi",
+        "importFailed": "Nhập Excel thất bại",
+        "validAssetCount": "{count} thiết bị hợp lệ",
+        "chooseFile": "Chọn file Excel",
+        "supportedFormats": "Hỗ trợ .xlsx, .xls, .csv",
+        "code": "Mã",
+        "assetName": "Tên thiết bị",
+        "category": "Loại",
+        "location": "Vị trí",
+        "importedCount": "Đã nhập {count} thiết bị",
+        "importing": "Đang nhập...",
+        "importButton": "Nhập Excel"
+      }
     },
     "groups": {
       "title": "Nhóm thiết bị",

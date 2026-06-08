@@ -3,6 +3,7 @@ import { AlertCircle, CheckCircle, FileSpreadsheet, Upload, X } from 'lucide-rea
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import { equipmentAssetService } from '@/services/equipment-asset.service';
+import { useTranslationSafe } from '@/contexts/I18nContext';
 
 type ImportAssetRow = {
   assetCode: string;
@@ -59,6 +60,7 @@ async function parseAssetFile(file: File): Promise<ImportAssetRow[]> {
 }
 
 export function ImportAssetsModal({ isOpen, onClose, onSuccess }: ImportAssetsModalProps) {
+  const { t } = useTranslationSafe();
   const [loading, setLoading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [assets, setAssets] = useState<ImportAssetRow[]>([]);
@@ -76,17 +78,17 @@ export function ImportAssetsModal({ isOpen, onClose, onSuccess }: ImportAssetsMo
       setResult(null);
       const parsed = await parseAssetFile(selected);
       setAssets(parsed);
-      if (parsed.length === 0) toast.error('Không tìm thấy thiết bị hợp lệ trong file Excel');
+      if (parsed.length === 0) toast.error(t('pms.assets.importModal.noValidAssets'));
     } catch (error) {
       console.error('Parse equipment asset file failed:', error);
       setAssets([]);
-      toast.error('Không đọc được file Excel. Vui lòng kiểm tra lại định dạng.');
+      toast.error(t('pms.assets.importModal.parseFailed'));
     }
   };
 
   const handleImport = async () => {
     if (assets.length === 0) {
-      toast.error('Vui lòng chọn file Excel có dữ liệu hợp lệ');
+      toast.error(t('pms.assets.importModal.selectValidFile'));
       return;
     }
 
@@ -95,14 +97,14 @@ export function ImportAssetsModal({ isOpen, onClose, onSuccess }: ImportAssetsMo
       const importResult = await equipmentAssetService.bulkImport(assets);
       setResult(importResult);
       if (importResult.success) {
-        toast.success(`Đã nhập ${importResult.imported} thiết bị`);
+        toast.success(t('pms.assets.importModal.importSuccess', { count: importResult.imported }));
         onSuccess();
       } else {
-        toast.error('Nhập Excel hoàn tất nhưng có lỗi');
+        toast.error(t('pms.assets.importModal.importWithErrors'));
       }
     } catch (error: any) {
       console.error('Import equipment assets failed:', error);
-      toast.error(error.response?.data?.error || error.response?.data?.message || 'Nhập Excel thất bại');
+      toast.error(error.response?.data?.error || error.response?.data?.message || t('pms.assets.importModal.importFailed'));
     } finally {
       setLoading(false);
     }
@@ -120,7 +122,7 @@ export function ImportAssetsModal({ isOpen, onClose, onSuccess }: ImportAssetsMo
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-2xl rounded-lg bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-          <h2 className="text-lg font-semibold text-gray-900">Nhập thiết bị từ Excel</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{t('pms.assets.importModal.title')}</h2>
           <button onClick={handleClose} className="text-gray-400 hover:text-gray-600">
             <X className="h-5 w-5" />
           </button>
@@ -128,7 +130,7 @@ export function ImportAssetsModal({ isOpen, onClose, onSuccess }: ImportAssetsMo
 
         <div className="space-y-5 p-6">
           <div className="rounded border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
-            File cần có các cột: AssetCode, AssetName, Category. Dùng ParentAssetCode để đặt thiết bị con vào đúng thiết bị cha.
+            {t('pms.assets.importModal.instructions')}
           </div>
 
           <div className="rounded-lg border-2 border-dashed border-gray-300 p-8 text-center">
@@ -145,7 +147,7 @@ export function ImportAssetsModal({ isOpen, onClose, onSuccess }: ImportAssetsMo
                 <FileSpreadsheet className="h-8 w-8 text-green-600" />
                 <div className="text-left">
                   <p className="font-medium text-gray-900">{file.name}</p>
-                  <p className="text-sm text-gray-600">{assets.length} thiết bị hợp lệ</p>
+                  <p className="text-sm text-gray-600">{t('pms.assets.importModal.validAssetCount', { count: assets.length })}</p>
                 </div>
                 <button onClick={() => { setFile(null); setAssets([]); }} className="ml-4 text-red-600 hover:text-red-800">
                   <X className="h-5 w-5" />
@@ -155,9 +157,9 @@ export function ImportAssetsModal({ isOpen, onClose, onSuccess }: ImportAssetsMo
               <>
                 <Upload className="mx-auto mb-4 h-10 w-10 text-gray-400" />
                 <button onClick={() => fileInputRef.current?.click()} className="font-medium text-blue-600 hover:text-blue-800">
-                  Chọn file Excel
+                  {t('pms.assets.importModal.chooseFile')}
                 </button>
-                <p className="mt-2 text-sm text-gray-500">Hỗ trợ .xlsx, .xls, .csv</p>
+                <p className="mt-2 text-sm text-gray-500">{t('pms.assets.importModal.supportedFormats')}</p>
               </>
             )}
           </div>
@@ -167,10 +169,10 @@ export function ImportAssetsModal({ isOpen, onClose, onSuccess }: ImportAssetsMo
               <table className="w-full text-left text-xs">
                 <thead className="bg-gray-50 text-gray-500">
                   <tr>
-                    <th className="px-3 py-2">Mã</th>
-                    <th className="px-3 py-2">Tên thiết bị</th>
-                    <th className="px-3 py-2">Loại</th>
-                    <th className="px-3 py-2">Vị trí</th>
+                    <th className="px-3 py-2">{t('pms.assets.importModal.code')}</th>
+                    <th className="px-3 py-2">{t('pms.assets.importModal.assetName')}</th>
+                    <th className="px-3 py-2">{t('pms.assets.importModal.category')}</th>
+                    <th className="px-3 py-2">{t('pms.assets.importModal.location')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -192,7 +194,7 @@ export function ImportAssetsModal({ isOpen, onClose, onSuccess }: ImportAssetsMo
               <div className="flex gap-3">
                 {result.success ? <CheckCircle className="h-5 w-5 text-green-600" /> : <AlertCircle className="h-5 w-5 text-yellow-600" />}
                 <div className="text-sm">
-                  <p className="font-semibold">Đã nhập {result.imported} thiết bị</p>
+                  <p className="font-semibold">{t('pms.assets.importModal.importedCount', { count: result.imported })}</p>
                   {result.errors?.map(error => <p key={error} className="mt-1 text-red-700">{error}</p>)}
                 </div>
               </div>
@@ -202,7 +204,7 @@ export function ImportAssetsModal({ isOpen, onClose, onSuccess }: ImportAssetsMo
 
         <div className="flex justify-end gap-3 border-t border-gray-200 px-6 py-4">
           <button onClick={handleClose} disabled={loading} className="rounded border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50">
-            {result ? 'Đóng' : 'Hủy'}
+            {result ? t('common.close') : t('common.cancel')}
           </button>
           {!result && (
             <button
@@ -210,7 +212,7 @@ export function ImportAssetsModal({ isOpen, onClose, onSuccess }: ImportAssetsMo
               disabled={loading || assets.length === 0}
               className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
             >
-              {loading ? 'Đang nhập...' : 'Nhập Excel'}
+              {loading ? t('pms.assets.importModal.importing') : t('pms.assets.importModal.importButton')}
             </button>
           )}
         </div>

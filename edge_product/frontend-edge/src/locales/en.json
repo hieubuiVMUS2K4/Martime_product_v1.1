@@ -2374,7 +2374,27 @@
       "deleteSuccess": "Deleted asset {name}",
       "deleteManySuccess": "Deleted {count} assets",
       "createSuccess": "Created asset {name}",
-      "saveSuccess": "Saved asset {name}"
+      "saveSuccess": "Saved asset {name}",
+      "importModal": {
+        "title": "Import equipment from Excel",
+        "instructions": "The file must include AssetCode, AssetName, and Category columns. Use ParentAssetCode to place child assets under the correct parent asset.",
+        "noValidAssets": "No valid equipment assets found in the Excel file",
+        "parseFailed": "Could not read the Excel file. Please check the format.",
+        "selectValidFile": "Please select an Excel file with valid data",
+        "importSuccess": "Imported {count} assets",
+        "importWithErrors": "Excel import completed with errors",
+        "importFailed": "Excel import failed",
+        "validAssetCount": "{count} valid assets",
+        "chooseFile": "Choose Excel file",
+        "supportedFormats": "Supports .xlsx, .xls, .csv",
+        "code": "Code",
+        "assetName": "Asset name",
+        "category": "Category",
+        "location": "Location",
+        "importedCount": "Imported {count} assets",
+        "importing": "Importing...",
+        "importButton": "Import Excel"
+      }
     },
     "groups": {
       "title": "Equipment Groups",
