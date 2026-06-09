@@ -132,6 +132,15 @@ export default function WorkReportPage() {
     } catch { /* silent */ }
   }, [id, activeTab])
 
+  const refreshTaskSnapshot = async () => {
+    if (!id) return
+    try {
+      const data = await maritimeService.maintenance.getById(id)
+      setTask(data)
+      setSparePartsUsed(data.sparePartsUsed || '')
+    } catch { /* silent */ }
+  }
+
   useEffect(() => {
     if (pollingRef.current) clearInterval(pollingRef.current)
     if (activeTab === 'checklist' || activeTab === 'materials') {
@@ -142,10 +151,10 @@ export default function WorkReportPage() {
     }
   }, [activeTab, refreshActiveTab])
 
-  const loadTask = async () => {
+  const loadTask = async (showPageLoading = true) => {
     if (!id) return
     try {
-      setLoading(true)
+      if (showPageLoading) setLoading(true)
       const data = await maritimeService.maintenance.getById(id)
       setTask(data)
       // Populate checklistItems state from initial load so polling updates are reflected
@@ -190,7 +199,7 @@ export default function WorkReportPage() {
       toast.error(t('pms.workReport.toast.loadFailed'))
       navigate('/pms/work-planning')
     } finally {
-      setLoading(false)
+      if (showPageLoading) setLoading(false)
     }
   }
 
@@ -581,6 +590,14 @@ export default function WorkReportPage() {
 
   const statusLabel = getStatusLabel(task.status)
   const priorityLabel = getPriorityLabel(task.priority)
+  const rawTaskTitle = (task.taskDescription?.split('\n')[0] || '').replace(/<!--(META|CREW):.*?-->/gs, '').trim()
+  const taskTitle = rawTaskTitle && !/^\d+$/.test(rawTaskTitle)
+    ? rawTaskTitle
+    : task.taskType === 'RUNNING_HOURS'
+      ? t('pms.workPlanning.config.runningHours')
+      : task.taskType === 'CALENDAR'
+        ? t('pms.workPlanning.config.calendar')
+        : (rawTaskTitle || task.taskType || t('pms.workReport.taskName'))
 
   // common input class
   const inp = 'w-full px-3 py-1.5 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm'
@@ -593,7 +610,7 @@ export default function WorkReportPage() {
       <div className="flex flex-shrink-0 items-center justify-between border-b border-gray-200 px-4 py-2.5">
         <div className="flex items-center gap-1.5 text-sm text-gray-500">
           <button onClick={() => navigate('/pms/work-planning')} className="text-blue-600 hover:underline">
-            {task?.taskDescription?.split('\n')[0] || t('pms.workReport.breadcrumbReport')}
+            {taskTitle || t('pms.workReport.breadcrumbReport')}
           </button>
           <ChevronRight size={14} className="text-gray-300" />
           <span className="text-gray-700 font-medium">{t('pms.workReport.breadcrumbWorkReport')}</span>
@@ -660,8 +677,8 @@ export default function WorkReportPage() {
                   <input type="text" readOnly value={task.taskId} className={inpRo} />
                 </div>
                 <div className="flex items-center flex-1">
-                  <label className={lbl} style={{ width: 110 }}>{task?.taskDescription?.split('\n')[0] || t('pms.workReport.taskName')}</label>
-                  <input type="text" readOnly value={task.taskDescription?.split('\n')[0] || ''} className={inpRo} />
+                  <label className={lbl} style={{ width: 110 }}>{t('pms.workReport.taskName')}</label>
+                  <input type="text" readOnly value={taskTitle} className={inpRo} />
                 </div>
               </div>
               {/* Row 3: Mô tả công việc */}
@@ -754,12 +771,13 @@ export default function WorkReportPage() {
                 { key: 'inspection' as BottomTab, label: t('pms.workReport.tabInspection') },
               ]).map(tab => (
                 <button
+                  type="button"
                   key={tab.key}
                   onClick={() => {
                     setActiveTab(tab.key)
                     // Immediately refresh data when switching to live tabs
                     if (tab.key === 'checklist') loadChecklist()
-                    else if (tab.key === 'materials') loadTask()
+                    else if (tab.key === 'materials') refreshTaskSnapshot()
                   }}
                   className={`px-4 py-2.5 font-medium border-b-2 transition-colors ${
                     activeTab === tab.key ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'

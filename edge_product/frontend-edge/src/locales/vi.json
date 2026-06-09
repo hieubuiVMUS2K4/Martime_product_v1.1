@@ -2639,7 +2639,8 @@
         "view": "Xem",
         "edit": "Sửa",
         "editConfig": "Chỉnh sửa cấu hình (PIC, nhân lực...)",
-        "delete": "Xóa"
+        "delete": "Xóa",
+        "bulkDelete": "Xóa đã chọn"
       },
       "pagination": {
         "perPage": "{count} / trang",
@@ -2794,6 +2795,7 @@
         "configDeleteFailed": "Không thể xóa cấu hình",
         "confirmDeleteConfig": "Bạn có chắc muốn xóa cấu hình",
         "confirmDeleteTask": "Bạn có muốn xóa công việc này?",
+        "confirmBulkDeleteTasks": "Bạn có muốn xóa {count} công việc đã chọn?",
         "configCopied": "Đã sao chép cấu hình làm mẫu — chỉnh sửa rồi Lưu để tạo mới",
         "fillCodeAndName": "Vui lòng điền mã và tên đầu mục bảo trì",
         "selectEquipment": "Vui lòng chọn thiết bị từ cây bên trái",
@@ -2816,7 +2818,9 @@
         "templateApplied": "Đã thêm {count} bước từ mẫu \"{name}\"",
         "templateSaved": "Đã lưu mẫu \"{name}\"",
         "deleteTaskSuccess": "Đã xóa công việc thành công",
-        "deleteTaskFailed": "Không thể xóa công việc"
+        "deleteTaskFailed": "Không thể xóa công việc",
+        "bulkDeleteTaskSuccess": "Đã xóa {count} công việc",
+        "bulkDeleteTaskFailed": "Không thể xóa các công việc đã chọn"
       },
       "export": {
         "taskCode": "Mã công việc",
@@ -3082,8 +3086,8 @@
       "tabMaterials": "Vật tư",
       "tabRisk": "Biểu mẫu ĐGRR",
       "tabInspection": "Biểu mẫu BBKT",
-      "equipRunningHours": "Thời gian chạy của thiết bị:",
-      "currentEquipHours": "Thời gian hiện tại của thiết bị:",
+      "equipRunningHours": "Giờ chạy ghi nhận khi bảo trì:",
+      "currentEquipHours": "Giờ chạy hiện tại của thiết bị:",
       "hoursUnit": "Giờ",
       "completionDate": "Ngày hoàn thành:",
       "actualDuration": "Thời gian thực hiện:",

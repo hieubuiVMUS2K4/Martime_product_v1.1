@@ -187,7 +187,8 @@ export default function WorkPlanningPage() {
   const [assets, setAssets] = useState<EquipmentAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [isBackgroundRefreshing, setIsBackgroundRefreshing] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
+  const [showHistory] = useState(false);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
 
   // Gantt draggable divider
   const [ganttLeftWidth, setGanttLeftWidth] = useState(680);
@@ -268,6 +269,11 @@ export default function WorkPlanningPage() {
     daysBeforeDue: 70, priority: 'MEDIUM', estimatedDurationHours: undefined, autoGenerate: true,
     instructions: '', requiredSpareParts: [], checklistItemTemplates: []
   };
+
+  useEffect(() => {
+    const taskIds = new Set(tasks.map(task => task.id));
+    setSelectedTaskIds(prev => new Set([...prev].filter(id => taskIds.has(id))));
+  }, [tasks]);
   const [cfgForm, setCfgForm] = useState<CreateMaintenanceScheduleDto>({ ...cfgDefaultForm });
 
   // === Build equipment tree ===
@@ -939,6 +945,53 @@ export default function WorkPlanningPage() {
   // Table pagination
   const totalPages = Math.ceil(sortedFilteredTasks.length / tablePageSize);
   const pagedTasks = sortedFilteredTasks.slice((tablePage - 1) * tablePageSize, tablePage * tablePageSize);
+  const pagedTaskIds = pagedTasks.map(task => task.id);
+  const isAllPagedTasksSelected = pagedTaskIds.length > 0 && pagedTaskIds.every(id => selectedTaskIds.has(id));
+  const selectedTaskCount = selectedTaskIds.size;
+
+  const toggleTaskSelection = (taskId: string) => {
+    setSelectedTaskIds(prev => {
+      const next = new Set(prev);
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
+      return next;
+    });
+  };
+
+  const togglePagedTaskSelection = () => {
+    setSelectedTaskIds(prev => {
+      const next = new Set(prev);
+      if (isAllPagedTasksSelected) {
+        pagedTaskIds.forEach(id => next.delete(id));
+      } else {
+        pagedTaskIds.forEach(id => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const handleBulkTaskDelete = () => {
+    if (selectedTaskIds.size === 0) return;
+    const ids = Array.from(selectedTaskIds);
+    toast(t('pms.workPlanning.toast.confirmBulkDeleteTasks', { count: String(ids.length) }), {
+      action: {
+        label: t('pms.workPlanning.table.delete') || 'Xóa',
+        onClick: async () => {
+          try {
+            await Promise.all(ids.map(id => maritimeService.maintenance.delete(id)));
+            setSelectedTaskIds(new Set());
+            toast.success(t('pms.workPlanning.toast.bulkDeleteTaskSuccess', { count: String(ids.length) }));
+            loadData(false);
+          } catch (error) {
+            console.error('Error bulk deleting tasks:', error);
+            toast.error(t('pms.workPlanning.toast.bulkDeleteTaskFailed'));
+          }
+        }
+      },
+      cancel: { label: t('pms.workPlanning.config.cancel') || 'Hủy', onClick: () => {} },
+      duration: 8000,
+    });
+  };
 
   // === Toggle tree node ===
   const toggleExpand = (id: string) => {
@@ -1073,16 +1126,14 @@ export default function WorkPlanningPage() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => { setShowHistory(h => !h); setTablePage(1); }}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded border transition-colors ${
-                showHistory
-                  ? 'bg-gray-700 text-white border-gray-700 hover:bg-gray-600'
-                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-              }`}
-              title={showHistory ? t('pms.workPlanning.backToTasks') : t('pms.workPlanning.viewHistory')}
+              onClick={handleBulkTaskDelete}
+              disabled={selectedTaskCount === 0}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              title={t('pms.workPlanning.table.bulkDelete')}
             >
-              <History className="w-3.5 h-3.5" />
-              {showHistory ? t('pms.workPlanning.currentTasks') : t('pms.workPlanning.history')}
+              <Trash2 className="w-3.5 h-3.5" />
+              {t('pms.workPlanning.table.bulkDelete')}
+              {selectedTaskCount > 0 && <span className="font-semibold">({selectedTaskCount})</span>}
             </button>
             <button onClick={() => loadData(true)} className="p-1.5 border border-gray-300 rounded text-gray-500 hover:bg-gray-50" title={t('pms.workPlanning.refresh')}>
               <RefreshCw className={`w-3.5 h-3.5 ${isBackgroundRefreshing ? 'animate-spin' : ''}`} />
@@ -1188,7 +1239,12 @@ export default function WorkPlanningPage() {
                     <tr className="bg-blue-50">
                       <th className="w-10 px-2 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">{t('pms.workPlanning.config.index')}</th>
                       <th className="w-10 px-2 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">
-                        <input type="checkbox" className="rounded text-blue-600" />
+                        <input
+                          type="checkbox"
+                          checked={isAllPagedTasksSelected}
+                          onChange={togglePagedTaskSelection}
+                          className="rounded text-blue-600"
+                        />
                       </th>
                       <th className="min-w-[140px] px-3 py-2 text-left border-b border-r border-gray-200 cursor-pointer" onClick={() => handleSort('taskId')}>
                         <div className="flex items-center justify-between gap-1">
@@ -1304,7 +1360,12 @@ export default function WorkPlanningPage() {
                               {(tablePage - 1) * tablePageSize + idx + 1}
                             </td>
                             <td className="px-2 py-2 text-center border-r border-gray-100">
-                              <input type="checkbox" className="rounded text-blue-600" />
+                              <input
+                                type="checkbox"
+                                checked={selectedTaskIds.has(task.id)}
+                                onChange={() => toggleTaskSelection(task.id)}
+                                className="rounded text-blue-600"
+                              />
                             </td>
                             <td className="px-3 py-2 border-r border-gray-100">
                               <button onClick={() => navigate(`/pms/work-report/${task.id}`)} className="text-blue-600 hover:underline font-medium text-xs text-left">
