@@ -421,6 +421,7 @@ export interface MaintenanceTask {
   taskDescription: string
   intervalHours?: number
   intervalDays?: number
+  daysBeforeDue?: number
   lastDoneAt?: string
   nextDueAt: string
   runningHoursAtLastDone?: number

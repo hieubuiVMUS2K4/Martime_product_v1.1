@@ -265,7 +265,7 @@ export default function WorkPlanningPage() {
   const cfgDefaultForm: CreateMaintenanceScheduleDto = {
     scheduleCode: '', equipmentGroupId: '', equipmentAssetId: undefined, taskTypeId: 1,
     scheduleName: '', maintenanceCategory: 'PERIODIC', intervalType: 'RUNNING_HOURS', intervalDays: undefined, intervalHours: undefined,
-    daysBeforeDue: 7, priority: 'MEDIUM', estimatedDurationHours: undefined, autoGenerate: true,
+    daysBeforeDue: 70, priority: 'MEDIUM', estimatedDurationHours: undefined, autoGenerate: true,
     instructions: '', requiredSpareParts: [], checklistItemTemplates: []
   };
   const [cfgForm, setCfgForm] = useState<CreateMaintenanceScheduleDto>({ ...cfgDefaultForm });
@@ -408,7 +408,7 @@ export default function WorkPlanningPage() {
       intervalType: schedule.intervalType || 'RUNNING_HOURS',
       intervalDays: schedule.intervalDays,
       intervalHours: schedule.intervalHours,
-      daysBeforeDue: schedule.daysBeforeDue || 7,
+      daysBeforeDue: schedule.daysBeforeDue || (schedule.intervalType === 'RUNNING_HOURS' ? 70 : 7),
       priority: schedule.priority || 'MEDIUM',
       estimatedDurationHours: schedule.estimatedDurationHours,
       autoGenerate: true,
@@ -867,6 +867,7 @@ export default function WorkPlanningPage() {
   // Gantt data — derived from filteredTasks (same source as Bảng/Lịch/Kanban)
   const ganttTasksFromFiltered = useMemo((): GanttTask[] => {
     const WORK_HOURS_PER_DAY = 8;
+    const RUNNING_HOURS_PER_DAY = 10;
     return filteredTasks
       .filter(t => t.nextDueAt)
       .map(t => {
@@ -877,7 +878,10 @@ export default function WorkPlanningPage() {
         const isRunningHours = !!t.intervalHours && !t.intervalDays;
         const intervalType: GanttTask['intervalType'] = isRunningHours ? 'RUNNING_HOURS' : 'CALENDAR';
 
-        const leadTimeDays = isRunningHours ? 1 : 7;
+        const configuredWarning = Math.max(1, Number(t.daysBeforeDue || (isRunningHours ? 70 : 7)));
+        const leadTimeDays = isRunningHours
+          ? Math.max(1, Math.ceil(configuredWarning / RUNNING_HOURS_PER_DAY))
+          : configuredWarning;
         const startDate = addDays(dueDate, -leadTimeDays);
         const isOverdue = t.status === 'OVERDUE' || daysUntil < 0;
         let progress = 0;

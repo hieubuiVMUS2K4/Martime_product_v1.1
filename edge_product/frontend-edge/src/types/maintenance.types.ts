@@ -32,6 +32,7 @@ export interface MaintenanceTask {
   
   intervalHours?: number;
   intervalDays?: number;
+  daysBeforeDue?: number;
   
   lastDoneAt?: string;
   nextDueAt: string;

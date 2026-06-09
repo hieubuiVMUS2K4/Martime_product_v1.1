@@ -117,6 +117,41 @@ public class WorkItemConfigController : ControllerBase
         
         return daysBeforeDue;
     }
+
+    /// <summary>
+    /// RUNNING_HOURS schedules store DaysBeforeDue as hours, not days.
+    /// </summary>
+    private int ValidateAndCorrectRunningHoursLeadTime(int hoursBeforeDue, double? intervalHours)
+    {
+        var minimumHours = (int)Math.Ceiling(MaintenanceConstants.MINIMUM_UPCOMING_WINDOW_HOURS);
+        var corrected = Math.Max(hoursBeforeDue, minimumHours);
+
+        if (intervalHours.HasValue && intervalHours.Value > 0)
+        {
+            var maxAllowedHours = Math.Max(minimumHours, (int)Math.Floor(intervalHours.Value * 0.7));
+            if (corrected > maxAllowedHours)
+            {
+                _logger.LogWarning(
+                    "Running-hours warning window {Configured}h exceeds interval ceiling {Ceiling}h (70% of {Interval}h). Reducing to prevent task overlap.",
+                    corrected, maxAllowedHours, intervalHours.Value);
+                corrected = maxAllowedHours;
+            }
+        }
+
+        return corrected;
+    }
+
+    private int ValidateScheduleLeadTime(CreateMaintenanceScheduleDto dto)
+    {
+        if (dto.IntervalType == "RUNNING_HOURS")
+            return ValidateAndCorrectRunningHoursLeadTime(dto.DaysBeforeDue, dto.IntervalHours);
+
+        return ValidateAndCorrectLeadTime(
+            dto.DaysBeforeDue,
+            dto.Priority,
+            dto.EstimatedDurationHours,
+            dto.IntervalDays);
+    }
     /// <summary>
     /// Get all maintenance schedules (OPTIMIZED - single query with includes)
     /// </summary>
@@ -440,17 +475,7 @@ public class WorkItemConfigController : ControllerBase
             if (!isAdHoc && dto.IntervalType == "CALENDAR" && !dto.IntervalDays.HasValue)
                 return BadRequest(new { error = "IntervalDays is required for CALENDAR interval type" });
 
-            // ISM Code Compliance: Validate and auto-correct lead time based on priority
-            // For RUNNING_HOURS: Convert hours to estimated days for lead time validation
-            var effectiveIntervalDays = dto.IntervalType == "RUNNING_HOURS" && dto.IntervalHours.HasValue
-                ? (int)Math.Ceiling(dto.IntervalHours.Value / MaintenanceConstants.AVERAGE_HOURS_PER_DAY)
-                : dto.IntervalDays;
-
-            var validatedDaysBeforeDue = ValidateAndCorrectLeadTime(
-                dto.DaysBeforeDue, 
-                dto.Priority, 
-                dto.EstimatedDurationHours,
-                effectiveIntervalDays);
+            var validatedDaysBeforeDue = ValidateScheduleLeadTime(dto);
 
             var schedule = new MaintenanceSchedule
             {
@@ -663,16 +688,7 @@ public class WorkItemConfigController : ControllerBase
             if (!isAdHocUpdate && dto.IntervalType == "CALENDAR" && !dto.IntervalDays.HasValue)
                 return BadRequest(new { error = "IntervalDays is required for CALENDAR interval type" });
 
-            // ISM Code Compliance: Validate and auto-correct lead time based on priority
-            var effectiveIntervalDays = dto.IntervalType == "RUNNING_HOURS" && dto.IntervalHours.HasValue
-                ? (int)Math.Ceiling(dto.IntervalHours.Value / MaintenanceConstants.AVERAGE_HOURS_PER_DAY)
-                : dto.IntervalDays;
-
-            var validatedDaysBeforeDue = ValidateAndCorrectLeadTime(
-                dto.DaysBeforeDue, 
-                dto.Priority, 
-                dto.EstimatedDurationHours,
-                effectiveIntervalDays);
+            var validatedDaysBeforeDue = ValidateScheduleLeadTime(dto);
 
             // Update schedule fields
             schedule.ScheduleCode = dto.ScheduleCode;

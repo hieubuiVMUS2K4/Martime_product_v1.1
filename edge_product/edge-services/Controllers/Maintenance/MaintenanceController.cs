@@ -202,7 +202,26 @@ public class MaintenanceController : ControllerBase
             // Auto-correct status based on due date (same as GetPendingTasks/GetOverdueTasks)
             await AutoCorrectTaskStatuses(tasks);
 
-            var mappedTasks = tasks.Select(MapTaskWithPendingDeferral).ToList();
+            var scheduleIds = tasks
+                .Where(t => t.ScheduleId.HasValue)
+                .Select(t => t.ScheduleId!.Value)
+                .Distinct()
+                .ToList();
+            var scheduleLeadTimes = scheduleIds.Count > 0
+                ? await _context.MaintenanceSchedules
+                    .AsNoTracking()
+                    .Where(s => scheduleIds.Contains(s.Id))
+                    .Select(s => new { s.Id, s.DaysBeforeDue })
+                    .ToDictionaryAsync(s => s.Id, s => s.DaysBeforeDue)
+                : new Dictionary<Guid, int>();
+
+            var mappedTasks = tasks
+                .Select(task => MapTaskWithPendingDeferral(
+                    task,
+                    task.ScheduleId.HasValue && scheduleLeadTimes.TryGetValue(task.ScheduleId.Value, out var daysBeforeDue)
+                        ? daysBeforeDue
+                        : (int?)null))
+                .ToList();
 
             return Ok(new
             {
@@ -464,6 +483,13 @@ public class MaintenanceController : ControllerBase
                     .Select(s => new { s.Id, s.Instructions })
                     .ToDictionaryAsync(s => s.Id, s => s.Instructions ?? "")
                 : new Dictionary<Guid, string>();
+            var scheduleLeadTimes = scheduleIds.Count > 0
+                ? await _context.MaintenanceSchedules
+                    .AsNoTracking()
+                    .Where(s => scheduleIds.Contains(s.Id))
+                    .Select(s => new { s.Id, s.DaysBeforeDue })
+                    .ToDictionaryAsync(s => s.Id, s => s.DaysBeforeDue)
+                : new Dictionary<Guid, int>();
             
             var tasksWithRole = tasks.Select(t => {
                 var role = "PIC"; // default
@@ -491,6 +517,9 @@ public class MaintenanceController : ControllerBase
                     t.Id, t.TaskId, t.TaskTypeId, t.EquipmentId, t.EquipmentName,
                     t.EquipmentGroupId, t.EquipmentGroupName, t.ScheduleId,
                     t.TaskType, t.TaskDescription, t.IntervalHours, t.IntervalDays,
+                    DaysBeforeDue = t.ScheduleId.HasValue && scheduleLeadTimes.TryGetValue(t.ScheduleId.Value, out var daysBeforeDue)
+                        ? daysBeforeDue
+                        : (int?)null,
                     t.LastDoneAt, t.NextDueAt, t.RunningHoursAtLastDone, t.EquipmentAssetId,
                     CurrentRunningHours = currentRunningHours, t.Priority,
                     t.Status, t.AssignedTo, t.AssignedDepartment,
@@ -545,8 +574,16 @@ public class MaintenanceController : ControllerBase
                 return NotFound(new { error = "Maintenance task not found", id });
             }
 
+            var daysBeforeDue = task.ScheduleId.HasValue
+                ? await _context.MaintenanceSchedules
+                    .AsNoTracking()
+                    .Where(s => s.Id == task.ScheduleId.Value)
+                    .Select(s => (int?)s.DaysBeforeDue)
+                    .FirstOrDefaultAsync()
+                : null;
+
             // Map to DTO with pendingDeferral
-            var response = MapTaskWithPendingDeferral(task);
+            var response = MapTaskWithPendingDeferral(task, daysBeforeDue);
             return Ok(response);
         }
         catch (Exception ex)
@@ -557,7 +594,7 @@ public class MaintenanceController : ControllerBase
     }
 
     // Helper method to map task with pending deferral
-    private object MapTaskWithPendingDeferral(MaintenanceTask task)
+    private object MapTaskWithPendingDeferral(MaintenanceTask task, int? daysBeforeDue = null)
     {
         var pendingDeferral = task.DeferralRequests?.FirstOrDefault(d => d.Status == "PENDING");
         
@@ -604,6 +641,7 @@ public class MaintenanceController : ControllerBase
             task.ScheduleId,
             task.IntervalHours,
             task.IntervalDays,
+            DaysBeforeDue = daysBeforeDue,
             task.LastDoneAt,
             task.NextDueAt,
             task.RunningHoursAtLastDone,
