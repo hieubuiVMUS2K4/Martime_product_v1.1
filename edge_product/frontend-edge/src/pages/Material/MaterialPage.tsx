@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Plus, Search, Package, Eye, Edit2, Trash2, ChevronsUpDown, Upload, Link2 } from 'lucide-react';
+import { Plus, Search, Package, Eye, Edit2, Trash2, ChevronsUpDown, Upload, Link2, Download } from 'lucide-react';
 import { materialService } from '@/services/materialService';
 import type { CreateMaterialItemDto, UpdateMaterialItemDto } from '@/services/materialService';
 import { ItemFormModal } from './ItemFormModal';
@@ -103,6 +103,20 @@ export function MaterialPage() {
       return;
     }
     setAssignEquipmentModalOpen(true);
+  };
+
+  const handleDownloadTemplate = async () => {
+    const XLSX = await import('xlsx');
+    const rows = [
+      ['ItemCode', 'ItemName', 'Category', 'Unit', 'OnHandQuantity', 'UnitCost', 'Currency', 'Location', 'Supplier', 'PartNumber', 'Barcode', 'Manufacturer', 'Specification', 'MinStock', 'MaxStock', 'ReorderLevel', 'ReorderQuantity', 'Notes'],
+      ['MAT-TEST-001', 'Main Engine Lube Oil Filter', categories[0]?.categoryCode || categories[0]?.name || 'FILTERS', 'PCS', 12, 45, 'USD', 'Engine Store', 'VMU Supplier', 'LF-9001', '893000000001', 'Fleetguard', 'Spin-on filter for main engine lube oil', 4, 30, 6, 12, 'Test material item'],
+      ['MAT-TEST-002', 'Hydraulic Hose 1/2 inch', categories[1]?.categoryCode || categories[1]?.name || 'ENG-PARTS', 'M', 50, 8.5, 'USD', 'Workshop Store', 'VMU Supplier', 'HH-12', '893000000002', 'Parker', 'High pressure hydraulic hose', 10, 100, 20, 30, 'Test material item'],
+      ['MAT-TEST-003', 'Stainless Steel Bolt M12', categories[2]?.categoryCode || categories[2]?.name || 'DECK-SUPPLIES', 'PCS', 200, 0.75, 'USD', 'Deck Store', 'VMU Supplier', 'BOLT-M12-SS', '893000000003', 'Generic', 'M12 stainless steel bolt', 50, 500, 80, 100, 'Test material item'],
+    ];
+    const worksheet = XLSX.utils.aoa_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Materials');
+    XLSX.writeFile(workbook, 'materials-catalog-template.xlsx');
   };
 
   // Category handlers (for modal)
@@ -227,6 +241,13 @@ export function MaterialPage() {
           >
             <Plus className="w-3.5 h-3.5" />
             {t('materials.page.addNew')}
+          </button>
+          <button
+            onClick={handleDownloadTemplate}
+            className="p-1.5 border border-gray-300 rounded text-gray-500 hover:bg-gray-50"
+            title={t('materials.downloadTemplate')}
+          >
+            <Download className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => setImportReceiptModalOpen(true)}

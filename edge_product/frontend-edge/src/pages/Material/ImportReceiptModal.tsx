@@ -1,282 +1,363 @@
-import { useState, useRef } from 'react';
-import { X, Upload, FileSpreadsheet, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
-import * as XLSX from 'xlsx';
-import { receiptService, type ImportReceiptDto, type ImportReceiptItemDto, type ReceiptPreviewResponseDto } from '../../services/receiptService';
-import { useTranslationSafe } from '@/contexts/I18nContext';
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { AlertCircle, CheckCircle, FileSpreadsheet, Loader2, Upload, X } from 'lucide-react'
+import * as XLSX from 'xlsx'
+import { toast } from 'sonner'
+import { materialService, type CreateMaterialItemDto, type UpdateMaterialItemDto } from '@/services/materialService'
+import { useTranslationSafe } from '@/contexts/I18nContext'
+import type { MaterialCategory, MaterialItem } from '@/types/maritime.types'
 
 interface ImportReceiptModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
+  isOpen: boolean
+  onClose: () => void
+  onSuccess: () => void
+}
+
+type ImportAction = 'CREATE' | 'UPDATE' | 'ERROR'
+
+interface ParsedMaterialRow {
+  rowNumber: number
+  itemCode: string
+  name: string
+  categoryName: string
+  unit: string
+  onHandQuantity?: number
+  specification?: string
+  location?: string
+  manufacturer?: string
+  supplier?: string
+  partNumber?: string
+  barcode?: string
+  minStock?: number
+  maxStock?: number
+  reorderLevel?: number
+  reorderQuantity?: number
+  unitCost?: number
+  currency?: string
+  notes?: string
+  batchTracked?: boolean
+  serialTracked?: boolean
+  expiryRequired?: boolean
+  isActive?: boolean
+}
+
+interface PreviewMaterialRow extends ParsedMaterialRow {
+  action: ImportAction
+  categoryId?: number
+  existingItem?: MaterialItem
+  errorMessage?: string
+}
+
+const normalize = (value: unknown) => String(value ?? '').trim()
+const normalizeKey = (value: string) => value.trim().toLowerCase().replace(/\s+/g, '')
+const normalizeLookup = (value: string) => value.trim().toLowerCase()
+
+const toNumber = (value: unknown): number | undefined => {
+  if (value === null || value === undefined || value === '') return undefined
+  const n = Number(String(value).replace(/,/g, ''))
+  return Number.isFinite(n) ? n : undefined
+}
+
+const toBool = (value: unknown): boolean | undefined => {
+  if (value === null || value === undefined || value === '') return undefined
+  const v = String(value).trim().toLowerCase()
+  if (['true', '1', 'yes', 'y', 'co', 'có', 'active'].includes(v)) return true
+  if (['false', '0', 'no', 'n', 'khong', 'không', 'inactive'].includes(v)) return false
+  return undefined
+}
+
+const columnMap: Record<string, keyof ParsedMaterialRow> = {
+  itemcode: 'itemCode',
+  mavattu: 'itemCode',
+  code: 'itemCode',
+  itemname: 'name',
+  name: 'name',
+  tenvattu: 'name',
+  category: 'categoryName',
+  categoryname: 'categoryName',
+  danhmuc: 'categoryName',
+  unit: 'unit',
+  donvi: 'unit',
+  quantity: 'onHandQuantity',
+  onhandquantity: 'onHandQuantity',
+  stock: 'onHandQuantity',
+  tonkho: 'onHandQuantity',
+  specification: 'specification',
+  spec: 'specification',
+  thongso: 'specification',
+  location: 'location',
+  vitri: 'location',
+  manufacturer: 'manufacturer',
+  nhasanxuat: 'manufacturer',
+  supplier: 'supplier',
+  nhacungcap: 'supplier',
+  partnumber: 'partNumber',
+  malinhkien: 'partNumber',
+  barcode: 'barcode',
+  mavach: 'barcode',
+  minstock: 'minStock',
+  maxstock: 'maxStock',
+  reorderlevel: 'reorderLevel',
+  reorderquantity: 'reorderQuantity',
+  unitcost: 'unitCost',
+  dongia: 'unitCost',
+  currency: 'currency',
+  tien: 'currency',
+  notes: 'notes',
+  ghichu: 'notes',
+  batchtracked: 'batchTracked',
+  serialtracked: 'serialTracked',
+  expiryrequired: 'expiryRequired',
+  isactive: 'isActive',
 }
 
 export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceiptModalProps) {
-  const { t } = useTranslationSafe();
-  const [step, setStep] = useState<'upload' | 'preview' | 'importing'>('upload');
-  const [receiptDate, setReceiptDate] = useState(new Date().toISOString().split('T')[0]);
-  const [notes, setNotes] = useState('');
-  const [createdBy, setCreatedBy] = useState('');
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [parsedItems, setParsedItems] = useState<ImportReceiptItemDto[]>([]);
-  const [preview, setPreview] = useState<ReceiptPreviewResponseDto | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { t } = useTranslationSafe()
+  const [step, setStep] = useState<'upload' | 'preview' | 'importing'>('upload')
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+  const [parsedRows, setParsedRows] = useState<ParsedMaterialRow[]>([])
+  const [previewRows, setPreviewRows] = useState<PreviewMaterialRow[]>([])
+  const [items, setItems] = useState<MaterialItem[]>([])
+  const [categories, setCategories] = useState<MaterialCategory[]>([])
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (!isOpen) return
+    Promise.all([
+      materialService.getItems({ onlyActive: false }),
+      materialService.getCategories(true),
+    ])
+      .then(([loadedItems, loadedCategories]) => {
+        setItems(loadedItems)
+        setCategories(loadedCategories)
+      })
+      .catch((err: any) => setError(err.message || t('materials.import.failedToLoadCatalog')))
+  }, [isOpen])
+
+  const summary = useMemo(() => {
+    const validRows = previewRows.filter(row => row.action !== 'ERROR')
+    return {
+      totalItems: previewRows.length,
+      newItems: previewRows.filter(row => row.action === 'CREATE').length,
+      existingItems: previewRows.filter(row => row.action === 'UPDATE').length,
+      errorItems: previewRows.filter(row => row.action === 'ERROR').length,
+      totalValue: validRows.reduce((sum, row) => sum + ((row.onHandQuantity ?? row.existingItem?.onHandQuantity ?? 0) * (row.unitCost ?? row.existingItem?.unitCost ?? 0)), 0),
+    }
+  }, [previewRows])
+
+  if (!isOpen) return null
+
+  const reset = () => {
+    setStep('upload')
+    setUploadedFile(null)
+    setParsedRows([])
+    setPreviewRows([])
+    setError(null)
+    setLoading(false)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
 
   const handleClose = () => {
-    setStep('upload');
-    setUploadedFile(null);
-    setParsedItems([]);
-    setPreview(null);
-    setError(null);
-    setNotes('');
-    setCreatedBy('');
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-    onClose();
-  };
+    reset()
+    onClose()
+  }
+
+  const parseExcelFile = (file: File): Promise<ParsedMaterialRow[]> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+
+      reader.onload = (event) => {
+        try {
+          const data = event.target?.result
+          if (!data) throw new Error(t('materials.import.failedToRead'))
+
+          const workbook = XLSX.read(data, { type: 'binary' })
+          const sheet = workbook.Sheets[workbook.SheetNames[0]]
+          const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet)
+          if (rawRows.length === 0) throw new Error(t('materials.import.emptyFile'))
+
+          const rows = rawRows.map((rawRow, index) => {
+            const row: Partial<ParsedMaterialRow> = { rowNumber: index + 2 }
+
+            Object.entries(rawRow).forEach(([key, value]) => {
+              const mappedKey = columnMap[normalizeKey(key)]
+              if (!mappedKey) return
+
+              if (['onHandQuantity', 'minStock', 'maxStock', 'reorderLevel', 'reorderQuantity', 'unitCost'].includes(mappedKey)) {
+                ;(row as any)[mappedKey] = toNumber(value)
+              } else if (['batchTracked', 'serialTracked', 'expiryRequired', 'isActive'].includes(mappedKey)) {
+                ;(row as any)[mappedKey] = toBool(value)
+              } else {
+                ;(row as any)[mappedKey] = normalize(value)
+              }
+            })
+
+            if (!row.itemCode && !row.name && !row.categoryName) return null
+            return {
+              rowNumber: row.rowNumber!,
+              itemCode: normalize(row.itemCode),
+              name: normalize(row.name),
+              categoryName: normalize(row.categoryName),
+              unit: normalize(row.unit) || 'PCS',
+              onHandQuantity: row.onHandQuantity,
+              specification: normalize(row.specification) || undefined,
+              location: normalize(row.location) || undefined,
+              manufacturer: normalize(row.manufacturer) || undefined,
+              supplier: normalize(row.supplier) || undefined,
+              partNumber: normalize(row.partNumber) || undefined,
+              barcode: normalize(row.barcode) || undefined,
+              minStock: row.minStock,
+              maxStock: row.maxStock,
+              reorderLevel: row.reorderLevel,
+              reorderQuantity: row.reorderQuantity,
+              unitCost: row.unitCost,
+              currency: normalize(row.currency) || 'USD',
+              notes: normalize(row.notes) || undefined,
+              batchTracked: row.batchTracked ?? false,
+              serialTracked: row.serialTracked ?? false,
+              expiryRequired: row.expiryRequired ?? false,
+              isActive: row.isActive ?? true,
+            } satisfies ParsedMaterialRow
+          }).filter(Boolean) as ParsedMaterialRow[]
+
+          if (rows.length === 0) throw new Error(t('materials.import.noValidItemsDetail'))
+          resolve(rows)
+        } catch (err: any) {
+          reject(new Error(err.message || t('materials.import.failedToParseFormat')))
+        }
+      }
+
+      reader.onerror = () => reject(new Error(t('materials.import.failedToRead')))
+      reader.readAsBinaryString(file)
+    })
+  }
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const file = event.target.files?.[0]
+    if (!file) return
 
-    setError(null);
-    setUploadedFile(file);
+    setError(null)
+    setUploadedFile(file)
+    setPreviewRows([])
+    setStep('upload')
 
     try {
-      const items = await parseExcelFile(file);
-      setParsedItems(items);
-      
-      if (items.length === 0) {
-        setError(t('materials.import.noValidItems'));
-      }
+      const rows = await parseExcelFile(file)
+      setParsedRows(rows)
     } catch (err: any) {
-      setError(err.message || t('materials.import.failedToParse'));
-      setParsedItems([]);
+      setError(err.message || t('materials.import.failedToParse'))
+      setParsedRows([])
     }
-  };
+  }
 
-  const parseExcelFile = (file: File): Promise<ImportReceiptItemDto[]> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
+  const buildPreview = () => {
+    if (parsedRows.length === 0) {
+      setError(t('materials.import.noItemsToImport'))
+      return
+    }
 
-      reader.onload = (e) => {
-        try {
-          const data = e.target?.result;
-          if (!data) {
-            reject(new Error(t('materials.import.failedToRead')));
-            return;
-          }
+    const itemByCode = new Map(items.map(item => [normalizeLookup(item.itemCode), item]))
+    const categoryByNameOrCode = new Map<string, MaterialCategory>()
+    categories.forEach(category => {
+      categoryByNameOrCode.set(normalizeLookup(category.name), category)
+      categoryByNameOrCode.set(normalizeLookup(category.categoryCode), category)
+    })
 
-          // Parse Excel file
-          const workbook = XLSX.read(data, { type: 'binary' });
-          const sheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[sheetName];
-          const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet);
+    const seenCodes = new Set<string>()
+    const rows = parsedRows.map(row => {
+      const codeKey = normalizeLookup(row.itemCode)
+      const category = categoryByNameOrCode.get(normalizeLookup(row.categoryName))
+      const existingItem = itemByCode.get(codeKey)
+      const errors: string[] = []
 
-          if (jsonData.length === 0) {
-            reject(new Error(t('materials.import.emptyFile')));
-            return;
-          }
+      if (!row.itemCode) errors.push(t('materials.import.missingItemCode'))
+      if (!row.name) errors.push(t('materials.import.missingItemName'))
+      if (!row.categoryName) errors.push(t('materials.import.missingCategory'))
+      if (row.categoryName && !category) errors.push(t('materials.import.categoryNotFound', { category: row.categoryName }))
+      if (seenCodes.has(codeKey)) errors.push(t('materials.import.duplicateItemCode', { code: row.itemCode }))
+      if (codeKey) seenCodes.add(codeKey)
 
-          // Column name mapping (support both English and Vietnamese)
-          const columnMappings: Record<string, string> = {
-            // English names
-            'ItemCode': 'itemCode',
-            'itemcode': 'itemCode',
-            'Item Code': 'itemCode',
-            'ItemName': 'itemName',
-            'itemname': 'itemName',
-            'Item Name': 'itemName',
-            'Category': 'categoryName',
-            'category': 'categoryName',
-            'Quantity': 'quantity',
-            'quantity': 'quantity',
-            'Qty': 'quantity',
-            'Unit': 'unit',
-            'unit': 'unit',
-            'UnitCost': 'unitCost',
-            'unitcost': 'unitCost',
-            'Unit Cost': 'unitCost',
-            'Cost': 'unitCost',
-            'Price': 'unitCost',
-            'PartNumber': 'partNumber',
-            'partnumber': 'partNumber',
-            'Part Number': 'partNumber',
-            'Barcode': 'barcode',
-            'barcode': 'barcode',
-            'Manufacturer': 'manufacturer',
-            'manufacturer': 'manufacturer',
-            'Specification': 'specification',
-            'specification': 'specification',
-            'Spec': 'specification',
-            'Location': 'location',
-            'location': 'location',
-            'Supplier': 'supplier',
-            'supplier': 'supplier',
-            'MinStock': 'minStock',
-            'minstock': 'minStock',
-            'Min Stock': 'minStock',
-            'MaxStock': 'maxStock',
-            'maxstock': 'maxStock',
-            'Max Stock': 'maxStock',
-            'ReorderLevel': 'reorderLevel',
-            'reorderlevel': 'reorderLevel',
-            'Reorder Level': 'reorderLevel',
-            'ReorderQuantity': 'reorderQuantity',
-            'reorderquantity': 'reorderQuantity',
-            'Reorder Quantity': 'reorderQuantity',
-            'BatchTracked': 'batchTracked',
-            'batchtracked': 'batchTracked',
-            'Batch Tracked': 'batchTracked',
-            'SerialTracked': 'serialTracked',
-            'serialtracked': 'serialTracked',
-            'Serial Tracked': 'serialTracked',
-            'ExpiryRequired': 'expiryRequired',
-            'expiryrequired': 'expiryRequired',
-            'Expiry Required': 'expiryRequired',
-            // Vietnamese names
-            'Mã vật tư': 'itemCode',
-            'Tên vật tư': 'itemName',
-            'Danh mục': 'categoryName',
-            'Số lượng': 'quantity',
-            'Đơn vị': 'unit',
-            'Đơn giá': 'unitCost',
-            'Mã linh kiện': 'partNumber',
-            'Mã vạch': 'barcode',
-            'Nhà sản xuất': 'manufacturer',
-            'Thông số': 'specification',
-            'Vị trí': 'location',
-            'Nhà cung cấp': 'supplier',
-          };
-
-          // Map Excel data to ImportReceiptItemDto
-          const items: ImportReceiptItemDto[] = jsonData.map((row, index) => {
-            // Normalize row keys
-            const normalizedRow: Record<string, any> = {};
-            for (const key of Object.keys(row)) {
-              const mappedKey = columnMappings[key] || columnMappings[key.trim()] || key.toLowerCase();
-              normalizedRow[mappedKey] = row[key];
-            }
-
-            // Validate required fields
-            const itemCode = normalizedRow.itemCode || normalizedRow.itemcode;
-            const itemName = normalizedRow.itemName || normalizedRow.itemname;
-            const quantity = Number(normalizedRow.quantity) || 0;
-            const unit = normalizedRow.unit || 'pcs';
-
-            if (!itemCode || !itemName) {
-              console.warn(`Row ${index + 2}: Missing itemCode or itemName, skipping`);
-              return null;
-            }
-
-            if (quantity <= 0) {
-              console.warn(`Row ${index + 2}: Invalid quantity, skipping`);
-              return null;
-            }
-
-            return {
-              itemCode: String(itemCode).trim(),
-              itemName: String(itemName).trim(),
-              categoryName: normalizedRow.categoryName || normalizedRow.category || 'General',
-              quantity,
-              unit: String(unit).trim(),
-              unitCost: Number(normalizedRow.unitCost) || 0,
-              location: normalizedRow.location || undefined,
-              supplier: normalizedRow.supplier || undefined,
-              partNumber: normalizedRow.partNumber || undefined,
-              barcode: normalizedRow.barcode || undefined,
-              manufacturer: normalizedRow.manufacturer || undefined,
-              specification: normalizedRow.specification || undefined,
-              minStock: Number(normalizedRow.minStock) || undefined,
-              maxStock: Number(normalizedRow.maxStock) || undefined,
-              reorderLevel: Number(normalizedRow.reorderLevel) || Number(normalizedRow.reorderlevel) || undefined,
-              reorderQuantity: Number(normalizedRow.reorderQuantity) || Number(normalizedRow.reorderquantity) || undefined,
-              batchTracked: normalizedRow.batchTracked === 'TRUE' || normalizedRow.batchTracked === true || normalizedRow.batchtracked === 'TRUE',
-              serialTracked: normalizedRow.serialTracked === 'TRUE' || normalizedRow.serialTracked === true || normalizedRow.serialtracked === 'TRUE',
-              expiryRequired: normalizedRow.expiryRequired === 'TRUE' || normalizedRow.expiryRequired === true || normalizedRow.expiryrequired === 'TRUE',
-            };
-          }).filter((item) => item !== null) as ImportReceiptItemDto[];
-
-          if (items.length === 0) {
-            reject(new Error(t('materials.import.noValidItemsDetail')));
-            return;
-          }
-
-          resolve(items);
-        } catch (error: any) {
-          console.error('Excel parse error:', error);
-          reject(new Error(t('materials.import.failedToParseFormat')));
-        }
-      };
-
-      reader.onerror = () => reject(new Error(t('materials.import.failedToRead')));
-      reader.readAsBinaryString(file);
-    });
-  };
-
-  const handlePreview = async () => {
-    try {
-      setError(null);
-      setLoading(true);
-
-      if (parsedItems.length === 0) {
-        setError(t('materials.import.noItemsToImport'));
-        setLoading(false);
-        return;
+      if (errors.length > 0) {
+        return { ...row, action: 'ERROR', errorMessage: errors.join('; ') } satisfies PreviewMaterialRow
       }
 
-      const dto: ImportReceiptDto = {
-        receiptDate,
-        notes: notes || undefined,
-        createdBy: createdBy || undefined,
-        importSource: 'Excel',
-        importFileName: uploadedFile?.name,
-        items: parsedItems
-      };
+      return {
+        ...row,
+        action: existingItem ? 'UPDATE' : 'CREATE',
+        categoryId: category!.id,
+        existingItem,
+      } satisfies PreviewMaterialRow
+    })
 
-      const previewResult = await receiptService.previewImport(dto);
-      setPreview(previewResult);
-      setStep('preview');
-    } catch (err: any) {
-      setError(err.message || t('materials.import.failedToPreview'));
-    } finally {
-      setLoading(false);
-    }
-  };
+    setError(null)
+    setPreviewRows(rows)
+    setStep('preview')
+  }
+
+  const toDto = (row: PreviewMaterialRow): CreateMaterialItemDto | UpdateMaterialItemDto => ({
+    itemCode: row.itemCode,
+    name: row.name,
+    categoryId: row.categoryId!,
+    specification: row.specification ?? row.existingItem?.specification ?? null,
+    unit: row.unit || row.existingItem?.unit || 'PCS',
+    onHandQuantity: row.onHandQuantity ?? row.existingItem?.onHandQuantity ?? 0,
+    minStock: row.minStock ?? row.existingItem?.minStock ?? null,
+    maxStock: row.maxStock ?? row.existingItem?.maxStock ?? null,
+    reorderLevel: row.reorderLevel ?? row.existingItem?.reorderLevel ?? null,
+    reorderQuantity: row.reorderQuantity ?? row.existingItem?.reorderQuantity ?? null,
+    location: row.location ?? row.existingItem?.location ?? null,
+    manufacturer: row.manufacturer ?? row.existingItem?.manufacturer ?? null,
+    supplier: row.supplier ?? row.existingItem?.supplier ?? null,
+    partNumber: row.partNumber ?? row.existingItem?.partNumber ?? null,
+    barcode: row.barcode ?? row.existingItem?.barcode ?? null,
+    batchTracked: row.batchTracked ?? row.existingItem?.batchTracked ?? false,
+    serialTracked: row.serialTracked ?? row.existingItem?.serialTracked ?? false,
+    expiryRequired: row.expiryRequired ?? row.existingItem?.expiryRequired ?? false,
+    unitCost: row.unitCost ?? row.existingItem?.unitCost ?? null,
+    currency: row.currency ?? row.existingItem?.currency ?? 'USD',
+    notes: row.notes ?? row.existingItem?.notes ?? null,
+    isActive: row.isActive ?? row.existingItem?.isActive ?? true,
+  })
 
   const handleImport = async () => {
-    if (!preview) return;
+    const validRows = previewRows.filter(row => row.action !== 'ERROR')
+    if (validRows.length === 0) return
 
     try {
-      setError(null);
-      setStep('importing');
+      setStep('importing')
+      let created = 0
+      let updated = 0
 
-      const dto: ImportReceiptDto = {
-        receiptDate,
-        notes: notes || undefined,
-        createdBy: createdBy || undefined,
-        importSource: 'Excel',
-        importFileName: uploadedFile?.name,
-        items: parsedItems,
-      };
+      for (const row of validRows) {
+        const dto = toDto(row)
+        if (row.action === 'UPDATE' && row.existingItem) {
+          await materialService.updateItem(row.existingItem.id, dto as UpdateMaterialItemDto)
+          updated += 1
+        } else {
+          await materialService.createItem(dto as CreateMaterialItemDto)
+          created += 1
+        }
+      }
 
-      await receiptService.importReceipt(dto);
-      onSuccess();
-      handleClose();
+      toast.success(t('materials.import.importDone', { created, updated }))
+      onSuccess()
+      handleClose()
     } catch (err: any) {
-      setError(err.message || t('materials.import.failedToImport'));
-      setStep('preview');
+      setError(err.message || t('materials.import.failedToImport'))
+      setStep('preview')
     }
-  };
+  }
+
+  const renderAction = (action: ImportAction) => {
+    if (action === 'CREATE') return t('materials.import.actionCreate')
+    if (action === 'UPDATE') return t('materials.import.actionUpdate')
+    return t('materials.import.actionError')
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div className="flex items-center gap-3">
             <FileSpreadsheet className="w-6 h-6 text-blue-600" />
@@ -290,62 +371,20 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
           </button>
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
           {step === 'upload' && (
             <div className="space-y-6">
-              {/* Receipt Info */}
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    {t('materials.import.receiptDate')} <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={receiptDate}
-                    onChange={(e) => setReceiptDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    {t('materials.import.createdBy')}
-                  </label>
-                  <input
-                    type="text"
-                    value={createdBy}
-                    onChange={(e) => setCreatedBy(e.target.value)}
-                    placeholder={t('materials.import.createdByPlaceholder')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    {t('materials.import.notes')}
-                  </label>
-                  <input
-                    type="text"
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder={t('materials.import.notesPlaceholder')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-
-              {/* Instructions */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="font-semibold text-blue-900 mb-2">📋 {t('materials.import.instructions')}:</h3>
+                <h3 className="font-semibold text-blue-900 mb-2">{t('materials.import.instructions')}</h3>
                 <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
                   <li>{t('materials.import.instruction1')}</li>
-                  <li className="ml-6"><code className="bg-blue-100 px-1 rounded">ItemCode, ItemName, Category, Quantity, Unit, UnitCost, Location</code></li>
-                  <li className="ml-6">{t('materials.import.instruction2')}: <code className="bg-blue-100 px-1 rounded">PartNumber, Barcode, Manufacturer, Specification, MinStock, MaxStock</code></li>
+                  <li className="ml-6"><code className="bg-blue-100 px-1 rounded">ItemCode, ItemName, Category, Unit</code></li>
+                  <li className="ml-6">{t('materials.import.instruction2')}: <code className="bg-blue-100 px-1 rounded">OnHandQuantity, UnitCost, Location, Supplier, PartNumber, Barcode, Manufacturer, Specification, MinStock, MaxStock</code></li>
                   <li>{t('materials.import.instruction3')}</li>
                   <li>{t('materials.import.instruction4')}</li>
                 </ol>
               </div>
 
-              {/* File Upload Area */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   {t('materials.import.uploadFile')} <span className="text-red-500">*</span>
@@ -354,28 +393,27 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept=".xlsx,.xls"
+                    accept=".xlsx,.xls,.csv"
                     onChange={handleFileSelect}
                     className="hidden"
-                    id="excel-file-input"
+                    id="material-excel-file-input"
                   />
-                  <label htmlFor="excel-file-input" className="cursor-pointer">
+                  <label htmlFor="material-excel-file-input" className="cursor-pointer">
                     <FileSpreadsheet className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                     {uploadedFile ? (
                       <div>
                         <p className="text-sm font-medium text-gray-900">{uploadedFile.name}</p>
                         <p className="text-xs text-gray-500 mt-1">
-                          {parsedItems.length} {t('materials.import.itemsDetected')}
+                          {parsedRows.length} {t('materials.import.itemsDetected')}
                         </p>
                         <button
                           type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setUploadedFile(null);
-                            setParsedItems([]);
-                            if (fileInputRef.current) {
-                              fileInputRef.current.value = '';
-                            }
+                          onClick={(event) => {
+                            event.preventDefault()
+                            setUploadedFile(null)
+                            setParsedRows([])
+                            setPreviewRows([])
+                            if (fileInputRef.current) fileInputRef.current.value = ''
                           }}
                           className="mt-2 text-sm text-red-600 hover:text-red-800"
                         >
@@ -384,27 +422,20 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
                       </div>
                     ) : (
                       <div>
-                        <p className="text-sm text-gray-600">
-                          {t('materials.import.clickToSelect')}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {t('materials.import.supportedFormats')}
-                        </p>
+                        <p className="text-sm text-gray-600">{t('materials.import.clickToSelect')}</p>
+                        <p className="text-xs text-gray-500 mt-1">{t('materials.import.supportedFormats')}</p>
                       </div>
                     )}
                   </label>
                 </div>
               </div>
 
-              {/* Preview parsed items */}
-              {parsedItems.length > 0 && (
+              {parsedRows.length > 0 && (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                   <p className="text-sm font-semibold text-green-900">
-                    ✓ {t('materials.import.parseSuccess', { count: parsedItems.length })}
+                    {t('materials.import.parseSuccess', { count: parsedRows.length })}
                   </p>
-                  <p className="text-xs text-green-700 mt-1">
-                    {t('materials.import.clickPreview')}
-                  </p>
+                  <p className="text-xs text-green-700 mt-1">{t('materials.import.clickPreview')}</p>
                 </div>
               )}
 
@@ -420,52 +451,34 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
             </div>
           )}
 
-          {step === 'preview' && preview && (
+          {step === 'preview' && (
             <div className="space-y-6">
-              {/* Summary */}
-              <div className="grid grid-cols-5 gap-4">
+              <div className="grid grid-cols-4 gap-4">
                 <div className="bg-blue-50 rounded-lg p-4">
                   <p className="text-xs text-blue-600 font-medium">{t('materials.import.totalItems')}</p>
-                  <p className="text-2xl font-bold text-blue-900">{preview.summary.totalItems}</p>
+                  <p className="text-2xl font-bold text-blue-900">{summary.totalItems}</p>
                 </div>
                 <div className="bg-green-50 rounded-lg p-4">
                   <p className="text-xs text-green-600 font-medium">{t('materials.import.newItems')}</p>
-                  <p className="text-2xl font-bold text-green-900">{preview.summary.newItems}</p>
+                  <p className="text-2xl font-bold text-green-900">{summary.newItems}</p>
                 </div>
                 <div className="bg-yellow-50 rounded-lg p-4">
                   <p className="text-xs text-yellow-600 font-medium">{t('materials.import.updateItems')}</p>
-                  <p className="text-2xl font-bold text-yellow-900">{preview.summary.existingItems}</p>
+                  <p className="text-2xl font-bold text-yellow-900">{summary.existingItems}</p>
                 </div>
                 <div className="bg-red-50 rounded-lg p-4">
                   <p className="text-xs text-red-600 font-medium">{t('materials.import.errorItems')}</p>
-                  <p className="text-2xl font-bold text-red-900">{preview.summary.errorItems}</p>
-                </div>
-                <div className="bg-purple-50 rounded-lg p-4">
-                  <p className="text-xs text-purple-600 font-medium">{t('materials.import.totalValue')}</p>
-                  <p className="text-2xl font-bold text-purple-900">${preview.summary.totalAmount.toFixed(2)}</p>
+                  <p className="text-2xl font-bold text-red-900">{summary.errorItems}</p>
                 </div>
               </div>
 
-              {/* Warnings & Errors */}
-              {preview.warnings.length > 0 && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <p className="font-semibold text-yellow-900 mb-2">⚠️ {t('materials.import.warnings')}:</p>
-                  <ul className="text-sm text-yellow-800 space-y-1">
-                    {preview.warnings.map((w, i) => <li key={i}>• {w}</li>)}
-                  </ul>
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-800">{error}</p>
                 </div>
               )}
 
-              {preview.errors.length > 0 && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <p className="font-semibold text-red-900 mb-2">❌ {t('materials.import.errors')}:</p>
-                  <ul className="text-sm text-red-800 space-y-1">
-                    {preview.errors.map((e, i) => <li key={i}>• {e}</li>)}
-                  </ul>
-                </div>
-              )}
-
-              {/* Items Preview Table */}
               <div className="border border-gray-200 rounded-lg overflow-hidden">
                 <div className="overflow-x-auto max-h-96">
                   <table className="w-full">
@@ -476,48 +489,30 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('materials.import.colItemCode')}</th>
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('materials.import.colItemName')}</th>
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('materials.import.colCategory')}</th>
-                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">{t('materials.import.colQuantity')}</th>
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('materials.import.colUnit')}</th>
-                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">{t('materials.import.colUnitCost')}</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('materials.import.colStockChange')}</th>
+                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">{t('materials.import.colOnHand')}</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">{t('materials.import.colResult')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {preview.items.map((item, idx) => (
-                        <tr key={idx} className={`
-                          ${item.action === 'ERROR' ? 'bg-red-50' : ''}
-                          ${item.action === 'CREATE' ? 'bg-green-50' : ''}
-                          ${item.action === 'UPDATE' ? 'bg-yellow-50' : ''}
-                        `}>
-                          <td className="px-3 py-2 text-sm">{item.lineNumber}</td>
+                      {previewRows.map((row) => (
+                        <tr key={row.rowNumber} className={row.action === 'ERROR' ? 'bg-red-50' : row.action === 'CREATE' ? 'bg-green-50' : 'bg-yellow-50'}>
+                          <td className="px-3 py-2 text-sm">{row.rowNumber}</td>
                           <td className="px-3 py-2">
                             <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                              item.action === 'CREATE' ? 'bg-green-100 text-green-700' :
-                              item.action === 'UPDATE' ? 'bg-yellow-100 text-yellow-700' :
+                              row.action === 'CREATE' ? 'bg-green-100 text-green-700' :
+                              row.action === 'UPDATE' ? 'bg-yellow-100 text-yellow-700' :
                               'bg-red-100 text-red-700'
                             }`}>
-                              {item.action}
+                              {renderAction(row.action)}
                             </span>
                           </td>
-                          <td className="px-3 py-2 text-sm font-mono">{item.itemCode}</td>
-                          <td className="px-3 py-2 text-sm">{item.itemName}</td>
-                          <td className="px-3 py-2 text-sm text-gray-600">{item.categoryName}</td>
-                          <td className="px-3 py-2 text-sm text-right font-medium">{item.quantity}</td>
-                          <td className="px-3 py-2 text-sm">{item.unit}</td>
-                          <td className="px-3 py-2 text-sm text-right">{item.unitCost?.toFixed(2) || '-'}</td>
-                          <td className="px-3 py-2 text-sm">
-                            {item.action === 'UPDATE' && (
-                              <span className="text-xs text-gray-600">
-                                {item.currentStock?.toFixed(2)} → {item.newStock?.toFixed(2)}
-                              </span>
-                            )}
-                            {item.action === 'CREATE' && (
-                              <span className="text-xs text-green-600">New: {item.newStock?.toFixed(2)}</span>
-                            )}
-                            {item.errorMessage && (
-                              <span className="text-xs text-red-600">{item.errorMessage}</span>
-                            )}
-                          </td>
+                          <td className="px-3 py-2 text-sm font-mono">{row.itemCode}</td>
+                          <td className="px-3 py-2 text-sm">{row.name}</td>
+                          <td className="px-3 py-2 text-sm text-gray-600">{row.categoryName}</td>
+                          <td className="px-3 py-2 text-sm">{row.unit}</td>
+                          <td className="px-3 py-2 text-sm text-right">{row.onHandQuantity ?? row.existingItem?.onHandQuantity ?? 0}</td>
+                          <td className="px-3 py-2 text-xs text-gray-600">{row.errorMessage || '-'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -536,7 +531,6 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
           )}
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
           <div className="text-sm text-gray-600">
             {step === 'upload' && t('materials.import.step1')}
@@ -553,34 +547,22 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
             </button>
             {step === 'upload' && (
               <button
-                onClick={handlePreview}
-                disabled={!uploadedFile || parsedItems.length === 0 || loading}
+                onClick={buildPreview}
+                disabled={!uploadedFile || parsedRows.length === 0 || loading}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    {t('materials.import.processing')}
-                  </>
-                ) : (
-                  <>
-                    <Upload className="w-4 h-4" />
-                    {t('materials.import.preview')}
-                  </>
-                )}
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                {t('materials.import.preview')}
               </button>
             )}
             {step === 'preview' && (
               <>
-                <button
-                  onClick={() => setStep('upload')}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  ← {t('common.back')}
+                <button onClick={() => setStep('upload')} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                  {t('common.back')}
                 </button>
                 <button
                   onClick={handleImport}
-                  disabled={!preview || preview.summary.errorItems > 0}
+                  disabled={summary.errorItems > 0 || summary.totalItems === 0}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   <CheckCircle className="w-4 h-4" />
@@ -592,5 +574,5 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
         </div>
       </div>
     </div>
-  );
+  )
 }
