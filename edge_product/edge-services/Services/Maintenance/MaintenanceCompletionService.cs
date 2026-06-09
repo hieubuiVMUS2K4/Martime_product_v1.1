@@ -323,6 +323,9 @@ public class MaintenanceCompletionService
                 ExecutedAt = task.CompletedAt ?? DateTime.UtcNow,
                 ExecutedRunningHours = schedule.LastExecutedRunningHours,
                 CompletedBy = task.CompletedBy ?? task.VerifiedBy ?? "SYSTEM",
+                ActualDurationHours = task.ActualDuration.HasValue ? task.ActualDuration.Value / 60.0 : null,
+                SparePartsUsed = task.SparePartsUsed,
+                Notes = task.Notes,
                 CreatedAt = DateTime.UtcNow
             });
 

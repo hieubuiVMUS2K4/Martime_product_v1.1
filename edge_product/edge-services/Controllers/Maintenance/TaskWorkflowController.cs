@@ -232,6 +232,7 @@ public class TaskWorkflowController : ControllerBase
             if (dto.CompletedRunningHours.HasValue)
             {
                 task.RunningHoursAtLastDone = dto.CompletedRunningHours;
+                task.ActualRunningHours = dto.CompletedRunningHours;
             }
 
             // Add status history

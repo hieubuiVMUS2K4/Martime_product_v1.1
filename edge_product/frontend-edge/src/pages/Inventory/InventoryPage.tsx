@@ -72,13 +72,27 @@ export default function InventoryPage() {
   // ── Export Excel/CSV ──
   const handleExport = async () => {
     try {
-      const blob = await inventoryService.exportCsv();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `inventory-export-${new Date().toISOString().slice(0, 10)}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const res = await inventoryService.getAll({ page: 1, pageSize: 100000 });
+      const XLSX = await import('xlsx');
+      const rows = res.items.map(item => ({
+        'Mã vật tư': item.itemCode,
+        'Vật tư': item.itemName,
+        'Ghi chú': item.notes || '',
+        'Vị trí kho': item.locationName,
+        'Số lượng tồn': item.quantity,
+        'Đơn giá (USD)': item.unitCost,
+        'Giá trị tồn (USD)': item.totalValue,
+        'ĐVT': item.unit || '',
+        'Cập nhật': item.updatedAt ? item.updatedAt.slice(0, 10) : '',
+      }));
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      worksheet['!cols'] = [
+        { wch: 18 }, { wch: 32 }, { wch: 28 }, { wch: 24 }, { wch: 14 },
+        { wch: 14 }, { wch: 16 }, { wch: 10 }, { wch: 14 },
+      ];
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Tồn kho');
+      XLSX.writeFile(workbook, `inventory-export-${new Date().toISOString().slice(0, 10)}.xlsx`, { bookType: 'xlsx' });
     } catch (e) { console.error(e); toast.error('Export failed'); }
   };
 

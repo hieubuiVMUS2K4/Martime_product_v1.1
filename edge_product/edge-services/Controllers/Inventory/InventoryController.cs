@@ -2,6 +2,7 @@ using MaritimeEdge.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text;
+using System.Text.Json;
 
 namespace MaritimeEdge.Controllers.Inventory;
 
@@ -147,10 +148,10 @@ public class InventoryController : ControllerBase
                        join mi in _context.MaterialItems on sri.MaterialItemId equals mi.Id
                        where sri.MaterialItemId != null
                          && (!storeLocationId.HasValue || sri.StoreLocationId == storeLocationId.Value)
-                       select new {
+                       select new InventoryHistoryRow {
                            Date = sr.ReceivedDate,
                            Type = "IN",
-                           mi.ItemCode,
+                           ItemCode = mi.ItemCode,
                            ItemName = mi.Name,
                            Quantity = sri.QuantityReceived,
                            Note = sr.SupplierName ?? "",
@@ -161,22 +162,120 @@ public class InventoryController : ControllerBase
                        join mr in _context.MaterialRequests on mri.RequestId equals mr.Id
                        join mi in _context.MaterialItems on mri.MaterialItemId equals mi.Id
                        where mr.Status == "Approved" && mri.MaterialItemId != null
-                       select new {
+                       select new InventoryHistoryRow {
                            Date = mr.UpdatedAt,
                            Type = "OUT",
-                           mi.ItemCode,
+                           ItemCode = mi.ItemCode,
                            ItemName = mi.Name,
                            Quantity = mri.QuantityRequested,
                            Note = mr.Notes ?? "",
                        };
 
-        var all = await receipts.Concat(requests)
+        var rows = await receipts.Concat(requests).ToListAsync();
+
+        if (!storeLocationId.HasValue)
+        {
+            void AddMaintenanceOutRows(DateTime date, string? sparePartsJson, string? notes)
+            {
+                List<MaintenanceSparePartHistoryItem>? parts;
+                try
+                {
+                    parts = JsonSerializer.Deserialize<List<MaintenanceSparePartHistoryItem>>(
+                        sparePartsJson ?? "[]",
+                        new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                }
+                catch
+                {
+                    return;
+                }
+
+                if (parts == null) return;
+
+                foreach (var part in parts)
+                {
+                    var quantity = part.QuantityUsed ?? part.Quantity ?? 0;
+                    if (quantity <= 0) continue;
+
+                    rows.Add(new InventoryHistoryRow
+                    {
+                        Date = date,
+                        Type = "OUT",
+                        ItemCode = part.MaterialCode ?? "",
+                        ItemName = part.MaterialName ?? "",
+                        Quantity = (decimal)quantity,
+                        Note = string.IsNullOrWhiteSpace(notes)
+                            ? "Tiêu hao vật tư bảo trì"
+                            : $"Tiêu hao vật tư bảo trì - {notes}"
+                    });
+                }
+            }
+
+            var maintenanceHistories = await _context.MaintenanceHistories
+                .AsNoTracking()
+                .Where(h => h.SparePartsUsed != null && h.SparePartsUsed != "")
+                .Select(h => new { h.ExecutedAt, h.SparePartsUsed, h.TaskId, h.Notes })
+                .ToListAsync();
+
+            foreach (var history in maintenanceHistories)
+            {
+                List<MaintenanceSparePartHistoryItem>? parts;
+                try
+                {
+                    parts = JsonSerializer.Deserialize<List<MaintenanceSparePartHistoryItem>>(
+                        history.SparePartsUsed ?? "[]",
+                        new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                }
+                catch
+                {
+                    continue;
+                }
+
+                if (parts == null) continue;
+
+                foreach (var part in parts)
+                {
+                    var quantity = part.QuantityUsed ?? part.Quantity ?? 0;
+                    if (quantity <= 0) continue;
+
+                    rows.Add(new InventoryHistoryRow
+                    {
+                        Date = history.ExecutedAt,
+                        Type = "OUT",
+                        ItemCode = part.MaterialCode ?? "",
+                        ItemName = part.MaterialName ?? "",
+                        Quantity = (decimal)quantity,
+                        Note = string.IsNullOrWhiteSpace(history.Notes)
+                            ? $"Tiêu hao vật tư bảo trì"
+                            : $"Tiêu hao vật tư bảo trì - {history.Notes}"
+                    });
+                }
+            }
+
+            var historyTaskIds = maintenanceHistories
+                .Select(h => h.TaskId)
+                .ToHashSet();
+
+            var completedTasksWithoutHistoryParts = await _context.MaintenanceTasks
+                .AsNoTracking()
+                .Where(t => t.Status == "COMPLETED"
+                    && t.SparePartsUsed != null
+                    && t.SparePartsUsed != ""
+                    && !historyTaskIds.Contains(t.Id))
+                .Select(t => new { ExecutedAt = t.CompletedAt ?? t.UpdatedAt, t.SparePartsUsed, t.Notes })
+                .ToListAsync();
+
+            foreach (var task in completedTasksWithoutHistoryParts)
+            {
+                AddMaintenanceOutRows(task.ExecutedAt, task.SparePartsUsed, task.Notes);
+            }
+        }
+
+        var total = rows.Count;
+        var all = rows
             .OrderByDescending(x => x.Date)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
-
-        var total = await receipts.Concat(requests).CountAsync();
+            .ToList();
 
         return Ok(new { items = all, total, page, pageSize });
     }
@@ -274,4 +373,23 @@ public class AdjustInventoryDto
     public Guid StoreLocationId { get; set; }
     public decimal AdjustQuantity { get; set; }
     public string? Reason { get; set; }
+}
+
+public class InventoryHistoryRow
+{
+    public DateTime Date { get; set; }
+    public string Type { get; set; } = "";
+    public string ItemCode { get; set; } = "";
+    public string ItemName { get; set; } = "";
+    public decimal Quantity { get; set; }
+    public string Note { get; set; } = "";
+}
+
+public class MaintenanceSparePartHistoryItem
+{
+    public Guid MaterialItemId { get; set; }
+    public string? MaterialCode { get; set; }
+    public string? MaterialName { get; set; }
+    public double? QuantityUsed { get; set; }
+    public double? Quantity { get; set; }
 }

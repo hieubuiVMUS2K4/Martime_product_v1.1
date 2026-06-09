@@ -260,6 +260,7 @@ export interface SubmitTaskDto {
   sparePartsUsed?: string;
   photoUrls?: string[];
   completedRunningHours?: number;
+  actualDurationMinutes?: number;
 }
 
 export const submitTask = async (taskId: string, dto: SubmitTaskDto = {}): Promise<{

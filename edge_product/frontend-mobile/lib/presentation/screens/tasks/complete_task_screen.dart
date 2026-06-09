@@ -375,6 +375,10 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen>
         }
 
         // Backend uses headers for user identity; body carries workflow fields only.
+        final actualDurationHours = double.tryParse(
+          _actualDurationController.text.trim().replaceAll(',', '.'),
+        );
+
         await taskProvider.submitTask(
         taskId: widget.task.id,
         runningHours: double.tryParse(_runningHoursController.text),
@@ -382,7 +386,9 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen>
         notes: _notesController.text.trim().isEmpty
             ? null
             : _notesController.text.trim(),
-        actualDurationMinutes: int.tryParse(_actualDurationController.text),
+        actualDurationMinutes: actualDurationHours == null
+            ? null
+            : (actualDurationHours * 60).round(),
       );
 
       // Trigger sync if online
@@ -803,13 +809,13 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen>
             decoration: const InputDecoration(
               hintText: 'Nhập thời gian thực hiện',
               prefixIcon: Icon(Icons.timer_outlined, size: 20),
-              suffixText: 'phút',
+              suffixText: 'giờ',
               border: OutlineInputBorder(),
               contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
             ),
             keyboardType: TextInputType.number,
             inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
+              FilteringTextInputFormatter.allow(RegExp(r'^\d*[,.]?\d{0,2}')),
             ],
           ),
 

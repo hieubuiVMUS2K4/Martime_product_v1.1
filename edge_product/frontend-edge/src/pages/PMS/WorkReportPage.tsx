@@ -169,7 +169,7 @@ export default function WorkReportPage() {
 
       // Load receiver from schedule's crew config (no-op, field removed)
       setSparePartsUsed(data.sparePartsUsed || '')
-      setEquipmentRunningHours(data.actualRunningHours || 0)
+      setEquipmentRunningHours(data.actualRunningHours || data.runningHoursAtLastDone || 0)
 
       // Auto-fill "Thời gian hiện tại của thiết bị" và "Mô tả thiết bị" từ equipment asset
       if (data.equipmentAssetId) {
@@ -479,6 +479,8 @@ export default function WorkReportPage() {
       const dto: SubmitTaskDto = {
         notes: reportText || undefined,
         sparePartsUsed: sparePartsUsed || undefined,
+        completedRunningHours: equipmentRunningHours || undefined,
+        actualDurationMinutes: actualDuration || undefined,
       }
       await submitTask(task.id, dto)
       toast.success(t('pms.workReport.toast.submitted'))
@@ -590,14 +592,7 @@ export default function WorkReportPage() {
 
   const statusLabel = getStatusLabel(task.status)
   const priorityLabel = getPriorityLabel(task.priority)
-  const rawTaskTitle = (task.taskDescription?.split('\n')[0] || '').replace(/<!--(META|CREW):.*?-->/gs, '').trim()
-  const taskTitle = rawTaskTitle && !/^\d+$/.test(rawTaskTitle)
-    ? rawTaskTitle
-    : task.taskType === 'RUNNING_HOURS'
-      ? t('pms.workPlanning.config.runningHours')
-      : task.taskType === 'CALENDAR'
-        ? t('pms.workPlanning.config.calendar')
-        : (rawTaskTitle || task.taskType || t('pms.workReport.taskName'))
+  const taskTitle = (task.taskDescription?.split('\n')[0] || '').replace(/<!--(META|CREW):.*?-->/gs, '').trim()
 
   // common input class
   const inp = 'w-full px-3 py-1.5 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm'
