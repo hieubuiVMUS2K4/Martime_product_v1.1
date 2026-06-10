@@ -256,10 +256,6 @@ export function ItemFormModal({
                           <label className={lbl} style={{ width: 120 }}>{t('materials.item.location')}</label>
                           <input type="text" maxLength={100} value={formData.location || ''} onChange={e => set('location', e.target.value)} className={cls} readOnly={ro} />
                         </div>
-                        <div className="flex items-center">
-                          <label className={lbl} style={{ width: 120 }}>Barcode</label>
-                          <input type="text" maxLength={50} value={formData.barcode || ''} onChange={e => set('barcode', e.target.value)} className={cls} readOnly={ro} />
-                        </div>
                       </div>
 
                       {/* Right column */}
@@ -287,14 +283,19 @@ export function ItemFormModal({
                           <label className={lbl} style={{ width: 110 }}>{t('materials.item.supplier')}</label>
                           <input type="text" maxLength={200} value={formData.supplier || ''} onChange={e => set('supplier', e.target.value)} className={cls} readOnly={ro} />
                         </div>
+                        <div className="flex items-center gap-2">
+                          <label className={lbl} style={{ width: 110 }}>Min/Max</label>
+                          <input type="number" step="0.001" min="0" value={formData.minStock ?? ''} onChange={e => set('minStock', e.target.value ? Number(e.target.value) : null)} className={`${cls} flex-1`} readOnly={ro} placeholder="Min" />
+                          <input type="number" step="0.001" min="0" value={formData.maxStock ?? ''} onChange={e => set('maxStock', e.target.value ? Number(e.target.value) : null)} className={`${cls} flex-1`} readOnly={ro} placeholder="Max" />
+                        </div>
                         <div className="flex items-center">
-                          <label className={lbl} style={{ width: 110 }}>{t('materials.item.unitCost')}</label>
-                          <input type="number" step="0.01" min="0" value={formData.unitCost ?? ''} onChange={e => set('unitCost', e.target.value ? Number(e.target.value) : null)} className={`${cls} w-28`} readOnly={ro} />
-                          <span className="mx-1 text-xs text-gray-500">×</span>
+                          <label className={`${lbl} hidden`} style={{ width: 110 }}>{t('materials.item.unitCost')}</label>
+                          <input type="number" step="0.01" min="0" value={formData.unitCost ?? ''} onChange={e => set('unitCost', e.target.value ? Number(e.target.value) : null)} className={`${cls} hidden w-28`} readOnly={ro} />
+                          <span className="hidden mx-1 text-xs text-gray-500">×</span>
                           {ro ? (
-                            <input type="text" readOnly className={`${inpRo} w-20`} value={formData.currency || 'USD'} />
+                            <input type="text" readOnly className={`${inpRo} hidden w-20`} value={formData.currency || 'USD'} />
                           ) : (
-                            <select value={formData.currency || 'USD'} onChange={e => set('currency', e.target.value)} className={`${cls} w-20`}>
+                            <select value={formData.currency || 'USD'} onChange={e => set('currency', e.target.value)} className={`${cls} hidden w-20`}>
                               <option value="USD">USD</option>
                               <option value="EUR">EUR</option>
                               <option value="VND">VND</option>
@@ -305,9 +306,9 @@ export function ItemFormModal({
                         </div>
                       </div>
 
-                      {/* ROB + Image */}
+                      {/* Image */}
                       <div className="w-52 shrink-0 space-y-3">
-                        <div className="border border-gray-200 rounded p-3 bg-gray-50">
+                        <div className="hidden border border-gray-200 rounded p-3 bg-gray-50">
                           <div className="text-xs font-semibold text-gray-700 mb-2">{t('materials.item.robStock')}</div>
                           <div className="flex items-center gap-2 mb-2">
                             <input type="number" step="0.001" min="0" value={formData.onHandQuantity} onChange={e => set('onHandQuantity', Number(e.target.value))} className={`${ro ? inpRo : inp} w-full text-center font-bold text-lg`} readOnly={ro} />
@@ -361,7 +362,7 @@ export function ItemFormModal({
                 </div>
 
                 {/* Stock Status & Activity Summary */}
-                <div>
+                <div className="hidden">
                   <div className="bg-slate-700 text-white text-sm font-semibold px-3 py-1.5 rounded-t">{t('materials.item.stockActivity')}</div>
                   <div className="border border-t-0 border-gray-200 rounded-b p-4">
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

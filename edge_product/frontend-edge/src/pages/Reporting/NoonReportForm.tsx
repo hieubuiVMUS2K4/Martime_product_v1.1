@@ -27,6 +27,25 @@ import { useCurrentAccountName } from '../../hooks/useCurrentAccountName';
 import type { CreateNoonReportDto } from '../../types/reporting.types';
 import type { TaskSummary } from '../../types/maintenance.types';
 
+function formatSparePartsUsed(value?: string | null): string {
+  if (!value) return '';
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) return value;
+
+    return parsed
+      .map((part) => {
+        const name = part.materialName || part.materialCode || part.itemName || part.itemCode || part.materialItemId;
+        const qty = part.quantityUsed ?? part.quantity ?? part.quantityRequired;
+        return qty != null ? `${name} x${qty}` : name;
+      })
+      .filter(Boolean)
+      .join(', ');
+  } catch {
+    return value;
+  }
+}
+
 export function NoonReportForm() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>(); // Get ID from URL if editing
@@ -1238,7 +1257,7 @@ export function NoonReportForm() {
                         {task.sparePartsUsed && (
                           <div className="mt-2 text-xs text-gray-600 bg-gray-50 px-3 py-1.5 rounded">
                             <span className="font-medium">Spare Parts: </span>
-                            {task.sparePartsUsed}
+                            {formatSparePartsUsed(task.sparePartsUsed)}
                           </div>
                         )}
                       </div>

@@ -124,9 +124,22 @@ interface GanttTask {
   intervalType?: 'CALENDAR' | 'RUNNING_HOURS';
   intervalValue?: number;
   progress: number;
+  checklistCompleted: number;
+  checklistTotal: number;
   nextDueDate?: Date;
   hasNextDue?: boolean;
 }
+
+const HOURS_PER_CALENDAR_DAY = 24;
+const RUNNING_HOURS_PER_DAY = 10;
+const getTaskDurationDays = (estimatedDuration?: number | null) =>
+  Math.max(1, Math.ceil((Number(estimatedDuration) || HOURS_PER_CALENDAR_DAY) / HOURS_PER_CALENDAR_DAY));
+
+const startOfToday = () => {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
 
 const PRIORITY_COLORS: Record<string, { bg: string; bar: string; text: string }> = {
   CRITICAL: { bg: '#FEE2E2', bar: '#EF4444', text: '#991B1B' },
@@ -872,16 +885,22 @@ export default function WorkPlanningPage() {
 
   // Gantt data — derived from filteredTasks (same source as Bảng/Lịch/Kanban)
   const ganttTasksFromFiltered = useMemo((): GanttTask[] => {
-    const WORK_HOURS_PER_DAY = 8;
-    const RUNNING_HOURS_PER_DAY = 10;
     return filteredTasks
       .filter(t => t.nextDueAt)
       .map(t => {
-        const dueDate = parseISO(t.nextDueAt);
-        const today = new Date(); today.setHours(0,0,0,0);
+        const isRunningHours = !!t.intervalHours && !t.intervalDays;
+        const schedule = t.scheduleId ? schedules.find(s => s.id === t.scheduleId) : undefined;
+        const asset = t.equipmentAssetId ? assets.find(a => a.id === t.equipmentAssetId) : undefined;
+        let dueDate = parseISO(t.nextDueAt);
+
+        if (isRunningHours && schedule?.nextDueRunningHours !== undefined && asset?.currentRunningHours !== undefined) {
+          const hoursRemaining = Math.max(0, schedule.nextDueRunningHours - asset.currentRunningHours);
+          dueDate = addDays(startOfToday(), Math.ceil(hoursRemaining / RUNNING_HOURS_PER_DAY));
+        }
+
+        const today = startOfToday();
         const dueDt = new Date(dueDate); dueDt.setHours(0,0,0,0);
         const daysUntil = Math.ceil((dueDt.getTime() - today.getTime()) / 86400000);
-        const isRunningHours = !!t.intervalHours && !t.intervalDays;
         const intervalType: GanttTask['intervalType'] = isRunningHours ? 'RUNNING_HOURS' : 'CALENDAR';
 
         const configuredWarning = Math.max(1, Number(t.daysBeforeDue || (isRunningHours ? 70 : 7)));
@@ -896,9 +915,10 @@ export default function WorkPlanningPage() {
         else if (isOverdue) progress = 100;
         else if (daysUntil <= leadTimeDays) progress = Math.min(95, ((leadTimeDays - daysUntil) / leadTimeDays) * 100);
 
-        const workDurationDays = isRunningHours ? 1
-          : t.estimatedDuration ? Math.max(1, Math.ceil(t.estimatedDuration / WORK_HOURS_PER_DAY))
-          : 1;
+        const workDurationDays = getTaskDurationDays(t.estimatedDuration);
+        const checklistItems = t.checklistItems || [];
+        const checklistTotal = Number((t as any).checklistItemsCount ?? checklistItems.length ?? 0);
+        const checklistCompleted = Number((t as any).checklistCompletedCount ?? checklistItems.filter(item => item.isCompleted).length ?? 0);
 
         return {
           id: t.id,
@@ -914,10 +934,12 @@ export default function WorkPlanningPage() {
           intervalType,
           intervalValue: t.intervalHours || t.intervalDays,
           progress,
+          checklistCompleted,
+          checklistTotal,
         };
       })
       .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-  }, [filteredTasks]);
+  }, [filteredTasks, schedules, assets]);
 
   // === Sorting ===
   const sortedFilteredTasks = useMemo(() => {
@@ -1048,16 +1070,12 @@ export default function WorkPlanningPage() {
 
   const tasksByDate = useMemo(() => {
     const map = new Map<string, MaintenanceTask[]>();
-    const WORK_HOURS_PER_DAY = 8;
     filteredTasks.forEach(task => {
       if (task.nextDueAt) {
         const dueDate = parseISO(task.nextDueAt);
-        const isRunningHours = !!task.intervalHours && !task.intervalDays;
         // RUNNING_HOURS: chỉ hiện 1 ngày (mốc ước tính, counter mới là trigger thực)
         // CALENDAR: span theo estimatedDuration (giờ → ngày làm việc)
-        const durationDays = isRunningHours ? 1
-          : task.estimatedDuration ? Math.max(1, Math.ceil(task.estimatedDuration / WORK_HOURS_PER_DAY))
-          : 1;
+        const durationDays = getTaskDurationDays(task.estimatedDuration);
         for (let d = 0; d < durationDays; d++) {
           const dateKey = format(addDays(dueDate, d), 'yyyy-MM-dd');
           const list = map.get(dateKey) || [];
@@ -1688,6 +1706,7 @@ export default function WorkPlanningPage() {
                             const dueOffset = Math.floor((taskDue.getTime() - firstDay.getTime()) / 86400000);
                             const barLeft = dueOffset * dayWidth;
                             const barWidth = Math.max(task.workDurationDays * dayWidth, dayWidth);
+                            const checklistLabel = task.checklistTotal > 0 ? `${task.checklistCompleted}/${task.checklistTotal}` : '';
 
                             return (
                               <div key={task.id} className={`relative border-b border-gray-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`} style={{ height: '36px' }}>
@@ -1702,12 +1721,14 @@ export default function WorkPlanningPage() {
                                 })()}
                                 {/* Bar */}
                                 {barLeft >= 0 && (
-                                  <div className="absolute top-1/2 -translate-y-1/2 rounded-sm" style={{
+                                  <div className="absolute top-1/2 -translate-y-1/2 rounded-sm flex items-center justify-center text-[10px] font-bold text-white leading-none shadow-sm" style={{
                                     left: `${barLeft}px`,
                                     width: `${barWidth}px`,
                                     height: '20px',
                                     backgroundColor: '#5BC0DE',
-                                  }} />
+                                  }}>
+                                    {checklistLabel}
+                                  </div>
                                 )}
                               </div>
                             );

@@ -363,6 +363,16 @@ class _TaskListScreenState extends State<TaskListScreen>
                 child: TaskCard(
                   task: task,
                   onTap: () {
+                    if (task.isUpcoming) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('${task.statusText} - Công việc chưa đến thời điểm thực hiện'),
+                          duration: const Duration(seconds: 2),
+                          backgroundColor: Colors.blueGrey.shade700,
+                        ),
+                      );
+                      return;
+                    }
                     // Block tap for pending approval tasks
                     if (task.isPendingApproval) {
                       ScaffoldMessenger.of(context).showSnackBar(

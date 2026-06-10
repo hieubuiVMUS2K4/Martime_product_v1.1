@@ -425,6 +425,8 @@ export interface MaintenanceTask {
   lastDoneAt?: string
   nextDueAt: string
   runningHoursAtLastDone?: number
+  currentRunningHours?: number
+  nextDueRunningHours?: number
   priority: 'CRITICAL' | 'HIGH' | 'NORMAL' | 'LOW'
   status: MaintenanceTaskStatus
   assignedTo?: string

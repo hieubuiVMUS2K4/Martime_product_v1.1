@@ -207,20 +207,41 @@ public class MaintenanceController : ControllerBase
                 .Select(t => t.ScheduleId!.Value)
                 .Distinct()
                 .ToList();
-            var scheduleLeadTimes = scheduleIds.Count > 0
-                ? await _context.MaintenanceSchedules
+            var scheduleInfo = new Dictionary<Guid, (int DaysBeforeDue, double? NextDueRunningHours)>();
+            if (scheduleIds.Count > 0)
+            {
+                scheduleInfo = await _context.MaintenanceSchedules
                     .AsNoTracking()
                     .Where(s => scheduleIds.Contains(s.Id))
-                    .Select(s => new { s.Id, s.DaysBeforeDue })
-                    .ToDictionaryAsync(s => s.Id, s => s.DaysBeforeDue)
-                : new Dictionary<Guid, int>();
+                    .Select(s => new { s.Id, s.DaysBeforeDue, s.NextDueRunningHours })
+                    .ToDictionaryAsync(s => s.Id, s => (s.DaysBeforeDue, s.NextDueRunningHours));
+            }
+
+            var assetIds = tasks
+                .Where(t => t.EquipmentAssetId.HasValue)
+                .Select(t => t.EquipmentAssetId!.Value)
+                .Distinct()
+                .ToList();
+            var assetRunningHours = assetIds.Count > 0
+                ? await _context.EquipmentAssets
+                    .AsNoTracking()
+                    .Where(a => assetIds.Contains(a.Id))
+                    .Select(a => new { a.Id, a.CurrentRunningHours })
+                    .ToDictionaryAsync(a => a.Id, a => a.CurrentRunningHours)
+                : new Dictionary<Guid, double?>();
 
             var mappedTasks = tasks
                 .Select(task => MapTaskWithPendingDeferral(
                     task,
-                    task.ScheduleId.HasValue && scheduleLeadTimes.TryGetValue(task.ScheduleId.Value, out var daysBeforeDue)
-                        ? daysBeforeDue
-                        : (int?)null))
+                    task.ScheduleId.HasValue && scheduleInfo.TryGetValue(task.ScheduleId.Value, out var info)
+                        ? info.DaysBeforeDue
+                        : (int?)null,
+                    task.ScheduleId.HasValue && scheduleInfo.TryGetValue(task.ScheduleId.Value, out info)
+                        ? info.NextDueRunningHours
+                        : (double?)null,
+                    task.EquipmentAssetId.HasValue && assetRunningHours.TryGetValue(task.EquipmentAssetId.Value, out var currentRunningHours)
+                        ? currentRunningHours
+                        : (double?)null))
                 .ToList();
 
             return Ok(new
@@ -594,7 +615,7 @@ public class MaintenanceController : ControllerBase
     }
 
     // Helper method to map task with pending deferral
-    private object MapTaskWithPendingDeferral(MaintenanceTask task, int? daysBeforeDue = null)
+    private object MapTaskWithPendingDeferral(MaintenanceTask task, int? daysBeforeDue = null, double? nextDueRunningHours = null, double? currentRunningHours = null)
     {
         var pendingDeferral = task.DeferralRequests?.FirstOrDefault(d => d.Status == "PENDING");
         
@@ -642,6 +663,8 @@ public class MaintenanceController : ControllerBase
             task.IntervalHours,
             task.IntervalDays,
             DaysBeforeDue = daysBeforeDue,
+            NextDueRunningHours = nextDueRunningHours,
+            CurrentRunningHours = currentRunningHours,
             task.LastDoneAt,
             task.NextDueAt,
             task.RunningHoursAtLastDone,

@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts'
-import { dashboardService, alarmService, telemetryService } from '@/services/maritime.service'
+import { dashboardService, alarmService, telemetryService, maritimeService } from '@/services/maritime.service'
 import { useMaritimeStore } from '@/stores/maritime.store'
-import type { SafetyAlarm } from '@/types/maritime.types'
+import type { MaterialItem, MaintenanceTask, SafetyAlarm } from '@/types/maritime.types'
 import { useTranslationSafe } from '@/contexts/I18nContext'
 import { VesselMap } from '@/components/ship-data/VesselMap'
 import plannedRouteData from '@/assets/planned-route.json'
@@ -28,6 +28,73 @@ const MOCK_EDGE = { pendingSync: 12, lastSync: new Date(Date.now() - 45000).toIS
 const MOCK_DRAFT = { fore: 8.2, mid: 8.5, aft: 8.8 }
 const MOCK_THRUSTERS = { bow: 45, stern: 0 }
 
+type DashboardAlert = {
+  id: string
+  severity: SafetyAlarm['severity']
+  code?: string
+  title: string
+  description?: string
+  timestamp: string
+  location?: string
+}
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000
+
+function createMaintenanceAlerts(tasks: MaintenanceTask[]): DashboardAlert[] {
+  const now = new Date()
+  now.setHours(0, 0, 0, 0)
+
+  return tasks.flatMap(task => {
+    if (!task.nextDueAt || ['COMPLETED', 'CANCELLED', 'APPROVED'].includes(task.status)) return []
+
+    const isRunningHours = !!task.intervalHours && !task.intervalDays
+    if (
+      isRunningHours &&
+      task.nextDueRunningHours !== undefined &&
+      task.currentRunningHours !== undefined
+    ) {
+      const hoursUntilDue = task.nextDueRunningHours - task.currentRunningHours
+      const warningHours = Math.max(1, Number(task.daysBeforeDue || 70))
+      if (task.status !== 'OVERDUE' && hoursUntilDue > warningHours) return []
+      return [{
+        id: `maintenance-${task.id}`,
+        severity: (task.status === 'OVERDUE' || hoursUntilDue < 0 ? 'CRITICAL' : 'WARNING') as SafetyAlarm['severity'],
+        code: task.taskId,
+        title: task.status === 'OVERDUE' || hoursUntilDue < 0 ? 'Công việc quá hạn theo giờ chạy' : 'Công việc sắp đến hạn theo giờ chạy',
+        description: `${task.taskDescription || task.taskType} - ${task.equipmentAssetName || task.equipmentName || task.equipmentGroupName || 'Thiết bị'} (${hoursUntilDue < 0 ? `quá ${Math.abs(hoursUntilDue).toFixed(1)} giờ` : `còn ${hoursUntilDue.toFixed(1)} giờ`})`,
+        timestamp: task.nextDueAt,
+        location: task.assignedDepartment,
+      }]
+    }
+
+    const due = new Date(task.nextDueAt)
+    due.setHours(0, 0, 0, 0)
+    const daysUntil = Math.ceil((due.getTime() - now.getTime()) / MS_PER_DAY)
+    if (task.status !== 'OVERDUE' && daysUntil >= 0 && daysUntil > 3) return []
+    return [{
+      id: `maintenance-${task.id}`,
+      severity: (task.status === 'OVERDUE' || daysUntil < 0 ? 'CRITICAL' : 'WARNING') as SafetyAlarm['severity'],
+      code: task.taskId,
+      title: task.status === 'OVERDUE' || daysUntil < 0 ? 'Công việc quá hạn' : 'Công việc sắp đến hạn',
+      description: `${task.taskDescription || task.taskType} - ${task.equipmentAssetName || task.equipmentName || task.equipmentGroupName || 'Thiết bị'} (${daysUntil < 0 ? `quá hạn ${Math.abs(daysUntil)} ngày` : `còn ${daysUntil} ngày`})`,
+      timestamp: due.toISOString(),
+      location: task.assignedDepartment,
+    }]
+  })
+}
+
+function createLowStockAlerts(items: MaterialItem[]): DashboardAlert[] {
+  return items.map(item => ({
+    id: `stock-${item.id}`,
+    severity: 'WARNING' as SafetyAlarm['severity'],
+    code: item.itemCode,
+    title: 'Vật tư dưới mức tối thiểu',
+    description: `${item.name}: hiện ${item.onHandQuantity} ${item.unit}, tối thiểu ${item.minStock ?? 0} ${item.unit}`,
+    timestamp: item.createdAt || new Date().toISOString(),
+    location: item.location || undefined,
+  }))
+}
+
 export function DashboardPage() {
   const { t } = useTranslationSafe()
   const [loading, setLoading] = useState(true)
@@ -35,6 +102,8 @@ export function DashboardPage() {
   const [navigation, setNavigation] = useState<any>(null)
   const [engine, setEngine] = useState<any>(null)
   const [activeAlarms, setActiveAlarmsState] = useState<SafetyAlarm[]>([])
+  const [maintenanceAlerts, setMaintenanceAlerts] = useState<DashboardAlert[]>([])
+  const [stockAlerts, setStockAlerts] = useState<DashboardAlert[]>([])
   const [isAlarmModalOpen, setIsAlarmModalOpen] = useState(false)
   const [history, setHistory] = useState<any[]>([])
   const [currentTime, setCurrentTime] = useState(new Date())
@@ -59,23 +128,37 @@ export function DashboardPage() {
 
   const loadDashboardData = useCallback(async () => {
     try {
-      const [dashStats, alarms, posData, navData, engineData] = await Promise.all([
+      const [dashStatsRes, alarmsRes, posRes, navRes, engineRes, tasksRes, lowStockRes] = await Promise.allSettled([
         dashboardService.getStats(),
         alarmService.getActiveAlarms(),
         telemetryService.getLatestPosition(),
         telemetryService.getLatestNavigation(),
         telemetryService.getEngineStatus(),
+        maritimeService.maintenance.getAll({ page: 1, pageSize: 200 }),
+        maritimeService.material.getLowStock(),
       ])
 
-      setPosition(posData)
-      setNavigation(navData)
-      setEngine(engineData?.[0] || null)
-      setActiveAlarmsState(alarms)
-      
-      setDashboardStats(dashStats)
-      setActiveAlarms(alarms)
-      setCurrentPosition(posData)
-      setCurrentNavigation(navData)
+      if (posRes.status === 'fulfilled') {
+        setPosition(posRes.value)
+        setCurrentPosition(posRes.value)
+      }
+      if (navRes.status === 'fulfilled') {
+        setNavigation(navRes.value)
+        setCurrentNavigation(navRes.value)
+      }
+      if (engineRes.status === 'fulfilled') setEngine(engineRes.value?.[0] || null)
+      if (alarmsRes.status === 'fulfilled') {
+        setActiveAlarmsState(alarmsRes.value)
+        setActiveAlarms(alarmsRes.value)
+      }
+      if (dashStatsRes.status === 'fulfilled') setDashboardStats(dashStatsRes.value)
+
+      if (tasksRes.status === 'fulfilled') {
+        setMaintenanceAlerts(createMaintenanceAlerts(tasksRes.value.data || []))
+      }
+      if (lowStockRes.status === 'fulfilled') {
+        setStockAlerts(createLowStockAlerts(lowStockRes.value || []))
+      }
     } catch (error) {
       console.error('Failed to load dashboard data:', error)
     } finally {
@@ -156,8 +239,18 @@ export function DashboardPage() {
   const gpsFix = position?.fixQuality >= 2 ? t('conning.dgpsFix') : position?.fixQuality === 1 ? t('conning.gpsFix') : t('conning.noFix')
 
   const activeUnresolvedAlarms = activeAlarms.filter(alarm => !alarm.isResolved)
-  const criticalAlarmsCount = activeUnresolvedAlarms.filter(alarm => alarm.severity === 'CRITICAL').length
-  const totalAlarmsCount = activeUnresolvedAlarms.length
+  const safetyAlertItems: DashboardAlert[] = activeUnresolvedAlarms.map(alarm => ({
+    id: `safety-${alarm.id}`,
+    severity: alarm.severity,
+    code: alarm.alarmCode,
+    title: alarm.alarmType,
+    description: alarm.description,
+    timestamp: alarm.timestamp,
+    location: alarm.location,
+  }))
+  const dashboardAlerts = [...safetyAlertItems, ...maintenanceAlerts, ...stockAlerts]
+  const criticalAlarmsCount = dashboardAlerts.filter(alarm => alarm.severity === 'CRITICAL').length
+  const totalAlarmsCount = dashboardAlerts.length
 
   return (
     <div className="h-full w-full overflow-y-auto bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 transition-colors duration-200">
@@ -399,13 +492,13 @@ export function DashboardPage() {
       </div>
 
       {isAlarmModalOpen && (
-        <AlarmListModal alarms={activeUnresolvedAlarms} onClose={() => setIsAlarmModalOpen(false)} />
+        <AlarmListModal alarms={dashboardAlerts} onClose={() => setIsAlarmModalOpen(false)} />
       )}
     </div>
   )
 }
 
-function AlarmListModal({ alarms, onClose }: { alarms: SafetyAlarm[]; onClose: () => void }) {
+function AlarmListModal({ alarms, onClose }: { alarms: DashboardAlert[]; onClose: () => void }) {
   const severityClass = (severity: SafetyAlarm['severity']) => {
     if (severity === 'CRITICAL') return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/40 dark:text-red-200 dark:border-red-700'
     if (severity === 'WARNING') return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-200 dark:border-amber-700'
@@ -435,14 +528,14 @@ function AlarmListModal({ alarms, onClose }: { alarms: SafetyAlarm[]; onClose: (
           ) : (
             <div className="space-y-3">
               {alarms.map(alarm => (
-                <div key={String(alarm.id)} className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 p-4">
+                <div key={alarm.id} className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className={`px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase ${severityClass(alarm.severity)}`}>{alarm.severity}</span>
-                        {alarm.alarmCode && <span className="text-xs font-mono text-slate-500 dark:text-slate-400">{alarm.alarmCode}</span>}
+                        {alarm.code && <span className="text-xs font-mono text-slate-500 dark:text-slate-400">{alarm.code}</span>}
                       </div>
-                      <div className="mt-2 text-sm font-bold text-slate-900 dark:text-white">{alarm.alarmType}</div>
+                      <div className="mt-2 text-sm font-bold text-slate-900 dark:text-white">{alarm.title}</div>
                       {alarm.description && <div className="mt-1 text-sm text-slate-600 dark:text-slate-300">{alarm.description}</div>}
                     </div>
                     <div className="text-right text-xs text-slate-500 dark:text-slate-400">
