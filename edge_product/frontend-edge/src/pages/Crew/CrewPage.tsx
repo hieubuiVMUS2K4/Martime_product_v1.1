@@ -28,10 +28,24 @@ export function CrewPage() {
   const [sortType, setSortType] = useState<{ col: string; dir: 'asc'|'desc' } | null>({ col: 'crewId', dir: 'asc' })
   const [sortMenu, setSortMenu] = useState<string | null>(null)
 
+  // Shore notification summary: crewId → changed field count
+  const [shoreChangeSummary, setShoreChangeSummary] = useState<Record<string, number>>({})
+
   useEffect(() => {
     loadCrewData()
     loadPendingCrew()
+    loadShoreChangeSummary()
   }, [])
+
+  const loadShoreChangeSummary = async () => {
+    try {
+      const token = localStorage.getItem('maritime_token') ?? ''
+      const res = await fetch('/api/sync/notifications/crew-summary', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (res.ok) setShoreChangeSummary(await res.json())
+    } catch { /* silent */ }
+  }
 
   const loadCrewData = async () => {
     try {
@@ -200,6 +214,7 @@ export function CrewPage() {
             onPendingChanged={() => { loadPendingCrew(); setCrewOnboardCache(null); loadCrewData() }}
             activeTab={activeTab}
             exportRef={exportRef}
+            shoreChangeSummary={shoreChangeSummary}
           />
         )}
       </div>
@@ -228,7 +243,8 @@ function SectionedCrewView({
   onRejectCrew,
   onPendingChanged,
   activeTab,
-  exportRef
+  exportRef,
+  shoreChangeSummary
 }: { 
   crewMembers: CrewMember[]; 
   onViewCrew: (id: string) => void;
@@ -244,6 +260,7 @@ function SectionedCrewView({
   onPendingChanged: () => void;
   activeTab: 'onboard' | 'pending';
   exportRef: React.MutableRefObject<{ exportExcel: () => void; exportPDF: () => void }>;
+  shoreChangeSummary: Record<string, number>;
 }) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; crew: CrewMember } | null>(null)
   const [selectedCrew, setSelectedCrew] = useState<string | null>(null)
@@ -831,11 +848,19 @@ function SectionedCrewView({
                         {crew.embarkDate ? format(parseISO(crew.embarkDate), 'dd/MM/yyyy') : '-'}
                       </td>
                       <td className="w-24 px-3 py-2">
-                        {crew.isOnboard ? (
-                          <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-700">{t('crew.page.onboard')}</span>
-                        ) : (
-                          <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-600">{t('crew.page.ashore')}</span>
-                        )}
+                        <div className="flex items-center gap-1.5">
+                          {crew.isOnboard ? (
+                            <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-700">{t('crew.page.onboard')}</span>
+                          ) : (
+                            <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-600">{t('crew.page.ashore')}</span>
+                          )}
+                          {shoreChangeSummary[String(crew.id)] > 0 && (
+                            <span
+                              title={`${shoreChangeSummary[String(crew.id)]} thay đổi từ bờ`}
+                              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 18, height: 18, padding: '0 4px', background: '#ef4444', color: '#fff', fontSize: 10, fontWeight: 700, borderRadius: 9 }}
+                            >{shoreChangeSummary[String(crew.id)]}</span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   )
@@ -845,7 +870,7 @@ function SectionedCrewView({
           </table>
         </div>
 
-        {/* â”€â”€ PAGINATION â”€â”€ */}
+        {/* a */}
         <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 bg-white flex-shrink-0 text-xs text-gray-600">
           <div>
             <span className="border border-gray-300 rounded px-2 py-1 text-xs">{ITEMS_PER_PAGE} / {t('crew.page.perPage')}</span>

@@ -629,6 +629,175 @@ public class SyncController : ControllerBase
             groups  = groupResults
         });
     }
+
+    /// <summary>
+    /// Lấy danh sách thông báo thuyền viên được đồng bộ từ bờ xuống tàu.
+    /// Dùng để hiển thị thông báo trên edge dashboard khi bờ cập nhật thông tin thuyền viên.
+    /// </summary>
+    [HttpGet("notifications")]
+    [Authorize(Policy = "InternalAccess")]
+    public async Task<IActionResult> GetSyncNotifications(
+        [FromQuery] int limit = 30,
+        [FromQuery] DateTime? since = null)
+    {
+        try
+        {
+            var query = _context.SystemLogs
+                .AsNoTracking()
+                .Where(l => l.Category == "SYNC" &&
+                            (l.Action == "CREW_UPDATED_FROM_SHORE" ||
+                             l.Action == "CREW_CREATED_FROM_SHORE"));
+
+            if (since.HasValue)
+            {
+                var sinceUtc = DateTime.SpecifyKind(since.Value, DateTimeKind.Utc);
+                query = query.Where(l => l.Timestamp > sinceUtc);
+            }
+
+            var notifications = await query
+                .OrderByDescending(l => l.Timestamp)
+                .Take(limit)
+                .Select(l => new
+                {
+                    id        = l.Id,
+                    timestamp = l.Timestamp,
+                    action    = l.Action,
+                    message   = l.Message,
+                    entityId  = l.EntityId,
+                    newValues = l.NewValues,
+                    oldValues = l.OldValues
+                })
+                .ToListAsync();
+
+            return Ok(notifications);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting sync notifications");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// Lấy thông báo chưa xem cho một thứ viên cụ thể.
+    /// Được gọi khi mở CrewDetailPage để hiển thị field-level diff.
+    /// </summary>
+    [HttpGet("notifications/crew/{crewId}")]
+    [Authorize(Policy = "InternalAccess")]
+    public async Task<IActionResult> GetCrewNotifications(string crewId)
+    {
+        try
+        {
+            var items = await _context.SystemLogs
+                .AsNoTracking()
+                .Where(l => l.Category == "SYNC" &&
+                            l.EntityId == crewId &&
+                            (l.Action == "CREW_UPDATED_FROM_SHORE" ||
+                             l.Action == "CREW_CREATED_FROM_SHORE") &&
+                            l.Result != "VIEWED")
+                .OrderByDescending(l => l.Timestamp)
+                .Take(10)
+                .Select(l => new
+                {
+                    id        = l.Id,
+                    timestamp = l.Timestamp,
+                    action    = l.Action,
+                    message   = l.Message,
+                    newValues = l.NewValues,
+                    oldValues = l.OldValues
+                })
+                .ToListAsync();
+
+            return Ok(items);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting crew notifications for {CrewId}", crewId);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// Đánh dấu các thông báo của một thứ viên là đã xem (khi user nhấn Save).
+    /// </summary>
+    [HttpPost("notifications/crew/{crewId}/mark-viewed")]
+    [Authorize(Policy = "InternalAccess")]
+    public async Task<IActionResult> MarkCrewNotificationsViewed(string crewId)
+    {
+        try
+        {
+            var items = await _context.SystemLogs
+                .Where(l => l.Category == "SYNC" &&
+                            l.EntityId == crewId &&
+                            (l.Action == "CREW_UPDATED_FROM_SHORE" ||
+                             l.Action == "CREW_CREATED_FROM_SHORE") &&
+                            l.Result != "VIEWED")
+                .ToListAsync();
+
+            foreach (var log in items)
+                log.Result = "VIEWED";
+
+            await _context.SaveChangesAsync();
+            return Ok(new { cleared = items.Count });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error marking crew notifications viewed for {CrewId}", crewId);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// Trả về map { crewId → số field thay đổi chưa xem } cho tất cả crew có thông báo chưa xem.
+    /// Dùng để hiển thị badge đỏ trong crew list.
+    /// </summary>
+    [HttpGet("notifications/crew-summary")]
+    [Authorize(Policy = "InternalAccess")]
+    public async Task<IActionResult> GetCrewNotificationSummary()
+    {
+        try
+        {
+            var logs = await _context.SystemLogs
+                .AsNoTracking()
+                .Where(l => l.Category == "SYNC" &&
+                            (l.Action == "CREW_UPDATED_FROM_SHORE" ||
+                             l.Action == "CREW_CREATED_FROM_SHORE") &&
+                            l.Result != "VIEWED" &&
+                            l.EntityId != null)
+                .Select(l => new { l.EntityId, l.NewValues })
+                .ToListAsync();
+
+            // Count changed fields per crew (newest entry per crew)
+            var summary = new Dictionary<string, int>();
+            foreach (var log in logs)
+            {
+                if (log.EntityId == null) continue;
+                try
+                {
+                    if (log.NewValues != null)
+                    {
+                        var nv = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(log.NewValues);
+                        if (nv.TryGetProperty("changedFields", out var cf) && cf.ValueKind == System.Text.Json.JsonValueKind.Array)
+                        {
+                            var count = cf.GetArrayLength();
+                            if (!summary.ContainsKey(log.EntityId) || summary[log.EntityId] < count)
+                                summary[log.EntityId] = count;
+                        }
+                    }
+                    if (!summary.ContainsKey(log.EntityId))
+                        summary[log.EntityId] = 1;
+                }
+                catch { summary[log.EntityId] = 1; }
+            }
+
+            return Ok(summary);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting crew notification summary");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
 }
 
 /// <summary>Request body for POST /api/sync/snapshot</summary>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { toast } from 'sonner'
 import { useParams, useNavigate } from 'react-router-dom'
 import { 
@@ -78,6 +78,78 @@ export function CrewDetailPage() {
 
   const isPendingReview = crew?.onboardStatus === 'PendingReview' || crew?.onboardStatus === 'OnHold'
 
+  // ─── Shore changes tracking (thông báo cập nhật từ bờ) ────────────────────
+  interface ShoreFieldDiff { id: number; timestamp: string; action: string; message: string; newValues: string | null; oldValues: string | null }
+  const [shoreChanges, setShoreChanges] = useState<ShoreFieldDiff[]>([])
+
+  // Map: fieldName → { oldValue, newValue }
+  const shoreChangeMap = useMemo(() => {
+    const m: Record<string, { old: string; new: string }> = {}
+    // Backend lưu key PascalCase (C# property), cần normalize về camelCase
+    const toCamel = (s: string) => s.charAt(0).toLowerCase() + s.slice(1)
+    for (const entry of shoreChanges) {
+      try {
+        const oldObj = entry.oldValues ? JSON.parse(entry.oldValues) : {}
+        const newObj = entry.newValues ? JSON.parse(entry.newValues) : {}
+        const fields = newObj.fields ?? {}
+        for (const [k, v] of Object.entries(fields)) {
+          const camelKey = toCamel(k)
+          // oldValues cũng PascalCase
+          const oldVal = (oldObj[k] as string) ?? (oldObj[camelKey] as string) ?? ''
+          m[camelKey] = { old: oldVal, new: String(v ?? '') }
+        }
+      } catch { /* ignore */ }
+    }
+    return m
+  }, [shoreChanges])
+
+  const hasShoreChanges = Object.keys(shoreChangeMap).length > 0
+
+  // Fetch unviewed shore changes khi mở trang
+  const loadShoreChanges = async () => {
+    if (!id) return
+    try {
+      const token = localStorage.getItem('maritime_token') ?? ''
+      const res = await fetch(`/api/sync/notifications/crew/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (res.ok) setShoreChanges(await res.json())
+    } catch { /* silent */ }
+  }
+
+  // Đánh dấu đã xem khi nhấn nút "Đã xem"
+  const handleMarkShoreChangesViewed = async () => {
+    if (!id) return
+    try {
+      const token = localStorage.getItem('maritime_token') ?? ''
+      await fetch(`/api/sync/notifications/crew/${id}/mark-viewed`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setShoreChanges([])
+    } catch { /* silent */ }
+  }
+
+  // Helper: viền đỏ nếu field có diff từ bờ
+  const fieldBorderClass = (fieldKey: string) =>
+    shoreChangeMap[fieldKey]
+      ? 'border-red-400 bg-red-50 focus:border-red-500'
+      : 'border-gray-300 focus:border-blue-500'
+
+  // Helper: indicator nhỏ hiển thị old → new
+  const changeIndicator = (fieldKey: string) => {
+    const c = shoreChangeMap[fieldKey]
+    if (!c) return null
+    return (
+      <div className="flex items-center gap-1 mt-0.5">
+        <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
+        <span className="text-xs text-red-600">
+          <s className="text-gray-400 mr-1">{c.old || '(trống)'}</s>→ <strong>{c.new}</strong>
+        </span>
+      </div>
+    )
+  }
+
   const toggleSectionCheck = (section: string) => {
     setSectionChecklist(prev => ({ ...prev, [section]: !prev[section] }))
   }
@@ -124,6 +196,7 @@ export function CrewDetailPage() {
     loadCrewDetails()
     loadRanks()
     loadCountries()
+    loadShoreChanges()
   }, [id])
   
   const loadRanks = async () => {
@@ -1212,8 +1285,11 @@ export function CrewDetailPage() {
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
-            <h1 className="text-lg font-semibold text-gray-800">
+            <h1 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
               EDIT {crew.fullName.toUpperCase()} - {crew.rank?.rankName?.toUpperCase() || t('crew.edDetail.form.rank').toUpperCase()}
+              {hasShoreChanges && (
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" title="Có thay đổi từ bờ chưa xem" />
+              )}
             </h1>
           </div>
           <div className="flex items-center gap-2">
@@ -1243,6 +1319,17 @@ export function CrewDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Shore Changes Banner */}
+      {hasShoreChanges && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 24px', background: '#fef2f2', borderBottom: '2px solid #fca5a5' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: '#991b1b' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 22, height: 22, padding: '0 6px', background: '#ef4444', color: '#fff', fontSize: 12, fontWeight: 700, borderRadius: 11 }}>{Object.keys(shoreChangeMap).length}</span>
+            <span>Bờ đã chỉnh sửa <strong>{Object.keys(shoreChangeMap).length}</strong> trường. Các trường thay đổi được đánh dấu <span style={{ color: '#ef4444', fontWeight: 700 }}>MÀU ĐỎ</span> bên dưới.</span>
+          </div>
+          <button onClick={handleMarkShoreChangesViewed} style={{ padding: '5px 14px', fontSize: 12, fontWeight: 600, color: '#fff', background: '#0d7377', border: 'none', borderRadius: 4, cursor: 'pointer' }}>✓ Đã xem</button>
+        </div>
+      )}
 
       {/* Pending Review Banner */}
       {isPendingReview && (
@@ -1353,6 +1440,7 @@ export function CrewDetailPage() {
       <div className="p-3">
         {activeTab === 'basic-data' && (
           <div className="space-y-3">
+
             {/* Main Form */}
             <div className="bg-white rounded-lg shadow-sm p-6">
               <div className="grid grid-cols-12 gap-6">
@@ -1364,8 +1452,9 @@ export function CrewDetailPage() {
                       type="text"
                       value={editedCrew.fullName || ''}
                       onChange={(e) => setEditedCrew({ ...editedCrew, fullName: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      className={`w-full px-3 py-2 border rounded focus:outline-none ${fieldBorderClass('fullName')}`}
                     />
+                    {changeIndicator('fullName')}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.rank')}</label>
@@ -1388,8 +1477,9 @@ export function CrewDetailPage() {
                       type="text"
                       value={editedCrew.department || ''}
                       onChange={(e) => setEditedCrew({ ...editedCrew, department: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      className={`w-full px-3 py-2 border rounded focus:outline-none ${fieldBorderClass('department')}`}
                     />
+                    {changeIndicator('department')}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.dateOfBirth')}</label>
@@ -1397,8 +1487,9 @@ export function CrewDetailPage() {
                       type="date"
                       value={editedCrew.dateOfBirth?.split('T')[0] || ''}
                       onChange={(e) => setEditedCrew({ ...editedCrew, dateOfBirth: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      className={`w-full px-3 py-2 border rounded focus:outline-none ${fieldBorderClass('dateOfBirth')}`}
                     />
+                    {changeIndicator('dateOfBirth')}
                   </div>
                 </div>
 
@@ -1419,8 +1510,9 @@ export function CrewDetailPage() {
                       type="text"
                       value={editedCrew.placeOfBirth || ''}
                       onChange={(e) => setEditedCrew({ ...editedCrew, placeOfBirth: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      className={`w-full px-3 py-2 border rounded focus:outline-none ${fieldBorderClass('placeOfBirth')}`}
                     />
+                    {changeIndicator('placeOfBirth')}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.country')}</label>
@@ -1443,8 +1535,9 @@ export function CrewDetailPage() {
                       type="text"
                       value={editedCrew.idCardNumber || ''}
                       onChange={(e) => setEditedCrew({ ...editedCrew, idCardNumber: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      className={`w-full px-3 py-2 border rounded focus:outline-none ${fieldBorderClass('idCardNumber')}`}
                     />
+                    {changeIndicator('idCardNumber')}
                   </div>
                 </div>
 
@@ -1456,8 +1549,9 @@ export function CrewDetailPage() {
                       type="text"
                       value={editedCrew.phoneNumber || ''}
                       onChange={(e) => setEditedCrew({ ...editedCrew, phoneNumber: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      className={`w-full px-3 py-2 border rounded focus:outline-none ${fieldBorderClass('phoneNumber')}`}
                     />
+                    {changeIndicator('phoneNumber')}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.email')}</label>
@@ -1465,8 +1559,9 @@ export function CrewDetailPage() {
                       type="email"
                       value={editedCrew.emailAddress || ''}
                       onChange={(e) => setEditedCrew({ ...editedCrew, emailAddress: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                      className={`w-full px-3 py-2 border rounded focus:outline-none ${fieldBorderClass('emailAddress')}`}
                     />
+                    {changeIndicator('emailAddress')}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.maritalStatus')}</label>
@@ -1489,8 +1584,9 @@ export function CrewDetailPage() {
                         type="number"
                         value={editedCrew.height || ''}
                         onChange={(e) => setEditedCrew({ ...editedCrew, height: e.target.value ? Number(e.target.value) : undefined })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        className={`w-full px-3 py-2 border rounded focus:outline-none ${fieldBorderClass('height')}`}
                       />
+                      {changeIndicator('height')}
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.weightKg')}</label>
@@ -1499,8 +1595,9 @@ export function CrewDetailPage() {
                         step="0.1"
                         value={editedCrew.weight || ''}
                         onChange={(e) => setEditedCrew({ ...editedCrew, weight: e.target.value ? Number(e.target.value) : undefined })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        className={`w-full px-3 py-2 border rounded focus:outline-none ${fieldBorderClass('weight')}`}
                       />
+                      {changeIndicator('weight')}
                     </div>
                   </div>
                 </div>
@@ -1613,7 +1710,7 @@ export function CrewDetailPage() {
                   <select
                     value={editedCrew.bloodGroup || ''}
                     onChange={(e) => setEditedCrew({ ...editedCrew, bloodGroup: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                    className={`w-full px-3 py-2 border rounded focus:outline-none ${fieldBorderClass('bloodGroup')}`}
                   >
                     <option value="">{t('crew.edDetail.form.select')}</option>
                     <option value="A+">A+</option>
@@ -1625,6 +1722,7 @@ export function CrewDetailPage() {
                     <option value="O+">O+</option>
                     <option value="O-">O-</option>
                   </select>
+                  {changeIndicator('bloodGroup')}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.clothingSize')}</label>
@@ -1633,8 +1731,9 @@ export function CrewDetailPage() {
                     value={editedCrew.clothingSize || ''}
                     onChange={(e) => setEditedCrew({ ...editedCrew, clothingSize: e.target.value })}
                     placeholder={t('crew.edDetail.form.select')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                    className={`w-full px-3 py-2 border rounded focus:outline-none ${fieldBorderClass('clothingSize')}`}
                   />
+                  {changeIndicator('clothingSize')}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.shoeSize')}</label>
@@ -1643,8 +1742,9 @@ export function CrewDetailPage() {
                     value={editedCrew.shoeSize || ''}
                     onChange={(e) => setEditedCrew({ ...editedCrew, shoeSize: e.target.value })}
                     placeholder={t('crew.edDetail.form.select')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                    className={`w-full px-3 py-2 border rounded focus:outline-none ${fieldBorderClass('shoeSize')}`}
                   />
+                  {changeIndicator('shoeSize')}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.cateringSize')}</label>
@@ -1653,8 +1753,9 @@ export function CrewDetailPage() {
                     value={editedCrew.cateringSize || ''}
                     onChange={(e) => setEditedCrew({ ...editedCrew, cateringSize: e.target.value })}
                     placeholder={t('crew.edDetail.form.select')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                    className={`w-full px-3 py-2 border rounded focus:outline-none ${fieldBorderClass('cateringSize')}`}
                   />
+                  {changeIndicator('cateringSize')}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4 mt-4">
@@ -1690,8 +1791,9 @@ export function CrewDetailPage() {
                     type="date"
                     value={editedCrew.joinDate?.split('T')[0] || ''}
                     onChange={(e) => setEditedCrew({ ...editedCrew, joinDate: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                    className={`w-full px-3 py-2 border rounded focus:outline-none ${fieldBorderClass('joinDate')}`}
                   />
+                  {changeIndicator('joinDate')}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.embarkDate')}</label>
@@ -1717,8 +1819,9 @@ export function CrewDetailPage() {
                     type="date"
                     value={editedCrew.contractEnd?.split('T')[0] || ''}
                     onChange={(e) => setEditedCrew({ ...editedCrew, contractEnd: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                    className={`w-full px-3 py-2 border rounded focus:outline-none ${fieldBorderClass('contractEnd')}`}
                   />
+                  {changeIndicator('contractEnd')}
                 </div>
               </div>
               <SectionCheckbox section="employmentDates" label="Employment Dates" />
@@ -1734,15 +1837,16 @@ export function CrewDetailPage() {
                     type="text"
                     value={editedCrew.nextOfKinName || ''}
                     onChange={(e) => setEditedCrew({ ...editedCrew, nextOfKinName: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                    className={`w-full px-3 py-2 border rounded focus:outline-none ${fieldBorderClass('nextOfKinName')}`}
                   />
+                  {changeIndicator('nextOfKinName')}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.relationship')}</label>
                   <select
                     value={editedCrew.nextOfKinRelation || ''}
                     onChange={(e) => setEditedCrew({ ...editedCrew, nextOfKinRelation: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                    className={`w-full px-3 py-2 border rounded focus:outline-none ${fieldBorderClass('nextOfKinRelation')}`}
                   >
                     <option value="">{t('crew.edDetail.form.select')}</option>
                     <option value="Father">{t('crew.edDetail.form.father')}</option>
@@ -1752,6 +1856,7 @@ export function CrewDetailPage() {
                     <option value="Child">{t('crew.edDetail.form.child')}</option>
                     <option value="Other">{t('crew.edDetail.form.other')}</option>
                   </select>
+                  {changeIndicator('nextOfKinRelation')}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.phone')}</label>
@@ -1759,8 +1864,9 @@ export function CrewDetailPage() {
                     type="text"
                     value={editedCrew.nextOfKinPhone || ''}
                     onChange={(e) => setEditedCrew({ ...editedCrew, nextOfKinPhone: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                    className={`w-full px-3 py-2 border rounded focus:outline-none ${fieldBorderClass('nextOfKinPhone')}`}
                   />
+                  {changeIndicator('nextOfKinPhone')}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.address')}</label>
@@ -1768,8 +1874,9 @@ export function CrewDetailPage() {
                     type="text"
                     value={editedCrew.nextOfKinAddress || ''}
                     onChange={(e) => setEditedCrew({ ...editedCrew, nextOfKinAddress: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                    className={`w-full px-3 py-2 border rounded focus:outline-none ${fieldBorderClass('nextOfKinAddress')}`}
                   />
+                  {changeIndicator('nextOfKinAddress')}
                 </div>
               </div>
               <SectionCheckbox section="nextOfKin" label="Next of Kin" />
@@ -1786,8 +1893,9 @@ export function CrewDetailPage() {
                     value={editedCrew.educationInstitution || ''}
                     onChange={(e) => setEditedCrew({ ...editedCrew, educationInstitution: e.target.value })}
                     placeholder={t('crew.edDetail.form.institution')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                    className={`w-full px-3 py-2 border rounded focus:outline-none ${fieldBorderClass('educationInstitution')}`}
                   />
+                  {changeIndicator('educationInstitution')}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.course')}</label>
@@ -1796,8 +1904,9 @@ export function CrewDetailPage() {
                     value={editedCrew.educationCourse || ''}
                     onChange={(e) => setEditedCrew({ ...editedCrew, educationCourse: e.target.value })}
                     placeholder={t('crew.edDetail.form.course')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                    className={`w-full px-3 py-2 border rounded focus:outline-none ${fieldBorderClass('educationCourse')}`}
                   />
+                  {changeIndicator('educationCourse')}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.periodYears')}</label>
@@ -1806,8 +1915,9 @@ export function CrewDetailPage() {
                     value={editedCrew.educationPeriodYears || ''}
                     onChange={(e) => setEditedCrew({ ...editedCrew, educationPeriodYears: e.target.value ? Number(e.target.value) : undefined })}
                     placeholder={t('crew.edDetail.form.select')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                    className={`w-full px-3 py-2 border rounded focus:outline-none ${fieldBorderClass('educationPeriodYears')}`}
                   />
+                  {changeIndicator('educationPeriodYears')}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.graduationYear')}</label>
@@ -1816,8 +1926,9 @@ export function CrewDetailPage() {
                     value={editedCrew.educationGraduationYear || ''}
                     onChange={(e) => setEditedCrew({ ...editedCrew, educationGraduationYear: e.target.value ? Number(e.target.value) : undefined })}
                     placeholder={t('crew.edDetail.form.select')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                    className={`w-full px-3 py-2 border rounded focus:outline-none ${fieldBorderClass('educationGraduationYear')}`}
                   />
+                  {changeIndicator('educationGraduationYear')}
                 </div>
               </div>
               <SectionCheckbox section="education" label="Education Background" />
@@ -1833,8 +1944,9 @@ export function CrewDetailPage() {
                     value={editedCrew.address || ''}
                     onChange={(e) => setEditedCrew({ ...editedCrew, address: e.target.value })}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                    className={`w-full px-3 py-2 border rounded focus:outline-none ${fieldBorderClass('address')}`}
                   />
+                  {changeIndicator('address')}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase mb-1">{t('crew.edDetail.form.emergencyLegacy')}</label>
@@ -1842,9 +1954,10 @@ export function CrewDetailPage() {
                     value={editedCrew.emergencyContact || ''}
                     onChange={(e) => setEditedCrew({ ...editedCrew, emergencyContact: e.target.value })}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500 bg-gray-50"
+                    className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500 bg-gray-50 ${fieldBorderClass('emergencyContact')}`}
                     placeholder={t('crew.edDetail.form.emergencyPlaceholder')}
                   />
+                  {changeIndicator('emergencyContact')}
                 </div>
               </div>
               <div className="mt-4">
@@ -1853,8 +1966,9 @@ export function CrewDetailPage() {
                   value={editedCrew.notes || ''}
                   onChange={(e) => setEditedCrew({ ...editedCrew, notes: e.target.value })}
                   rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                  className={`w-full px-3 py-2 border rounded focus:outline-none ${fieldBorderClass('notes')}`}
                 />
+                {changeIndicator('notes')}
               </div>
               <SectionCheckbox section="contactInfo" label="Contact Information" />
             </div>

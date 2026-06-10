@@ -1318,7 +1318,10 @@ public class SyncInboxService : ISyncInboxService
                 var inOsProp = incomingEntity.GetType().GetProperty("OnboardStatus");
                 _logger.LogWarning("[SYNC-DEBUG] BEFORE resolve: existing.OnboardStatus={ExOs}, incoming.OnboardStatus={InOs}, payloadKeys=[{Keys}]",
                     osPropBefore?.GetValue(existing), inOsProp?.GetValue(incomingEntity), string.Join(",", payloadKeys));
+                // Snapshot crew fields BEFORE merge so we can compute fresh EdgeChanges afterwards
             }
+            // Snapshot as local variable (thread-safe — instance field would cause race conditions)
+            var crewSnapshot = item.TableName == "crew_member" ? SnapshotCrewFields(existing) : null;
 
             var resolution = _conflictResolver.Resolve(item.TableName, existing, incomingEntity, item.OriginNode);
 
@@ -1358,8 +1361,11 @@ public class SyncInboxService : ISyncInboxService
                     foreach (var prop in entry2.Metadata.GetProperties())
                     {
                         if (prop.IsKey()) continue; // never overwrite PK
-                        // Only copy properties that were actually in the payload
                         var propName = prop.PropertyInfo?.Name ?? prop.Name;
+                        // Never copy EdgeChanges/EdgeChangesViewed from payload — computed fresh below
+                        if (propName.Equals("EdgeChanges", StringComparison.OrdinalIgnoreCase) ||
+                            propName.Equals("EdgeChangesViewed", StringComparison.OrdinalIgnoreCase)) continue;
+                        // Only copy properties that were actually in the payload
                         var camel2 = char.ToLowerInvariant(propName[0]) + propName.Substring(1);
                         var snake2 = System.Text.RegularExpressions.Regex.Replace(propName, "([A-Z])", "_$1").TrimStart('_').ToLowerInvariant();
                         if (payloadKeys.Count > 0
@@ -1372,24 +1378,22 @@ public class SyncInboxService : ISyncInboxService
                             prop.PropertyInfo?.SetValue(existing, inVal);
                     }
                 }
-                // When edge sends new EdgeChanges, ensure shore marks them as unviewed
-                // But only if the incoming EdgeChanges is DIFFERENT from what was already cleared/viewed
-                if (item.TableName == "crew_member" && existing is Maritime.Shared.Models.Crew.CrewMember crewEntity)
+                // For crew_member: compute fresh EdgeChanges from ACTUAL field changes in this payload.
+                // Never blindly copy EdgeChanges from the incoming payload (it may contain stale diffs
+                // from a previous sync that shore has already viewed/cleared).
+                if (item.TableName == "crew_member" && existing is Maritime.Shared.Models.Crew.CrewMember crewEntity && crewSnapshot != null)
                 {
-                    var hasEdgeChangesKey = payloadKeys.Contains("EdgeChanges")
-                        || payloadKeys.Contains("edgeChanges")
-                        || payloadKeys.Contains("edge_changes");
-                    if (hasEdgeChangesKey && !string.IsNullOrWhiteSpace(crewEntity.EdgeChanges))
+                    var freshDiff = ComputeCrewEdgeChanges(crewEntity, crewSnapshot);
+                    if (freshDiff.Count > 0)
                     {
-                        // Get the original value before merge to compare
-                        var originalEntry = _context.Entry(existing);
-                        var originalEdgeChanges = originalEntry.Property("EdgeChanges").OriginalValue as string;
-                        // Only reset viewed if edge sent genuinely NEW change data
-                        if (originalEdgeChanges != crewEntity.EdgeChanges)
-                        {
-                            crewEntity.EdgeChangesViewed = false;
-                        }
+                        // REPLACE EdgeChanges with only what actually changed this sync.
+                        // Edge sends both a delta payload AND a full entity per save.
+                        // Only write when there are real diffs; when freshDiff==0 (full entity
+                        // arriving after its delta was already applied) leave EdgeChanges alone.
+                        crewEntity.EdgeChanges = System.Text.Json.JsonSerializer.Serialize(freshDiff);
+                        crewEntity.EdgeChangesViewed = false;
                     }
+                    // freshDiff==0: do nothing — preserve any notification already written by the delta
                 }
 
                 UpdateSyncMetadata(existing, item);
@@ -1419,9 +1423,18 @@ public class SyncInboxService : ISyncInboxService
         var patchData = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(item.Payload, _jsonOptions);
         if (patchData == null) return;
 
+        // Snapshot before patch for fresh EdgeChanges computation (local variable — thread-safe)
+        var patchCrewSnapshot = item.TableName == "crew_member" ? SnapshotCrewFields(existing) : null;
+
         var entry = _context.Entry(existing);
         foreach (var kvp in patchData)
         {
+            // Never overwrite EdgeChanges/EdgeChangesViewed from payload — computed fresh below
+            if (kvp.Key.Equals("EdgeChanges", StringComparison.OrdinalIgnoreCase) ||
+                kvp.Key.Equals("EdgeChangesViewed", StringComparison.OrdinalIgnoreCase) ||
+                kvp.Key.Equals("edge_changes", StringComparison.OrdinalIgnoreCase) ||
+                kvp.Key.Equals("edge_changes_viewed", StringComparison.OrdinalIgnoreCase)) continue;
+
             // Try EF metadata lookup (PascalCase), then try case-insensitive CLR property search
             var property = entry.Metadata.FindProperty(kvp.Key)
                         ?? entry.Metadata.GetProperties()
@@ -1446,27 +1459,133 @@ public class SyncInboxService : ISyncInboxService
             }
         }
 
-        // When edge sends new EdgeChanges via patch, mark as unviewed on shore
-        // But only if the change data is genuinely NEW (not a re-sync of already-viewed data)
-        if (item.TableName == "crew_member" && existing is Maritime.Shared.Models.Crew.CrewMember patchCrew)
+        // For patch path: also compute fresh EdgeChanges from actual changed fields.
+        if (item.TableName == "crew_member" && existing is Maritime.Shared.Models.Crew.CrewMember patchCrew && patchCrewSnapshot != null)
         {
-            var hasEdgeChangesKey = patchData.Keys.Any(k =>
-                string.Equals(k, "EdgeChanges", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(k, "edge_changes", StringComparison.OrdinalIgnoreCase));
-            if (hasEdgeChangesKey && !string.IsNullOrWhiteSpace(patchCrew.EdgeChanges))
+            var freshDiff = ComputeCrewEdgeChanges(patchCrew, patchCrewSnapshot);
+            if (freshDiff.Count > 0)
             {
-                var originalEdgeChanges = _context.Entry(existing).Property("EdgeChanges").OriginalValue as string;
-                if (originalEdgeChanges != patchCrew.EdgeChanges)
-                {
-                    patchCrew.EdgeChangesViewed = false;
-                }
+                // REPLACE EdgeChanges with only what actually changed this sync.
+                patchCrew.EdgeChanges = System.Text.Json.JsonSerializer.Serialize(freshDiff);
+                patchCrew.EdgeChangesViewed = false;
             }
+            // freshDiff==0: do nothing — preserve any notification already written by the delta
         }
 
         UpdateSyncMetadata(existing, item);
         await ResolveCrewVesselIdAsync(existing, item.OriginNode);
         _logger.LogDebug("Patched {Table}/{Key} from {Node}", 
             item.TableName, item.RecordKey, item.OriginNode);
+    }
+
+    // ============================================================
+    // EDGE CHANGES HELPERS
+    // ============================================================
+
+    private static readonly HashSet<string> _crewTrackableFields = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "FullName", "DateOfBirth", "PlaceOfBirth", "Gender", "MaritalStatus",
+        "Department", "RankId", "CountryId", "CrewId",
+        "PhoneNumber", "EmailAddress", "Address", "EmergencyContact", "IdCardNumber",
+        "Height", "Weight", "BloodGroup", "ClothingSize", "ShoeSize", "CateringSize",
+        "IsSmoker", "IsCovidVaccinated",
+        "JoinDate", "ContractEnd",
+        "NextOfKinName", "NextOfKinRelation", "NextOfKinRelationship", "NextOfKinPhone", "NextOfKinAddress",
+        "EducationInstitution", "EducationCourse", "EducationPeriodYears", "EducationGraduationYear",
+        "SocialInsuranceNumber", "TaxIdNumber", "Notes",
+    };
+
+    private static readonly Dictionary<string, string> _crewFieldLabels = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["FullName"] = "Họ và tên",
+        ["DateOfBirth"] = "Ngày sinh",
+        ["PlaceOfBirth"] = "Nơi sinh",
+        ["Gender"] = "Giới tính",
+        ["MaritalStatus"] = "Tình trạng hôn nhân",
+        ["Department"] = "Bộ phận",
+        ["RankId"] = "Chức danh",
+        ["CountryId"] = "Quốc tịch",
+        ["CrewId"] = "Mã thuyền viên",
+        ["PhoneNumber"] = "Số điện thoại",
+        ["EmailAddress"] = "Email",
+        ["Address"] = "Địa chỉ",
+        ["EmergencyContact"] = "Liên hệ khẩn cấp",
+        ["IdCardNumber"] = "CMND/CCCD",
+        ["Height"] = "Chiều cao",
+        ["Weight"] = "Cân nặng",
+        ["BloodGroup"] = "Nhóm máu",
+        ["ClothingSize"] = "Kích thước quần áo",
+        ["ShoeSize"] = "Cỡ giày",
+        ["CateringSize"] = "Cỡ phục vụ ăn uống",
+        ["IsSmoker"] = "Hút thuốc",
+        ["IsCovidVaccinated"] = "Tiêm Covid",
+        ["JoinDate"] = "Ngày gia nhập",
+        ["ContractEnd"] = "Hết hạn hợp đồng",
+        ["NextOfKinName"] = "Tên thân nhân",
+        ["NextOfKinRelation"] = "Quan hệ thân nhân",
+        ["NextOfKinRelationship"] = "Quan hệ thân nhân",
+        ["NextOfKinPhone"] = "SĐT thân nhân",
+        ["NextOfKinAddress"] = "Địa chỉ thân nhân",
+        ["EducationInstitution"] = "Cơ sở giáo dục",
+        ["EducationCourse"] = "Ngành học",
+        ["EducationPeriodYears"] = "Số năm học",
+        ["EducationGraduationYear"] = "Năm tốt nghiệp",
+        ["SocialInsuranceNumber"] = "Số BHXH",
+        ["TaxIdNumber"] = "Mã số thuế",
+        ["Notes"] = "Ghi chú",
+    };
+
+    /// <summary>Snapshot trackable crew fields. Returns local dict (thread-safe).</summary>
+    private static Dictionary<string, string?> SnapshotCrewFields(object entity)
+    {
+        var snapshot = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var prop in entity.GetType().GetProperties())
+        {
+            if (!_crewTrackableFields.Contains(prop.Name)) continue;
+            var val = prop.GetValue(entity);
+            if (val == null) { snapshot[prop.Name] = null; continue; }
+            // Normalize decimals to avoid "59.00" vs "59" false positives
+            var str = Convert.ToString(val, System.Globalization.CultureInfo.InvariantCulture);
+            if (decimal.TryParse(str, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var d))
+                str = d.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            snapshot[prop.Name] = str;
+        }
+        return snapshot;
+    }
+
+    /// <summary>Compare snapshot vs updated entity, return list of changed fields.</summary>
+    private static List<object> ComputeCrewEdgeChanges(
+        object updated, Dictionary<string, string?> snapshot)
+    {
+        var changes = new List<object>();
+        if (snapshot.Count == 0) return changes;
+        foreach (var prop in updated.GetType().GetProperties())
+        {
+            if (!snapshot.TryGetValue(prop.Name, out var oldStr)) continue;
+            if (!_crewFieldLabels.TryGetValue(prop.Name, out var label)) continue;
+            // Skip EdgeChanges fields themselves
+            if (prop.Name.Equals("EdgeChanges", StringComparison.OrdinalIgnoreCase) ||
+                prop.Name.Equals("EdgeChangesViewed", StringComparison.OrdinalIgnoreCase)) continue;
+            var newVal = prop.GetValue(updated);
+            var newStr = newVal == null ? null
+                : Convert.ToString(newVal, System.Globalization.CultureInfo.InvariantCulture);
+            // Normalize decimal/numeric strings before comparing to avoid false positives
+            // e.g. "59.00" vs "59" are equal values but different strings.
+            if (oldStr == newStr) continue;
+            if (oldStr != null && newStr != null
+                && decimal.TryParse(oldStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var oldDec)
+                && decimal.TryParse(newStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var newDec)
+                && oldDec == newDec) continue;
+            changes.Add(new
+            {
+                field = char.ToLowerInvariant(prop.Name[0]) + prop.Name.Substring(1),
+                label,
+                oldValue = oldStr ?? "",
+                newValue = newStr ?? "",
+                changedAt = DateTime.UtcNow.ToString("o")
+            });
+        }
+        return changes;
     }
 
     // ============================================================

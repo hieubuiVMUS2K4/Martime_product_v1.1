@@ -725,20 +725,11 @@ public class CrewController : ControllerBase
             if (crew.EducationPeriodYears.HasValue) existing.EducationPeriodYears = crew.EducationPeriodYears;
             if (crew.EducationGraduationYear.HasValue) existing.EducationGraduationYear = crew.EducationGraduationYear;
 
-            // Persist edge changes — accumulate new changes onto any existing unviewed changes
+            // Persist edge changes — REPLACE (not accumulate) with only the latest batch of changes.
+            // Accumulating leads to stale diffs piling up across multiple syncs.
             if (changes.Count > 0)
             {
-                var allChanges = new List<object>();
-                if (!string.IsNullOrWhiteSpace(existing.EdgeChanges) && !existing.EdgeChangesViewed)
-                {
-                    try
-                    {
-                        allChanges = System.Text.Json.JsonSerializer.Deserialize<List<object>>(existing.EdgeChanges) ?? new List<object>();
-                    }
-                    catch { }
-                }
-                allChanges.AddRange(changes);
-                existing.EdgeChanges = System.Text.Json.JsonSerializer.Serialize(allChanges);
+                existing.EdgeChanges = System.Text.Json.JsonSerializer.Serialize(changes);
                 existing.EdgeChangesViewed = false;
             }
             

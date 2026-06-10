@@ -210,6 +210,12 @@ public class CrewController : ControllerBase
         {
             var crew = await _crewService.UpdateCrewAsync(id, request);
             if (crew == null) return NotFound(new { error = "Crew member not found" });
+
+            // Broadcast crew update to all edge nodes so they can pull the latest data
+            var entity = await _context.CrewMembers.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id);
+            if (entity != null)
+                await _syncOutbox.BroadcastAsync("crew_member", id.ToString(), SyncActionType.UPDATE, entity);
+
             return Ok(crew);
         }
         catch (Exception ex)
