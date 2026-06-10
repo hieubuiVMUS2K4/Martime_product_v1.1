@@ -4,6 +4,7 @@ import { format } from 'date-fns'
 import { SettingsButton } from '@/components/settings'
 import { useTranslationSafe } from '@/contexts/I18nContext'
 import { UserMenu } from './UserMenu'
+import { SyncNotificationBell } from './SyncNotificationBell'
 
 export function Header() {
   const { isOnline, isSyncing, lastSyncTime } = useMaritimeStore()
@@ -49,6 +50,9 @@ export function Header() {
 
         {/* Settings Button */}
         <SettingsButton />
+
+        {/* Sync Notifications từ bờ */}
+        <SyncNotificationBell />
 
         {/* Current Time */}
         <div className="text-sm text-gray-600 dark:text-gray-300">

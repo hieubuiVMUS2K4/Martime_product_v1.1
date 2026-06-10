@@ -71,6 +71,49 @@ public class SyncConflictHandler : ISyncConflictHandler
         "certificate", "country", "rank", "rank_certificate", "country_certificate"
     };
 
+    // Human-readable labels for crew fields that should trigger notifications
+    private static readonly Dictionary<string, string> _crewFieldLabels = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["FullName"] = "Họ và tên",
+        ["DateOfBirth"] = "Ngày sinh",
+        ["Nationality"] = "Quốc tịch",
+        ["CountryId"] = "Quốc tịch",
+        ["PlaceOfBirth"] = "Nơi sinh",
+        ["Gender"] = "Giới tính",
+        ["MaritalStatus"] = "Tình trạng hôn nhân",
+        ["RankId"] = "Chức danh",
+        ["Department"] = "Bộ phận",
+        ["CrewId"] = "Mã thuyền viên",
+        ["PhoneNumber"] = "Số điện thoại",
+        ["EmailAddress"] = "Email",
+        ["Address"] = "Địa chỉ",
+        ["EmergencyContact"] = "Liên hệ khẩn cấp",
+        ["IdCardNumber"] = "CMND/CCCD",
+        ["Height"] = "Chiều cao",
+        ["Weight"] = "Cân nặng",
+        ["BloodGroup"] = "Nhóm máu",
+        ["ClothingSize"] = "Kích thước quần áo",
+        ["ShoeSize"] = "Cỡ giày",
+        ["CateringSize"] = "Cỡ phục vụ ăn uống",
+        ["IsSmoker"] = "Hút thuốc",
+        ["IsCovidVaccinated"] = "Tiêm Covid",
+        ["JoinDate"] = "Ngày gia nhập",
+        ["ContractEnd"] = "Hết hạn hợp đồng",
+        ["NextOfKinName"] = "Tên thân nhân",
+        ["NextOfKinRelation"] = "Quan hệ thân nhân",
+        ["NextOfKinRelationship"] = "Quan hệ thân nhân",
+        ["NextOfKinPhone"] = "SĐT thân nhân",
+        ["NextOfKinAddress"] = "Địa chỉ thân nhân",
+        ["EducationInstitution"] = "Cơ sở giáo dục",
+        ["EducationCourse"] = "Ngành học",
+        ["EducationPeriodYears"] = "Số năm học",
+        ["EducationGraduationYear"] = "Năm tốt nghiệp",
+        ["SocialInsuranceNumber"] = "Số BHXH",
+        ["TaxIdNumber"] = "Mã số thuế",
+        ["Notes"] = "Ghi chú",
+        ["OnboardStatus"] = "Trạng thái lên tàu",
+    };
+
     // Edge-owned tables — reject updates from Shore
     private static readonly HashSet<string> _edgeOwnedTables = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -177,6 +220,14 @@ public class SyncConflictHandler : ISyncConflictHandler
         MarkSynced(entity, item);
         await context.AddAsync(entity);
         _logger.LogDebug("Created from shore: {Table}/{Key}", item.TableName, item.RecordKey);
+
+        // Ghi thông báo khi thuyền viên mới được nhận từ bờ
+        if (item.TableName == "crew_member" && entity is Maritime.Shared.Models.Crew.CrewMember newCrew)
+        {
+            var crewName = string.IsNullOrWhiteSpace(newCrew.FullName) ? item.RecordKey : newCrew.FullName;
+            WriteCrewSyncLog(context, crewName, "CREW_CREATED_FROM_SHORE",
+                $"Thuyền viên mới từ bờ: {crewName}", item.RecordKey, new List<FieldDiff>());
+        }
     }
 
     private async Task HandleUpdateAsync(EdgeDbContext context, Type entityType, SyncQueueItemDto item)
@@ -205,8 +256,28 @@ public class SyncConflictHandler : ISyncConflictHandler
         var incomingEntity = JsonSerializer.Deserialize(item.Payload, entityType, _jsonOptions);
         if (incomingEntity != null)
         {
-            MergeFromShore(existing, incomingEntity, item.TableName);
-            MarkSynced(existing, item);
+            // Với crew_member: chụp ảnh trạng thái trước khi merge để so sánh thay đổi
+            if (item.TableName == "crew_member" && existing is Maritime.Shared.Models.Crew.CrewMember existingCrew)
+            {
+                var crewName = string.IsNullOrWhiteSpace(existingCrew.FullName) ? item.RecordKey : existingCrew.FullName;
+
+                var snapshot = SnapshotTrackedFields(existing);
+                MergeFromShore(existing, incomingEntity, item.TableName);
+                MarkSynced(existing, item);
+
+                var fieldDiffs = DetectFieldDiffs(snapshot, existing);
+                if (fieldDiffs.Count > 0)
+                {
+                    WriteCrewSyncLog(context, crewName, "CREW_UPDATED_FROM_SHORE",
+                        $"Thuyền viên {crewName} được cập nhật từ bờ: {string.Join(", ", fieldDiffs.Select(d => d.Label))}",
+                        item.RecordKey, fieldDiffs);
+                }
+            }
+            else
+            {
+                MergeFromShore(existing, incomingEntity, item.TableName);
+                MarkSynced(existing, item);
+            }
         }
     }
 
@@ -364,5 +435,65 @@ public class SyncConflictHandler : ISyncConflictHandler
                 propInfo.SetValue(entity, null);
             }
         }
+    }
+
+    // ============================================================
+    // CREW SYNC NOTIFICATION HELPERS
+    // ============================================================
+
+    private static Dictionary<string, object?> SnapshotTrackedFields(object entity)
+    {
+        var snapshot = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var prop in entity.GetType().GetProperties())
+        {
+            if (_crewFieldLabels.ContainsKey(prop.Name))
+                snapshot[prop.Name] = prop.GetValue(entity);
+        }
+        return snapshot;
+    }
+
+    private record FieldDiff(string Field, string Label, string OldValue, string NewValue);
+
+    private static List<FieldDiff> DetectFieldDiffs(Dictionary<string, object?> snapshot, object updated)
+    {
+        var diffs = new List<FieldDiff>();
+        foreach (var prop in updated.GetType().GetProperties())
+        {
+            if (!snapshot.TryGetValue(prop.Name, out var oldVal)) continue;
+            if (!_crewFieldLabels.TryGetValue(prop.Name, out var label)) continue;
+            var newVal = prop.GetValue(updated);
+            if (Equals(oldVal, newVal)) continue;
+            var oldStr = oldVal == null ? "" : Convert.ToString(oldVal, System.Globalization.CultureInfo.InvariantCulture) ?? "";
+            var newStr = newVal == null ? "" : Convert.ToString(newVal, System.Globalization.CultureInfo.InvariantCulture) ?? "";
+            diffs.Add(new FieldDiff(prop.Name, label, oldStr, newStr));
+        }
+        return diffs;
+    }
+
+    private static void WriteCrewSyncLog(
+        EdgeDbContext context,
+        string crewName,
+        string action,
+        string message,
+        string entityId,
+        List<FieldDiff> fieldDiffs)
+    {
+        var oldVals = fieldDiffs.ToDictionary(d => d.Field, d => d.OldValue);
+        var newVals = fieldDiffs.ToDictionary(d => d.Field, d => d.NewValue);
+        var fieldLabels = fieldDiffs.Select(d => d.Label).ToList();
+
+        context.SystemLogs.Add(new SystemLog
+        {
+            Timestamp = DateTime.UtcNow,
+            Category = "SYNC",
+            Action = action,
+            Level = "INFO",
+            Message = message,
+            EntityType = "crew_member",
+            EntityId = entityId,
+            OldValues = JsonSerializer.Serialize(oldVals, _jsonOptions),
+            NewValues = JsonSerializer.Serialize(new { crewName, changedFields = fieldLabels, fields = newVals }, _jsonOptions),
+            Result = "SUCCESS"
+        });
     }
 }

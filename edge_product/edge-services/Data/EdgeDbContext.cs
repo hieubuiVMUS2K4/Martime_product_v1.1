@@ -2974,7 +2974,10 @@ public class EdgeDbContext : DbContext
                     // items from shore, and must NOT be queued back or it creates an infinite sync loop.
                     // Also skip CreatedAt — it never changes after initial creation and pull-from-shore
                     // re-applying it causes an infinite sync loop with empty delta payloads.
-                    if (prop.Metadata.Name is "UpdatedAt" or "CreatedAt" or "IsSynced" or "SyncVersion" or "OriginNode" or "LastSyncedAt") continue;
+                    // Skip EdgeChanges/EdgeChangesViewed — these are local-only tracking fields managed
+                    // by CLEAR_EDGE_CHANGES; sending them to shore is wasteful and shore ignores them anyway.
+                    if (prop.Metadata.Name is "UpdatedAt" or "CreatedAt" or "IsSynced" or "SyncVersion" or "OriginNode" or "LastSyncedAt"
+                        or "EdgeChanges" or "EdgeChangesViewed") continue;
 
                     changedProps[prop.Metadata.Name] = prop.CurrentValue;
                 }

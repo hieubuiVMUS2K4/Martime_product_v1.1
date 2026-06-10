@@ -237,6 +237,12 @@ public class ConflictResolverService : IConflictResolverService
             // Skip primary key - EF Core does not allow modifying key properties
             if (prop.Name == "Id") continue;
 
+            // Never let incoming payload overwrite EdgeChanges/EdgeChangesViewed.
+            // These are computed server-side in SyncInboxService from actual diffs.
+            // Allowing the resolver to copy them from the payload causes stale
+            // EdgeChanges (e.g. old Weight diff) to re-appear on subsequent syncs.
+            if (prop.Name is "EdgeChanges" or "EdgeChangesViewed") continue;
+
             var existingValue = prop.GetValue(existing);
             var incomingValue = prop.GetValue(incoming);
             
