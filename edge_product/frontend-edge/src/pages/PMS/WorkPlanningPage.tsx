@@ -884,19 +884,25 @@ export default function WorkPlanningPage() {
   }, [showHistory, activeTasks, historyTasks, selectedAssetIds, searchQuery, assets, colFilterCode, colFilterEquip, colFilterName, colFilterDesc, colFilterPriority, colFilterStatus, colFilterType]);
 
   // Gantt data — derived from filteredTasks (same source as Bảng/Lịch/Kanban)
+  const getCounterAwareDueDate = useCallback((task: MaintenanceTask) => {
+    const dueDate = parseISO(task.nextDueAt);
+    const isRunningHours = !!task.intervalHours && !task.intervalDays;
+    if (!isRunningHours) return dueDate;
+
+    const schedule = task.scheduleId ? schedules.find(s => s.id === task.scheduleId) : undefined;
+    const asset = task.equipmentAssetId ? assets.find(a => a.id === task.equipmentAssetId) : undefined;
+    if (schedule?.nextDueRunningHours === undefined || asset?.currentRunningHours === undefined) return dueDate;
+
+    const hoursRemaining = Math.max(0, schedule.nextDueRunningHours - asset.currentRunningHours);
+    return addDays(startOfToday(), Math.ceil(hoursRemaining / RUNNING_HOURS_PER_DAY));
+  }, [schedules, assets]);
+
   const ganttTasksFromFiltered = useMemo((): GanttTask[] => {
     return filteredTasks
       .filter(t => t.nextDueAt)
       .map(t => {
         const isRunningHours = !!t.intervalHours && !t.intervalDays;
-        const schedule = t.scheduleId ? schedules.find(s => s.id === t.scheduleId) : undefined;
-        const asset = t.equipmentAssetId ? assets.find(a => a.id === t.equipmentAssetId) : undefined;
-        let dueDate = parseISO(t.nextDueAt);
-
-        if (isRunningHours && schedule?.nextDueRunningHours !== undefined && asset?.currentRunningHours !== undefined) {
-          const hoursRemaining = Math.max(0, schedule.nextDueRunningHours - asset.currentRunningHours);
-          dueDate = addDays(startOfToday(), Math.ceil(hoursRemaining / RUNNING_HOURS_PER_DAY));
-        }
+        const dueDate = getCounterAwareDueDate(t);
 
         const today = startOfToday();
         const dueDt = new Date(dueDate); dueDt.setHours(0,0,0,0);
@@ -939,7 +945,7 @@ export default function WorkPlanningPage() {
         };
       })
       .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-  }, [filteredTasks, schedules, assets]);
+  }, [filteredTasks, getCounterAwareDueDate]);
 
   // === Sorting ===
   const sortedFilteredTasks = useMemo(() => {
@@ -1072,7 +1078,7 @@ export default function WorkPlanningPage() {
     const map = new Map<string, MaintenanceTask[]>();
     filteredTasks.forEach(task => {
       if (task.nextDueAt) {
-        const dueDate = parseISO(task.nextDueAt);
+        const dueDate = getCounterAwareDueDate(task);
         // RUNNING_HOURS: chỉ hiện 1 ngày (mốc ước tính, counter mới là trigger thực)
         // CALENDAR: span theo estimatedDuration (giờ → ngày làm việc)
         const durationDays = getTaskDurationDays(task.estimatedDuration);
@@ -1085,7 +1091,7 @@ export default function WorkPlanningPage() {
       }
     });
     return map;
-  }, [filteredTasks]);
+  }, [filteredTasks, getCounterAwareDueDate]);
 
   // === Gantt helpers ===
   const ganttDays = useMemo(() => {
