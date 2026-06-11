@@ -349,6 +349,27 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen>
     }
   }
 
+  String _getSubmissionErrorMessage(Object error, AppLocalizations l10n) {
+    if (error is TaskSubmissionException) {
+      final data = error.data;
+      switch (error.code) {
+        case 'RUNNING_HOURS_BELOW_CURRENT':
+          final current = data['current']?.toString() ?? '-';
+          final requested = data['requested']?.toString() ?? '-';
+          return l10n.runningHoursBelowCurrent(current, requested);
+        case 'INSUFFICIENT_STOCK':
+          final material = data['materialName'] ?? data['materialCode'] ?? 'vật tư';
+          final available = data['available']?.toString() ?? '-';
+          final required = data['required']?.toString() ?? '-';
+          return l10n.insufficientStockForMaterial(material.toString(), available, required);
+        default:
+          return data['error']?.toString() ?? l10n.errorCompletingTask(error.code);
+      }
+    }
+
+    return l10n.errorCompletingTask(error.toString());
+  }
+
   Future<void> _submitCompletion() async {
     final l10n = AppLocalizations.of(context);
     if (!_formKey.currentState!.validate()) {
@@ -435,7 +456,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(AppLocalizations.of(context).errorCompletingTask(e.toString())),
+            content: Text(_getSubmissionErrorMessage(e, AppLocalizations.of(context))),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 4),
           ),
@@ -788,9 +809,12 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen>
               if (hours == null || hours < 0) {
                 return l10n.pleaseEnterValidNumber;
               }
-              if (widget.task.runningHoursAtLastDone != null &&
-                  hours < widget.task.runningHoursAtLastDone!) {
-                return l10n.runningHoursCannotBeLess(widget.task.runningHoursAtLastDone!);
+              final minimumHours = widget.task.currentRunningHours ?? widget.task.runningHoursAtLastDone;
+              if (minimumHours != null && hours < minimumHours) {
+                return l10n.runningHoursBelowCurrent(
+                  minimumHours.toString(),
+                  hours.toString(),
+                );
               }
               return null;
             },

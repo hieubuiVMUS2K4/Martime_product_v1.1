@@ -17,6 +17,16 @@ import '../models/complete_task_checklist_item_request.dart';
 import '../models/update_task_checklist_item_request.dart';
 import '../models/create_deferral_request_dto.dart';
 
+class TaskSubmissionException implements Exception {
+  final String code;
+  final Map<String, dynamic> data;
+
+  const TaskSubmissionException(this.code, this.data);
+
+  @override
+  String toString() => code;
+}
+
 class TaskRepository {
   final ApiClient _apiClient;
   final NetworkInfo _networkInfo;
@@ -194,8 +204,19 @@ class TaskRepository {
           ),
         );
       }
-    } on DioException {
-      // On error, add to sync queue
+    } on DioException catch (e) {
+      if (e.response != null && e.response!.statusCode != null && e.response!.statusCode! < 500) {
+        final raw = e.response!.data;
+        final data = raw is Map
+            ? Map<String, dynamic>.from(raw)
+            : <String, dynamic>{'error': raw?.toString()};
+        throw TaskSubmissionException(
+          data['code']?.toString() ?? 'TASK_SUBMIT_REJECTED',
+          data,
+        );
+      }
+
+      // Network/server errors can be retried from the sync queue.
       await _syncQueue.addToQueue(
         SyncItem(
           type: SyncItemType.taskSubmit,

@@ -794,6 +794,19 @@ abstract class AppLocalizations {
   /// **'Error completing task: {error}'**
   String errorCompletingTask(String error);
 
+  /// No description provided for @runningHoursBelowCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Running hours cannot be lower than current equipment hours. Current: {current} h, entered: {requested} h.'**
+  String runningHoursBelowCurrent(String current, String requested);
+
+  /// No description provided for @insufficientStockForMaterial.
+  ///
+  /// In en, this message translates to:
+  /// **'Insufficient stock for {material}. Available: {available}, required: {required}.'**
+  String insufficientStockForMaterial(
+      String material, String available, String required);
+
   /// No description provided for @pleaseEnterMeasuredValue.
   ///
   /// In en, this message translates to:

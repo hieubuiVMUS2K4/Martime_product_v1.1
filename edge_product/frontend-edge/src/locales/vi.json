@@ -2813,6 +2813,8 @@
         "hoursUpdated": "Đã cập nhật giờ chạy",
         "hoursUpdateTriggered": "Đã cập nhật giờ chạy — {count} công việc chuyển sang ĐẾN HẠN",
         "hoursUpdateFailed": "Không thể cập nhật giờ chạy",
+        "hoursInvalid": "Vui lòng nhập giờ chạy hợp lệ",
+        "hoursCannotDecrease": "Giờ chạy không được thấp hơn giá trị hiện tại. Hiện tại: {current} h, đã nhập: {requested} h",
         "exportSuccess": "Đã xuất báo cáo: {filename}",
         "exportFailed": "Không thể xuất báo cáo",
         "templateApplied": "Đã thêm {count} bước từ mẫu \"{name}\"",
@@ -3251,6 +3253,8 @@
         "cannotApproveInsp": "Không phê duyệt được: chưa điền biên bản BBKT",
         "approved": "Đã phê duyệt công việc",
         "approveFailed": "Phê duyệt thất bại",
+        "insufficientStock": "Không thể phê duyệt: vật tư {material} không đủ tồn. Hiện có: {available}, cần: {required}",
+        "runningHoursBelowCurrent": "Không thể gửi báo cáo: giờ chạy không được thấp hơn giờ chạy hiện tại. Hiện tại: {current} h, đã nhập: {requested} h",
         "rejectReasonRequired": "Vui lòng nhập lý do trả hoàn",
         "rejected": "Đã trả hoàn công việc",
         "rejectFailed": "Trả hoàn thất bại"

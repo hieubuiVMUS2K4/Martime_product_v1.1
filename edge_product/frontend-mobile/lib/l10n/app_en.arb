@@ -173,6 +173,21 @@
       }
     }
   },
+  "runningHoursBelowCurrent": "Running hours cannot be lower than current equipment hours. Current: {current} h, entered: {requested} h.",
+  "@runningHoursBelowCurrent": {
+    "placeholders": {
+      "current": { "type": "String" },
+      "requested": { "type": "String" }
+    }
+  },
+  "insufficientStockForMaterial": "Insufficient stock for {material}. Available: {available}, required: {required}.",
+  "@insufficientStockForMaterial": {
+    "placeholders": {
+      "material": { "type": "String" },
+      "available": { "type": "String" },
+      "required": { "type": "String" }
+    }
+  },
   
   "pleaseEnterMeasuredValue": "Please enter measured value!",
   "invalidValue": "Invalid value!",

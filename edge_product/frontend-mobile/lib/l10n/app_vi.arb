@@ -135,6 +135,8 @@
   "watchDate": "Ngày trực",
   
   "errorCompletingTask": "Lỗi khi hoàn thành công việc: {error}",
+  "runningHoursBelowCurrent": "Giờ vận hành không được thấp hơn giờ hiện tại của thiết bị. Hiện tại: {current} giờ, đã nhập: {requested} giờ.",
+  "insufficientStockForMaterial": "Không đủ tồn kho cho {material}. Hiện có: {available}, cần: {required}.",
   
   "pleaseEnterMeasuredValue": "Vui lòng nhập giá trị đo!",
   "invalidValue": "Giá trị không hợp lệ!",

@@ -2813,6 +2813,8 @@
         "hoursUpdated": "Running hours updated",
         "hoursUpdateTriggered": "Running hours updated — {count} tasks now DUE",
         "hoursUpdateFailed": "Failed to update running hours",
+        "hoursInvalid": "Please enter a valid running hours value",
+        "hoursCannotDecrease": "Running hours cannot be lower than the current value. Current: {current} h, entered: {requested} h",
         "exportSuccess": "Report exported: {filename}",
         "exportFailed": "Failed to export report",
         "templateApplied": "Added {count} steps from template \"{name}\"",
@@ -3251,6 +3253,8 @@
         "cannotApproveInsp": "Cannot approve: Inspection Report not filled",
         "approved": "Task approved",
         "approveFailed": "Approval failed",
+        "insufficientStock": "Cannot approve: insufficient stock for {material}. Available: {available}, required: {required}",
+        "runningHoursBelowCurrent": "Cannot submit: running hours cannot be lower than current equipment hours. Current: {current} h, entered: {requested} h",
         "rejectReasonRequired": "Please enter a rejection reason",
         "rejected": "Task rejected",
         "rejectFailed": "Rejection failed"

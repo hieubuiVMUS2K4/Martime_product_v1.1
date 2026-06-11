@@ -231,6 +231,25 @@ public class TaskWorkflowController : ControllerBase
 
             if (dto.CompletedRunningHours.HasValue)
             {
+                if (task.EquipmentAssetId.HasValue)
+                {
+                    var equipmentAsset = await _context.EquipmentAssets
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(a => a.Id == task.EquipmentAssetId.Value);
+                    var currentRunningHours = equipmentAsset?.CurrentRunningHours ?? 0;
+
+                    if (dto.CompletedRunningHours.Value < currentRunningHours)
+                    {
+                        return BadRequest(new
+                        {
+                            code = "RUNNING_HOURS_BELOW_CURRENT",
+                            error = "Completed running hours cannot be lower than current equipment running hours",
+                            current = currentRunningHours,
+                            requested = dto.CompletedRunningHours.Value
+                        });
+                    }
+                }
+
                 task.RunningHoursAtLastDone = dto.CompletedRunningHours;
                 task.ActualRunningHours = dto.CompletedRunningHours;
             }
@@ -329,7 +348,15 @@ public class TaskWorkflowController : ControllerBase
                                 var materialItem = await _context.MaterialItems
                                     .FirstOrDefaultAsync(m => m.Id == usage.MaterialItemId);
                                 
-                                if (materialItem == null) continue;
+                                if (materialItem == null)
+                                {
+                                    return BadRequest(new
+                                    {
+                                        code = "MATERIAL_NOT_FOUND",
+                                        error = "Material item not found",
+                                        materialItemId = usage.MaterialItemId
+                                    });
+                                }
 
                                 var stocks = await _context.InventoryStocks
                                     .Where(s => s.MaterialItemId == usage.MaterialItemId)
@@ -339,6 +366,23 @@ public class TaskWorkflowController : ControllerBase
                                 var previousStock = stocks.Any()
                                     ? (double)stocks.Sum(s => s.Quantity)
                                     : materialItem.OnHandQuantity;
+
+                                if (previousStock < quantityToDeduct)
+                                {
+                                    _logger.LogWarning(
+                                        "Insufficient stock for task {TaskId}: {ItemCode} available={Available}, required={Required}",
+                                        task.TaskId, materialItem.ItemCode, previousStock, quantityToDeduct);
+
+                                    return BadRequest(new
+                                    {
+                                        code = "INSUFFICIENT_STOCK",
+                                        error = "Insufficient stock for maintenance completion",
+                                        materialCode = materialItem.ItemCode,
+                                        materialName = materialItem.Name,
+                                        available = previousStock,
+                                        required = quantityToDeduct
+                                    });
+                                }
 
                                 if (stocks.Any())
                                 {
@@ -403,7 +447,7 @@ public class TaskWorkflowController : ControllerBase
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "Error deducting spare parts for task {TaskId}", task.TaskId);
-                        // Continue with approval even if spare parts deduction fails
+                        return StatusCode(500, new { error = "Could not deduct spare parts from inventory" });
                     }
                 }
 

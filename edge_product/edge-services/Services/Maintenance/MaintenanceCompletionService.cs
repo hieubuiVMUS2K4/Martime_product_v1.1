@@ -82,8 +82,9 @@ public class MaintenanceCompletionService
 
                 if (materialItem == null)
                 {
-                    deductionErrors.Add($"Material item {usage.MaterialItemId} not found");
-                    continue;
+                    var error = $"Material item {usage.MaterialItemId} not found";
+                    await transaction.RollbackAsync();
+                    return CompletionResult.Failure(error);
                 }
 
                 // Total available = sum across all InventoryStock locations
@@ -99,9 +100,9 @@ public class MaintenanceCompletionService
                 if (totalAvailable < usage.QuantityUsed)
                 {
                     var error = $"Insufficient stock for {materialItem.Name} (Available: {totalAvailable}, Required: {usage.QuantityUsed})";
-                    deductionErrors.Add(error);
                     _logger.LogWarning(error);
-                    // Still allow completion but log warning
+                    await transaction.RollbackAsync();
+                    return CompletionResult.Failure(error);
                 }
 
                 var previousTotal = totalAvailable;

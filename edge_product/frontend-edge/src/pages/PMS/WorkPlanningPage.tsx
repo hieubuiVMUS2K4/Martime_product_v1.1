@@ -802,6 +802,19 @@ export default function WorkPlanningPage() {
   const handleCounterSave = async (assetId: string) => {
     const newHours = counterEditing[assetId];
     if (newHours === undefined) return;
+    const asset = assets.find(a => a.id === assetId);
+    const currentHours = asset?.currentRunningHours ?? 0;
+    if (!Number.isFinite(newHours)) {
+      toast.error(t('pms.workPlanning.toast.hoursInvalid'));
+      return;
+    }
+    if (newHours < currentHours) {
+      toast.error(t('pms.workPlanning.toast.hoursCannotDecrease', {
+        current: String(currentHours),
+        requested: String(newHours),
+      }));
+      return;
+    }
     setCounterSaving(prev => new Set(prev).add(assetId));
     try {
       const res = await equipmentAssetService.updateRunningHours(assetId, newHours);
@@ -816,7 +829,15 @@ export default function WorkPlanningPage() {
       }
     } catch (error) {
       console.error('Error updating running hours:', error);
-      toast.error(t('pms.workPlanning.toast.hoursUpdateFailed'));
+      const data = (error as any)?.response?.data;
+      if (data?.code === 'RUNNING_HOURS_BELOW_CURRENT') {
+        toast.error(t('pms.workPlanning.toast.hoursCannotDecrease', {
+          current: String(data.current ?? currentHours),
+          requested: String(data.requested ?? newHours),
+        }));
+      } else {
+        toast.error(data?.error || data?.message || t('pms.workPlanning.toast.hoursUpdateFailed'));
+      }
     } finally {
       setCounterSaving(prev => { const n = new Set(prev); n.delete(assetId); return n; });
     }
@@ -1835,9 +1856,17 @@ export default function WorkPlanningPage() {
                           <td className="px-3 py-2 text-center border-r border-gray-100">
                             <input
                               type="number"
-                              min={0}
+                              min={asset.currentRunningHours ?? 0}
                               value={counterEditing[asset.id] ?? ''}
-                              onChange={e => setCounterEditing(prev => ({ ...prev, [asset.id]: Number(e.target.value) }))}
+                              onChange={e => setCounterEditing(prev => {
+                                const next = { ...prev };
+                                if (e.target.value === '') {
+                                  delete next[asset.id];
+                                } else {
+                                  next[asset.id] = Number(e.target.value);
+                                }
+                                return next;
+                              })}
                               placeholder={String(asset.currentRunningHours || 0)}
                               className="w-full px-2 py-1 text-xs text-center border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                             />

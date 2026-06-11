@@ -372,6 +372,17 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String runningHoursBelowCurrent(String current, String requested) {
+    return 'Running hours cannot be lower than current equipment hours. Current: $current h, entered: $requested h.';
+  }
+
+  @override
+  String insufficientStockForMaterial(
+      String material, String available, String required) {
+    return 'Insufficient stock for $material. Available: $available, required: $required.';
+  }
+
+  @override
   String get pleaseEnterMeasuredValue => 'Please enter measured value!';
 
   @override

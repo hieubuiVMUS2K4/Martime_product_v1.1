@@ -364,6 +364,17 @@ public class EquipmentAssetController : ControllerBase
             var previousRH = asset.CurrentRunningHours ?? 0;
             var lastUpdate = asset.LastRunningHoursUpdate;
 
+            if (runningHours < previousRH)
+            {
+                return BadRequest(new
+                {
+                    code = "RUNNING_HOURS_BELOW_CURRENT",
+                    error = "Running hours cannot be lower than current equipment running hours",
+                    current = previousRH,
+                    requested = runningHours
+                });
+            }
+
             await _assetRepository.UpdateRunningHoursAsync(id, runningHours);
             _logger.LogInformation("Updated running hours for asset {Id}: {Hours}", id, runningHours);
             

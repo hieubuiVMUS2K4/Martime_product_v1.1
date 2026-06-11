@@ -43,6 +43,23 @@ export default function WorkReportPage() {
   const { t } = useTranslationSafe()
   const getStatusLabel = (status: string) => t(`pms.workReport.status.${STATUS_KEY_MAP[status] || 'scheduled'}`)
   const getPriorityLabel = (priority: string) => t(`pms.workReport.priority.${PRIORITY_KEY_MAP[priority] || 'normal'}`)
+  const getApiErrorMessage = (error: any, fallbackKey: string) => {
+    const data = error?.response?.data
+    if (data?.code === 'INSUFFICIENT_STOCK') {
+      return t('pms.workReport.toast.insufficientStock', {
+        material: data.materialName || data.materialCode || '',
+        available: String(data.available ?? '-'),
+        required: String(data.required ?? '-'),
+      })
+    }
+    if (data?.code === 'RUNNING_HOURS_BELOW_CURRENT') {
+      return t('pms.workReport.toast.runningHoursBelowCurrent', {
+        current: String(data.current ?? '-'),
+        requested: String(data.requested ?? '-'),
+      })
+    }
+    return data?.error || data?.message || t(fallbackKey)
+  }
 
   const [task, setTask] = useState<MaintenanceTask | null>(null)
   const [loading, setLoading] = useState(true)
@@ -128,6 +145,8 @@ export default function WorkReportPage() {
         setChecklistItems(data.checklistItems || [])
       } else if (activeTab === 'materials') {
         setTask(data)
+        const items = await materialService.getItems()
+        setMaterialItems(items || [])
       }
     } catch { /* silent */ }
   }, [id, activeTab])
@@ -138,6 +157,8 @@ export default function WorkReportPage() {
       const data = await maritimeService.maintenance.getById(id)
       setTask(data)
       setSparePartsUsed(data.sparePartsUsed || '')
+      const items = await materialService.getItems()
+      setMaterialItems(items || [])
     } catch { /* silent */ }
   }
 
@@ -264,17 +285,26 @@ export default function WorkReportPage() {
         const parsed = typeof task.sparePartsUsed === 'string' ? JSON.parse(task.sparePartsUsed) : task.sparePartsUsed
         if (Array.isArray(parsed) && parsed.length > 0) {
           setUsedSpareParts(parsed.map((p: any) => ({
+            ...p,
             materialItemId: p.materialItemId || '',
             materialCode: p.materialCode || '',
             materialName: p.materialName || '',
             quantityUsed: p.quantityUsed || 0,
             unit: p.unit || 'PCS',
-            onHandQuantity: p.onHandQuantity || 0,
+            onHandQuantity: materialItems.find(m => m.id === p.materialItemId)?.onHandQuantity ?? p.onHandQuantity ?? 0,
           })))
         }
       } catch {}
     }
-  }, [task?.sparePartsUsed])
+  }, [task?.sparePartsUsed, materialItems])
+
+  useEffect(() => {
+    if (!materialItems.length) return
+    setUsedSpareParts(prev => prev.map(sp => {
+      const live = materialItems.find(m => m.id === sp.materialItemId)
+      return live ? { ...sp, onHandQuantity: live.onHandQuantity } : sp
+    }))
+  }, [materialItems])
 
   // Checklist toggle handler
   const handleToggleChecklist = async (item: TaskChecklistItem) => {
@@ -487,8 +517,7 @@ export default function WorkReportPage() {
       await loadTask()
     } catch (error: any) {
       console.error('Submit failed:', error)
-      const msg = error?.response?.data?.error || t('pms.workReport.toast.submitFailed')
-      toast.error(msg)
+      toast.error(getApiErrorMessage(error, 'pms.workReport.toast.submitFailed'))
     } finally {
       setSaving(false)
     }
@@ -533,9 +562,9 @@ export default function WorkReportPage() {
       await verifyTask(task.id, dto)
       toast.success(t('pms.workReport.toast.approved'))
       await loadTask()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Approve failed:', error)
-      toast.error(t('pms.workReport.toast.approveFailed'))
+      toast.error(getApiErrorMessage(error, 'pms.workReport.toast.approveFailed'))
     } finally {
       setVerifying(false)
     }

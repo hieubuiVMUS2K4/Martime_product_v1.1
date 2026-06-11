@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+import 'package:dio/dio.dart';
 import '../network/network_info.dart';
 import '../../data/models/sync_item.dart';
 import '../di/service_locator.dart';
@@ -7,6 +8,15 @@ import '../../data/models/submit_task_dto.dart';
 import '../../data/models/start_task_dto.dart';
 import '../../data/models/create_deferral_request_dto.dart';
 import '../../data/models/update_task_checklist_item_request.dart';
+
+class NonRetryableSyncException implements Exception {
+  final String message;
+
+  const NonRetryableSyncException(this.message);
+
+  @override
+  String toString() => message;
+}
 
 class SyncQueue {
   static const String _syncBox = 'sync_queue';
@@ -89,6 +99,9 @@ class SyncQueue {
           await _syncItemToServer(item);
           keysToDelete.add(key); // Mark for deletion on success
           print('✅ SyncQueue: Successfully synced item ${item.id}');
+        } on NonRetryableSyncException catch (e) {
+          print('⚠️ Sync item ${item.id} rejected by server and will be removed: $e');
+          keysToDelete.add(key);
         } catch (e) {
           print('❌ Sync failed for item ${item.id}: $e');
           item.retryCount++;
@@ -218,6 +231,30 @@ class SyncQueue {
           // No throw = success = will be deleted from queue
           break;
       }
+    } on DioException catch (e) {
+      final statusCode = e.response?.statusCode;
+      if (statusCode != null && statusCode < 500) {
+        final raw = e.response?.data;
+        final data = raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+        final code = data['code']?.toString();
+        final error = data['error']?.toString() ?? e.message ?? 'Request rejected';
+
+        if (code == 'RUNNING_HOURS_BELOW_CURRENT') {
+          throw NonRetryableSyncException(
+            'Running hours rejected: current=${data['current']}, requested=${data['requested']}',
+          );
+        }
+        if (code == 'INSUFFICIENT_STOCK') {
+          throw NonRetryableSyncException(
+            'Insufficient stock: ${data['materialName'] ?? data['materialCode'] ?? ''} available=${data['available']}, required=${data['required']}',
+          );
+        }
+
+        throw NonRetryableSyncException('$code: $error');
+      }
+
+      print('❌ Sync failed for item ${item.id}: $e');
+      rethrow; // Let the caller handle retry logic
     } catch (e) {
       print('❌ Sync failed for item ${item.id}: $e');
       rethrow; // Let the caller handle retry logic

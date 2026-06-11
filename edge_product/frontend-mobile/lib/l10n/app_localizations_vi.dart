@@ -373,6 +373,17 @@ class AppLocalizationsVi extends AppLocalizations {
   }
 
   @override
+  String runningHoursBelowCurrent(String current, String requested) {
+    return 'Giờ vận hành không được thấp hơn giờ hiện tại của thiết bị. Hiện tại: $current giờ, đã nhập: $requested giờ.';
+  }
+
+  @override
+  String insufficientStockForMaterial(
+      String material, String available, String required) {
+    return 'Không đủ tồn kho cho $material. Hiện có: $available, cần: $required.';
+  }
+
+  @override
   String get pleaseEnterMeasuredValue => 'Vui lòng nhập giá trị đo!';
 
   @override
