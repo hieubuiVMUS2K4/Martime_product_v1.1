@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { Plus, Edit2, Trash2, Eye, Search, X, CheckCircle, Paperclip, Info, ChevronsUpDown } from 'lucide-react';
 import { stockReceiptService } from '@/services/stockReceipt.service';
@@ -12,6 +13,139 @@ import type { StockReceipt, StockReceiptItem, StoreLocation, MaterialRequest } f
 import type { MaterialItem, VoyageRecord } from '@/types/maritime.types';
 
 type ViewMode = 'list' | 'detail';
+
+type SearchableOption = {
+  value: string;
+  label: string;
+  subLabel?: string;
+};
+
+function SearchableSelect({
+  value,
+  options,
+  placeholder,
+  emptyText,
+  onChange,
+  className = '',
+}: {
+  value?: string | null;
+  options: SearchableOption[];
+  placeholder: string;
+  emptyText: string;
+  onChange: (value: string | null) => void;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [menuRect, setMenuRect] = useState<DOMRect | null>(null);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const selected = options.find(option => option.value === value);
+  const normalizedQuery = query.trim().toLowerCase();
+  const filtered = normalizedQuery
+    ? options.filter(option => `${option.label} ${option.subLabel || ''}`.toLowerCase().includes(normalizedQuery))
+    : options;
+
+  const toggleOpen = () => {
+    const nextOpen = !open;
+    setOpen(nextOpen);
+    if (nextOpen && buttonRef.current) setMenuRect(buttonRef.current.getBoundingClientRect());
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const updatePosition = () => {
+      if (buttonRef.current) setMenuRect(buttonRef.current.getBoundingClientRect());
+    };
+    const close = (event: MouseEvent) => {
+      if (buttonRef.current?.contains(event.target as Node)) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('[data-searchable-menu="true"]')) return;
+      setOpen(false);
+    };
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    document.addEventListener('mousedown', close);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+      document.removeEventListener('mousedown', close);
+    };
+  }, [open]);
+
+  return (
+    <div className={`relative ${className}`}>
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={toggleOpen}
+        className="flex w-full items-center justify-between gap-2 border border-gray-300 bg-white px-2 py-1 text-left text-xs hover:border-blue-400 focus:border-blue-500 focus:outline-none"
+      >
+        <span className={`truncate ${selected ? 'text-gray-900' : 'text-gray-400'}`}>
+          {selected?.label || placeholder}
+        </span>
+        <ChevronsUpDown size={13} className="shrink-0 text-gray-400" />
+      </button>
+      {open && menuRect && createPortal(
+        <div
+          data-searchable-menu="true"
+          className="fixed z-[9999] rounded border border-gray-200 bg-white shadow-lg"
+          style={{
+            top: menuRect.bottom + 4,
+            left: menuRect.left,
+            width: Math.max(menuRect.width, 260),
+          }}
+        >
+          <div className="flex items-center gap-1 border-b border-gray-100 px-2 py-1.5">
+            <Search size={13} className="text-gray-400" />
+            <input
+              autoFocus
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder={placeholder}
+              className="w-full text-xs outline-none"
+            />
+            {value && (
+              <button
+                type="button"
+                onClick={() => {
+                  onChange(null);
+                  setQuery('');
+                  setOpen(false);
+                }}
+                className="text-gray-400 hover:text-red-500"
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+          <div className="max-h-56 overflow-y-auto py-1">
+            {filtered.length === 0 ? (
+              <div className="px-3 py-2 text-xs text-gray-400">{emptyText}</div>
+            ) : filtered.map(option => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => {
+                  onChange(option.value);
+                  setQuery('');
+                  setOpen(false);
+                }}
+                className="flex w-full items-start gap-2 px-3 py-1.5 text-left text-xs hover:bg-blue-50"
+              >
+                <CheckCircle size={13} className={`mt-0.5 shrink-0 ${option.value === value ? 'text-blue-600' : 'text-transparent'}`} />
+                <span className="min-w-0">
+                  <span className="block truncate text-gray-900">{option.label}</span>
+                  {option.subLabel && <span className="block truncate text-[11px] text-gray-400">{option.subLabel}</span>}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
 
 const STATUS_COLORS: Record<string, string> = {
   Draft: 'bg-gray-100 text-gray-700',
@@ -656,18 +790,49 @@ export default function StockReceiptPage() {
                       <tr key={idx} className="border-b">
                         <td className="px-2 py-1.5 text-gray-500">{idx + 1}</td>
                         <td className="px-2 py-1.5">
-                          <select value={item.storeLocationId || ''} onChange={e => updateFormItem(idx, 'storeLocationId', e.target.value || null)} className="w-full border border-gray-300 px-1 py-1 text-xs">
-                            <option value="">-- Kho --</option>
-                            {locationOptions.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                          </select>
+                          <SearchableSelect
+                            value={item.storeLocationId || null}
+                            placeholder="-- Kho --"
+                            emptyText="Không tìm thấy kho"
+                            options={locationOptions.map(l => ({
+                              value: l.id,
+                              label: l.name,
+                              subLabel: l.locationCode,
+                            }))}
+                            onChange={value => updateFormItem(idx, 'storeLocationId', value)}
+                          />
                         </td>
                         <td className="px-2 py-1.5 text-gray-500 text-xs">{item.itemCode || '—'}</td>
                         <td className="px-2 py-1.5">
-                          <select value={item.materialItemId || ''} onChange={e => { if (e.target.value) selectMaterial(idx, e.target.value); else updateFormItem(idx, 'materialItemId', null); }} className="w-full border border-gray-300 px-1 py-1 text-xs">
+                          <SearchableSelect
+                            value={item.materialItemId || null}
+                            placeholder="-- Vật tư --"
+                            emptyText="Không tìm thấy vật tư"
+                            options={materialOptions.map(m => ({
+                              value: m.id,
+                              label: `${m.itemCode} - ${m.name}`,
+                              subLabel: `Tồn: ${m.onHandQuantity ?? 0} ${m.unit || ''}`,
+                            }))}
+                            onChange={value => {
+                              if (value) {
+                                selectMaterial(idx, value);
+                              } else {
+                                setFormItems(prev => prev.map((row, i) => i === idx ? {
+                                  ...row,
+                                  materialItemId: null,
+                                  itemCode: null,
+                                  itemName: '',
+                                  unit: 'PCS',
+                                  unitCost: undefined,
+                                  currency: undefined,
+                                } : row));
+                              }
+                            }}
+                          />
+                          <select value={item.materialItemId || ''} onChange={e => { if (e.target.value) selectMaterial(idx, e.target.value); else updateFormItem(idx, 'materialItemId', null); }} className="hidden">
                             <option value="">-- Vật tư --</option>
                             {materialOptions.map(m => <option key={m.id} value={m.id}>{m.itemCode} - {m.name}</option>)}
                           </select>
-                          {!item.materialItemId && <input type="text" value={item.itemName} onChange={e => updateFormItem(idx, 'itemName', e.target.value)} className="w-full border border-gray-300 px-1 py-1 text-xs mt-1" placeholder="Nhập tên..." />}
                         </td>
                         <td className="px-2 py-1.5"><input type="text" value={item.unit} onChange={e => updateFormItem(idx, 'unit', e.target.value)} className="w-full border border-gray-300 px-1 py-1 text-xs" /></td>
                         <td className="px-2 py-1.5"><input type="number" min={0} value={item.quantityRequested} onChange={e => updateFormItem(idx, 'quantityRequested', Number(e.target.value))} className="w-full border border-gray-300 px-1 py-1 text-xs text-right" /></td>
