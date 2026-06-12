@@ -48,6 +48,23 @@ const FATIGUE_LEVELS = [
   { value: 'HIGH', label: '🔴 High Risk' },
 ];
 
+const toTimeInputValue = (value?: string | null) => {
+  if (!value) return '';
+  if (/^\d{2}:\d{2}$/.test(value)) return value;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mm = String(date.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+};
+
+const toWatchDateTime = (watchDate: string, time?: string) => {
+  if (!time) return undefined;
+  if (!watchDate || !/^\d{2}:\d{2}$/.test(time)) return undefined;
+  const date = new Date(`${watchDate}T${time}:00`);
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+};
+
 export const WatchkeepingPage: React.FC = () => {
   const { locale, t } = useTranslationSafe();
   const isVi = locale === 'vi';
@@ -152,8 +169,8 @@ export const WatchkeepingPage: React.FC = () => {
       notableEvents: entry.notableEvents || '',
       handoverNotes: entry.handoverNotes || '',
       handoverChecklistCompleted: entry.handoverChecklistCompleted ?? false,
-      watchStartTime: entry.watchStartTime || '',
-      watchEndTime: entry.watchEndTime || '',
+      watchStartTime: toTimeInputValue(entry.watchStartTime),
+      watchEndTime: toTimeInputValue(entry.watchEndTime),
       bridgeManningLevel: entry.bridgeManningLevel ?? 2,
       lookoutPosted: entry.lookoutPosted ?? true,
       fatigueRiskLevel: entry.fatigueRiskLevel || 'LOW',
@@ -307,8 +324,8 @@ export const WatchkeepingPage: React.FC = () => {
     try {
       const payload = {
         ...formData,
-        watchStartTime: formData.watchStartTime || undefined,
-        watchEndTime: formData.watchEndTime || undefined,
+        watchStartTime: toWatchDateTime(formData.watchDate, formData.watchStartTime),
+        watchEndTime: toWatchDateTime(formData.watchDate, formData.watchEndTime),
       };
       if (editingId) {
         await logbookService.updateWatchkeepingEntry(editingId, payload);
@@ -583,7 +600,7 @@ export const WatchkeepingPage: React.FC = () => {
                   <div>
                     <span className="text-gray-500">{t('logbooks.watchkeeping.watchTime')}</span>
                     <p className="font-medium text-gray-900">
-                      {entry.watchStartTime || '-'} → {entry.watchEndTime || '-'}
+                      {toTimeInputValue(entry.watchStartTime) || '-'} → {toTimeInputValue(entry.watchEndTime) || '-'}
                     </p>
                   </div>
                   <div>
