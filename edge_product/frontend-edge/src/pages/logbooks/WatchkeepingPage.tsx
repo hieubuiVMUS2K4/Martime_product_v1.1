@@ -944,8 +944,8 @@ export const WatchkeepingPage: React.FC = () => {
           </div>
 
           {/* STCW Rest Hours Compliance */}
-          <div className="mt-6 p-4 border-2 border-amber-300 rounded-lg bg-amber-50">
-            <h3 className="text-amber-700 font-semibold text-sm border-b border-amber-300 pb-2 mb-4 flex items-center gap-2">
+          <div className="mt-6 p-4 border-2 border-blue-300 rounded-lg bg-blue-50">
+            <h3 className="text-amber-700 font-semibold text-sm border-b border-blue-300 pb-2 mb-4 flex items-center gap-2">
               ⚠️ STCW Rest Hours Compliance (Mandatory)
             </h3>
             

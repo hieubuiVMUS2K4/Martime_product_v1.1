@@ -824,7 +824,7 @@ function SectionedCrewView({
                       key={crew.id}
                       onContextMenu={(e) => handleContextMenu(e, crew)}
                       onClick={() => onViewCrew(crew.id)}
-                      className={`cursor-pointer hover:bg-blue-50 ${
+                      className={`cursor-pointer hover:bg-yellow-50 ${
                         selectedCrew === crew.id ? 'bg-blue-50' : idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'
                       }`}
                     >

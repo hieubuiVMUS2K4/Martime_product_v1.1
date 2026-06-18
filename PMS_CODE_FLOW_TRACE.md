@@ -413,3 +413,161 @@ Nếu giảng viên hỏi “nút này lưu vào đâu?”, đi theo thứ tự:
 7. Xem controller dùng `_context.<DbSet>` nào.
 8. Dòng `_context.SaveChangesAsync()` là lúc dữ liệu được ghi xuống database.
 
+
+---
+
+## 8. Tao Cong Viec Bao Tri Dot Xuat Va Hien Thi Tren Mobile
+
+Luu y quan trong: luong dung hien tai khong phai `POST /api/maintenance/tasks` truc tiep. Endpoint nay da bi khoa o backend va tra ve thong bao dung PMS Planning v2.0:
+
+- `[HttpPost("tasks")] CreateTask(...)`: [MaintenanceController.cs](edge_product/edge-services/Controllers/Maintenance/MaintenanceController.cs:756)
+- Backend tra `BadRequest`: [MaintenanceController.cs](edge_product/edge-services/Controllers/Maintenance/MaintenanceController.cs:759)
+
+Vi vay, cong viec dot xuat duoc tao qua tab `Cau hinh` trong `WorkPlanningPage.tsx`, voi `maintenanceCategory = AD_HOC`. Sau khi luu cau hinh, backend sinh ngay mot dong trong `maintenance_tasks`, roi mobile lay task do qua API `my-tasks`.
+
+### Frontend Web
+
+1. Nguoi dung chon loai cong viec `Dot xuat` trong tab `Cau hinh`:
+   - Radio `maintenanceCategory = AD_HOC`: [WorkPlanningPage.tsx](edge_product/frontend-edge/src/pages/PMS/WorkPlanningPage.tsx:2025)
+
+2. Khi bam luu, ham `cfgSubmit` xu ly form:
+   - Ham bat dau tai: [WorkPlanningPage.tsx](edge_product/frontend-edge/src/pages/PMS/WorkPlanningPage.tsx:453)
+
+3. Neu la `AD_HOC`, frontend bo yeu cau chu ky dinh ky:
+   - Set `intervalType = CALENDAR`, `intervalDays = 0`, `intervalHours = undefined`: [WorkPlanningPage.tsx](edge_product/frontend-edge/src/pages/PMS/WorkPlanningPage.tsx:462)
+
+4. Frontend tao tung work item theo tung thiet bi duoc chon:
+   - Lay danh sach thiet bi tu `cfgTreeSelectedIds`: [WorkPlanningPage.tsx](edge_product/frontend-edge/src/pages/PMS/WorkPlanningPage.tsx:500)
+   - Voi moi thiet bi, tao `perAssetData`: [WorkPlanningPage.tsx](edge_product/frontend-edge/src/pages/PMS/WorkPlanningPage.tsx:505)
+   - Goi service tao cau hinh: [WorkPlanningPage.tsx](edge_product/frontend-edge/src/pages/PMS/WorkPlanningPage.tsx:512)
+
+5. Service frontend goi API:
+   - `maintenanceScheduleService.create(data)`: [maintenance-schedule.service.ts](edge_product/frontend-edge/src/services/maintenance-schedule.service.ts:22)
+   - HTTP that la `POST /api/maintenance-schedules`: [maintenance-schedule.service.ts](edge_product/frontend-edge/src/services/maintenance-schedule.service.ts:23)
+
+### Backend
+
+1. Backend nhan request tai controller cau hinh PMS:
+   - `Create([FromBody] CreateMaintenanceScheduleDto dto)`: [WorkItemConfigController.cs](edge_product/edge-services/Controllers/Maintenance/WorkItemConfigController.cs:416)
+
+2. Backend validate phai co thiet bi hoac nhom thiet bi:
+   - Kiem tra `EquipmentGroupId` / `EquipmentAssetId`: [WorkItemConfigController.cs](edge_product/edge-services/Controllers/Maintenance/WorkItemConfigController.cs:420)
+
+3. Neu tao theo tung thiet bi, backend tim thiet bi trong DB:
+   - `_context.EquipmentAssets.FindAsync(dto.EquipmentAssetId!.Value)`: [WorkItemConfigController.cs](edge_product/edge-services/Controllers/Maintenance/WorkItemConfigController.cs:444)
+
+4. Backend nhan biet day la cong viec dot xuat:
+   - `bool isAdHoc = dto.MaintenanceCategory == "AD_HOC"`: [WorkItemConfigController.cs](edge_product/edge-services/Controllers/Maintenance/WorkItemConfigController.cs:471)
+   - Neu la `AD_HOC`, bo validate `IntervalHours` / `IntervalDays`: [WorkItemConfigController.cs](edge_product/edge-services/Controllers/Maintenance/WorkItemConfigController.cs:472)
+
+5. Backend tao ban ghi cau hinh `MaintenanceSchedule`:
+   - Gan `MaintenanceCategory = dto.MaintenanceCategory ?? "PERIODIC"`: [WorkItemConfigController.cs](edge_product/edge-services/Controllers/Maintenance/WorkItemConfigController.cs:486)
+   - Luu cau hinh qua repository: [WorkItemConfigController.cs](edge_product/edge-services/Controllers/Maintenance/WorkItemConfigController.cs:501)
+
+6. Neu co vat tu du kien, backend luu vao `schedule_spare_parts`:
+   - Tao danh sach `ScheduleSparePart`: [WorkItemConfigController.cs](edge_product/edge-services/Controllers/Maintenance/WorkItemConfigController.cs:506)
+   - Luu vat tu du kien: [WorkItemConfigController.cs](edge_product/edge-services/Controllers/Maintenance/WorkItemConfigController.cs:515)
+
+7. Neu co checklist mau, backend luu vao `schedule_checklist_templates`:
+   - Add tung template vao `_context.ScheduleChecklistTemplates`: [WorkItemConfigController.cs](edge_product/edge-services/Controllers/Maintenance/WorkItemConfigController.cs:532)
+   - Ghi DB bang `_context.SaveChangesAsync()`: [WorkItemConfigController.cs](edge_product/edge-services/Controllers/Maintenance/WorkItemConfigController.cs:536)
+
+8. Backend sinh task ban dau de no xuat hien ngay trong danh sach cong viec:
+   - Dieu kien goi `GenerateInitialTask(...)`: [WorkItemConfigController.cs](edge_product/edge-services/Controllers/Maintenance/WorkItemConfigController.cs:541)
+   - Ham sinh task: [WorkItemConfigController.cs](edge_product/edge-services/Controllers/Maintenance/WorkItemConfigController.cs:1192)
+
+9. Trong `GenerateInitialTask`, backend tao `MaintenanceTask`:
+   - Sinh ma task `SCHED-{scheduleCode}-{assetCode}-{yyyyMMdd}`: [WorkItemConfigController.cs](edge_product/edge-services/Controllers/Maintenance/WorkItemConfigController.cs:1244)
+   - Gan `TaskType = AD_HOC` neu `MaintenanceCategory == "AD_HOC"`: [WorkItemConfigController.cs](edge_product/edge-services/Controllers/Maintenance/WorkItemConfigController.cs:1270)
+   - Gan mo ta task tu ten cau hinh va huong dan: [WorkItemConfigController.cs](edge_product/edge-services/Controllers/Maintenance/WorkItemConfigController.cs:1271)
+   - Voi task dot xuat, status duoc set ngay la `DUE`: [WorkItemConfigController.cs](edge_product/edge-services/Controllers/Maintenance/WorkItemConfigController.cs:1280)
+   - Neu co PIC trong cau hinh crew, gan vao `AssignedTo`: [WorkItemConfigController.cs](edge_product/edge-services/Controllers/Maintenance/WorkItemConfigController.cs:1289)
+   - Add task vao `_context.MaintenanceTasks`: [WorkItemConfigController.cs](edge_product/edge-services/Controllers/Maintenance/WorkItemConfigController.cs:1298)
+
+10. Backend tao checklist thuc te cho task:
+    - Load template tu `_context.ScheduleChecklistTemplates`: [WorkItemConfigController.cs](edge_product/edge-services/Controllers/Maintenance/WorkItemConfigController.cs:1301)
+    - Add tung dong vao `_context.TaskChecklistItems`: [WorkItemConfigController.cs](edge_product/edge-services/Controllers/Maintenance/WorkItemConfigController.cs:1312)
+    - Ghi task va checklist xuong DB: [WorkItemConfigController.cs](edge_product/edge-services/Controllers/Maintenance/WorkItemConfigController.cs:1331)
+
+### Database
+
+Sau khi luu cong viec dot xuat, cac bang chinh bi anh huong:
+
+- `maintenance_schedules`: luu cau hinh `AD_HOC`.
+- `schedule_spare_parts`: luu vat tu du kien neu co.
+- `schedule_checklist_templates`: luu checklist mau neu co.
+- `maintenance_tasks`: luu cong viec thuc te duoc giao cho crew.
+- `task_checklist_items`: luu checklist thuc te de mobile tick/nhap ket qua.
+
+Diem quan trong: mobile khong doc truc tiep tu `maintenance_schedules`. Mobile doc tu `maintenance_tasks`. Vi vay cong viec chi hien tren mobile sau khi backend da sinh task o `GenerateInitialTask`.
+
+### Backend API Cho Mobile
+
+1. Mobile goi API danh sach cong viec cua nguoi dang dang nhap:
+   - Route: `[HttpGet("tasks/my-tasks")]`: [MaintenanceController.cs](edge_product/edge-services/Controllers/Maintenance/MaintenanceController.cs:320)
+   - Method: `GetMyTasks(...)`: [MaintenanceController.cs](edge_product/edge-services/Controllers/Maintenance/MaintenanceController.cs:322)
+
+2. Backend query tu bang `maintenance_tasks`:
+   - `_context.MaintenanceTasks.Where(t => !t.IsDeleted)`: [MaintenanceController.cs](edge_product/edge-services/Controllers/Maintenance/MaintenanceController.cs:326)
+
+3. Backend khong tra toan bo task neu thieu crew:
+   - Neu khong co `crewId` hoac `assignedTo`, tra danh sach rong: [MaintenanceController.cs](edge_product/edge-services/Controllers/Maintenance/MaintenanceController.cs:331)
+
+4. Neu mobile gui `crewId`, backend tim thuyen vien:
+   - `_context.CrewMembers.AsNoTracking().FirstOrDefaultAsync(c => c.CrewId == crewId)`: [MaintenanceController.cs](edge_product/edge-services/Controllers/Maintenance/MaintenanceController.cs:347)
+
+5. Backend loc task theo PIC hoac metadata crew trong schedule:
+   - Tim schedule co crew trong `Instructions`: [MaintenanceController.cs](edge_product/edge-services/Controllers/Maintenance/MaintenanceController.cs:356)
+   - Loc task theo `AssignedTo` hoac `ScheduleId`: [MaintenanceController.cs](edge_product/edge-services/Controllers/Maintenance/MaintenanceController.cs:363)
+
+### Frontend Mobile
+
+1. Man hinh danh sach task goi provider khi mo man:
+   - `_fetchAndStartTimer()`: [task_list_screen.dart](edge_product/frontend-mobile/lib/presentation/screens/tasks/task_list_screen.dart:80)
+   - `taskProvider.fetchMyTasks(forceRefresh: true)`: [task_list_screen.dart](edge_product/frontend-mobile/lib/presentation/screens/tasks/task_list_screen.dart:82)
+
+2. Provider goi repository:
+   - `fetchMyTasks(...)`: [task_provider.dart](edge_product/frontend-mobile/lib/presentation/providers/task_provider.dart:140)
+   - `_taskRepository.getMyTasks(forceRefresh: forceRefresh)`: [task_provider.dart](edge_product/frontend-mobile/lib/presentation/providers/task_provider.dart:149)
+
+3. Repository lay crew id cua nguoi dang nhap:
+   - `final crewId = await _tokenStorage.getCrewId()`: [task_repository.dart](edge_product/frontend-mobile/lib/data/repositories/task_repository.dart:57)
+
+4. Repository goi API neu online va force refresh:
+   - `_taskApi.getMyTasks(crewId: crewId, includeCompleted: true)`: [task_repository.dart](edge_product/frontend-mobile/lib/data/repositories/task_repository.dart:67)
+   - Cache danh sach task nhan duoc: [task_repository.dart](edge_product/frontend-mobile/lib/data/repositories/task_repository.dart:75)
+
+5. Retrofit API khai bao endpoint:
+   - `@GET('/api/maintenance/tasks/my-tasks')`: [task_api.dart](edge_product/frontend-mobile/lib/data/data_sources/remote/task_api.dart:19)
+   - Query `crewId`: [task_api.dart](edge_product/frontend-mobile/lib/data/data_sources/remote/task_api.dart:21)
+
+6. Mobile render tung task bang `TaskCard`:
+   - `TaskCard(task: task, ...)`: [task_list_screen.dart](edge_product/frontend-mobile/lib/presentation/screens/tasks/task_list_screen.dart:363)
+
+7. Khi bam vao task:
+   - Task `UPCOMING` bi chan khong cho mo: [task_list_screen.dart](edge_product/frontend-mobile/lib/presentation/screens/tasks/task_list_screen.dart:365)
+   - Task chua bat dau mo `TaskDetailScreen`: [task_list_screen.dart](edge_product/frontend-mobile/lib/presentation/screens/tasks/task_list_screen.dart:406)
+   - Task dang thuc hien mo `CompleteTaskScreen`: [task_list_screen.dart](edge_product/frontend-mobile/lib/presentation/screens/tasks/task_list_screen.dart:408)
+
+### Tom Tat Luong Dot Xuat
+
+```text
+Web WorkPlanningPage
+  -> cfgSubmit()
+  -> maintenanceScheduleService.create()
+  -> POST /api/maintenance-schedules
+  -> WorkItemConfigController.Create()
+  -> tao maintenance_schedules
+  -> GenerateInitialTask()
+  -> tao maintenance_tasks status = DUE, task_type = AD_HOC
+  -> tao task_checklist_items
+
+Mobile TaskListScreen
+  -> TaskProvider.fetchMyTasks()
+  -> TaskRepository.getMyTasks()
+  -> GET /api/maintenance/tasks/my-tasks?crewId=...
+  -> MaintenanceController.GetMyTasks()
+  -> query maintenance_tasks theo AssignedTo / crew metadata
+  -> tra task ve mobile
+  -> TaskCard hien thi
+```
