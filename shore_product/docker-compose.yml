@@ -1,20 +1,22 @@
-# =============================================================
+﻿# =============================================================
 # SHORE LOCAL DEVELOPMENT - docker-compose.yml
 # Usage:
 #   cd shore_product
 #   docker compose up -d --build
 #
 # Services:
-#   postgres  → localhost:5434
-#   pgadmin   → http://localhost:8081
-#   backend   → http://localhost:5001
-#   frontend  → http://localhost:3000
+#   postgres  â†’ localhost:5434
+#   backend   â†’ http://localhost:5001
+#   frontend  â†’ http://localhost:3000
 # =============================================================
 
 services:
-  # ─── PostgreSQL Database ───────────────────────────────────
+  # â”€â”€â”€ PostgreSQL Database â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   postgres:
-    image: postgres:15
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres.local
+    image: maritime-shore-postgres-local:15
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-product}
@@ -22,7 +24,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-productdb}
     volumes:
       - postgres-local-data:/var/lib/postgresql/data
-      - ./init-scripts:/docker-entrypoint-initdb.d
+      - ../dumps/shore_dump_20260618_1912.local.sql:/docker-entrypoint-initdb.d/00-shore-dump.sql:ro
     ports:
       - "5434:5432"
     healthcheck:
@@ -33,23 +35,7 @@ services:
     networks:
       - shore-local-net
 
-  # ─── pgAdmin ───────────────────────────────────────────────
-  pgadmin:
-    image: dpage/pgadmin4
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@localhost.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:?PGADMIN_PASSWORD must be set in shore_product/.env}
-      PGADMIN_CONFIG_SERVER_MODE: 'False'
-      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
-    ports:
-      - "8081:80"
-    depends_on:
-      - postgres
-    networks:
-      - shore-local-net
-
-  # ─── Shore Backend API (.NET 8) ────────────────────────────
+  # â”€â”€â”€ Shore Backend API (.NET 8) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   backend:
     build:
       context: .
@@ -78,7 +64,7 @@ services:
     networks:
       - shore-local-net
 
-  # ─── Shore Frontend (React + Nginx) ────────────────────────
+  # â”€â”€â”€ Shore Frontend (React + Nginx) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   frontend:
     build:
       context: ./frontend

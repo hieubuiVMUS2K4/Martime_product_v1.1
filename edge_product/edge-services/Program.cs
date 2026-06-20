@@ -93,12 +93,24 @@ namespace MaritimeEdge
                    "ConnectionIdleLifetime=300;ConnectionPruningInterval=10";
         }
 
+        private static void ApplyLegacyShoreApiEnvironment(ConfigurationManager configuration)
+        {
+            var shoreApiUrl = Environment.GetEnvironmentVariable("SHORE_API_URL");
+            if (!string.IsNullOrWhiteSpace(shoreApiUrl))
+                configuration["ShoreAPI:BaseUrl"] = shoreApiUrl.TrimEnd('/');
+
+            var shoreApiKey = Environment.GetEnvironmentVariable("SHORE_API_KEY");
+            if (!string.IsNullOrWhiteSpace(shoreApiKey))
+                configuration["ShoreAPI:ApiKey"] = shoreApiKey;
+        }
+
         public static async Task Main(string[] args)
         {
             // Load .env file TRƯỚC KHI khởi tạo builder
             LoadDotEnv();
 
             var builder = WebApplication.CreateBuilder(args);
+            ApplyLegacyShoreApiEnvironment(builder.Configuration);
 
             // Configure default port - Listen on all network interfaces for mobile access
             // Can be overridden by command line: dotnet run --urls "http://0.0.0.0:5001"

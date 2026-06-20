@@ -34,7 +34,7 @@ edge_product/
 ```powershell
 # 1. Khởi động Database
 cd edge-services
-docker compose up -d edge-postgres edge-pgadmin
+docker compose up -d edge-postgres
 
 # 2. Chạy Backend API (Terminal 1)
 dotnet run --urls "http://localhost:5001"
@@ -48,7 +48,7 @@ npm run dev
 ## ✅ Truy cập
 - Frontend Dashboard: http://localhost:3002
 - Backend API Swagger: http://localhost:5001/swagger
-- Database Admin (pgAdmin): http://localhost:5050
+- Database: connect with DBeaver to `localhost:5433`
 
 ## 🎯 Tính năng chính
 - ✅ Thu thập dữ liệu từ cảm biến NMEA/Modbus
@@ -64,8 +64,11 @@ npm run dev
 
 ## 🗄️ Database
 - **Database**: `maritime_edge`
-- **Port**: 5433
+- **Host**: `localhost`
+- **Port**: `5433`
 - **User**: `edge_user`
+- **Password**: value of `EDGE_POSTGRES_PASSWORD` in `edge-services/.env`
+- **Init dump**: `../dumps/edge_dump_20260618_1912.local.sql`
 
 ## 📱 Mobile App
 ```powershell

@@ -42,7 +42,7 @@ npm run dev
 ## ✅ Truy cập
 - Frontend Dashboard: http://localhost:3000
 - Backend API Swagger: http://localhost:5000/swagger
-- Database: PostgreSQL Port 5432
+- Database: connect with DBeaver to `localhost:5434`
 
 ## 🎯 Tính năng chính
 - ✅ Quản lý đội tàu từ trung tâm điều hành
@@ -54,5 +54,8 @@ npm run dev
 
 ## 🗄️ Database
 - **Database**: `productdb`
-- **Port**: 5432
+- **Host**: `localhost`
+- **Port**: `5434`
 - **User**: `product`
+- **Password**: value of `POSTGRES_PASSWORD` in `.env`
+- **Init dump**: `../dumps/shore_dump_20260618_1912.local.sql`
