@@ -4,7 +4,7 @@
  */
 import { useState, useMemo } from 'react';
 import { 
-  ChevronRight, ChevronDown, Folder, FileText, 
+  Folder, FileText, 
   Search, Plus, MoreVertical, FolderPlus, Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -204,73 +204,93 @@ export function DocumentSidebar({
     );
   };
 
-  const getStatusColor = (status: string): string => {
-    switch (status) {
-      case 'Published': return 'bg-green-500';
-      case 'Pending_DPA': return 'bg-amber-500';
-      case 'Draft': return 'bg-red-500';
-      case 'Obsolete': return 'bg-slate-400';
-      default: return 'bg-slate-400';
-    }
+  const getSelectableDocumentIds = (node: DocTreeNode): string[] => {
+    const ownId = node.isVirtual ? [] : [node.id];
+    return [
+      ...ownId,
+      ...node.children.flatMap(getSelectableDocumentIds),
+    ];
+  };
+
+  const toggleNodeSelection = (node: DocTreeNode) => {
+    const ids = getSelectableDocumentIds(node);
+    if (ids.length === 0) return;
+
+    const allSelected = ids.every(id => selectedDocumentIds.includes(id));
+    ids.forEach((id) => {
+      const isSelected = selectedDocumentIds.includes(id);
+      if (allSelected && isSelected) onToggleDocumentSelection(id);
+      if (!allSelected && !isSelected) onToggleDocumentSelection(id);
+    });
   };
 
   const renderNode = (node: DocTreeNode, depth: number = 0) => {
     const isExpanded = expandedNodes.includes(node.id);
     const isSelected = selectedDocId === node.id;
-    const isChecked = selectedDocumentIds.includes(node.id);
     const hasChildren = node.children.length > 0;
     const isFolder = Boolean(node.isVirtual) || node.type === 'manual' || hasChildren;
+    const selectableIds = getSelectableDocumentIds(node);
+    const isChecked = selectableIds.length > 0 && selectableIds.every(id => selectedDocumentIds.includes(id));
+    const isIndeterminate = !isChecked && selectableIds.some(id => selectedDocumentIds.includes(id));
 
     return (
       <div key={node.id}>
         <div
-          className={`group flex items-center gap-1 py-1.5 px-2 cursor-pointer rounded transition-all duration-100 ${
+          className={`group grid grid-cols-[18px_18px_18px_minmax(0,1fr)_18px] items-center gap-1 py-1.5 pr-2 cursor-pointer rounded transition-all duration-100 ${
             isSelected
               ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-900 dark:text-blue-200'
               : 'hover:bg-slate-100 dark:hover:bg-slate-700/40 text-slate-700 dark:text-slate-300'
           }`}
-          style={{ paddingLeft: `${depth * 16 + 8}px` }}
+          style={{ paddingLeft: `${depth * 14 + 8}px` }}
           onClick={() => {
             if (!node.isVirtual) onSelectDocument(node.id);
             if (isFolder) toggleExpand(node.id);
           }}
         >
           {/* Expand/Collapse Arrow */}
-          {isFolder ? (
-            <button
-              onClick={(e) => { e.stopPropagation(); toggleExpand(node.id); }}
-              className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-600 rounded flex-shrink-0"
-            >
-              {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-            </button>
-          ) : (
-            <span className="w-4.5 flex-shrink-0" />
-          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isFolder) toggleExpand(node.id);
+            }}
+            className={`flex h-[18px] w-[18px] items-center justify-center rounded ${
+              isFolder ? 'hover:bg-slate-200 dark:hover:bg-slate-600' : 'cursor-default'
+            }`}
+            tabIndex={isFolder ? 0 : -1}
+          >
+            <span
+              className={`block h-0 w-0 transition-transform ${
+                isFolder && isExpanded
+                  ? 'border-x-[4px] border-t-[5px] border-x-transparent border-t-slate-700 dark:border-t-slate-300'
+                  : 'border-y-[4px] border-l-[5px] border-y-transparent border-l-slate-600 dark:border-l-slate-400'
+              }`}
+            />
+          </button>
 
-          {!node.isVirtual ? (
+          {selectableIds.length > 0 ? (
             <input
               type="checkbox"
               checked={isChecked}
+              ref={(input) => {
+                if (input) input.indeterminate = isIndeterminate;
+              }}
               onClick={(e) => e.stopPropagation()}
-              onChange={() => onToggleDocumentSelection(node.id)}
-              className="h-3.5 w-3.5 flex-shrink-0 rounded-none border-slate-300 text-blue-600 focus:ring-blue-500"
+              onChange={() => toggleNodeSelection(node)}
+              className="mx-auto h-3.5 w-3.5 rounded-none border-slate-300 text-blue-600 focus:ring-blue-500"
             />
           ) : (
-            <span className="h-3.5 w-3.5 flex-shrink-0" />
+            <span className="h-[18px] w-[18px]" />
           )}
-
-          {/* Status Indicator */}
-          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${getStatusColor(node.status)}`} />
 
           {/* Icon */}
           {isFolder ? (
-            <Folder className={`w-4 h-4 flex-shrink-0 ${isSelected ? 'text-blue-600' : 'text-amber-500'}`} />
+            <Folder className={`h-4 w-4 ${isSelected ? 'text-blue-600' : 'text-amber-500'}`} />
           ) : (
-            <FileText className={`w-4 h-4 flex-shrink-0 ${isSelected ? 'text-blue-500' : 'text-slate-400'}`} />
+            <FileText className={`h-4 w-4 ${isSelected ? 'text-blue-500' : 'text-slate-400'}`} />
           )}
 
           {/* Label */}
-          <span className="text-xs truncate flex-1 font-medium">
+          <span className="truncate text-xs font-medium leading-5">
             {node.title}
           </span>
 

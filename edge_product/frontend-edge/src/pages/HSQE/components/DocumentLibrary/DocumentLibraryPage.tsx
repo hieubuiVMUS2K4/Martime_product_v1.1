@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Document Library Page - Main Orchestrator
  * ISM Code / ISO 9001 Document Control System
  * 
@@ -28,7 +28,53 @@ import type {
   DocReadLog, DocHistoryEntry, DocCategory, DocChapterVersion,
 } from './types';
 
-// ─── Modal Components (inline for simplicity) ────────────────────────
+type ChecklistExportQuestion = {
+  id: string;
+  code?: string;
+  text: string;
+  answerType: 'date' | 'select' | 'slider' | 'text';
+  mandatory: boolean;
+  options?: string[];
+  min?: number;
+  max?: number;
+};
+
+type ChecklistExportSection = {
+  id: string;
+  title: string;
+  questions: ChecklistExportQuestion[];
+};
+
+type ChecklistExportTemplate = {
+  type: 'checklist-template';
+  name: string;
+  sections: ChecklistExportSection[];
+};
+
+const parseChecklistTemplate = (html: string): ChecklistExportTemplate | null => {
+  const match = html.match(/<script type="application\/json">([\s\S]*?)<\/script>/);
+  if (!match) return null;
+  try {
+    const parsed = JSON.parse(match[1]) as ChecklistExportTemplate;
+    if (parsed.type !== 'checklist-template' || !Array.isArray(parsed.sections)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+};
+
+const downloadBlob = (blob: Blob, fileName: string) => {
+  const url = URL.createObjectURL(blob);
+  const element = document.createElement('a');
+  element.href = url;
+  element.download = fileName;
+  document.body.appendChild(element);
+  element.click();
+  document.body.removeChild(element);
+  URL.revokeObjectURL(url);
+};
+
+// â”€â”€â”€ Modal Components (inline for simplicity) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function CreateDocumentModal({
   isOpen,
@@ -61,13 +107,13 @@ function CreateDocumentModal({
   return (
     <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-lg w-full border border-slate-200 dark:border-slate-700 shadow-2xl">
-        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Tạo Tài liệu / Chapter mới</h3>
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Táº¡o TÃ i liá»‡u / Chapter má»›i</h3>
         <p className="text-xs text-slate-400 mb-5">ISM Code Document Control System</p>
 
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Mã tài liệu</label>
+              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">MÃ£ tÃ i liá»‡u</label>
               <input
                 type="text"
                 value={code}
@@ -77,44 +123,44 @@ function CreateDocumentModal({
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Phân loại</label>
+              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">PhÃ¢n loáº¡i</label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="PROCEDURE">Quy trình (Procedure)</option>
-                <option value="FORM">Biểu mẫu (Form)</option>
-                <option value="SMS_HANDBOOK">Sổ tay SMS (Handbook)</option>
+                <option value="PROCEDURE">Quy trÃ¬nh (Procedure)</option>
+                <option value="FORM">Biá»ƒu máº«u (Form)</option>
+                <option value="SMS_HANDBOOK">Sá»• tay SMS (Handbook)</option>
                 <option value="MANUAL">Manual</option>
                 <option value="CHECKLIST">Checklist</option>
-                <option value="EXTERNAL">Tài liệu bên ngoài</option>
+                <option value="EXTERNAL">TÃ i liá»‡u bÃªn ngoÃ i</option>
               </select>
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Tiêu đề tài liệu</label>
+            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">TiÃªu Ä‘á» tÃ i liá»‡u</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Nhập tiêu đề tài liệu"
+              placeholder="Nháº­p tiÃªu Ä‘á» tÃ i liá»‡u"
             />
           </div>
         </div>
 
         <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-slate-100 dark:border-slate-700">
           <button onClick={onClose} className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-50">
-            Hủy bỏ
+            Há»§y bá»
           </button>
           <button
             onClick={async () => {
-              if (!code.trim() || !title.trim()) { toast.error('Vui lòng nhập đầy đủ thông tin'); return; }
+              if (!code.trim() || !title.trim()) { toast.error('Vui lÃ²ng nháº­p Ä‘áº§y Ä‘á»§ thÃ´ng tin'); return; }
               setSaving(true);
               try {
-                await onCreate({ documentCode: code, title, content: '<p>Nhập nội dung tại đây...</p>', category, createdBy: currentUserName });
+                await onCreate({ documentCode: code, title, content: '<p>Nháº­p ná»™i dung táº¡i Ä‘Ã¢y...</p>', category, createdBy: currentUserName });
                 onClose();
               } finally { setSaving(false); }
             }}
@@ -122,7 +168,7 @@ function CreateDocumentModal({
             className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition disabled:opacity-50 flex items-center gap-1.5"
           >
             {saving && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-            Tạo tài liệu
+            Táº¡o tÃ i liá»‡u
           </button>
         </div>
       </div>
@@ -217,7 +263,7 @@ function ImportDocumentModal({
           <button
             onClick={async () => {
               if (!code.trim() || !title.trim() || !fileName.trim()) {
-                toast.error('Vui lòng chọn file và nhập đầy đủ thông tin');
+                toast.error('Vui lÃ²ng chá»n file vÃ  nháº­p Ä‘áº§y Ä‘á»§ thÃ´ng tin');
                 return;
               }
               setSaving(true);
@@ -414,12 +460,7 @@ function ChecklistTemplateModal({
             <span>On</span>
             <strong>{today}</strong>
           </div>
-          <div className="grid grid-cols-[110px_1fr_36px_120px] items-center gap-2">
-            <span>Approved by</span>
-            <strong>{currentUserName}</strong>
-            <span>On</span>
-            <strong>{today}</strong>
-          </div>
+          <span />
 
           <label className="grid grid-cols-[120px_1fr] items-center gap-2">
             <span>Version</span>
@@ -432,92 +473,101 @@ function ChecklistTemplateModal({
         </div>
 
         <div className="flex-1 overflow-y-auto px-4">
-          <div className="grid grid-cols-[34px_80px_1fr_300px_210px_40px] items-center border-b border-slate-200 py-2 text-sm dark:border-slate-700">
-            <GripVertical className="h-4 w-4 text-slate-500" />
-            <span>1.</span>
-            <label className="grid grid-cols-[150px_1fr] items-center gap-2">
-              <span>Paragraph name</span>
-              <input value="General" readOnly className="h-8 rounded border border-slate-300 px-2 dark:border-slate-700 dark:bg-slate-800" />
-            </label>
-            <span />
-            <span />
-            <button type="button" onClick={addQuestion} className="flex h-6 w-6 items-center justify-center rounded bg-green-500 text-white hover:bg-green-600">
-              <Plus className="h-3.5 w-3.5" />
-            </button>
-          </div>
-
-          {questions.map((question, index) => (
-            <div key={question.id} className="grid grid-cols-[34px_80px_1fr_300px_210px_40px] gap-3 border-b border-slate-200 py-3 text-sm dark:border-slate-700">
-              <GripVertical className="mt-7 h-4 w-4 text-slate-500" />
-              <span className="mt-7">{`1.${index + 1}.`}</span>
-
-              <div className="grid grid-cols-[220px_1fr] gap-3">
-                <label>
-                  <span className="mb-1 block text-xs">Code</span>
-                  <input value={question.code} onChange={(e) => updateQuestion(question.id, { code: e.target.value })} placeholder="Code" className="h-8 w-full rounded border border-slate-300 px-2 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-800" />
+          {sections.map((section, sectionIndex) => (
+            <div key={section.id}>
+              <div className="grid grid-cols-[34px_80px_1fr_210px_40px] items-center border-b border-slate-200 py-2 text-sm dark:border-slate-700">
+                <GripVertical className="h-4 w-4 text-slate-500" />
+                <span>{sectionIndex + 1}.</span>
+                <label className="grid grid-cols-[150px_1fr] items-center gap-2">
+                  <span>Paragraph name</span>
+                  <input
+                    value={section.title}
+                    onChange={(e) => updateSection(section.id, { title: e.target.value })}
+                    className="h-8 rounded border border-slate-300 px-2 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-800"
+                  />
                 </label>
-                <label>
-                  <span className="mb-1 block text-xs">Question text</span>
-                  <input value={question.text} onChange={(e) => updateQuestion(question.id, { text: e.target.value })} placeholder="Question text" className="h-8 w-full rounded border border-slate-300 px-2 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-800" />
-                </label>
+                <button type="button" onClick={() => addQuestion(section.id)} className="justify-self-end rounded bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800">
+                  + Question
+                </button>
+                <button type="button" onClick={addSection} className="flex h-6 w-6 items-center justify-center rounded bg-green-500 text-white hover:bg-green-600" title="Add section">
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
               </div>
 
-              <div>
-                {question.answerType === 'select' && (
+              {section.questions.map((question, questionIndex) => (
+                <div key={question.id} className="grid grid-cols-[34px_80px_1fr_300px_210px_40px] gap-3 border-b border-slate-200 py-3 text-sm dark:border-slate-700">
+                  <GripVertical className="mt-7 h-4 w-4 text-slate-500" />
+                  <span className="mt-7">{`${sectionIndex + 1}.${questionIndex + 1}.`}</span>
+
+                  <div className="grid grid-cols-[220px_1fr] gap-3">
+                    <label>
+                      <span className="mb-1 block text-xs">Code</span>
+                      <input value={question.code} onChange={(e) => updateQuestion(section.id, question.id, { code: e.target.value })} placeholder="Code" className="h-8 w-full rounded border border-slate-300 px-2 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-800" />
+                    </label>
+                    <label>
+                      <span className="mb-1 block text-xs">Question text</span>
+                      <input value={question.text} onChange={(e) => updateQuestion(section.id, question.id, { text: e.target.value })} placeholder="Question text" className="h-8 w-full rounded border border-slate-300 px-2 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-800" />
+                    </label>
+                  </div>
+
                   <div>
-                    <span className="mb-1 block text-xs">Possible answers</span>
-                    <div className="space-y-1">
-                      {(question.options.length ? question.options : ['']).map((option, optionIndex) => (
-                        <input
-                          key={optionIndex}
-                          value={option}
-                          onChange={(e) => {
-                            const options = [...question.options];
-                            options[optionIndex] = e.target.value;
-                            updateQuestion(question.id, { options });
-                          }}
-                          className="h-8 w-full rounded border border-slate-300 px-2 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-800"
-                        />
-                      ))}
-                    </div>
-                    <button type="button" onClick={() => updateQuestion(question.id, { options: [...question.options, ''] })} className="mt-2 h-8 w-full rounded bg-slate-950 text-sm font-semibold text-white hover:bg-slate-800">+ Add</button>
+                    {question.answerType === 'select' && (
+                      <div>
+                        <span className="mb-1 block text-xs">Possible answers</span>
+                        <div className="space-y-1">
+                          {(question.options.length ? question.options : ['']).map((option, optionIndex) => (
+                            <input
+                              key={optionIndex}
+                              value={option}
+                              onChange={(e) => {
+                                const options = [...question.options];
+                                options[optionIndex] = e.target.value;
+                                updateQuestion(section.id, question.id, { options });
+                              }}
+                              className="h-8 w-full rounded border border-slate-300 px-2 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-800"
+                            />
+                          ))}
+                        </div>
+                        <button type="button" onClick={() => updateQuestion(section.id, question.id, { options: [...question.options, ''] })} className="mt-2 h-8 w-full rounded bg-slate-950 text-sm font-semibold text-white hover:bg-slate-800">+ Add</button>
+                      </div>
+                    )}
+                    {question.answerType === 'slider' && (
+                      <div className="space-y-2">
+                        <label className="block">
+                          <span className="mb-1 block text-xs">Minimum value</span>
+                          <input type="number" value={question.min ?? 1} onChange={(e) => updateQuestion(section.id, question.id, { min: Number(e.target.value) })} className="h-8 w-full rounded border border-slate-300 px-2 text-right dark:border-slate-700 dark:bg-slate-800" />
+                        </label>
+                        <label className="block">
+                          <span className="mb-1 block text-xs">Maximum value</span>
+                          <input type="number" value={question.max ?? 10} onChange={(e) => updateQuestion(section.id, question.id, { max: Number(e.target.value) })} className="h-8 w-full rounded border border-slate-300 px-2 text-right dark:border-slate-700 dark:bg-slate-800" />
+                        </label>
+                      </div>
+                    )}
                   </div>
-                )}
-                {question.answerType === 'slider' && (
+
                   <div className="space-y-2">
-                    <label className="block">
-                      <span className="mb-1 block text-xs">Minimum value</span>
-                      <input type="number" value={question.min ?? 1} onChange={(e) => updateQuestion(question.id, { min: Number(e.target.value) })} className="h-8 w-full rounded border border-slate-300 px-2 text-right dark:border-slate-700 dark:bg-slate-800" />
+                    <label className="flex items-center gap-2">
+                      <select value={question.answerType} onChange={(e) => updateQuestion(section.id, question.id, { answerType: e.target.value as ChecklistQuestion['answerType'] })} className="h-8 flex-1 rounded border border-slate-300 px-2 dark:border-slate-700 dark:bg-slate-800">
+                        <option value="date">Date</option>
+                        <option value="select">Answer select</option>
+                        <option value="slider">Slider</option>
+                        <option value="text">Text</option>
+                      </select>
+                      {question.answerType === 'date' && <Calendar className="h-4 w-4" />}
+                      {question.answerType === 'slider' && <SlidersHorizontal className="h-4 w-4" />}
+                      {question.answerType === 'select' && <ListChecks className="h-4 w-4" />}
                     </label>
-                    <label className="block">
-                      <span className="mb-1 block text-xs">Maximum value</span>
-                      <input type="number" value={question.max ?? 10} onChange={(e) => updateQuestion(question.id, { max: Number(e.target.value) })} className="h-8 w-full rounded border border-slate-300 px-2 text-right dark:border-slate-700 dark:bg-slate-800" />
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" checked={question.mandatory} onChange={(e) => updateQuestion(section.id, question.id, { mandatory: e.target.checked })} className="h-4 w-4" />
+                      <span>Is mandatory</span>
                     </label>
                   </div>
-                )}
-              </div>
 
-              <div className="space-y-2">
-                <label className="flex items-center gap-2">
-                  <select value={question.answerType} onChange={(e) => updateQuestion(question.id, { answerType: e.target.value as ChecklistQuestion['answerType'] })} className="h-8 flex-1 rounded border border-slate-300 px-2 dark:border-slate-700 dark:bg-slate-800">
-                    <option value="date">Date</option>
-                    <option value="select">Answer select</option>
-                    <option value="slider">Slider</option>
-                    <option value="text">Text</option>
-                  </select>
-                  {question.answerType === 'date' && <Calendar className="h-4 w-4" />}
-                  {question.answerType === 'slider' && <SlidersHorizontal className="h-4 w-4" />}
-                  {question.answerType === 'select' && <ListChecks className="h-4 w-4" />}
-                </label>
-                <label className="flex items-center gap-2">
-                  <input type="checkbox" checked={question.mandatory} onChange={(e) => updateQuestion(question.id, { mandatory: e.target.checked })} className="h-4 w-4" />
-                  <span>Is mandatory</span>
-                </label>
-              </div>
-
-              <button type="button" onClick={() => removeQuestion(question.id)} className="mt-7 flex h-6 w-6 items-center justify-center rounded bg-red-50 text-red-500 hover:bg-red-100">
-                <X className="h-3.5 w-3.5" />
-              </button>
+                  <button type="button" onClick={() => removeQuestion(section.id, question.id)} className="mt-7 flex h-6 w-6 items-center justify-center rounded bg-red-50 text-red-500 hover:bg-red-100">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
             </div>
           ))}
         </div>
@@ -526,11 +576,15 @@ function ChecklistTemplateModal({
           <button
             onClick={async () => {
               if (!code.trim() || !name.trim()) {
-                toast.error('Vui lòng nhập code và tên checklist');
+                toast.error('Vui lÃ²ng nháº­p code vÃ  tÃªn checklist');
                 return;
               }
-              if (questions.some(question => !question.text.trim())) {
-                toast.error('Vui lòng nhập nội dung cho tất cả câu hỏi');
+              if (sections.some(section => !section.title.trim())) {
+                toast.error('Vui lÃ²ng nháº­p tÃªn cho táº¥t cáº£ paragraph');
+                return;
+              }
+              if (sections.some(section => section.questions.some(question => !question.text.trim()))) {
+                toast.error('Vui lÃ²ng nháº­p ná»™i dung cho táº¥t cáº£ cÃ¢u há»i');
                 return;
               }
               setSaving(true);
@@ -643,11 +697,11 @@ function ApproveModal({
   return (
     <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-md w-full border border-slate-200 dark:border-slate-700 shadow-2xl">
-        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Ký duyệt & Ban hành — {docCode}</h3>
-        <p className="text-xs text-slate-400 mb-5">Quy trình sẽ được chuyển sang trạng thái Published và phân phối xuống đội tàu.</p>
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">KÃ½ duyá»‡t & Ban hÃ nh â€” {docCode}</h3>
+        <p className="text-xs text-slate-400 mb-5">Quy trÃ¬nh sáº½ Ä‘Æ°á»£c chuyá»ƒn sang tráº¡ng thÃ¡i Published vÃ  phÃ¢n phá»‘i xuá»‘ng Ä‘á»™i tÃ u.</p>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Người phê duyệt</label>
+          <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">NgÆ°á»i phÃª duyá»‡t</label>
           <input
             type="text"
             value={approverName}
@@ -658,13 +712,13 @@ function ApproveModal({
 
         <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-slate-100 dark:border-slate-700">
           <button onClick={onClose} className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-50">
-            Hủy bỏ
+            Há»§y bá»
           </button>
           <button
             onClick={() => onApprove(approverName)}
             className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition flex items-center gap-1.5"
           >
-            <Check className="w-3.5 h-3.5" /> Ký và phê duyệt
+            <Check className="w-3.5 h-3.5" /> KÃ½ vÃ  phÃª duyá»‡t
           </button>
         </div>
       </div>
@@ -672,7 +726,7 @@ function ApproveModal({
   );
 }
 
-// ─── Main Component ──────────────────────────────────────────────────
+// â”€â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function DocumentLibraryPage() {
   const { user } = useAuthStore();
@@ -680,7 +734,7 @@ export function DocumentLibraryPage() {
   const currentUserTitle = user?.rankName || user?.position || user?.roleName || 'Admin';
   const currentAuthorString = `${currentUserName} (${currentUserTitle})`;
 
-  // ─── State ─────────────────────────────────────────────────
+  // â”€â”€â”€ State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [documents, setDocuments] = useState<DocTreeNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
@@ -721,10 +775,10 @@ export function DocumentLibraryPage() {
   const [isSeeding, setIsSeeding] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
 
-  // ─── Computed ──────────────────────────────────────────────
+  // â”€â”€â”€ Computed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const selectedDoc = documents.find(d => d.id === selectedDocId) || documents[0] || null;
 
-  // ─── Data Fetching ─────────────────────────────────────────
+  // â”€â”€â”€ Data Fetching â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const fetchDocuments = useCallback(async () => {
     setLoading(true);
     try {
@@ -773,7 +827,7 @@ export function DocumentLibraryPage() {
         setSelectedDocId(mapped[0].id);
       }
     } catch {
-      toast.error('Không thể kết nối đến backend API');
+      toast.error('KhÃ´ng thá»ƒ káº¿t ná»‘i Ä‘áº¿n backend API');
     } finally {
       setLoading(false);
     }
@@ -788,7 +842,7 @@ export function DocumentLibraryPage() {
     if (selectedDoc) {
       loadSubData(selectedDoc.id);
       setEditTitle(selectedDoc.title);
-      setEditWatermark(selectedDoc.watermarkText || 'TÀI LIỆU ĐƯỢC KIỂM SOÁT');
+      setEditWatermark(selectedDoc.watermarkText || 'TÃ€I LIá»†U ÄÆ¯á»¢C KIá»‚M SOÃT');
     }
   }, [selectedDocId]);
 
@@ -803,15 +857,15 @@ export function DocumentLibraryPage() {
     setHistoryEntries(hist);
   };
 
-  // ─── Actions ───────────────────────────────────────────────
+  // â”€â”€â”€ Actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleSeedData = async () => {
     setIsSeeding(true);
     try {
       await documentService.seedData();
-      toast.success('Khởi tạo dữ liệu mẫu thành công!');
+      toast.success('Khá»Ÿi táº¡o dá»¯ liá»‡u máº«u thÃ nh cÃ´ng!');
       await fetchDocuments();
     } catch {
-      toast.error('Không thể khởi tạo dữ liệu mẫu');
+      toast.error('KhÃ´ng thá»ƒ khá»Ÿi táº¡o dá»¯ liá»‡u máº«u');
     } finally {
       setIsSeeding(false);
     }
@@ -824,11 +878,11 @@ export function DocumentLibraryPage() {
         category: data.category as DocCategory,
         isControlled: true,
       });
-      toast.success('Tạo tài liệu mới thành công!');
+      toast.success('Táº¡o tÃ i liá»‡u má»›i thÃ nh cÃ´ng!');
       await fetchDocuments();
       setSelectedDocId(newDoc.id);
     } catch {
-      toast.error('Không thể tạo tài liệu mới');
+      toast.error('KhÃ´ng thá»ƒ táº¡o tÃ i liá»‡u má»›i');
     }
   };
 
@@ -843,11 +897,11 @@ export function DocumentLibraryPage() {
         content: `<p>Imported external document: <strong>${data.fileName}</strong></p>`,
         watermarkText: 'IMPORTED DOCUMENT',
       });
-      toast.success('Import document thành công!');
+      toast.success('Import document thÃ nh cÃ´ng!');
       await fetchDocuments();
       setSelectedDocId(newDoc.id);
     } catch {
-      toast.error('Không thể import document');
+      toast.error('KhÃ´ng thá»ƒ import document');
     }
   };
 
@@ -861,7 +915,7 @@ export function DocumentLibraryPage() {
     if (selectedDocumentIds.length === 0) return;
     try {
       await documentService.bulkDeleteDocuments(selectedDocumentIds);
-      toast.success(`Đã xóa ${selectedDocumentIds.length} tài liệu`);
+      toast.success(`ÄÃ£ xÃ³a ${selectedDocumentIds.length} tÃ i liá»‡u`);
       if (selectedDocId && selectedDocumentIds.includes(selectedDocId)) {
         setSelectedDocId(null);
       }
@@ -869,13 +923,13 @@ export function DocumentLibraryPage() {
       setBulkDeleteConfirmOpen(false);
       await fetchDocuments();
     } catch {
-      toast.error('Không thể xóa các tài liệu đã chọn');
+      toast.error('KhÃ´ng thá»ƒ xÃ³a cÃ¡c tÃ i liá»‡u Ä‘Ã£ chá»n');
     }
   };
 
   const handleSaveDocument = async () => {
     if (!selectedDoc || !editChangeSummary.trim()) {
-      toast.error('Vui lòng nhập tóm tắt nội dung thay đổi');
+      toast.error('Vui lÃ²ng nháº­p tÃ³m táº¯t ná»™i dung thay Ä‘á»•i');
       return;
     }
     try {
@@ -886,13 +940,13 @@ export function DocumentLibraryPage() {
         changedBy: currentAuthorString,
         watermarkText: editWatermark,
       });
-      toast.success('Đã lưu thay đổi thành công!');
+      toast.success('ÄÃ£ lÆ°u thay Ä‘á»•i thÃ nh cÃ´ng!');
       setIsEditing(false);
       setFinishWriting(false);
       setEditChangeSummary('');
       await fetchDocuments();
     } catch {
-      toast.error('Không thể lưu thay đổi');
+      toast.error('KhÃ´ng thá»ƒ lÆ°u thay Ä‘á»•i');
     }
   };
 
@@ -900,10 +954,10 @@ export function DocumentLibraryPage() {
     if (!selectedDoc) return;
     try {
       await documentService.submitForReview(selectedDoc.id);
-      toast.success('Đang gửi trình duyệt.');
+      toast.success('Äang gá»­i trÃ¬nh duyá»‡t.');
       await fetchDocuments();
     } catch {
-      toast.error('Gặp lỗi khi gửi trình duyệt');
+      toast.error('Gáº·p lá»—i khi gá»­i trÃ¬nh duyá»‡t');
     }
   };
 
@@ -911,18 +965,18 @@ export function DocumentLibraryPage() {
     if (!selectedDoc) return;
     try {
       await documentService.approve(selectedDoc.id, approverName);
-      toast.success('🎉 Phê duyệt & ban hành thành công!');
+      toast.success('ðŸŽ‰ PhÃª duyá»‡t & ban hÃ nh thÃ nh cÃ´ng!');
       setApproveModalOpen(false);
       await fetchDocuments();
     } catch {
-      toast.error('Gặp lỗi khi phê duyệt');
+      toast.error('Gáº·p lá»—i khi phÃª duyá»‡t');
     }
   };
 
   const handleMarkAsRead = async () => {
     if (!selectedDoc) return;
     await documentService.markAsRead(selectedDoc.id, currentUserName, currentUserTitle);
-    toast.success('Đã xác nhận đã đọc tài liệu');
+    toast.success('ÄÃ£ xÃ¡c nháº­n Ä‘Ã£ Ä‘á»c tÃ i liá»‡u');
     await loadSubData(selectedDoc.id);
   };
 
@@ -933,10 +987,10 @@ export function DocumentLibraryPage() {
       formData.append('file', file);
       formData.append('uploadedBy', currentAuthorString);
       await documentService.uploadAttachment(selectedDocId, formData);
-      toast.success('Đã tải lên tệp đính kèm thành công!');
+      toast.success('ÄÃ£ táº£i lÃªn tá»‡p Ä‘Ã­nh kÃ¨m thÃ nh cÃ´ng!');
       await loadSubData(selectedDocId);
     } catch {
-      toast.error('Không thể tải lên tệp đính kèm');
+      toast.error('KhÃ´ng thá»ƒ táº£i lÃªn tá»‡p Ä‘Ã­nh kÃ¨m');
     }
   };
 
@@ -944,38 +998,207 @@ export function DocumentLibraryPage() {
     if (!selectedDoc) return;
     try {
       await documentService.deleteAttachment(selectedDoc.id, attachmentId);
-      toast.success('Đã xóa tệp đính kèm');
+      toast.success('ÄÃ£ xÃ³a tá»‡p Ä‘Ã­nh kÃ¨m');
       await loadSubData(selectedDoc.id);
     } catch {
-      toast.error('Không thể xóa tệp');
+      toast.error('KhÃ´ng thá»ƒ xÃ³a tá»‡p');
     }
   };
 
-  const handleDownloadDocument = () => {
-    if (!selectedDoc) return;
-    const element = document.createElement("a");
-    const file = new Blob([selectedDoc.content], { type: 'text/html' });
-    element.href = URL.createObjectURL(file);
-    element.download = `${selectedDoc.code}_${selectedDoc.title}.html`;
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
-    toast.success('Đã xuất và tải tài liệu xuống máy dạng HTML!');
+  const buildPrintableDocumentHtml = (doc: DocTreeNode) => {
+    const checklistTemplate = doc.category === 'CHECKLIST' ? parseChecklistTemplate(doc.content) : null;
+    const checklistRows = checklistTemplate?.sections.map((section, sectionIndex) => `
+      <tr><td colspan="5" class="section">${sectionIndex + 1}. ${section.title}</td></tr>
+      ${section.questions.map((question, questionIndex) => `
+        <tr>
+          <td class="no">${sectionIndex + 1}.${questionIndex + 1}</td>
+          <td>${question.text}${question.mandatory ? ' *' : ''}</td>
+          <td class="center">Yes</td>
+          <td class="center">No</td>
+          <td></td>
+        </tr>
+      `).join('')}
+    `).join('');
+
+    const bodyContent = checklistTemplate ? `
+      <table class="checklist">
+        <thead>
+          <tr>
+            <th class="no">No.</th>
+            <th>Description</th>
+            <th colspan="2">Checked and found satisfactory</th>
+            <th>Remarks</th>
+          </tr>
+          <tr><th></th><th></th><th>Yes</th><th>No</th><th></th></tr>
+        </thead>
+        <tbody>${checklistRows}</tbody>
+      </table>
+    ` : `<div class="content">${doc.content}</div>`;
+
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${doc.code} - ${doc.title}</title>
+      <style>
+        @page{size:A4;margin:15mm}
+        body{font-family:Arial,serif;color:#222;margin:0;background:#fff;font-size:12px}
+        .page{width:100%;box-sizing:border-box}
+        .doc-header{width:100%;border-collapse:collapse;margin-bottom:22px}
+        .doc-header td{border:1px solid #555;padding:10px;vertical-align:middle}
+        .logo-cell{width:150px;text-align:center}.logo{width:92px;height:52px;border:2px solid #888;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;font-style:italic;color:#777}
+        .company{font-size:9px;font-weight:700;text-transform:uppercase;color:#555;margin-top:4px}.title-cell{text-align:center}.title{font-size:20px;font-weight:900;text-transform:uppercase;color:#666;line-height:1.25}.subtitle{font-size:13px;font-weight:700;font-style:italic;text-transform:uppercase;color:#777;margin-top:7px}.meta-cell{width:170px;text-align:right;font-size:14px;font-weight:800;color:#666}
+        .content{font-size:13px;line-height:1.55;text-align:justify}table.checklist{width:100%;border-collapse:collapse;font-size:11px}.checklist th,.checklist td{border:1px solid #111;padding:5px;vertical-align:top}.checklist th{font-weight:800;text-align:center}.checklist .section{font-weight:800;background:#f3f4f6}.checklist .no{width:42px;text-align:center}.checklist .center{text-align:center;width:52px}
+      </style></head><body><div class="page">
+        <table class="doc-header"><tr><td class="logo-cell" rowspan="2"><div class="logo">FLY</div><div class="company">Flying Shipping<br/>Company</div></td><td class="title-cell" rowspan="2"><div class="title">${doc.title}</div><div class="subtitle">${doc.category === 'CHECKLIST' ? 'Checklist Template' : 'Controlled Document'}</div></td><td class="meta-cell">Flying ${doc.category === 'CHECKLIST' ? 'Checklist' : 'Manual'}<br/>${doc.code}</td></tr><tr><td class="meta-cell">Revision: ${doc.currentVersion.replace(/^Rev\s*/i, '')}<br/>Date: ${doc.lastModified}</td></tr></table>
+        ${bodyContent}
+      </div></body></html>`;
   };
 
+  const handleDownloadDocument = async (format: 'word' | 'excel' | 'pdf') => {
+    if (!selectedDoc) return;
+
+    if (format === 'word') {
+      const html = buildPrintableDocumentHtml(selectedDoc);
+      downloadBlob(new Blob(['\ufeff', html], { type: 'application/msword;charset=utf-8' }), `${selectedDoc.code}_${selectedDoc.title}.doc`);
+      toast.success('Da tai tai lieu Word');
+      return;
+    }
+
+    if (format === 'pdf') {
+      const { default: jsPDF } = await import('jspdf');
+      await import('jspdf-autotable');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const left = 18;
+      const top = 18;
+      const tableWidth = pageWidth - left * 2;
+      const logoWidth = 38;
+      const metaWidth = 42;
+      const titleWidth = tableWidth - logoWidth - metaWidth;
+
+      pdf.setDrawColor(40);
+      pdf.rect(left, top, logoWidth, 28);
+      pdf.rect(left + logoWidth, top, titleWidth, 28);
+      pdf.rect(left + logoWidth + titleWidth, top, metaWidth, 14);
+      pdf.rect(left + logoWidth + titleWidth, top + 14, metaWidth, 14);
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(18);
+      pdf.text('FLY', left + logoWidth / 2, top + 12, { align: 'center' });
+      pdf.setFontSize(7);
+      pdf.text('FLYING SHIPPING', left + logoWidth / 2, top + 20, { align: 'center' });
+      pdf.text('COMPANY', left + logoWidth / 2, top + 24, { align: 'center' });
+
+      pdf.setFontSize(15);
+      pdf.text(selectedDoc.title.toUpperCase(), left + logoWidth + titleWidth / 2, top + 12, {
+        align: 'center',
+        maxWidth: titleWidth - 8,
+      });
+      pdf.setFont('helvetica', 'italic');
+      pdf.setFontSize(10);
+      pdf.text(selectedDoc.category === 'CHECKLIST' ? 'CHECKLIST TEMPLATE' : 'CONTROLLED DOCUMENT', left + logoWidth + titleWidth / 2, top + 21, {
+        align: 'center',
+      });
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(9);
+      pdf.text(`Flying ${selectedDoc.category === 'CHECKLIST' ? 'Checklist' : 'Manual'}`, left + logoWidth + titleWidth + metaWidth - 3, top + 6, { align: 'right' });
+      pdf.text(selectedDoc.code, left + logoWidth + titleWidth + metaWidth - 3, top + 11, { align: 'right' });
+      pdf.text(`Revision: ${selectedDoc.currentVersion.replace(/^Rev\s*/i, '')}`, left + logoWidth + titleWidth + metaWidth - 3, top + 20, { align: 'right' });
+      pdf.text(`Date: ${selectedDoc.lastModified}`, left + logoWidth + titleWidth + metaWidth - 3, top + 25, { align: 'right' });
+
+      const template = selectedDoc.category === 'CHECKLIST' ? parseChecklistTemplate(selectedDoc.content) : null;
+      if (template) {
+        const body: any[] = [];
+        template.sections.forEach((section, sectionIndex) => {
+          body.push([{ content: `${sectionIndex + 1}. ${section.title}`, colSpan: 5, styles: { fontStyle: 'bold', fillColor: [245, 245, 245] } }]);
+          section.questions.forEach((question, questionIndex) => {
+            body.push([`${sectionIndex + 1}.${questionIndex + 1}`, question.text, '', '', '']);
+          });
+        });
+        (pdf as any).autoTable({
+          startY: top + 36,
+          head: [['No.', 'Description', 'Yes', 'No', 'Remarks']],
+          body,
+          theme: 'grid',
+          styles: { font: 'helvetica', fontSize: 8, lineColor: [0, 0, 0], lineWidth: 0.2, cellPadding: 2 },
+          headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], halign: 'center', fontStyle: 'bold' },
+          columnStyles: {
+            0: { cellWidth: 12, halign: 'center' },
+            1: { cellWidth: 100 },
+            2: { cellWidth: 14, halign: 'center' },
+            3: { cellWidth: 14, halign: 'center' },
+            4: { cellWidth: 32 },
+          },
+        });
+      } else {
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(10);
+        pdf.text(selectedDoc.content.replace(/<[^>]*>/g, ' '), left, top + 40, { maxWidth: tableWidth });
+      }
+      pdf.save(`${selectedDoc.code}_${selectedDoc.title}.pdf`);
+      toast.success('Đã tải tài liệu PDF');
+      return;
+    }
+
+    const ExcelJS = await import('exceljs');
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Checklist');
+    sheet.columns = [{ width: 8 }, { width: 62 }, { width: 10 }, { width: 10 }, { width: 24 }];
+    sheet.mergeCells('A1:B3');
+    sheet.getCell('A1').value = 'FLYING SHIPPING\nCOMPANY';
+    sheet.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    sheet.mergeCells('C1:D3');
+    sheet.getCell('C1').value = selectedDoc.title.toUpperCase();
+    sheet.getCell('C1').font = { bold: true, size: 14 };
+    sheet.getCell('C1').alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    sheet.getCell('E1').value = `Flying ${selectedDoc.category === 'CHECKLIST' ? 'Checklist' : 'Manual'}\n${selectedDoc.code}`;
+    sheet.getCell('E2').value = `Revision: ${selectedDoc.currentVersion.replace(/^Rev\s*/i, '')}`;
+    sheet.getCell('E3').value = `Date: ${selectedDoc.lastModified}`;
+
+    const template = selectedDoc.category === 'CHECKLIST' ? parseChecklistTemplate(selectedDoc.content) : null;
+    let rowIndex = 5;
+    if (template) {
+      sheet.addRow(['No.', 'Description', 'Yes', 'No', 'Remarks']);
+      sheet.getRow(rowIndex).font = { bold: true };
+      rowIndex += 1;
+      template.sections.forEach((section, sectionIndex) => {
+        sheet.mergeCells(`A${rowIndex}:E${rowIndex}`);
+        sheet.getCell(`A${rowIndex}`).value = `${sectionIndex + 1}. ${section.title}`;
+        sheet.getCell(`A${rowIndex}`).font = { bold: true };
+        rowIndex += 1;
+        section.questions.forEach((question, questionIndex) => {
+          sheet.addRow([`${sectionIndex + 1}.${questionIndex + 1}`, question.text, '', '', '']);
+          rowIndex += 1;
+        });
+      });
+    } else {
+      sheet.mergeCells(`A${rowIndex}:E${rowIndex}`);
+      sheet.getCell(`A${rowIndex}`).value = selectedDoc.content.replace(/<[^>]*>/g, ' ');
+      sheet.getCell(`A${rowIndex}`).alignment = { wrapText: true };
+    }
+
+    sheet.eachRow((row) => {
+      row.eachCell((cell) => {
+        cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+        cell.alignment = { vertical: 'middle', wrapText: true };
+      });
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    downloadBlob(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `${selectedDoc.code}_${selectedDoc.title}.xlsx`);
+    toast.success('Da tai tai lieu Excel');
+  };
   const handleRestoreVersion = async (version: DocChapterVersion) => {
     if (!selectedDoc) return;
-    if (confirm(`Bạn có chắc chắn muốn khôi phục tài liệu về phiên bản ${version.version}?`)) {
+    if (confirm(`Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n khÃ´i phá»¥c tÃ i liá»‡u vá» phiÃªn báº£n ${version.version}?`)) {
       try {
         await documentService.updateDocument(selectedDoc.id, {
           content: version.content,
-          changeSummary: `Khôi phục về phiên bản ${version.version}`,
+          changeSummary: `KhÃ´i phá»¥c vá» phiÃªn báº£n ${version.version}`,
           changedBy: currentAuthorString
         });
-        toast.success(`Đã khôi phục về phiên bản ${version.version} thành công!`);
+        toast.success(`ÄÃ£ khÃ´i phá»¥c vá» phiÃªn báº£n ${version.version} thÃ nh cÃ´ng!`);
         await fetchDocuments();
       } catch {
-        toast.error('Không thể khôi phục phiên bản');
+        toast.error('KhÃ´ng thá»ƒ khÃ´i phá»¥c phiÃªn báº£n');
       }
     }
   };
@@ -984,31 +1207,18 @@ export function DocumentLibraryPage() {
     if (!selectedDoc) return;
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      toast.error('Không thể mở cửa sổ in');
+      toast.error('Khong the mo cua so in');
       return;
     }
-    const htmlContent = `<!DOCTYPE html><html><head><title>${selectedDoc.code} - ${selectedDoc.title}</title>
-    <style>@page{size:A4;margin:15mm}body{font-family:Georgia,serif;color:#1e293b;line-height:1.6;margin:0;padding:20px;background:#fff}
-    .header{text-align:center;border-bottom:2px solid #1e293b;padding-bottom:16px;margin-bottom:24px}
-    .title{font-size:18px;font-weight:bold;margin:8px 0}
-    .meta{font-size:11px;color:#64748b}
-    .content{font-size:13px;text-align:justify}
-    .footer{border-top:1px solid #cbd5e1;margin-top:40px;padding-top:12px;font-size:9px;color:#94a3b8;text-align:center}
-    </style></head><body>
-    <div class="header"><div class="meta">${selectedDoc.code} | ${selectedDoc.currentVersion} | ${selectedDoc.lastModified}</div>
-    <div class="title">${selectedDoc.title}</div></div>
-    <div class="content">${selectedDoc.content}</div>
-    <div class="footer">© MARITIME SOFTWARE CO. - TÀI LIỆU PHÁT HÀNH DƯỚI DẠNG ĐIỆN TỬ ĐÃ ĐƯỢC KIỂM SOÁT</div>
-    <script>window.onload=function(){setTimeout(function(){window.print()},500)}</script></body></html>`;
+    const htmlContent = buildPrintableDocumentHtml(selectedDoc).replace('</body>', '<script>window.onload=function(){setTimeout(function(){window.print()},500)}</script></body>');
     printWindow.document.write(htmlContent);
     printWindow.document.close();
   };
-
   const handleStartEditing = () => {
     if (selectedDoc) {
       setEditContent(selectedDoc.content);
       setEditTitle(selectedDoc.title);
-      setEditWatermark(selectedDoc.watermarkText || 'TÀI LIỆU ĐƯỢC KIỂM SOÁT');
+      setEditWatermark(selectedDoc.watermarkText || 'TÃ€I LIá»†U ÄÆ¯á»¢C KIá»‚M SOÃT');
       setIsEditing(true);
       setActiveTab('document');
     }
@@ -1020,7 +1230,7 @@ export function DocumentLibraryPage() {
     setEditChangeSummary('');
     if (selectedDoc) {
       setEditTitle(selectedDoc.title);
-      setEditWatermark(selectedDoc.watermarkText || 'TÀI LIỆU ĐƯỢC KIỂM SOÁT');
+      setEditWatermark(selectedDoc.watermarkText || 'TÃ€I LIá»†U ÄÆ¯á»¢C KIá»‚M SOÃT');
     }
   };
 
@@ -1058,7 +1268,7 @@ export function DocumentLibraryPage() {
     setCreateModalOpen(true);
   };
 
-  // ─── Tab Config ────────────────────────────────────────────
+  // â”€â”€â”€ Tab Config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const tabs: { key: TabType; label: string; icon: React.ReactNode }[] = [
     { key: 'data', label: 'Data', icon: <Database className="w-3.5 h-3.5" /> },
     { key: 'document', label: 'Document', icon: <FileText className="w-3.5 h-3.5" /> },
@@ -1068,26 +1278,26 @@ export function DocumentLibraryPage() {
     { key: 'history', label: 'History', icon: <History className="w-3.5 h-3.5" /> },
   ];
 
-  // ─── Loading State ─────────────────────────────────────────
+  // â”€â”€â”€ Loading State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (loading) {
     return (
       <div className="w-full h-[700px] flex flex-col items-center justify-center text-slate-500 dark:text-slate-400">
         <RefreshCw className="w-8 h-8 animate-spin text-blue-500 mb-2" />
-        <span className="text-sm font-semibold">Đang tải Document Library...</span>
+        <span className="text-sm font-semibold">Äang táº£i Document Library...</span>
       </div>
     );
   }
 
-  // ─── Empty State ───────────────────────────────────────────
+  // â”€â”€â”€ Empty State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (false && documents.length === 0) {
     return (
       <div className="w-full min-h-[500px] flex flex-col items-center justify-center p-8 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
         <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-full text-blue-600 dark:text-blue-400 mb-4 animate-pulse">
           <BookOpenIcon className="w-12 h-12" />
         </div>
-        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Document Library trống</h3>
+        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Document Library trá»‘ng</h3>
         <p className="text-slate-500 dark:text-slate-400 text-sm max-w-md text-center mb-6">
-          SMS Library chưa chứa tài liệu nào. Hãy khởi tạo dữ liệu mẫu hoặc tạo tài liệu đầu tiên.
+          SMS Library chÆ°a chá»©a tÃ i liá»‡u nÃ o. HÃ£y khá»Ÿi táº¡o dá»¯ liá»‡u máº«u hoáº·c táº¡o tÃ i liá»‡u Ä‘áº§u tiÃªn.
         </p>
         <div className="flex flex-wrap gap-4 justify-center">
           <button
@@ -1096,13 +1306,13 @@ export function DocumentLibraryPage() {
             className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition flex items-center gap-2 shadow-sm disabled:opacity-50"
           >
             {isSeeding ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-            Khởi tạo dữ liệu mẫu
+            Khá»Ÿi táº¡o dá»¯ liá»‡u máº«u
           </button>
           <button
             onClick={() => openCreateModal()}
             className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 rounded-xl font-semibold transition flex items-center gap-2"
           >
-            <Plus className="w-4 h-4" /> Tạo tài liệu đầu tiên
+            <Plus className="w-4 h-4" /> Táº¡o tÃ i liá»‡u Ä‘áº§u tiÃªn
           </button>
         </div>
 
@@ -1118,7 +1328,7 @@ export function DocumentLibraryPage() {
     );
   }
 
-  // ─── Main Layout ───────────────────────────────────────────
+  // â”€â”€â”€ Main Layout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden border-y border-slate-200 bg-white shadow-none dark:border-slate-700 dark:bg-slate-800">
       {/* Top Header Bar */}
@@ -1140,10 +1350,10 @@ export function DocumentLibraryPage() {
             onChange={(e) => setFilterStatus(e.target.value)}
             className="text-xs border border-slate-200 dark:border-slate-700 rounded-none px-2 py-1 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 outline-none"
           >
-            <option value="ALL">Tất cả trạng thái</option>
-            <option value="Published">🟢 Published</option>
-            <option value="Draft">📝 Draft</option>
-            <option value="Pending_DPA">⏳ Pending DPA</option>
+            <option value="ALL">Táº¥t cáº£ tráº¡ng thÃ¡i</option>
+            <option value="Published">ðŸŸ¢ Published</option>
+            <option value="Draft">ðŸ“ Draft</option>
+            <option value="Pending_DPA">â³ Pending DPA</option>
           </select>
         </div>
 
@@ -1287,7 +1497,7 @@ export function DocumentLibraryPage() {
               </>
             ) : (
               <div className="h-full flex items-center justify-center text-slate-400 dark:text-slate-500">
-                <p className="text-sm">Chọn tài liệu từ sidebar để xem nội dung</p>
+                <p className="text-sm">Chá»n tÃ i liá»‡u tá»« sidebar Ä‘á»ƒ xem ná»™i dung</p>
               </div>
             )}
           </div>
@@ -1347,7 +1557,7 @@ export function DocumentLibraryPage() {
                 type="text"
                 value={editChangeSummary}
                 onChange={(e) => setEditChangeSummary(e.target.value)}
-                placeholder="Tóm tắt nội dung thay đổi..."
+                placeholder="TÃ³m táº¯t ná»™i dung thay Ä‘á»•i..."
                 className="px-3 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 w-64 outline-none focus:ring-1 focus:ring-blue-500"
               />
             </>
@@ -1407,3 +1617,5 @@ export function DocumentLibraryPage() {
     </div>
   );
 }
+
+

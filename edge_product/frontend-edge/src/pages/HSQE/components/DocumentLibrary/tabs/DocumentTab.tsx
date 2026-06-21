@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { RichTextEditor, RichContentViewer } from '@/components/editor/RichTextEditor';
+import { useTranslationSafe } from '@/contexts/I18nContext';
 import type { DocTreeNode } from '../types';
 
 interface DocumentTabProps {
@@ -24,7 +25,7 @@ interface DocumentTabProps {
   onSave: () => void;
   onPrint: () => void;
   onCreateNew?: () => void;
-  onDownload?: () => void;
+  onDownload?: (format: 'word' | 'excel' | 'pdf') => void;
 
   // Layout & View states
   orientation: 'portrait' | 'landscape';
@@ -42,6 +43,169 @@ interface DocumentTabProps {
 }
 
 type RibbonTab = 'File' | 'Home' | 'Insert' | 'Page Layout' | 'References' | 'View';
+const ribbonTabLabelKey: Record<RibbonTab, string> = {
+  File: 'file',
+  Home: 'home',
+  Insert: 'insert',
+  'Page Layout': 'pageLayout',
+  References: 'references',
+  View: 'view',
+};
+
+type ChecklistQuestion = {
+  id: string;
+  code?: string;
+  text: string;
+  answerType: 'date' | 'select' | 'slider' | 'text';
+  mandatory: boolean;
+  options?: string[];
+  min?: number;
+  max?: number;
+};
+
+type ChecklistSection = {
+  id: string;
+  title: string;
+  questions: ChecklistQuestion[];
+};
+
+type ChecklistTemplate = {
+  type: 'checklist-template';
+  name: string;
+  sections: ChecklistSection[];
+};
+
+const parseChecklistTemplate = (html: string): ChecklistTemplate | null => {
+  const match = html.match(/<script type="application\/json">([\s\S]*?)<\/script>/);
+  if (!match) return null;
+
+  try {
+    const parsed = JSON.parse(match[1]) as ChecklistTemplate;
+    if (parsed.type !== 'checklist-template' || !Array.isArray(parsed.sections)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+};
+
+function ChecklistTemplatePreview({ template }: { template: ChecklistTemplate }) {
+  const [values, setValues] = useState<Record<string, string | number | boolean>>(() => {
+    const initial: Record<string, string | number | boolean> = {};
+    template.sections.forEach(section => {
+      section.questions.forEach(question => {
+        if (question.answerType === 'date') initial[question.id] = new Date().toISOString().slice(0, 10);
+        else if (question.answerType === 'slider') initial[question.id] = question.min ?? 1;
+        else if (question.answerType === 'select') initial[question.id] = question.options?.[0] ?? '';
+        else initial[question.id] = '';
+      });
+    });
+    return initial;
+  });
+  const setValue = (questionId: string, value: string | number | boolean) => {
+    setValues(prev => ({ ...prev, [questionId]: value }));
+  };
+
+  const renderAnswerControl = (question: ChecklistQuestion) => {
+    const value = values[question.id];
+    const baseInputClass = 'w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100';
+
+    if (question.answerType === 'date') {
+      return (
+        <input
+          type="date"
+          value={String(value || '')}
+          onChange={(e) => setValue(question.id, e.target.value)}
+          className={baseInputClass}
+        />
+      );
+    }
+
+    if (question.answerType === 'select') {
+      return (
+        <select
+          value={String(value || '')}
+          onChange={(e) => setValue(question.id, e.target.value)}
+          className={baseInputClass}
+        >
+          {(question.options?.length ? question.options : ['']).filter(Boolean).map(option => (
+            <option key={option} value={option}>{option}</option>
+          ))}
+        </select>
+      );
+    }
+
+    if (question.answerType === 'slider') {
+      const min = question.min ?? 1;
+      const max = question.max ?? 10;
+      const sliderValue = Number(value ?? min);
+      return (
+        <div className="flex items-center gap-3">
+          <span className="w-6 text-xs font-semibold text-slate-500">{min}</span>
+          <input
+            type="range"
+            min={min}
+            max={max}
+            value={sliderValue}
+            onChange={(e) => setValue(question.id, Number(e.target.value))}
+            className="h-2 flex-1 accent-blue-600"
+          />
+          <span className="w-6 text-xs font-semibold text-slate-500">{max}</span>
+          <span className="w-10 rounded bg-slate-100 px-2 py-1 text-center text-sm font-bold text-slate-800 dark:bg-slate-800 dark:text-slate-100">
+            {sliderValue}
+          </span>
+        </div>
+      );
+    }
+
+    return (
+      <input
+        type="text"
+        value={String(value || '')}
+        onChange={(e) => setValue(question.id, e.target.value)}
+        className={baseInputClass}
+        placeholder="Enter value"
+      />
+    );
+  };
+
+  return (
+    <div className="mx-auto w-full max-w-[820px] rounded border border-slate-200 bg-white text-slate-900 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
+      <div className="border-b border-slate-200 px-6 py-4 dark:border-slate-700">
+        <h2 className="text-xl font-bold uppercase tracking-normal">{template.name}</h2>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Checklist template preview</p>
+      </div>
+
+      <div className="space-y-7 p-6">
+        {template.sections.map((section, sectionIndex) => (
+          <section key={section.id}>
+            <h3 className="mb-3 border-b border-slate-200 pb-2 text-sm font-bold uppercase text-slate-700 dark:border-slate-700 dark:text-slate-200">
+              {sectionIndex + 1}. {section.title}
+            </h3>
+            <div className="space-y-5">
+              {section.questions.map((question) => (
+                <div key={question.id} className="rounded border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-slate-950/30">
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                      {question.text}
+                      {question.mandatory && <span className="ml-1 text-red-500">*</span>}
+                    </span>
+                    <div className="w-full">
+                      {renderAnswerControl(question)}
+                    </div>
+                    {question.code && (
+                      <span className="mt-1.5 block text-xs text-slate-400">Code: {question.code}</span>
+                    )}
+                  </label>
+                </div>
+              ))}
+            </div>
+          </section>
+        ))}
+
+      </div>
+    </div>
+  );
+}
 
 export function DocumentTab({
   document,
@@ -65,19 +229,24 @@ export function DocumentTab({
   watermarkText,
   onWatermarkChange,
 }: DocumentTabProps) {
+  const { t } = useTranslationSafe();
   const [activeRibbonTab, setActiveRibbonTab] = useState<RibbonTab>('Home');
   const [editorInstance, setEditorInstance] = useState<any>(null);
   const [fontFamily, setFontFamily] = useState<string>('font-sans');
   const [fontSize, setFontSize] = useState<string>('text-sm');
+  const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
+  const checklistTemplate = document.category === 'CHECKLIST'
+    ? parseChecklistTemplate(document.content)
+    : null;
 
   // Trigger command on editor if editing is enabled
   const runCommand = (command: (editor: any) => void) => {
     if (!isEditing) {
-      toast.info('Vui lòng bật chế độ Edit để chỉnh sửa tài liệu.');
+      toast.info(t('hsqeDocumentRibbon.toast.enableEdit'));
       return;
     }
     if (!editorInstance) {
-      toast.error('Editor chưa sẵn sàng');
+      toast.error(t('hsqeDocumentRibbon.toast.editorNotReady'));
       return;
     }
     editorInstance.commands.focus();
@@ -93,7 +262,7 @@ export function DocumentTab({
   const handleCopy = () => {
     const textToCopy = isEditing && editorInstance ? editorInstance.getHTML() : document.content;
     navigator.clipboard.writeText(textToCopy);
-    toast.success('Đã copy toàn bộ nội dung tài liệu!');
+    toast.success(t('hsqeDocumentRibbon.toast.copied'));
   };
 
   const handlePaste = async () => {
@@ -101,10 +270,10 @@ export function DocumentTab({
       const text = await navigator.clipboard.readText();
       runCommand((editor) => {
         editor.chain().focus().insertContent(`<p>${text}</p>`).run();
-        toast.success('Đã dán nội dung từ clipboard vào vị trí con trỏ!');
+        toast.success(t('hsqeDocumentRibbon.toast.pasted'));
       });
     } catch {
-      toast.error('Không có quyền truy cập clipboard hoặc clipboard trống');
+      toast.error(t('hsqeDocumentRibbon.toast.clipboardUnavailable'));
     }
   };
 
@@ -122,12 +291,12 @@ export function DocumentTab({
         <tbody>
           <tr>
             <td style="border: 1px solid #cbd5e1; padding: 10px;">1. Thiết bị cứu sinh / cứu hỏa</td>
-            <td style="border: 1px solid #cbd5e1; padding: 10px; color: #16a34a; font-weight: 500;">✓ Sẵn sàng</td>
+            <td style="border: 1px solid #cbd5e1; padding: 10px; color: #16a34a; font-weight: 500;">Sẵn sàng</td>
             <td style="border: 1px solid #cbd5e1; padding: 10px;">Đầy đủ kiểm định năm 2026</td>
           </tr>
           <tr>
             <td style="border: 1px solid #cbd5e1; padding: 10px;">2. Hệ thống báo cháy và báo động khẩn cấp</td>
-            <td style="border: 1px solid #cbd5e1; padding: 10px; color: #16a34a; font-weight: 500;">✓ Hoạt động tốt</td>
+            <td style="border: 1px solid #cbd5e1; padding: 10px; color: #16a34a; font-weight: 500;">Hoạt động tốt</td>
             <td style="border: 1px solid #cbd5e1; padding: 10px;">Đã test hoạt động hoàn hảo</td>
           </tr>
         </tbody>
@@ -135,36 +304,36 @@ export function DocumentTab({
     `;
     runCommand((editor) => {
       editor.chain().focus().insertContent(tableHtml).run();
-      toast.success('Đã chèn bảng biểu kiểm soát mẫu!');
+      toast.success(t('hsqeDocumentRibbon.toast.insertedTable'));
     });
   };
 
   const handleInsertChecklist = () => {
     const checklistHtml = `
       <div style="margin: 16px 0; padding: 16px; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #fafafa;">
-        <h4 style="color: #1e3a8a; font-weight: bold; margin-top: 0; margin-bottom: 12px; font-size: 14px;">BẢNG KIỂM TRA PHÒNG NGỪA RỦI RO (SAFETY CHECKLIST)</h4>
+        <h4 style="color: #1e3a8a; font-weight: bold; margin-top: 0; margin-bottom: 12px; font-size: 14px;">BẢNG KIỂM TRA PHÒNG NGỪA RỦI RO</h4>
         <ul style="list-style-type: none; padding-left: 0; margin: 0; font-size: 13px; line-height: 2;">
-          <li>✓ [X] Đã ngắt nguồn điện chính khi bảo dưỡng</li>
-          <li>✓ [ ] Đã đặt biển cảnh báo "Đang làm việc trên cao"</li>
-          <li>✓ [ ] Trang bị đầy đủ dây đai an toàn và mũ bảo hộ</li>
+          <li>[x] Đã ngắt nguồn điện chính khi bảo dưỡng</li>
+          <li>[ ] Đã đặt biển cảnh báo "Đang làm việc trên cao"</li>
+          <li>[ ] Trang bị đầy đủ dây đai an toàn và mũ bảo hộ</li>
         </ul>
       </div>
     `;
     runCommand((editor) => {
       editor.chain().focus().insertContent(checklistHtml).run();
-      toast.success('Đã chèn Checklist an toàn mẫu!');
+      toast.success(t('hsqeDocumentRibbon.toast.insertedChecklist'));
     });
   };
 
   const handleInsertPageBreak = () => {
     const pageBreakHtml = `
       <div style="page-break-after: always; border-bottom: 2px dashed #3b82f6; margin: 32px 0; text-align: center; font-size: 11px; color: #3b82f6; font-weight: bold; user-select: none; padding: 4px;">
-        ✂ [ NGẮT TRANG TRÌNH BÀY / PAGE BREAK ]
+        [ NGẮT TRANG IN ]
       </div>
     `;
     runCommand((editor) => {
       editor.chain().focus().insertContent(pageBreakHtml).run();
-      toast.success('Đã chèn ngắt trang!');
+      toast.success(t('hsqeDocumentRibbon.toast.insertedPageBreak'));
     });
   };
 
@@ -172,7 +341,7 @@ export function DocumentTab({
     const logoHtml = `
       <div style="text-align: center; margin: 20px 0; border: 1px double #1e40af; padding: 12px; border-radius: 6px; display: inline-block;">
         <div style="font-size: 18px; font-weight: 800; color: #1e40af; letter-spacing: 2px; text-transform: uppercase;">
-          ★ FLYING SHIPPING COMPANY ★
+          FLYING SHIPPING COMPANY
         </div>
         <div style="font-size: 9px; color: #475569; margin-top: 4px; letter-spacing: 1px;">
           SAFETY MANAGEMENT SYSTEM (SMS) MANUAL
@@ -181,7 +350,7 @@ export function DocumentTab({
     `;
     runCommand((editor) => {
       editor.chain().focus().insertContent(logoHtml).run();
-      toast.success('Đã chèn Logo của hãng tàu!');
+      toast.success(t('hsqeDocumentRibbon.toast.insertedLogo'));
     });
   };
 
@@ -191,13 +360,13 @@ export function DocumentTab({
     tempDiv.innerHTML = htmlToParse;
     const headings = tempDiv.querySelectorAll('h1, h2, h3');
     if (headings.length === 0) {
-      toast.warning('Không tìm thấy các tiêu đề H1, H2, H3 để tự động sinh Mục lục.');
+      toast.warning(t('hsqeDocumentRibbon.toast.noHeadings'));
       return;
     }
 
     let tocHtml = `
       <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 16px; margin: 20px 0; font-size: 13px;">
-        <h4 style="margin-top: 0; color: #1e40af; font-weight: bold; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px;">MỤC LỤC TỰ ĐỘNG CHƯƠNG TÀI LIỆU</h4>
+        <h4 style="margin-top: 0; color: #1e40af; font-weight: bold; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px;">MỤC LỤC TỰ ĐỘNG</h4>
         <ul style="list-style-type: none; padding-left: 0; margin-bottom: 0;">
     `;
     headings.forEach((h) => {
@@ -206,28 +375,28 @@ export function DocumentTab({
       const pad = tag === 'h1' ? '0' : tag === 'h2' ? '16px' : '32px';
       const weight = tag === 'h1' ? 'bold' : 'normal';
       tocHtml += `<li style="padding-left: ${pad}; font-weight: ${weight}; margin-bottom: 6px;">
-        <span style="color: #64748b; margin-right: 4px;">•</span> ${text}
+        <span style="color: #64748b; margin-right: 4px;">-</span> ${text}
       </li>`;
     });
     tocHtml += `</ul></div>`;
 
     runCommand((editor) => {
       editor.chain().focus().insertContentAt(0, tocHtml).run();
-      toast.success('Đã chèn Mục lục tự động lên đầu văn bản!');
+      toast.success(t('hsqeDocumentRibbon.toast.insertedToc'));
     });
   };
 
   const handleInsertFootnote = () => {
     const footnoteHtml = `
       <div style="margin-top: 40px; border-top: 1px solid #cbd5e1; padding-top: 10px; font-size: 11px; color: #64748b;">
-        <p><strong>Ghi chú hàng hải (Footnotes):</strong></p>
+        <p><strong>Ghi chú hàng hải:</strong></p>
         <p>[1] Tham chiếu ISM Code Mục 8 - Chuẩn bị ứng phó tình huống khẩn cấp trên tàu.</p>
         <p>[2] Tuân thủ các quy định phòng ngừa ô nhiễm môi trường biển theo MARPOL 73/78.</p>
       </div>
     `;
     runCommand((editor) => {
       editor.chain().focus().insertContent(footnoteHtml).run();
-      toast.success('Đã chèn chú thích cuối trang!');
+      toast.success(t('hsqeDocumentRibbon.toast.insertedFootnote'));
     });
   };
 
@@ -247,7 +416,7 @@ export function DocumentTab({
                 : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'
             }`}
           >
-            {tab}
+            {t(`hsqeDocumentRibbon.tabs.${ribbonTabLabelKey[tab]}`)}
           </button>
         ))}
       </div>
@@ -261,37 +430,61 @@ export function DocumentTab({
               onClick={onCreateNew}
               className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition font-medium"
             >
-              <FilePlus className="w-3.5 h-3.5 text-blue-500" /> Tạo mới (New)
+              <FilePlus className="w-3.5 h-3.5 text-blue-500" /> {t('hsqeDocumentRibbon.new')}
             </button>
             <button
-              onClick={() => toast.info('Để mở tài liệu khác, vui lòng click danh sách ở Tree View bên trái.')}
+              onClick={() => toast.info(t('hsqeDocumentRibbon.openFromTree'))}
               className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition font-medium"
             >
-              <FolderOpen className="w-3.5 h-3.5 text-amber-500" /> Mở (Open)
+              <FolderOpen className="w-3.5 h-3.5 text-amber-500" /> {t('hsqeDocumentRibbon.open')}
             </button>
             <div className="w-px h-5 bg-slate-300 dark:bg-slate-600 mx-1.5" />
             <button
               onClick={onSave}
               className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition font-medium"
             >
-              <Save className="w-3.5 h-3.5 text-green-500" /> Lưu lại (Save)
+              <Save className="w-3.5 h-3.5 text-green-500" /> {t('hsqeDocumentRibbon.save')}
             </button>
             <div className="w-px h-5 bg-slate-300 dark:bg-slate-600 mx-1.5" />
-            <button
-              onClick={onDownload}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition font-medium"
-            >
-              <Download className="w-3.5 h-3.5 text-slate-500" /> Tải về HTML
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setDownloadMenuOpen(prev => !prev)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition font-medium"
+              >
+                <Download className="w-3.5 h-3.5 text-slate-500" /> {t('hsqeDocumentRibbon.download')}
+                <span className="text-[10px] text-slate-400">v</span>
+              </button>
+              {downloadMenuOpen && (
+                <div className="absolute left-0 top-full z-50 mt-1 w-32 rounded border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                  <button
+                    onClick={() => { onDownload?.('word'); setDownloadMenuOpen(false); }}
+                    className="block w-full px-3 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700"
+                  >
+                    Word
+                  </button>
+                  <button
+                    onClick={() => { onDownload?.('excel'); setDownloadMenuOpen(false); }}
+                    className="block w-full px-3 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700"
+                  >
+                    Excel
+                  </button>
+                  <button
+                    onClick={() => { onDownload?.('pdf'); setDownloadMenuOpen(false); }}
+                    className="block w-full px-3 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700"
+                  >
+                    PDF
+                  </button>
+                </div>
+              )}
+            </div>
             <button
               onClick={onPrint}
               className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition font-medium"
             >
-              <Printer className="w-3.5 h-3.5 text-purple-500" /> In ấn (Print)
+              <Printer className="w-3.5 h-3.5 text-purple-500" /> {t('hsqeDocumentRibbon.print')}
             </button>
           </div>
         )}
-
         {/* HOME TAB ACTIONS */}
         {activeRibbonTab === 'Home' && (
           <div className="flex items-center gap-1 flex-wrap">
@@ -303,7 +496,7 @@ export function DocumentTab({
                   if (isEditing && editorInstance) {
                     editorInstance.commands.setContent('<p></p>');
                   }
-                  toast.success('Đã cắt nội dung!');
+                  toast.success(t('hsqeDocumentRibbon.toast.cut'));
                 }}
                 disabled={!isEditing}
                 className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition disabled:opacity-40"
@@ -368,7 +561,7 @@ export function DocumentTab({
                     ? 'bg-blue-600 text-white'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200'
                 }`}
-                title="Bold (In đậm)"
+                title={t('hsqeDocumentRibbon.tooltips.bold')}
               >
                 <Bold className="w-3.5 h-3.5" />
               </button>
@@ -379,7 +572,7 @@ export function DocumentTab({
                     ? 'bg-blue-600 text-white'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200'
                 }`}
-                title="Italic (In nghiêng)"
+                title={t('hsqeDocumentRibbon.tooltips.italic')}
               >
                 <Italic className="w-3.5 h-3.5" />
               </button>
@@ -390,7 +583,7 @@ export function DocumentTab({
                     ? 'bg-blue-600 text-white'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200'
                 }`}
-                title="Underline (Gạch chân)"
+                title={t('hsqeDocumentRibbon.tooltips.underline')}
               >
                 <UnderlineIcon className="w-3.5 h-3.5" />
               </button>
@@ -401,7 +594,7 @@ export function DocumentTab({
                     ? 'bg-blue-600 text-white'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200'
                 }`}
-                title="Strike (Gạch ngang)"
+                title={t('hsqeDocumentRibbon.tooltips.strike')}
               >
                 <Strikethrough className="w-3.5 h-3.5" />
               </button>
@@ -412,7 +605,7 @@ export function DocumentTab({
                     ? 'bg-blue-600 text-white'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200'
                 }`}
-                title="Highlight (Tô màu)"
+                title={t('hsqeDocumentRibbon.tooltips.highlight')}
               >
                 <Highlighter className="w-3.5 h-3.5" />
               </button>
@@ -429,7 +622,7 @@ export function DocumentTab({
                     ? 'bg-blue-600 text-white'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200'
                 }`}
-                title="Căn trái"
+                title={t('hsqeDocumentRibbon.tooltips.alignLeft')}
               >
                 <AlignLeft className="w-3.5 h-3.5" />
               </button>
@@ -440,7 +633,7 @@ export function DocumentTab({
                     ? 'bg-blue-600 text-white'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200'
                 }`}
-                title="Căn giữa"
+                title={t('hsqeDocumentRibbon.tooltips.alignCenter')}
               >
                 <AlignCenter className="w-3.5 h-3.5" />
               </button>
@@ -451,7 +644,7 @@ export function DocumentTab({
                     ? 'bg-blue-600 text-white'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200'
                 }`}
-                title="Căn phải"
+                title={t('hsqeDocumentRibbon.tooltips.alignRight')}
               >
                 <AlignRight className="w-3.5 h-3.5" />
               </button>
@@ -462,7 +655,7 @@ export function DocumentTab({
                     ? 'bg-blue-600 text-white'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200'
                 }`}
-                title="Căn đều 2 bên"
+                title={t('hsqeDocumentRibbon.tooltips.alignJustify')}
               >
                 <AlignJustify className="w-3.5 h-3.5" />
               </button>
@@ -498,7 +691,7 @@ export function DocumentTab({
                     ? 'bg-blue-600 text-white'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200'
                 }`}
-                title="Trích dẫn"
+                title={t('hsqeDocumentRibbon.tooltips.quote')}
               >
                 <Quote className="w-3.5 h-3.5" />
               </button>
@@ -515,7 +708,7 @@ export function DocumentTab({
                     ? 'bg-blue-600 text-white'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200'
                 }`}
-                title="Tiêu đề 1"
+                title={t('hsqeDocumentRibbon.tooltips.heading1')}
               >
                 H1
               </button>
@@ -526,7 +719,7 @@ export function DocumentTab({
                     ? 'bg-blue-600 text-white'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200'
                 }`}
-                title="Tiêu đề 2"
+                title={t('hsqeDocumentRibbon.tooltips.heading2')}
               >
                 H2
               </button>
@@ -537,7 +730,7 @@ export function DocumentTab({
                     ? 'bg-blue-600 text-white'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200'
                 }`}
-                title="Tiêu đề 3"
+                title={t('hsqeDocumentRibbon.tooltips.heading3')}
               >
                 H3
               </button>
@@ -571,25 +764,25 @@ export function DocumentTab({
               onClick={handleInsertTable}
               className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition font-medium"
             >
-              <Table className="w-3.5 h-3.5 text-blue-500" /> Chèn bảng (Table)
+              <Table className="w-3.5 h-3.5 text-blue-500" /> {t('hsqeDocumentRibbon.actions.insertTable')}
             </button>
             <button
               onClick={handleInsertChecklist}
               className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition font-medium"
             >
-              <CheckSquare className="w-3.5 h-3.5 text-green-500" /> Chèn Checklist
+              <CheckSquare className="w-3.5 h-3.5 text-green-500" /> {t('hsqeDocumentRibbon.actions.insertChecklist')}
             </button>
             <button
               onClick={handleInsertPageBreak}
               className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition font-medium"
             >
-              <Minus className="w-3.5 h-3.5 text-red-500" /> Ngắt trang in (Page Break)
+              <Minus className="w-3.5 h-3.5 text-red-500" /> {t('hsqeDocumentRibbon.actions.insertPageBreak')}
             </button>
             <button
               onClick={handleInsertLogo}
               className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition font-medium"
             >
-              <Image className="w-3.5 h-3.5 text-amber-500" /> Logo Hãng tàu
+              <Image className="w-3.5 h-3.5 text-amber-500" /> {t('hsqeDocumentRibbon.actions.insertCompanyLogo')}
             </button>
           </div>
         )}
@@ -599,11 +792,11 @@ export function DocumentTab({
           <div className="flex items-center gap-2 flex-wrap">
             {/* Orientation */}
             <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800 px-1.5 py-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
-              <span className="text-[10px] uppercase font-bold text-slate-500 px-1">Hướng giấy:</span>
+              <span className="text-[10px] uppercase font-bold text-slate-500 px-1">{t('hsqeDocumentRibbon.actions.orientation')}</span>
               <button
                 onClick={() => {
                   onOrientationChange('portrait');
-                  toast.success('Đã chuyển giấy sang khổ Dọc (A4 Portrait)');
+                  toast.success(t('hsqeDocumentRibbon.toast.portrait'));
                 }}
                 className={`px-2 py-1 text-xs rounded transition font-medium ${
                   orientation === 'portrait'
@@ -611,12 +804,12 @@ export function DocumentTab({
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200'
                 }`}
               >
-                Khổ Dọc
+                {t('hsqeDocumentRibbon.actions.portrait')}
               </button>
               <button
                 onClick={() => {
                   onOrientationChange('landscape');
-                  toast.success('Đã chuyển giấy sang khổ Ngang (A4 Landscape)');
+                  toast.success(t('hsqeDocumentRibbon.toast.landscape'));
                 }}
                 className={`px-2 py-1 text-xs rounded transition font-medium ${
                   orientation === 'landscape'
@@ -624,13 +817,13 @@ export function DocumentTab({
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200'
                 }`}
               >
-                Khổ Ngang
+                {t('hsqeDocumentRibbon.actions.landscape')}
               </button>
             </div>
 
             {/* Margins */}
             <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800 px-1.5 py-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
-              <span className="text-[10px] uppercase font-bold text-slate-500 px-1">Lề trang:</span>
+              <span className="text-[10px] uppercase font-bold text-slate-500 px-1">{t('hsqeDocumentRibbon.actions.margins')}</span>
               <button
                 onClick={() => onMarginsChange('normal')}
                 className={`px-2 py-1 text-xs rounded transition font-medium ${
@@ -639,7 +832,7 @@ export function DocumentTab({
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200'
                 }`}
               >
-                Rộng (Normal)
+                {t('hsqeDocumentRibbon.actions.marginNormal')}
               </button>
               <button
                 onClick={() => onMarginsChange('narrow')}
@@ -649,7 +842,7 @@ export function DocumentTab({
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200'
                 }`}
               >
-                Hẹp (Narrow)
+                {t('hsqeDocumentRibbon.actions.marginNarrow')}
               </button>
               <button
                 onClick={() => onMarginsChange('wide')}
@@ -659,7 +852,7 @@ export function DocumentTab({
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200'
                 }`}
               >
-                Rất rộng
+                {t('hsqeDocumentRibbon.actions.marginWide')}
               </button>
             </div>
 
@@ -672,7 +865,7 @@ export function DocumentTab({
                 value={watermarkText}
                 readOnly={!isEditing}
                 onChange={(e) => onWatermarkChange(e.target.value)}
-                placeholder="Nhập dấu nổi..."
+                placeholder={t('hsqeDocumentRibbon.actions.watermarkPlaceholder')}
                 className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-750 text-xs px-2 py-0.5 rounded w-36 text-slate-800 dark:text-white outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
@@ -685,15 +878,15 @@ export function DocumentTab({
             <button
               onClick={handleGenerateTOC}
               className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition font-medium"
-              title="Quét H1/H2/H3 để chèn mục lục"
+              title={t('hsqeDocumentRibbon.actions.generateTocTitle')}
             >
-              <BookOpen className="w-3.5 h-3.5 text-blue-500" /> Tạo Mục lục tự động
+              <BookOpen className="w-3.5 h-3.5 text-blue-500" /> {t('hsqeDocumentRibbon.actions.generateToc')}
             </button>
             <button
               onClick={handleInsertFootnote}
               className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition font-medium"
             >
-              <Compass className="w-3.5 h-3.5 text-slate-500" /> Thêm Ghi chú (Footnote)
+              <Compass className="w-3.5 h-3.5 text-slate-500" /> {t('hsqeDocumentRibbon.actions.insertFootnote')}
             </button>
           </div>
         )}
@@ -709,7 +902,7 @@ export function DocumentTab({
                 onChange={(e) => onShowRulerChange(e.target.checked)}
                 className="rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
               />
-              <Ruler className="w-3.5 h-3.5 text-slate-400" /> Hiện thước (Ruler)
+              <Ruler className="w-3.5 h-3.5 text-slate-400" /> {t('hsqeDocumentRibbon.actions.showRuler')}
             </label>
 
             <div className="w-px h-5 bg-slate-300 dark:bg-slate-600 mx-1" />
@@ -741,7 +934,7 @@ export function DocumentTab({
               <button
                 onClick={() => {
                   onZoomChange(100);
-                  toast.success('Khôi phục Zoom 100%');
+                  toast.success(t('hsqeDocumentRibbon.toast.zoomReset'));
                 }}
                 className="px-1.5 py-0.5 text-[9px] font-bold bg-slate-300 dark:bg-slate-750 rounded text-slate-700 dark:text-slate-300"
               >
@@ -757,8 +950,8 @@ export function DocumentTab({
                 onReadModeChange(!readMode);
                 toast.success(
                   !readMode
-                    ? 'Đã bật chế độ tập trung đọc (Ẩn danh mục bên trái)'
-                    : 'Đã tắt chế độ tập trung đọc'
+                    ? t('hsqeDocumentRibbon.toast.readModeOn')
+                    : t('hsqeDocumentRibbon.toast.readModeOff')
                 );
               }}
               className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg transition font-semibold ${
@@ -769,11 +962,11 @@ export function DocumentTab({
             >
               {readMode ? (
                 <>
-                  <EyeOff className="w-3.5 h-3.5" /> Thường (Normal Mode)
+                  <EyeOff className="w-3.5 h-3.5" /> {t('hsqeDocumentRibbon.actions.normalMode')}
                 </>
               ) : (
                 <>
-                  <Eye className="w-3.5 h-3.5" /> Tập trung (Read Mode)
+                  <Eye className="w-3.5 h-3.5" /> {t('hsqeDocumentRibbon.actions.readMode')}
                 </>
               )}
             </button>
@@ -795,7 +988,11 @@ export function DocumentTab({
         </div>
       )}
 
-      {/* Document Content Area */}
+      {checklistTemplate && !isEditing ? (
+        <div className="flex-1 overflow-auto bg-slate-100 p-4 dark:bg-slate-950">
+          <ChecklistTemplatePreview template={checklistTemplate} />
+        </div>
+      ) : (
       <div className="flex-1 overflow-auto bg-slate-200 dark:bg-slate-900 p-6 flex justify-center">
         {/* Document scale wrap */}
         <div
@@ -818,7 +1015,49 @@ export function DocumentTab({
             )}
 
             {/* Document Header Table */}
-            <div className="border-b-2 border-slate-800 dark:border-slate-500 z-10 flex-shrink-0">
+            <div className="z-10 flex-shrink-0 px-10 pt-10">
+              <table className="w-full border-collapse border border-slate-500 text-slate-700 dark:border-slate-500 dark:text-slate-200">
+                <tbody>
+                  <tr>
+                    <td className="w-[170px] border border-slate-500 p-3 text-center align-middle" rowSpan={2}>
+                      <div className="mx-auto mb-1 flex h-14 w-24 items-center justify-center rounded-[50%] border-2 border-slate-400 text-2xl font-black italic tracking-tight text-slate-500">
+                        FLY
+                      </div>
+                      <div className="text-[9px] font-bold uppercase leading-tight text-slate-500">
+                        Flying Shipping<br />Company
+                      </div>
+                    </td>
+                    <td className="border border-slate-500 px-6 py-3 text-center align-middle" rowSpan={2}>
+                      <div className="text-xl font-black uppercase leading-snug tracking-normal text-slate-600 dark:text-slate-100">
+                        {document.title}
+                      </div>
+                      <div className="mt-2 text-sm font-bold italic uppercase text-slate-500 dark:text-slate-300">
+                        {document.category === 'PROCEDURE' ? 'Shipboard Procedure' : 'Controlled Document'}
+                      </div>
+                    </td>
+                    <td className="w-[190px] border border-slate-500 px-3 py-3 text-right align-middle">
+                      <div className="text-base font-black text-slate-600 dark:text-slate-100">
+                        {document.category === 'FORM' ? 'Flying Form' : document.category === 'CHECKLIST' ? 'Flying Checklist' : 'Flying Manual'}
+                      </div>
+                      <div className="text-sm font-bold text-slate-600 dark:text-slate-100">
+                        {document.code}
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="border border-slate-500 px-3 py-3 text-right align-middle">
+                      <div className="text-sm font-bold text-slate-600 dark:text-slate-100">
+                        Revision: {document.currentVersion.replace(/^Rev\s*/i, '')}
+                      </div>
+                      <div className="text-sm font-bold text-slate-600 dark:text-slate-100">
+                        Date: {document.lastModified}
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div className="hidden">
               <table className="w-full text-xs border-collapse">
                 <tbody>
                   <tr>
@@ -844,7 +1083,7 @@ export function DocumentTab({
                     {/* Meta Info - Top Row */}
                     <td className="w-[220px] border border-slate-300 dark:border-slate-600 px-4 py-2">
                       <div className="flex justify-between font-medium">
-                        <span className="text-slate-500">Revision (Phiên bản):</span>
+                        <span className="text-slate-500">{t('hsqeDocumentRibbon.documentHeader.revision')}</span>
                         <span className="font-bold text-slate-900 dark:text-white">{document.currentVersion}</span>
                       </div>
                     </td>
@@ -862,12 +1101,12 @@ export function DocumentTab({
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-500">Approved By:</span>
-                          <span className="font-bold text-slate-800 dark:text-slate-200 truncate max-w-[120px]">{document.approver || '—'}</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200 truncate max-w-[120px]">{document.approver || '-'}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-500">Released By:</span>
                           <span className="font-bold text-slate-800 dark:text-slate-200 truncate max-w-[120px]">
-                            {document.status === 'Published' ? document.approver || '—' : '—'}
+                            {document.status === 'Published' ? document.approver || '-' : '-'}
                           </span>
                         </div>
                       </div>
@@ -875,7 +1114,7 @@ export function DocumentTab({
                   </tr>
                   <tr>
                     <td className="border border-slate-300 dark:border-slate-600 px-4 py-2.5 text-slate-500 font-semibold uppercase">
-                      Code (Mã số)
+                      {t('hsqeDocumentRibbon.documentHeader.code')}
                     </td>
                     <td className="border border-slate-300 dark:border-slate-600 px-4 py-2.5 font-bold text-slate-850 dark:text-slate-200">
                       {document.code}
@@ -891,14 +1130,14 @@ export function DocumentTab({
             {/* Content Body */}
             <div
               className={`flex-1 z-10 transition-all duration-200 ${
-                margins === 'narrow' ? 'p-4' : margins === 'wide' ? 'p-12' : 'p-8'
+                margins === 'narrow' ? 'p-4' : margins === 'wide' ? 'p-12' : 'p-10'
               }`}
             >
               {isEditing ? (
                 <RichTextEditor
                   content={editContent}
                   onChange={onContentChange}
-                  placeholder="Nhập nội dung tài liệu quy trình tại đây..."
+                  placeholder={t('hsqeDocumentRibbon.documentHeader.contentPlaceholder')}
                   minHeight="700px"
                   onEditorReady={setEditorInstance}
                   showToolbar={false}
@@ -907,13 +1146,19 @@ export function DocumentTab({
                 <div
                   className={`prose max-w-none text-slate-800 dark:text-slate-200 leading-relaxed ${fontFamily} ${fontSize}`}
                 >
-                  <RichContentViewer html={document.content} />
+                  {checklistTemplate ? (
+                    <ChecklistTemplatePreview template={checklistTemplate} />
+                  ) : (
+                    <RichContentViewer html={document.content} />
+                  )}
                 </div>
               )}
             </div>
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }
+
