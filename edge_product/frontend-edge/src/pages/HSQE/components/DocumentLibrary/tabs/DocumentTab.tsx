@@ -137,7 +137,26 @@ function ImportedDocxPreview({ payload }: { payload: ImportedDocxPayload }) {
   }, [payload.base64]);
 
   return (
-    <div className="docx-preview-shell w-full">
+    <div className="hsqe-docx-preview w-full">
+      <style>
+        {`
+          .hsqe-docx-preview .docx-wrapper {
+            background: transparent !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+          }
+
+          .hsqe-docx-preview .docx {
+            margin: 0 auto !important;
+            box-shadow: 0 16px 36px rgba(15, 23, 42, 0.18) !important;
+          }
+
+          .hsqe-docx-preview .docx,
+          .hsqe-docx-preview .docx * {
+            font-family: "Times New Roman", "Times", Arial, sans-serif !important;
+          }
+        `}
+      </style>
       <div ref={styleRef} />
       <div ref={containerRef} className="docx-preview-container" />
     </div>
@@ -1059,7 +1078,21 @@ export function DocumentTab({
         </div>
       )}
 
-      {checklistTemplate && !isEditing ? (
+      {importedDocxPayload && !isEditing ? (
+        <div className="flex-1 overflow-auto bg-slate-200 p-6 dark:bg-slate-900">
+          <div
+            className="mx-auto transition-all duration-200"
+            style={{
+              transform: `scale(${zoom / 100})`,
+              transformOrigin: 'top center',
+              width: orientation === 'landscape' ? '1100px' : '850px',
+              maxWidth: '100%',
+            }}
+          >
+            <ImportedDocxPreview payload={importedDocxPayload} />
+          </div>
+        </div>
+      ) : checklistTemplate && !isEditing ? (
         <div className="flex-1 overflow-auto bg-slate-100 p-4 dark:bg-slate-950">
           <ChecklistTemplatePreview template={checklistTemplate} />
         </div>
@@ -1206,9 +1239,7 @@ export function DocumentTab({
                 margins === 'narrow' ? 'p-4' : margins === 'wide' ? 'p-12' : 'p-10'
               }`}
             >
-              {importedDocxPayload && !isEditing ? (
-                <ImportedDocxPreview payload={importedDocxPayload} />
-              ) : isEditing ? (
+              {isEditing ? (
                 <RichTextEditor
                   content={editContent}
                   onChange={onContentChange}

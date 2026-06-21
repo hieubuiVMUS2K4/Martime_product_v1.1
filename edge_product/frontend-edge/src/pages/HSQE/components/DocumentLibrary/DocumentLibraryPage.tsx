@@ -447,6 +447,10 @@ function ChecklistTemplateModal({
     ]);
   };
 
+  const removeSection = (sectionId: string) => {
+    setSections(prev => prev.length <= 1 ? prev : prev.filter(section => section.id !== sectionId));
+  };
+
   const addQuestion = (sectionId: string) => {
     setSections(prev => prev.map(section => section.id === sectionId ? {
       ...section,
@@ -552,7 +556,7 @@ function ChecklistTemplateModal({
         <div className="flex-1 overflow-y-auto px-4">
           {sections.map((section, sectionIndex) => (
             <div key={section.id}>
-              <div className="grid grid-cols-[34px_80px_1fr_210px_40px] items-center border-b border-slate-200 py-2 text-sm dark:border-slate-700">
+              <div className="grid grid-cols-[34px_56px_1fr_auto] items-center gap-3 border-b border-slate-200 py-2 text-sm dark:border-slate-700">
                 <GripVertical className="h-4 w-4 text-slate-500" />
                 <span>{sectionIndex + 1}.</span>
                 <label className="grid grid-cols-[150px_1fr] items-center gap-2">
@@ -563,12 +567,35 @@ function ChecklistTemplateModal({
                     className="h-8 rounded border border-slate-300 px-2 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-800"
                   />
                 </label>
-                <button type="button" onClick={() => addQuestion(section.id)} className="justify-self-end rounded bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800">
-                  + Question
-                </button>
-                <button type="button" onClick={addSection} className="flex h-6 w-6 items-center justify-center rounded bg-green-500 text-white hover:bg-green-600" title="Add section">
-                  <Plus className="h-3.5 w-3.5" />
-                </button>
+                <div className="flex items-center justify-end gap-1">
+                  <button
+                    type="button"
+                    onClick={() => addQuestion(section.id)}
+                    className="inline-flex h-8 items-center gap-1.5 rounded border border-slate-300 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                    title="Add question"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Question
+                  </button>
+                  <button
+                    type="button"
+                    onClick={addSection}
+                    className="inline-flex h-8 items-center gap-1.5 rounded border border-slate-300 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                    title="Add section"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Section
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeSection(section.id)}
+                    disabled={sections.length <= 1}
+                    className="flex h-8 w-8 items-center justify-center rounded border border-red-100 text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-30 dark:border-red-900/40 dark:hover:bg-red-950/30"
+                    title="Delete section"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
 
               {section.questions.map((question, questionIndex) => (
@@ -593,19 +620,38 @@ function ChecklistTemplateModal({
                         <span className="mb-1 block text-xs">Possible answers</span>
                         <div className="space-y-1">
                           {(question.options.length ? question.options : ['']).map((option, optionIndex) => (
-                            <input
-                              key={optionIndex}
-                              value={option}
-                              onChange={(e) => {
-                                const options = [...question.options];
-                                options[optionIndex] = e.target.value;
-                                updateQuestion(section.id, question.id, { options });
-                              }}
-                              className="h-8 w-full rounded border border-slate-300 px-2 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-800"
-                            />
+                            <div key={optionIndex} className="flex items-center gap-1">
+                              <input
+                                value={option}
+                                onChange={(e) => {
+                                  const options = question.options.length ? [...question.options] : [''];
+                                  options[optionIndex] = e.target.value;
+                                  updateQuestion(section.id, question.id, { options });
+                                }}
+                                className="h-8 min-w-0 flex-1 rounded border border-slate-300 px-2 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-800"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const options = question.options.filter((_, index) => index !== optionIndex);
+                                  updateQuestion(section.id, question.id, { options });
+                                }}
+                                className="flex h-8 w-8 items-center justify-center rounded border border-red-100 text-red-500 hover:bg-red-50 dark:border-red-900/40 dark:hover:bg-red-950/30"
+                                title="Delete answer"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
                           ))}
                         </div>
-                        <button type="button" onClick={() => updateQuestion(section.id, question.id, { options: [...question.options, ''] })} className="mt-2 h-8 w-full rounded bg-slate-950 text-sm font-semibold text-white hover:bg-slate-800">+ Add</button>
+                        <button
+                          type="button"
+                          onClick={() => updateQuestion(section.id, question.id, { options: [...question.options, ''] })}
+                          className="mt-2 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded border border-slate-300 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Answer
+                        </button>
                       </div>
                     )}
                     {question.answerType === 'slider' && (
@@ -640,8 +686,14 @@ function ChecklistTemplateModal({
                     </label>
                   </div>
 
-                  <button type="button" onClick={() => removeQuestion(section.id, question.id)} className="mt-7 flex h-6 w-6 items-center justify-center rounded bg-red-50 text-red-500 hover:bg-red-100">
-                    <X className="h-3.5 w-3.5" />
+                  <button
+                    type="button"
+                    onClick={() => removeQuestion(section.id, question.id)}
+                    disabled={section.questions.length <= 1}
+                    className="mt-7 flex h-8 w-8 items-center justify-center rounded border border-red-100 text-red-500 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-30 dark:border-red-900/40 dark:hover:bg-red-950/30"
+                    title="Delete question"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
               ))}
@@ -858,6 +910,11 @@ export function DocumentLibraryPage() {
     selectedDoc?.content.includes('data-imported-word-document="true"') ||
     selectedDoc?.content.includes('data-docx-preview="true"')
   );
+  const selectedDocIsChecklistTemplate = Boolean(
+    selectedDoc?.category === 'CHECKLIST' &&
+    selectedDoc?.content.includes('"type":"checklist-template"')
+  );
+  const selectedDocUsesSpecialPreview = selectedDocIsImportedWord || selectedDocIsChecklistTemplate;
 
   // Data Fetching
   const fetchDocuments = useCallback(async () => {
@@ -925,8 +982,9 @@ export function DocumentLibraryPage() {
       setEditContent(selectedDoc.content);
       setEditTitle(selectedDoc.title);
       const isImportedWord = selectedDoc.content.includes('data-imported-word-document="true"') || selectedDoc.content.includes('data-docx-preview="true"');
+      const isChecklistTemplate = selectedDoc.category === 'CHECKLIST' && selectedDoc.content.includes('"type":"checklist-template"');
       setEditWatermark(selectedDoc.watermarkText || (isImportedWord ? '' : 'TÀI LIỆU ĐƯỢC KIỂM SOÁT'));
-      setIsEditing(!isImportedWord);
+      setIsEditing(!(isImportedWord || isChecklistTemplate));
       setEditChangeSummary('');
     }
   }, [selectedDocId]);
@@ -1029,7 +1087,7 @@ export function DocumentLibraryPage() {
         watermarkText: editWatermark,
       });
       toast.success('Đã lưu thay đổi thành công!');
-      setIsEditing(!selectedDocIsImportedWord);
+      setIsEditing(!selectedDocUsesSpecialPreview);
       setFinishWriting(false);
       setEditChangeSummary('');
       await fetchDocuments();
@@ -1307,7 +1365,7 @@ export function DocumentLibraryPage() {
       setEditContent(selectedDoc.content);
       setEditTitle(selectedDoc.title);
       setEditWatermark(selectedDoc.watermarkText || (selectedDocIsImportedWord ? '' : 'TÀI LIỆU ĐƯỢC KIỂM SOÁT'));
-      setIsEditing(!selectedDocIsImportedWord);
+      setIsEditing(!selectedDocUsesSpecialPreview);
       setActiveTab('document');
     }
   };
@@ -1494,7 +1552,7 @@ export function DocumentLibraryPage() {
 
             {/* Action buttons on right side of tab bar */}
             <div className="ml-auto flex items-center gap-1.5 pr-3">
-              {!isEditing && selectedDoc && !selectedDocIsImportedWord && (
+              {!isEditing && selectedDoc && !selectedDocUsesSpecialPreview && (
                 <button
                   onClick={handleStartEditing}
                   className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition flex items-center gap-1"
@@ -1653,7 +1711,7 @@ export function DocumentLibraryPage() {
 
           <button
             onClick={isEditing ? handleSaveDocument : handleStartEditing}
-            disabled={selectedDocIsImportedWord && !isEditing}
+            disabled={selectedDocUsesSpecialPreview && !isEditing}
             className="flex items-center gap-1.5 px-4 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg transition shadow-sm"
           >
             <Save className="w-3.5 h-3.5" /> Save
