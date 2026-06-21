@@ -174,6 +174,17 @@ public class EdgeDbContext : DbContext
     public DbSet<ShipLoadLine> ShipLoadLines { get; set; } = null!;
     public DbSet<ShipPilotCardData> ShipPilotCardData { get; set; } = null!;
 
+    // HSQE Safety, Quality & Environmental Management (ISM/SOLAS Compliance)
+    public DbSet<HsqeDocument> HsqeDocuments { get; set; } = null!;
+    public DbSet<HsqeDocumentRevision> HsqeDocumentRevisions { get; set; } = null!;
+    public DbSet<HsqeDocumentSyncStatus> HsqeDocumentSyncStatuses { get; set; } = null!;
+    public DbSet<HsqeIncident> HsqeIncidents { get; set; } = null!;
+    public DbSet<HsqeCapa> HsqeCapas { get; set; } = null!;
+    public DbSet<HsqeRiskAssessment> HsqeRiskAssessments { get; set; } = null!;
+    public DbSet<HsqeWorkPermit> HsqeWorkPermits { get; set; } = null!;
+    public DbSet<HsqeDocumentAttachment> HsqeDocumentAttachments { get; set; } = null!;
+    public DbSet<HsqeDocumentReadLog> HsqeDocumentReadLogs { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

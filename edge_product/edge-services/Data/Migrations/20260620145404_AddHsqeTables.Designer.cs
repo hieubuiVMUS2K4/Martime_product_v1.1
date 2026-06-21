@@ -3,6 +3,7 @@ using System;
 using MaritimeEdge.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MaritimeEdge.Data.Migrations
 {
     [DbContext(typeof(EdgeDbContext))]
-    partial class EdgeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260620145404_AddHsqeTables")]
+    partial class AddHsqeTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -757,112 +760,112 @@ namespace MaritimeEdge.Data.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2026, 6, 21, 5, 5, 15, 251, DateTimeKind.Utc).AddTicks(508),
+                            CreatedAt = new DateTime(2026, 6, 20, 14, 54, 0, 955, DateTimeKind.Utc).AddTicks(7477),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "MAST",
                             RankName = "Master (Captain)",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 6, 21, 5, 5, 15, 251, DateTimeKind.Utc).AddTicks(510)
+                            UpdatedAt = new DateTime(2026, 6, 20, 14, 54, 0, 955, DateTimeKind.Utc).AddTicks(7479)
                         },
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2026, 6, 21, 5, 5, 15, 251, DateTimeKind.Utc).AddTicks(511),
+                            CreatedAt = new DateTime(2026, 6, 20, 14, 54, 0, 955, DateTimeKind.Utc).AddTicks(7481),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "C/O",
                             RankName = "Chief Officer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 6, 21, 5, 5, 15, 251, DateTimeKind.Utc).AddTicks(512)
+                            UpdatedAt = new DateTime(2026, 6, 20, 14, 54, 0, 955, DateTimeKind.Utc).AddTicks(7481)
                         },
                         new
                         {
                             Id = 3,
-                            CreatedAt = new DateTime(2026, 6, 21, 5, 5, 15, 251, DateTimeKind.Utc).AddTicks(512),
+                            CreatedAt = new DateTime(2026, 6, 20, 14, 54, 0, 955, DateTimeKind.Utc).AddTicks(7482),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "2/O",
                             RankName = "Second Officer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 6, 21, 5, 5, 15, 251, DateTimeKind.Utc).AddTicks(513)
+                            UpdatedAt = new DateTime(2026, 6, 20, 14, 54, 0, 955, DateTimeKind.Utc).AddTicks(7483)
                         },
                         new
                         {
                             Id = 4,
-                            CreatedAt = new DateTime(2026, 6, 21, 5, 5, 15, 251, DateTimeKind.Utc).AddTicks(514),
+                            CreatedAt = new DateTime(2026, 6, 20, 14, 54, 0, 955, DateTimeKind.Utc).AddTicks(7484),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "3/O",
                             RankName = "Third Officer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 6, 21, 5, 5, 15, 251, DateTimeKind.Utc).AddTicks(514)
+                            UpdatedAt = new DateTime(2026, 6, 20, 14, 54, 0, 955, DateTimeKind.Utc).AddTicks(7484)
                         },
                         new
                         {
                             Id = 5,
-                            CreatedAt = new DateTime(2026, 6, 21, 5, 5, 15, 251, DateTimeKind.Utc).AddTicks(515),
+                            CreatedAt = new DateTime(2026, 6, 20, 14, 54, 0, 955, DateTimeKind.Utc).AddTicks(7485),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "C/E",
                             RankName = "Chief Engineer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 6, 21, 5, 5, 15, 251, DateTimeKind.Utc).AddTicks(515)
+                            UpdatedAt = new DateTime(2026, 6, 20, 14, 54, 0, 955, DateTimeKind.Utc).AddTicks(7485)
                         },
                         new
                         {
                             Id = 6,
-                            CreatedAt = new DateTime(2026, 6, 21, 5, 5, 15, 251, DateTimeKind.Utc).AddTicks(516),
+                            CreatedAt = new DateTime(2026, 6, 20, 14, 54, 0, 955, DateTimeKind.Utc).AddTicks(7486),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "2/E",
                             RankName = "Second Engineer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 6, 21, 5, 5, 15, 251, DateTimeKind.Utc).AddTicks(516)
+                            UpdatedAt = new DateTime(2026, 6, 20, 14, 54, 0, 955, DateTimeKind.Utc).AddTicks(7487)
                         },
                         new
                         {
                             Id = 7,
-                            CreatedAt = new DateTime(2026, 6, 21, 5, 5, 15, 251, DateTimeKind.Utc).AddTicks(517),
+                            CreatedAt = new DateTime(2026, 6, 20, 14, 54, 0, 955, DateTimeKind.Utc).AddTicks(7488),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "BOSN",
                             RankName = "Bosun",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 6, 21, 5, 5, 15, 251, DateTimeKind.Utc).AddTicks(517)
+                            UpdatedAt = new DateTime(2026, 6, 20, 14, 54, 0, 955, DateTimeKind.Utc).AddTicks(7488)
                         },
                         new
                         {
                             Id = 8,
-                            CreatedAt = new DateTime(2026, 6, 21, 5, 5, 15, 251, DateTimeKind.Utc).AddTicks(518),
+                            CreatedAt = new DateTime(2026, 6, 20, 14, 54, 0, 955, DateTimeKind.Utc).AddTicks(7489),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "AB",
                             RankName = "Able Seaman",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 6, 21, 5, 5, 15, 251, DateTimeKind.Utc).AddTicks(519)
+                            UpdatedAt = new DateTime(2026, 6, 20, 14, 54, 0, 955, DateTimeKind.Utc).AddTicks(7489)
                         },
                         new
                         {
                             Id = 9,
-                            CreatedAt = new DateTime(2026, 6, 21, 5, 5, 15, 251, DateTimeKind.Utc).AddTicks(519),
+                            CreatedAt = new DateTime(2026, 6, 20, 14, 54, 0, 955, DateTimeKind.Utc).AddTicks(7490),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "OILR",
                             RankName = "Oiler",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 6, 21, 5, 5, 15, 251, DateTimeKind.Utc).AddTicks(520)
+                            UpdatedAt = new DateTime(2026, 6, 20, 14, 54, 0, 955, DateTimeKind.Utc).AddTicks(7491)
                         },
                         new
                         {
                             Id = 10,
-                            CreatedAt = new DateTime(2026, 6, 21, 5, 5, 15, 251, DateTimeKind.Utc).AddTicks(521),
+                            CreatedAt = new DateTime(2026, 6, 20, 14, 54, 0, 955, DateTimeKind.Utc).AddTicks(7491),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "COOK",
                             RankName = "Chief Cook",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 6, 21, 5, 5, 15, 251, DateTimeKind.Utc).AddTicks(521)
+                            UpdatedAt = new DateTime(2026, 6, 20, 14, 54, 0, 955, DateTimeKind.Utc).AddTicks(7492)
                         });
                 });
 
@@ -5517,137 +5520,6 @@ namespace MaritimeEdge.Data.Migrations
                         .HasName("p_k_hsqe_documents");
 
                     b.ToTable("hsqe_documents", "public");
-                });
-
-            modelBuilder.Entity("MaritimeEdge.Models.HsqeDocumentAttachment", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid>("DocumentId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("document_id");
-
-                    b.Property<string>("FileName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("file_name");
-
-                    b.Property<string>("FilePath")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("file_path");
-
-                    b.Property<long>("FileSize")
-                        .HasColumnType("bigint")
-                        .HasColumnName("file_size");
-
-                    b.Property<string>("FileType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("file_type");
-
-                    b.Property<bool>("IsSynced")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_synced");
-
-                    b.Property<string>("OriginNode")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("origin_node");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<string>("UploadedBy")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("uploaded_by");
-
-                    b.HasKey("Id")
-                        .HasName("p_k_hsqe_document_attachments");
-
-                    b.HasIndex("DocumentId");
-
-                    b.ToTable("hsqe_document_attachments", "public");
-                });
-
-            modelBuilder.Entity("MaritimeEdge.Models.HsqeDocumentReadLog", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<bool>("Acknowledged")
-                        .HasColumnType("boolean")
-                        .HasColumnName("acknowledged");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid>("DocumentId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("document_id");
-
-                    b.Property<bool>("IsSynced")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_synced");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("notes");
-
-                    b.Property<string>("OriginNode")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("origin_node");
-
-                    b.Property<string>("Rank")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("rank");
-
-                    b.Property<DateTime>("ReadAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("read_at");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<string>("UserId")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("user_id");
-
-                    b.Property<string>("UserName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("user_name");
-
-                    b.HasKey("Id")
-                        .HasName("p_k_hsqe_document_read_logs");
-
-                    b.HasIndex("DocumentId");
-
-                    b.ToTable("hsqe_document_read_logs", "public");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.HsqeDocumentRevision", b =>
@@ -15044,30 +14916,6 @@ namespace MaritimeEdge.Data.Migrations
                         .HasConstraintName("f_k_hsqe_capas__hsqe_incidents_incident_id");
 
                     b.Navigation("Incident");
-                });
-
-            modelBuilder.Entity("MaritimeEdge.Models.HsqeDocumentAttachment", b =>
-                {
-                    b.HasOne("MaritimeEdge.Models.HsqeDocument", "Document")
-                        .WithMany()
-                        .HasForeignKey("DocumentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("f_k_hsqe_document_attachments_hsqe_documents_document_id");
-
-                    b.Navigation("Document");
-                });
-
-            modelBuilder.Entity("MaritimeEdge.Models.HsqeDocumentReadLog", b =>
-                {
-                    b.HasOne("MaritimeEdge.Models.HsqeDocument", "Document")
-                        .WithMany()
-                        .HasForeignKey("DocumentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("f_k_hsqe_document_read_logs_hsqe_documents_document_id");
-
-                    b.Navigation("Document");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.HsqeDocumentRevision", b =>
