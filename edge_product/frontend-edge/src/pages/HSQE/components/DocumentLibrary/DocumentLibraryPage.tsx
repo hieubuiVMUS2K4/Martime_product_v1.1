@@ -51,6 +51,16 @@ type ChecklistExportTemplate = {
   sections: ChecklistExportSection[];
 };
 
+const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const result = String(reader.result || '');
+    resolve(result.includes(',') ? result.split(',')[1] : result);
+  };
+  reader.onerror = () => reject(reader.error);
+  reader.readAsDataURL(file);
+});
+
 const parseChecklistTemplate = (html: string): ChecklistExportTemplate | null => {
   const match = html.match(/<script type="application\/json">([\s\S]*?)<\/script>/);
   if (!match) return null;
@@ -74,7 +84,7 @@ const downloadBlob = (blob: Blob, fileName: string) => {
   URL.revokeObjectURL(url);
 };
 
-// â”€â”€â”€ Modal Components (inline for simplicity) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Modal Components
 
 function CreateDocumentModal({
   isOpen,
@@ -107,13 +117,13 @@ function CreateDocumentModal({
   return (
     <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-lg w-full border border-slate-200 dark:border-slate-700 shadow-2xl">
-        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Táº¡o TÃ i liá»‡u / Chapter má»›i</h3>
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Tạo tài liệu mới</h3>
         <p className="text-xs text-slate-400 mb-5">ISM Code Document Control System</p>
 
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">MÃ£ tÃ i liá»‡u</label>
+              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Mã tài liệu</label>
               <input
                 type="text"
                 value={code}
@@ -123,44 +133,44 @@ function CreateDocumentModal({
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">PhÃ¢n loáº¡i</label>
+              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Phân loại</label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="PROCEDURE">Quy trÃ¬nh (Procedure)</option>
-                <option value="FORM">Biá»ƒu máº«u (Form)</option>
-                <option value="SMS_HANDBOOK">Sá»• tay SMS (Handbook)</option>
+                <option value="PROCEDURE">Quy trình</option>
+                <option value="FORM">Biểu mẫu</option>
+                <option value="SMS_HANDBOOK">Sổ tay SMS</option>
                 <option value="MANUAL">Manual</option>
                 <option value="CHECKLIST">Checklist</option>
-                <option value="EXTERNAL">TÃ i liá»‡u bÃªn ngoÃ i</option>
+                <option value="EXTERNAL">Tài liệu bên ngoài</option>
               </select>
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">TiÃªu Ä‘á» tÃ i liá»‡u</label>
+            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Tiêu đề tài liệu</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Nháº­p tiÃªu Ä‘á» tÃ i liá»‡u"
+              placeholder="Nhập tiêu đề tài liệu"
             />
           </div>
         </div>
 
         <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-slate-100 dark:border-slate-700">
           <button onClick={onClose} className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-50">
-            Há»§y bá»
+            Hủy bỏ
           </button>
           <button
             onClick={async () => {
-              if (!code.trim() || !title.trim()) { toast.error('Vui lÃ²ng nháº­p Ä‘áº§y Ä‘á»§ thÃ´ng tin'); return; }
+              if (!code.trim() || !title.trim()) { toast.error('Vui lòng nhập đầy đủ thông tin'); return; }
               setSaving(true);
               try {
-                await onCreate({ documentCode: code, title, content: '<p>Nháº­p ná»™i dung táº¡i Ä‘Ã¢y...</p>', category, createdBy: currentUserName });
+                await onCreate({ documentCode: code, title, content: '<p>Nhập nội dung tại đây...</p>', category, createdBy: currentUserName });
                 onClose();
               } finally { setSaving(false); }
             }}
@@ -168,7 +178,7 @@ function CreateDocumentModal({
             className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition disabled:opacity-50 flex items-center gap-1.5"
           >
             {saving && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-            Táº¡o tÃ i liá»‡u
+            Tạo tài liệu
           </button>
         </div>
       </div>
@@ -181,23 +191,44 @@ function ImportDocumentModal({
   onClose,
   onImport,
   defaultCode,
+  documents,
 }: {
   isOpen: boolean;
   onClose: () => void;
-  onImport: (data: { documentCode: string; title: string; fileName: string; createdBy: string }) => Promise<void>;
+  onImport: (data: { documentCode: string; title: string; fileName: string; content: string; createdBy: string }) => Promise<void>;
   defaultCode: string;
+  documents: DocTreeNode[];
 }) {
   const { user } = useAuthStore();
   const [code, setCode] = useState(defaultCode);
+  const [destinationCode, setDestinationCode] = useState('');
   const [title, setTitle] = useState('');
   const [fileName, setFileName] = useState('');
+  const [importedContent, setImportedContent] = useState('');
+  const [fileError, setFileError] = useState('');
   const [saving, setSaving] = useState(false);
   const currentUserName = user?.fullName || user?.username || 'Demo User';
+  const destinationOptions = documents.filter(doc =>
+    !doc.isVirtual && ['MANUAL', 'SMS_HANDBOOK', 'PROCEDURE'].includes(doc.category)
+  );
+  const getNextImportCode = (parentCode: string) => {
+    if (!parentCode) return defaultCode;
+    const usedNumbers = documents
+      .map(doc => doc.code)
+      .filter(docCode => docCode.startsWith(`${parentCode}-`))
+      .map(docCode => Number(docCode.slice(parentCode.length + 1).split('-')[0]))
+      .filter(Number.isFinite);
+    const next = Math.max(0, ...usedNumbers) + 1;
+    return `${parentCode}-${String(next).padStart(2, '0')}`;
+  };
 
   useEffect(() => {
     setCode(defaultCode);
+    setDestinationCode('');
     setTitle('');
     setFileName('');
+    setImportedContent('');
+    setFileError('');
   }, [defaultCode, isOpen]);
 
   if (!isOpen) return null;
@@ -220,10 +251,23 @@ function ImportDocumentModal({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Category</label>
-              <div className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-900">
-                External
-              </div>
+              <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Import vào</label>
+              <select
+                value={destinationCode}
+                onChange={(e) => {
+                  const parentCode = e.target.value;
+                  setDestinationCode(parentCode);
+                  setCode(getNextImportCode(parentCode));
+                }}
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+              >
+                <option value="">Không chọn</option>
+                {destinationOptions.map(option => (
+                  <option key={option.id} value={option.code}>
+                    {option.code} - {option.title}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -245,15 +289,44 @@ function ImportDocumentModal({
             </span>
             <input
               type="file"
+              accept=".docx,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
               className="hidden"
-              onChange={(e) => {
+              onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (!file) return;
                 setFileName(file.name);
+                setImportedContent('');
+                setFileError('');
                 if (!title.trim()) setTitle(file.name.replace(/\.[^.]+$/, ''));
+
+                const extension = file.name.split('.').pop()?.toLowerCase();
+                if (extension === 'doc') {
+                  setFileError('File .doc là định dạng Word cũ, trình duyệt không thể preview trực tiếp ổn định. Vui lòng mở bằng Word và Save As sang .docx rồi import lại.');
+                  return;
+                }
+                if (extension !== 'docx') {
+                  setFileError('Chỉ hỗ trợ import preview cho file Word .docx.');
+                  return;
+                }
+
+                try {
+                  setImportedContent(await fileToBase64(file));
+                } catch {
+                  setFileError('Không thể đọc nội dung file Word. Vui lòng kiểm tra file hoặc lưu lại dưới định dạng .docx.');
+                }
               }}
             />
           </label>
+          {fileError && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
+              {fileError}
+            </div>
+          )}
+          {importedContent && !fileError && (
+            <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs font-medium text-green-700 dark:border-green-900/50 dark:bg-green-950/30 dark:text-green-300">
+              Đã đọc file Word. Khi import, tài liệu sẽ được render bằng trình xem DOCX để giữ header, logo, ảnh và bảng tốt hơn.
+            </div>
+          )}
         </div>
 
         <div className="mt-6 flex items-center justify-end gap-2 border-t border-slate-100 pt-4 dark:border-slate-700">
@@ -263,12 +336,16 @@ function ImportDocumentModal({
           <button
             onClick={async () => {
               if (!code.trim() || !title.trim() || !fileName.trim()) {
-                toast.error('Vui lÃ²ng chá»n file vÃ  nháº­p Ä‘áº§y Ä‘á»§ thÃ´ng tin');
+                toast.error('Vui lòng chọn file và nhập đầy đủ thông tin');
+                return;
+              }
+              if (fileError || !importedContent.trim()) {
+                toast.error(fileError || 'Chưa đọc được nội dung file Word');
                 return;
               }
               setSaving(true);
               try {
-                await onImport({ documentCode: code, title, fileName, createdBy: currentUserName });
+                await onImport({ documentCode: code, title, fileName, content: importedContent, createdBy: currentUserName });
                 onClose();
               } finally {
                 setSaving(false);
@@ -576,15 +653,15 @@ function ChecklistTemplateModal({
           <button
             onClick={async () => {
               if (!code.trim() || !name.trim()) {
-                toast.error('Vui lÃ²ng nháº­p code vÃ  tÃªn checklist');
+                toast.error('Vui lòng nhập code và tên checklist');
                 return;
               }
               if (sections.some(section => !section.title.trim())) {
-                toast.error('Vui lÃ²ng nháº­p tÃªn cho táº¥t cáº£ paragraph');
+                toast.error('Vui lòng nhập tên cho tất cả paragraph');
                 return;
               }
               if (sections.some(section => section.questions.some(question => !question.text.trim()))) {
-                toast.error('Vui lÃ²ng nháº­p ná»™i dung cho táº¥t cáº£ cÃ¢u há»i');
+                toast.error('Vui lòng nhập nội dung cho tất cả câu hỏi');
                 return;
               }
               setSaving(true);
@@ -697,11 +774,11 @@ function ApproveModal({
   return (
     <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-md w-full border border-slate-200 dark:border-slate-700 shadow-2xl">
-        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">KÃ½ duyá»‡t & Ban hÃ nh â€” {docCode}</h3>
-        <p className="text-xs text-slate-400 mb-5">Quy trÃ¬nh sáº½ Ä‘Æ°á»£c chuyá»ƒn sang tráº¡ng thÃ¡i Published vÃ  phÃ¢n phá»‘i xuá»‘ng Ä‘á»™i tÃ u.</p>
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Ký duyệt & Ban hành - {docCode}</h3>
+        <p className="text-xs text-slate-400 mb-5">Quy trình sẽ được chuyển sang trạng thái Published và phân phối xuống đội tàu.</p>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">NgÆ°á»i phÃª duyá»‡t</label>
+          <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Người phê duyệt</label>
           <input
             type="text"
             value={approverName}
@@ -712,13 +789,13 @@ function ApproveModal({
 
         <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-slate-100 dark:border-slate-700">
           <button onClick={onClose} className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-50">
-            Há»§y bá»
+            Hủy bỏ
           </button>
           <button
             onClick={() => onApprove(approverName)}
             className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition flex items-center gap-1.5"
           >
-            <Check className="w-3.5 h-3.5" /> KÃ½ vÃ  phÃª duyá»‡t
+            <Check className="w-3.5 h-3.5" /> Ký và phê duyệt
           </button>
         </div>
       </div>
@@ -726,7 +803,7 @@ function ApproveModal({
   );
 }
 
-// â”€â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Main Component
 
 export function DocumentLibraryPage() {
   const { user } = useAuthStore();
@@ -734,7 +811,7 @@ export function DocumentLibraryPage() {
   const currentUserTitle = user?.rankName || user?.position || user?.roleName || 'Admin';
   const currentAuthorString = `${currentUserName} (${currentUserTitle})`;
 
-  // â”€â”€â”€ State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // State
   const [documents, setDocuments] = useState<DocTreeNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
@@ -775,10 +852,14 @@ export function DocumentLibraryPage() {
   const [isSeeding, setIsSeeding] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
 
-  // â”€â”€â”€ Computed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Computed
   const selectedDoc = documents.find(d => d.id === selectedDocId) || documents[0] || null;
+  const selectedDocIsImportedWord = Boolean(
+    selectedDoc?.content.includes('data-imported-word-document="true"') ||
+    selectedDoc?.content.includes('data-docx-preview="true"')
+  );
 
-  // â”€â”€â”€ Data Fetching â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Data Fetching
   const fetchDocuments = useCallback(async () => {
     setLoading(true);
     try {
@@ -827,7 +908,7 @@ export function DocumentLibraryPage() {
         setSelectedDocId(mapped[0].id);
       }
     } catch {
-      toast.error('KhÃ´ng thá»ƒ káº¿t ná»‘i Ä‘áº¿n backend API');
+      toast.error('Không thể kết nối đến backend API');
     } finally {
       setLoading(false);
     }
@@ -841,8 +922,12 @@ export function DocumentLibraryPage() {
   useEffect(() => {
     if (selectedDoc) {
       loadSubData(selectedDoc.id);
+      setEditContent(selectedDoc.content);
       setEditTitle(selectedDoc.title);
-      setEditWatermark(selectedDoc.watermarkText || 'TÃ€I LIá»†U ÄÆ¯á»¢C KIá»‚M SOÃT');
+      const isImportedWord = selectedDoc.content.includes('data-imported-word-document="true"') || selectedDoc.content.includes('data-docx-preview="true"');
+      setEditWatermark(selectedDoc.watermarkText || (isImportedWord ? '' : 'TÀI LIỆU ĐƯỢC KIỂM SOÁT'));
+      setIsEditing(!isImportedWord);
+      setEditChangeSummary('');
     }
   }, [selectedDocId]);
 
@@ -857,15 +942,15 @@ export function DocumentLibraryPage() {
     setHistoryEntries(hist);
   };
 
-  // â”€â”€â”€ Actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Actions
   const handleSeedData = async () => {
     setIsSeeding(true);
     try {
       await documentService.seedData();
-      toast.success('Khá»Ÿi táº¡o dá»¯ liá»‡u máº«u thÃ nh cÃ´ng!');
+      toast.success('Khởi tạo dữ liệu mẫu thành công!');
       await fetchDocuments();
     } catch {
-      toast.error('KhÃ´ng thá»ƒ khá»Ÿi táº¡o dá»¯ liá»‡u máº«u');
+      toast.error('Không thể khởi tạo dữ liệu mẫu');
     } finally {
       setIsSeeding(false);
     }
@@ -878,15 +963,15 @@ export function DocumentLibraryPage() {
         category: data.category as DocCategory,
         isControlled: true,
       });
-      toast.success('Táº¡o tÃ i liá»‡u má»›i thÃ nh cÃ´ng!');
+      toast.success('Tạo tài liệu mới thành công!');
       await fetchDocuments();
       setSelectedDocId(newDoc.id);
     } catch {
-      toast.error('KhÃ´ng thá»ƒ táº¡o tÃ i liá»‡u má»›i');
+      toast.error('Không thể tạo tài liệu mới');
     }
   };
 
-  const handleImportDocument = async (data: { documentCode: string; title: string; fileName: string; createdBy: string }) => {
+  const handleImportDocument = async (data: { documentCode: string; title: string; fileName: string; content: string; createdBy: string }) => {
     try {
       const newDoc = await documentService.createDocument({
         documentCode: data.documentCode,
@@ -894,14 +979,18 @@ export function DocumentLibraryPage() {
         category: 'EXTERNAL',
         isControlled: true,
         createdBy: data.createdBy,
-        content: `<p>Imported external document: <strong>${data.fileName}</strong></p>`,
-        watermarkText: 'IMPORTED DOCUMENT',
+        content: `
+          <section data-docx-preview="true" data-file-name="${data.fileName}">
+            <script type="application/json">${JSON.stringify({ fileName: data.fileName, base64: data.content })}</script>
+          </section>
+        `,
+        watermarkText: '',
       });
-      toast.success('Import document thÃ nh cÃ´ng!');
+      toast.success('Import document thành công!');
       await fetchDocuments();
       setSelectedDocId(newDoc.id);
     } catch {
-      toast.error('KhÃ´ng thá»ƒ import document');
+      toast.error('Không thể import document');
     }
   };
 
@@ -915,7 +1004,7 @@ export function DocumentLibraryPage() {
     if (selectedDocumentIds.length === 0) return;
     try {
       await documentService.bulkDeleteDocuments(selectedDocumentIds);
-      toast.success(`ÄÃ£ xÃ³a ${selectedDocumentIds.length} tÃ i liá»‡u`);
+      toast.success(`Đã xóa ${selectedDocumentIds.length} tài liệu`);
       if (selectedDocId && selectedDocumentIds.includes(selectedDocId)) {
         setSelectedDocId(null);
       }
@@ -923,30 +1012,29 @@ export function DocumentLibraryPage() {
       setBulkDeleteConfirmOpen(false);
       await fetchDocuments();
     } catch {
-      toast.error('KhÃ´ng thá»ƒ xÃ³a cÃ¡c tÃ i liá»‡u Ä‘Ã£ chá»n');
+      toast.error('Không thể xóa các tài liệu đã chọn');
     }
   };
 
   const handleSaveDocument = async () => {
-    if (!selectedDoc || !editChangeSummary.trim()) {
-      toast.error('Vui lÃ²ng nháº­p tÃ³m táº¯t ná»™i dung thay Ä‘á»•i');
+    if (!selectedDoc) {
       return;
     }
     try {
       await documentService.updateDocument(selectedDoc.id, {
         title: editTitle,
         content: editContent,
-        changeSummary: editChangeSummary,
+        changeSummary: editChangeSummary.trim() || 'Cập nhật nội dung tài liệu',
         changedBy: currentAuthorString,
         watermarkText: editWatermark,
       });
-      toast.success('ÄÃ£ lÆ°u thay Ä‘á»•i thÃ nh cÃ´ng!');
-      setIsEditing(false);
+      toast.success('Đã lưu thay đổi thành công!');
+      setIsEditing(!selectedDocIsImportedWord);
       setFinishWriting(false);
       setEditChangeSummary('');
       await fetchDocuments();
     } catch {
-      toast.error('KhÃ´ng thá»ƒ lÆ°u thay Ä‘á»•i');
+      toast.error('Không thể lưu thay đổi');
     }
   };
 
@@ -954,10 +1042,10 @@ export function DocumentLibraryPage() {
     if (!selectedDoc) return;
     try {
       await documentService.submitForReview(selectedDoc.id);
-      toast.success('Äang gá»­i trÃ¬nh duyá»‡t.');
+      toast.success('Đang gửi trình duyệt.');
       await fetchDocuments();
     } catch {
-      toast.error('Gáº·p lá»—i khi gá»­i trÃ¬nh duyá»‡t');
+      toast.error('Gặp lỗi khi gửi trình duyệt');
     }
   };
 
@@ -965,18 +1053,18 @@ export function DocumentLibraryPage() {
     if (!selectedDoc) return;
     try {
       await documentService.approve(selectedDoc.id, approverName);
-      toast.success('ðŸŽ‰ PhÃª duyá»‡t & ban hÃ nh thÃ nh cÃ´ng!');
+      toast.success('Phê duyệt & ban hành thành công!');
       setApproveModalOpen(false);
       await fetchDocuments();
     } catch {
-      toast.error('Gáº·p lá»—i khi phÃª duyá»‡t');
+      toast.error('Gặp lỗi khi phê duyệt');
     }
   };
 
   const handleMarkAsRead = async () => {
     if (!selectedDoc) return;
     await documentService.markAsRead(selectedDoc.id, currentUserName, currentUserTitle);
-    toast.success('ÄÃ£ xÃ¡c nháº­n Ä‘Ã£ Ä‘á»c tÃ i liá»‡u');
+    toast.success('Đã xác nhận đã đọc tài liệu');
     await loadSubData(selectedDoc.id);
   };
 
@@ -987,10 +1075,10 @@ export function DocumentLibraryPage() {
       formData.append('file', file);
       formData.append('uploadedBy', currentAuthorString);
       await documentService.uploadAttachment(selectedDocId, formData);
-      toast.success('ÄÃ£ táº£i lÃªn tá»‡p Ä‘Ã­nh kÃ¨m thÃ nh cÃ´ng!');
+      toast.success('Đã tải lên tệp đính kèm thành công!');
       await loadSubData(selectedDocId);
     } catch {
-      toast.error('KhÃ´ng thá»ƒ táº£i lÃªn tá»‡p Ä‘Ã­nh kÃ¨m');
+      toast.error('Không thể tải lên tệp đính kèm');
     }
   };
 
@@ -998,10 +1086,10 @@ export function DocumentLibraryPage() {
     if (!selectedDoc) return;
     try {
       await documentService.deleteAttachment(selectedDoc.id, attachmentId);
-      toast.success('ÄÃ£ xÃ³a tá»‡p Ä‘Ã­nh kÃ¨m');
+      toast.success('Đã xóa tệp đính kèm');
       await loadSubData(selectedDoc.id);
     } catch {
-      toast.error('KhÃ´ng thá»ƒ xÃ³a tá»‡p');
+      toast.error('Không thể xóa tệp');
     }
   };
 
@@ -1056,7 +1144,7 @@ export function DocumentLibraryPage() {
 
     if (format === 'word') {
       const html = buildPrintableDocumentHtml(selectedDoc);
-      downloadBlob(new Blob(['\ufeff', html], { type: 'application/msword;charset=utf-8' }), `${selectedDoc.code}_${selectedDoc.title}.doc`);
+      downloadBlob(new Blob(['﻿', html], { type: 'application/msword;charset=utf-8' }), `${selectedDoc.code}_${selectedDoc.title}.doc`);
       toast.success('Da tai tai lieu Word');
       return;
     }
@@ -1188,17 +1276,17 @@ export function DocumentLibraryPage() {
   };
   const handleRestoreVersion = async (version: DocChapterVersion) => {
     if (!selectedDoc) return;
-    if (confirm(`Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n khÃ´i phá»¥c tÃ i liá»‡u vá» phiÃªn báº£n ${version.version}?`)) {
+    if (confirm(`Bạn có chắc chắn muốn khôi phục tài liệu về phiên bản ${version.version}?`)) {
       try {
         await documentService.updateDocument(selectedDoc.id, {
           content: version.content,
-          changeSummary: `KhÃ´i phá»¥c vá» phiÃªn báº£n ${version.version}`,
+          changeSummary: `Khôi phục về phiên bản ${version.version}`,
           changedBy: currentAuthorString
         });
-        toast.success(`ÄÃ£ khÃ´i phá»¥c vá» phiÃªn báº£n ${version.version} thÃ nh cÃ´ng!`);
+        toast.success(`Đã khôi phục về phiên bản ${version.version} thành công!`);
         await fetchDocuments();
       } catch {
-        toast.error('KhÃ´ng thá»ƒ khÃ´i phá»¥c phiÃªn báº£n');
+        toast.error('Không thể khôi phục phiên bản');
       }
     }
   };
@@ -1218,8 +1306,8 @@ export function DocumentLibraryPage() {
     if (selectedDoc) {
       setEditContent(selectedDoc.content);
       setEditTitle(selectedDoc.title);
-      setEditWatermark(selectedDoc.watermarkText || 'TÃ€I LIá»†U ÄÆ¯á»¢C KIá»‚M SOÃT');
-      setIsEditing(true);
+      setEditWatermark(selectedDoc.watermarkText || (selectedDocIsImportedWord ? '' : 'TÀI LIỆU ĐƯỢC KIỂM SOÁT'));
+      setIsEditing(!selectedDocIsImportedWord);
       setActiveTab('document');
     }
   };
@@ -1230,7 +1318,7 @@ export function DocumentLibraryPage() {
     setEditChangeSummary('');
     if (selectedDoc) {
       setEditTitle(selectedDoc.title);
-      setEditWatermark(selectedDoc.watermarkText || 'TÃ€I LIá»†U ÄÆ¯á»¢C KIá»‚M SOÃT');
+      setEditWatermark(selectedDoc.watermarkText || (selectedDocIsImportedWord ? '' : 'TÀI LIỆU ĐƯỢC KIỂM SOÁT'));
     }
   };
 
@@ -1268,7 +1356,7 @@ export function DocumentLibraryPage() {
     setCreateModalOpen(true);
   };
 
-  // â”€â”€â”€ Tab Config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Tab Config
   const tabs: { key: TabType; label: string; icon: React.ReactNode }[] = [
     { key: 'data', label: 'Data', icon: <Database className="w-3.5 h-3.5" /> },
     { key: 'document', label: 'Document', icon: <FileText className="w-3.5 h-3.5" /> },
@@ -1278,26 +1366,26 @@ export function DocumentLibraryPage() {
     { key: 'history', label: 'History', icon: <History className="w-3.5 h-3.5" /> },
   ];
 
-  // â”€â”€â”€ Loading State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Loading State
   if (loading) {
     return (
       <div className="w-full h-[700px] flex flex-col items-center justify-center text-slate-500 dark:text-slate-400">
         <RefreshCw className="w-8 h-8 animate-spin text-blue-500 mb-2" />
-        <span className="text-sm font-semibold">Äang táº£i Document Library...</span>
+        <span className="text-sm font-semibold">Đang tải Document Library...</span>
       </div>
     );
   }
 
-  // â”€â”€â”€ Empty State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Empty State
   if (false && documents.length === 0) {
     return (
       <div className="w-full min-h-[500px] flex flex-col items-center justify-center p-8 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
         <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-full text-blue-600 dark:text-blue-400 mb-4 animate-pulse">
           <BookOpenIcon className="w-12 h-12" />
         </div>
-        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Document Library trá»‘ng</h3>
+        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Document Library tr?ng</h3>
         <p className="text-slate-500 dark:text-slate-400 text-sm max-w-md text-center mb-6">
-          SMS Library chÆ°a chá»©a tÃ i liá»‡u nÃ o. HÃ£y khá»Ÿi táº¡o dá»¯ liá»‡u máº«u hoáº·c táº¡o tÃ i liá»‡u Ä‘áº§u tiÃªn.
+          SMS Library chưa chứa tài liệu nào. Hãy khởi tạo dữ liệu mẫu hoặc tạo tài liệu đầu tiên.
         </p>
         <div className="flex flex-wrap gap-4 justify-center">
           <button
@@ -1306,13 +1394,13 @@ export function DocumentLibraryPage() {
             className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition flex items-center gap-2 shadow-sm disabled:opacity-50"
           >
             {isSeeding ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-            Khá»Ÿi táº¡o dá»¯ liá»‡u máº«u
+            Khởi tạo dữ liệu mẫu
           </button>
           <button
             onClick={() => openCreateModal()}
             className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 rounded-xl font-semibold transition flex items-center gap-2"
           >
-            <Plus className="w-4 h-4" /> Táº¡o tÃ i liá»‡u Ä‘áº§u tiÃªn
+            <Plus className="w-4 h-4" /> Tạo tài liệu đầu tiên
           </button>
         </div>
 
@@ -1328,7 +1416,7 @@ export function DocumentLibraryPage() {
     );
   }
 
-  // â”€â”€â”€ Main Layout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Main Layout
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden border-y border-slate-200 bg-white shadow-none dark:border-slate-700 dark:bg-slate-800">
       {/* Top Header Bar */}
@@ -1350,10 +1438,10 @@ export function DocumentLibraryPage() {
             onChange={(e) => setFilterStatus(e.target.value)}
             className="text-xs border border-slate-200 dark:border-slate-700 rounded-none px-2 py-1 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 outline-none"
           >
-            <option value="ALL">Táº¥t cáº£ tráº¡ng thÃ¡i</option>
-            <option value="Published">ðŸŸ¢ Published</option>
-            <option value="Draft">ðŸ“ Draft</option>
-            <option value="Pending_DPA">â³ Pending DPA</option>
+            <option value="ALL">Tất cả trạng thái</option>
+            <option value="Published">Published</option>
+            <option value="Draft">Draft</option>
+            <option value="Pending_DPA">Pending DPA</option>
           </select>
         </div>
 
@@ -1406,7 +1494,7 @@ export function DocumentLibraryPage() {
 
             {/* Action buttons on right side of tab bar */}
             <div className="ml-auto flex items-center gap-1.5 pr-3">
-              {!isEditing && selectedDoc && (
+              {!isEditing && selectedDoc && !selectedDocIsImportedWord && (
                 <button
                   onClick={handleStartEditing}
                   className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition flex items-center gap-1"
@@ -1497,7 +1585,7 @@ export function DocumentLibraryPage() {
               </>
             ) : (
               <div className="h-full flex items-center justify-center text-slate-400 dark:text-slate-500">
-                <p className="text-sm">Chá»n tÃ i liá»‡u tá»« sidebar Ä‘á»ƒ xem ná»™i dung</p>
+                <p className="text-sm">Chọn tài liệu từ sidebar để xem nội dung</p>
               </div>
             )}
           </div>
@@ -1557,7 +1645,7 @@ export function DocumentLibraryPage() {
                 type="text"
                 value={editChangeSummary}
                 onChange={(e) => setEditChangeSummary(e.target.value)}
-                placeholder="TÃ³m táº¯t ná»™i dung thay Ä‘á»•i..."
+                placeholder="Tóm tắt nội dung thay đổi..."
                 className="px-3 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 w-64 outline-none focus:ring-1 focus:ring-blue-500"
               />
             </>
@@ -1565,6 +1653,7 @@ export function DocumentLibraryPage() {
 
           <button
             onClick={isEditing ? handleSaveDocument : handleStartEditing}
+            disabled={selectedDocIsImportedWord && !isEditing}
             className="flex items-center gap-1.5 px-4 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg transition shadow-sm"
           >
             <Save className="w-3.5 h-3.5" /> Save
@@ -1600,6 +1689,7 @@ export function DocumentLibraryPage() {
         onClose={() => setImportModalOpen(false)}
         onImport={handleImportDocument}
         defaultCode={getNextDocumentCode('EXTERNAL')}
+        documents={documents}
       />
       <BulkDeleteConfirmModal
         isOpen={bulkDeleteConfirmOpen}
@@ -1617,5 +1707,3 @@ export function DocumentLibraryPage() {
     </div>
   );
 }
-
-

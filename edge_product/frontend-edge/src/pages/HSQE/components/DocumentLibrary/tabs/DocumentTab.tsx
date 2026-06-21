@@ -2,7 +2,7 @@
  * Document Tab - Rich Text Editor with Word-like Ribbon
  * Main document editing/viewing area following the reference screenshot
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   FilePlus, FolderOpen, Save, Download, Printer,
   Scissors, Copy, Clipboard, Table, CheckSquare,
@@ -13,6 +13,7 @@ import {
   AlignRight, AlignJustify, List, ListOrdered, Quote, Undo2, Redo2
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { renderAsync } from 'docx-preview';
 import { RichTextEditor, RichContentViewer } from '@/components/editor/RichTextEditor';
 import { useTranslationSafe } from '@/contexts/I18nContext';
 import type { DocTreeNode } from '../types';
@@ -74,6 +75,74 @@ type ChecklistTemplate = {
   name: string;
   sections: ChecklistSection[];
 };
+
+type ImportedDocxPayload = {
+  fileName: string;
+  base64: string;
+};
+
+const parseImportedDocxPayload = (html: string): ImportedDocxPayload | null => {
+  if (!html.includes('data-docx-preview="true"')) return null;
+  const match = html.match(/<script type="application\/json">([\s\S]*?)<\/script>/);
+  if (!match) return null;
+  try {
+    const parsed = JSON.parse(match[1]) as ImportedDocxPayload;
+    return parsed.base64 ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const base64ToArrayBuffer = (base64: string) => {
+  const binary = window.atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
+};
+
+function ImportedDocxPreview({ payload }: { payload: ImportedDocxPayload }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const styleRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const styleContainer = styleRef.current;
+    if (!container || !styleContainer) return;
+
+    container.innerHTML = '';
+    styleContainer.innerHTML = '';
+    const blob = new Blob([base64ToArrayBuffer(payload.base64)], {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+
+    renderAsync(blob, container, styleContainer, {
+      className: 'docx-preview',
+      inWrapper: true,
+      ignoreWidth: false,
+      ignoreHeight: false,
+      ignoreFonts: false,
+      breakPages: true,
+      renderHeaders: true,
+      renderFooters: true,
+      renderFootnotes: true,
+      renderEndnotes: true,
+      renderComments: true,
+      renderAltChunks: true,
+      useBase64URL: true,
+    }).catch(() => {
+      container.innerHTML = '<div style="padding:24px;color:#b91c1c;font-weight:600">Không thể render file DOCX.</div>';
+    });
+  }, [payload.base64]);
+
+  return (
+    <div className="docx-preview-shell w-full">
+      <div ref={styleRef} />
+      <div ref={containerRef} className="docx-preview-container" />
+    </div>
+  );
+}
 
 const parseChecklistTemplate = (html: string): ChecklistTemplate | null => {
   const match = html.match(/<script type="application\/json">([\s\S]*?)<\/script>/);
@@ -238,6 +307,8 @@ export function DocumentTab({
   const checklistTemplate = document.category === 'CHECKLIST'
     ? parseChecklistTemplate(document.content)
     : null;
+  const importedDocxPayload = parseImportedDocxPayload(document.content);
+  const isImportedWordDocument = Boolean(importedDocxPayload) || document.content.includes('data-imported-word-document="true"');
 
   // Trigger command on editor if editing is enabled
   const runCommand = (command: (editor: any) => void) => {
@@ -1006,7 +1077,7 @@ export function DocumentTab({
         >
           <div className="bg-white dark:bg-slate-800 shadow-xl border border-slate-300 dark:border-slate-700 w-full min-h-[1080px] relative overflow-hidden flex flex-col">
             {/* Watermark overlay */}
-            {watermarkText.trim() && (
+            {watermarkText.trim() && !isImportedWordDocument && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden z-0">
                 <span className="text-slate-150 dark:text-slate-800/10 font-black text-[70px] uppercase tracking-[12px] -rotate-[35deg] opacity-25 whitespace-nowrap">
                   {watermarkText}
@@ -1015,6 +1086,7 @@ export function DocumentTab({
             )}
 
             {/* Document Header Table */}
+            {!isImportedWordDocument && (
             <div className="z-10 flex-shrink-0 px-10 pt-10">
               <table className="w-full border-collapse border border-slate-500 text-slate-700 dark:border-slate-500 dark:text-slate-200">
                 <tbody>
@@ -1057,6 +1129,7 @@ export function DocumentTab({
                 </tbody>
               </table>
             </div>
+            )}
             <div className="hidden">
               <table className="w-full text-xs border-collapse">
                 <tbody>
@@ -1133,7 +1206,9 @@ export function DocumentTab({
                 margins === 'narrow' ? 'p-4' : margins === 'wide' ? 'p-12' : 'p-10'
               }`}
             >
-              {isEditing ? (
+              {importedDocxPayload && !isEditing ? (
+                <ImportedDocxPreview payload={importedDocxPayload} />
+              ) : isEditing ? (
                 <RichTextEditor
                   content={editContent}
                   onChange={onContentChange}

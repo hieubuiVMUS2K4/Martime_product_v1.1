@@ -7,7 +7,6 @@ import {
   Folder, FileText, 
   Search, Plus, MoreVertical, FolderPlus, Trash2
 } from 'lucide-react';
-import { toast } from 'sonner';
 import type { DocCategory, DocTreeNode } from './types';
 
 interface DocumentSidebarProps {
@@ -34,31 +33,6 @@ export function DocumentSidebar({
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedNodes, setExpandedNodes] = useState<string[]>([]);
   const [contextMenuId, setContextMenuId] = useState<string | null>(null);
-
-  const getSelectedDocument = () => {
-    if (selectedDocumentIds.length === 0) return null;
-    return documents.find(doc => doc.id === selectedDocumentIds[0]) ?? null;
-  };
-
-  const handleCreateChapter = () => {
-    if (selectedDocumentIds.length === 0) {
-      toast.error('Vui lòng tick chọn một manual trước khi tạo chapter');
-      return;
-    }
-
-    if (selectedDocumentIds.length > 1) {
-      toast.error('Chỉ chọn một manual để tạo chapter');
-      return;
-    }
-
-    const selectedDocument = getSelectedDocument();
-    if (!selectedDocument || !['MANUAL', 'SMS_HANDBOOK'].includes(selectedDocument.category)) {
-      toast.error('Chapter phải được tạo bên dưới một manual');
-      return;
-    }
-
-    onCreateDocument(selectedDocument.code, 'PROCEDURE');
-  };
 
   const createVirtualFolder = (id: string, title: string): DocTreeNode => ({
     id,
@@ -357,7 +331,6 @@ export function DocumentSidebar({
           onChange={(e) => {
             const action = e.target.value;
             if (action === 'manual') onCreateDocument(undefined, 'MANUAL');
-            if (action === 'chapter') handleCreateChapter();
             if (action === 'checklist') onCreateDocument(undefined, 'CHECKLIST');
             if (action === 'form') onCreateDocument(undefined, 'FORM');
             if (action === 'import') onImportDocument();
@@ -366,7 +339,6 @@ export function DocumentSidebar({
         >
           <option value="">-- Execute Action --</option>
           <option value="manual">Create New Manual</option>
-          <option value="chapter">Create New Chapter</option>
           <option value="checklist">Create New Checklist</option>
           <option value="form">Create New Form</option>
           <option value="import">Import Document</option>
