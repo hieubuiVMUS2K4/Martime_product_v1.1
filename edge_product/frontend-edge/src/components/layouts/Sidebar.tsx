@@ -76,7 +76,7 @@ const getNavigation = (t: (key: string) => string) => [
     ]
   },
   // { name: t('nav.compliance'), to: '/compliance', icon: FileText }, // Temporarily hidden
-  { name: t('nav.hsqe') || 'Quản lý HSQE', to: '/safety/hsqe', icon: Shield },
+  { name: t('nav.hsqe') || 'Quản lý tài liệu và tuân thủ', to: '/safety/hsqe', icon: Shield },
   { 
     name: t('nav.safety'), 
     icon: Shield, 

@@ -228,10 +228,6 @@ export function DocumentLibraryPage() {
 
   // ─── Computed ──────────────────────────────────────────────
   const selectedDoc = documents.find(d => d.id === selectedDocId) || documents[0] || null;
-  const filteredDocuments = documents.filter(doc => {
-    if (filterStatus === 'ALL') return true;
-    return doc.status === filterStatus;
-  });
 
   // ─── Data Fetching ─────────────────────────────────────────
   const fetchDocuments = useCallback(async () => {
@@ -492,16 +488,29 @@ export function DocumentLibraryPage() {
     }
   };
 
-  const openCreateModal = (parentCode?: string) => {
+  const getNextDocumentCode = (category: DocCategory) => {
+    const prefixByCategory: Record<DocCategory, string> = {
+      PROCEDURE: 'QP',
+      FORM: 'FM',
+      SMS_HANDBOOK: 'SMS',
+      EXTERNAL: 'EXT',
+      MANUAL: 'MAN',
+      CHECKLIST: 'CL',
+    };
+    const prefix = prefixByCategory[category];
+    const count = documents.filter(d => d.code.startsWith(`${prefix}-`)).length + 1;
+    return `${prefix}-${count.toString().padStart(2, '0')}`;
+  };
+
+  const openCreateModal = (parentCode?: string, categoryOverride: DocCategory = 'PROCEDURE') => {
     if (parentCode) {
       const children = documents.filter(d => d.code.startsWith(parentCode + '-'));
       const nextIdx = children.length + 1;
       setCreateDefaultCode(`${parentCode}-${nextIdx < 10 ? '0' + nextIdx : nextIdx}`);
-      setCreateDefaultCategory('FORM');
+      setCreateDefaultCategory(categoryOverride);
     } else {
-      const rootDocs = documents.filter(d => !d.code.includes('-') || d.code.split('-').length <= 2);
-      setCreateDefaultCode(`TL-${(rootDocs.length + 1).toString().padStart(2, '0')}`);
-      setCreateDefaultCategory('PROCEDURE');
+      setCreateDefaultCode(getNextDocumentCode(categoryOverride));
+      setCreateDefaultCategory(categoryOverride);
     }
     setCreateModalOpen(true);
   };
@@ -568,17 +577,17 @@ export function DocumentLibraryPage() {
 
   // ─── Main Layout ───────────────────────────────────────────
   return (
-    <div className="flex flex-col h-[calc(100vh-180px)] bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden border-y border-slate-200 bg-white shadow-none dark:border-slate-700 dark:bg-slate-800">
       {/* Top Header Bar */}
-      <div className="flex items-center justify-between px-4 py-2 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
+      <div className="hidden items-center justify-between px-4 py-2 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
         <div className="flex items-center gap-3">
           <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Company:</span>
-          <select className="text-xs border border-slate-200 dark:border-slate-700 rounded px-2 py-1 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+          <select className="text-xs border border-slate-200 dark:border-slate-700 rounded-none px-2 py-1 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300">
             <option>Flying Shipping</option>
           </select>
 
           <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 ml-3">Location:</span>
-          <select className="text-xs border border-slate-200 dark:border-slate-700 rounded px-2 py-1 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+          <select className="text-xs border border-slate-200 dark:border-slate-700 rounded-none px-2 py-1 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300">
             <option>Marpesia V</option>
           </select>
 
@@ -586,7 +595,7 @@ export function DocumentLibraryPage() {
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="text-xs border border-slate-200 dark:border-slate-700 rounded px-2 py-1 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 outline-none"
+            className="text-xs border border-slate-200 dark:border-slate-700 rounded-none px-2 py-1 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 outline-none"
           >
             <option value="ALL">Tất cả trạng thái</option>
             <option value="Published">🟢 Published</option>
@@ -608,14 +617,13 @@ export function DocumentLibraryPage() {
         {!readMode && (
           <div className="w-[260px] flex-shrink-0 border-r border-slate-200 dark:border-slate-700 transition-all duration-300 animate-in slide-in-from-left">
             <DocumentSidebar
-              documents={filteredDocuments}
+              documents={documents}
               selectedDocId={selectedDocId}
               onSelectDocument={(id) => {
                 setSelectedDocId(id);
                 setIsEditing(false);
               }}
-              onCreateFolder={() => openCreateModal()}
-              onCreateDocument={(parentCode) => openCreateModal(parentCode)}
+              onCreateDocument={(parentCode, category) => openCreateModal(parentCode, category)}
               viewMode={viewMode}
               onViewModeChange={setViewMode}
             />
@@ -742,7 +750,7 @@ export function DocumentLibraryPage() {
       </div>
 
       {/* Bottom Bar: Finish Writing / Approve / Release Version */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 dark:bg-slate-900/80 border-t border-slate-200 dark:border-slate-700 flex-shrink-0">
+      <div className="sticky bottom-0 z-20 flex flex-shrink-0 items-center justify-between border-t border-slate-200 bg-slate-50 px-4 py-2.5 dark:border-slate-700 dark:bg-slate-900/80">
         <div className="flex items-center gap-6">
           {/* Finish Writing Checkbox */}
           <label className="flex items-center gap-2 cursor-pointer select-none">

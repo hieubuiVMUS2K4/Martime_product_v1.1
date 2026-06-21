@@ -24,6 +24,7 @@ export interface DocTreeNode {
   syncStatuses: DocSyncStatus[];
   attachments: DocAttachment[];
   readLogs: DocReadLog[];
+  isVirtual?: boolean;
 }
 
 export type DocStatus = 'Draft' | 'Pending_DPA' | 'Published' | 'Obsolete';
