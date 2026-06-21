@@ -10,7 +10,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   FileText, Database, Paperclip, BookOpen, GitBranch, History,
-  RefreshCw, Plus, BookOpen as BookOpenIcon, Save, X, Check
+  RefreshCw, Plus, BookOpen as BookOpenIcon, Save, X, Check, Upload, Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/auth.store';
@@ -23,7 +23,7 @@ import { ReadLogsTab } from './tabs/ReadLogsTab';
 import { ChapterVersionsTab } from './tabs/ChapterVersionsTab';
 import { HistoryTab } from './tabs/HistoryTab';
 import type {
-  DocTreeNode, TabType, ViewMode, DocAttachment,
+  DocTreeNode, TabType, DocAttachment,
   DocReadLog, DocHistoryEntry, DocCategory, DocChapterVersion,
 } from './types';
 
@@ -129,6 +129,175 @@ function CreateDocumentModal({
   );
 }
 
+function ImportDocumentModal({
+  isOpen,
+  onClose,
+  onImport,
+  defaultCode,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onImport: (data: { documentCode: string; title: string; fileName: string; createdBy: string }) => Promise<void>;
+  defaultCode: string;
+}) {
+  const { user } = useAuthStore();
+  const [code, setCode] = useState(defaultCode);
+  const [title, setTitle] = useState('');
+  const [fileName, setFileName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const currentUserName = user?.fullName || user?.username || 'Demo User';
+
+  useEffect(() => {
+    setCode(defaultCode);
+    setTitle('');
+    setFileName('');
+  }, [defaultCode, isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-800">
+        <h3 className="mb-1 text-lg font-bold text-slate-900 dark:text-white">Import Document</h3>
+        <p className="mb-5 text-xs text-slate-400">Upload external file into SMS Library.</p>
+
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Document code</label>
+              <input
+                type="text"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Category</label>
+              <div className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-900">
+                External
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase text-slate-500">Title</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+              placeholder="Document title"
+            />
+          </div>
+
+          <label className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center hover:border-blue-400 hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-900/40">
+            <Upload className="mb-2 h-6 w-6 text-slate-400" />
+            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+              {fileName || 'Choose file to import'}
+            </span>
+            <input
+              type="file"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                setFileName(file.name);
+                if (!title.trim()) setTitle(file.name.replace(/\.[^.]+$/, ''));
+              }}
+            />
+          </label>
+        </div>
+
+        <div className="mt-6 flex items-center justify-end gap-2 border-t border-slate-100 pt-4 dark:border-slate-700">
+          <button onClick={onClose} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400">
+            Cancel
+          </button>
+          <button
+            onClick={async () => {
+              if (!code.trim() || !title.trim() || !fileName.trim()) {
+                toast.error('Vui lòng chọn file và nhập đầy đủ thông tin');
+                return;
+              }
+              setSaving(true);
+              try {
+                await onImport({ documentCode: code, title, fileName, createdBy: currentUserName });
+                onClose();
+              } finally {
+                setSaving(false);
+              }
+            }}
+            disabled={saving}
+            className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
+          >
+            {saving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+            Import
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BulkDeleteConfirmModal({
+  isOpen,
+  count,
+  onClose,
+  onConfirm,
+}: {
+  isOpen: boolean;
+  count: number;
+  onClose: () => void;
+  onConfirm: () => Promise<void>;
+}) {
+  const [deleting, setDeleting] = useState(false);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-800">
+        <div className="mb-4 flex items-start gap-3">
+          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-300">
+            <Trash2 className="h-4 w-4" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">Delete selected documents?</h3>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              {count} selected document(s) will be moved to Obsolete and hidden from the active library.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-slate-100 pt-4 dark:border-slate-700">
+          <button
+            onClick={onClose}
+            disabled={deleting}
+            className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={async () => {
+              setDeleting(true);
+              try {
+                await onConfirm();
+              } finally {
+                setDeleting(false);
+              }
+            }}
+            disabled={deleting}
+            className="flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+          >
+            {deleting ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ApproveModal({
   isOpen,
   onClose,
@@ -193,7 +362,7 @@ export function DocumentLibraryPage() {
   const [loading, setLoading] = useState(true);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('document');
-  const [viewMode, setViewMode] = useState<ViewMode>('library');
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
 
   // Edit state
   const [isEditing, setIsEditing] = useState(false);
@@ -214,6 +383,8 @@ export function DocumentLibraryPage() {
 
   // Modals
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
   const [approveModalOpen, setApproveModalOpen] = useState(false);
   const [createDefaultCode, setCreateDefaultCode] = useState('');
   const [createDefaultCategory, setCreateDefaultCategory] = useState('PROCEDURE');
@@ -334,6 +505,47 @@ export function DocumentLibraryPage() {
       setSelectedDocId(newDoc.id);
     } catch {
       toast.error('Không thể tạo tài liệu mới');
+    }
+  };
+
+  const handleImportDocument = async (data: { documentCode: string; title: string; fileName: string; createdBy: string }) => {
+    try {
+      const newDoc = await documentService.createDocument({
+        documentCode: data.documentCode,
+        title: data.title,
+        category: 'EXTERNAL',
+        isControlled: true,
+        createdBy: data.createdBy,
+        content: `<p>Imported external document: <strong>${data.fileName}</strong></p>`,
+        watermarkText: 'IMPORTED DOCUMENT',
+      });
+      toast.success('Import document thành công!');
+      await fetchDocuments();
+      setSelectedDocId(newDoc.id);
+    } catch {
+      toast.error('Không thể import document');
+    }
+  };
+
+  const handleToggleDocumentSelection = (id: string) => {
+    setSelectedDocumentIds(prev =>
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDeleteDocuments = async () => {
+    if (selectedDocumentIds.length === 0) return;
+    try {
+      await documentService.bulkDeleteDocuments(selectedDocumentIds);
+      toast.success(`Đã xóa ${selectedDocumentIds.length} tài liệu`);
+      if (selectedDocId && selectedDocumentIds.includes(selectedDocId)) {
+        setSelectedDocId(null);
+      }
+      setSelectedDocumentIds([]);
+      setBulkDeleteConfirmOpen(false);
+      await fetchDocuments();
+    } catch {
+      toast.error('Không thể xóa các tài liệu đã chọn');
     }
   };
 
@@ -536,7 +748,7 @@ export function DocumentLibraryPage() {
   }
 
   // ─── Empty State ───────────────────────────────────────────
-  if (documents.length === 0) {
+  if (false && documents.length === 0) {
     return (
       <div className="w-full min-h-[500px] flex flex-col items-center justify-center p-8 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
         <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-full text-blue-600 dark:text-blue-400 mb-4 animate-pulse">
@@ -619,13 +831,15 @@ export function DocumentLibraryPage() {
             <DocumentSidebar
               documents={documents}
               selectedDocId={selectedDocId}
+              selectedDocumentIds={selectedDocumentIds}
               onSelectDocument={(id) => {
                 setSelectedDocId(id);
                 setIsEditing(false);
               }}
+              onToggleDocumentSelection={handleToggleDocumentSelection}
+              onBulkDelete={() => setBulkDeleteConfirmOpen(true)}
               onCreateDocument={(parentCode, category) => openCreateModal(parentCode, category)}
-              viewMode={viewMode}
-              onViewModeChange={setViewMode}
+              onImportDocument={() => setImportModalOpen(true)}
             />
           </div>
         )}
@@ -832,6 +1046,18 @@ export function DocumentLibraryPage() {
         defaultCode={createDefaultCode}
         defaultCategory={createDefaultCategory}
         currentUserName={currentAuthorString}
+      />
+      <ImportDocumentModal
+        isOpen={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onImport={handleImportDocument}
+        defaultCode={getNextDocumentCode('EXTERNAL')}
+      />
+      <BulkDeleteConfirmModal
+        isOpen={bulkDeleteConfirmOpen}
+        count={selectedDocumentIds.length}
+        onClose={() => setBulkDeleteConfirmOpen(false)}
+        onConfirm={handleBulkDeleteDocuments}
       />
       <ApproveModal
         isOpen={approveModalOpen}

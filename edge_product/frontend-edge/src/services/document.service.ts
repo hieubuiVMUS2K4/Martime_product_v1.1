@@ -30,6 +30,14 @@ class DocumentService {
     return apiClient.put<ApiDocument>(`/hsqe/documents/${id}`, data);
   }
 
+  async bulkDeleteDocuments(documentIds: string[]): Promise<void> {
+    await apiClient.post('/hsqe/documents/bulk-delete', { documentIds });
+  }
+
+  async deleteDocument(id: string): Promise<void> {
+    await apiClient.delete(`/hsqe/documents/${id}`);
+  }
+
   async seedData(): Promise<void> {
     await apiClient.post('/hsqe/seed', {});
   }

@@ -5,30 +5,60 @@
 import { useState, useMemo } from 'react';
 import { 
   ChevronRight, ChevronDown, Folder, FileText, 
-  Search, Plus, MoreVertical, FolderPlus
+  Search, Plus, MoreVertical, FolderPlus, Trash2
 } from 'lucide-react';
-import type { DocCategory, DocTreeNode, ViewMode } from './types';
+import { toast } from 'sonner';
+import type { DocCategory, DocTreeNode } from './types';
 
 interface DocumentSidebarProps {
   documents: DocTreeNode[];
   selectedDocId: string | null;
+  selectedDocumentIds: string[];
   onSelectDocument: (id: string) => void;
+  onToggleDocumentSelection: (id: string) => void;
+  onBulkDelete: () => void;
   onCreateDocument: (parentCode?: string, category?: DocCategory) => void;
-  viewMode: ViewMode;
-  onViewModeChange: (mode: ViewMode) => void;
+  onImportDocument: () => void;
 }
 
 export function DocumentSidebar({
   documents,
   selectedDocId,
+  selectedDocumentIds,
   onSelectDocument,
+  onToggleDocumentSelection,
+  onBulkDelete,
   onCreateDocument,
-  viewMode,
-  onViewModeChange,
+  onImportDocument,
 }: DocumentSidebarProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedNodes, setExpandedNodes] = useState<string[]>([]);
   const [contextMenuId, setContextMenuId] = useState<string | null>(null);
+
+  const getSelectedDocument = () => {
+    if (selectedDocumentIds.length === 0) return null;
+    return documents.find(doc => doc.id === selectedDocumentIds[0]) ?? null;
+  };
+
+  const handleCreateChapter = () => {
+    if (selectedDocumentIds.length === 0) {
+      toast.error('Vui lòng tick chọn một manual trước khi tạo chapter');
+      return;
+    }
+
+    if (selectedDocumentIds.length > 1) {
+      toast.error('Chỉ chọn một manual để tạo chapter');
+      return;
+    }
+
+    const selectedDocument = getSelectedDocument();
+    if (!selectedDocument || !['MANUAL', 'SMS_HANDBOOK'].includes(selectedDocument.category)) {
+      toast.error('Chapter phải được tạo bên dưới một manual');
+      return;
+    }
+
+    onCreateDocument(selectedDocument.code, 'PROCEDURE');
+  };
 
   const createVirtualFolder = (id: string, title: string): DocTreeNode => ({
     id,
@@ -139,7 +169,7 @@ export function DocumentSidebar({
         folderMap.get('library-ism')?.children.unshift(docControlNode);
       }
 
-      return folders.filter(folder => folder.children.length > 0);
+      return folders.filter(folder => !folder.isVirtual || folder.children.length > 0);
     }
 
     const roots = documents.filter(d => !d.parentId);
@@ -187,6 +217,7 @@ export function DocumentSidebar({
   const renderNode = (node: DocTreeNode, depth: number = 0) => {
     const isExpanded = expandedNodes.includes(node.id);
     const isSelected = selectedDocId === node.id;
+    const isChecked = selectedDocumentIds.includes(node.id);
     const hasChildren = node.children.length > 0;
     const isFolder = Boolean(node.isVirtual) || node.type === 'manual' || hasChildren;
 
@@ -214,6 +245,18 @@ export function DocumentSidebar({
             </button>
           ) : (
             <span className="w-4.5 flex-shrink-0" />
+          )}
+
+          {!node.isVirtual ? (
+            <input
+              type="checkbox"
+              checked={isChecked}
+              onClick={(e) => e.stopPropagation()}
+              onChange={() => onToggleDocumentSelection(node.id)}
+              className="h-3.5 w-3.5 flex-shrink-0 rounded-none border-slate-300 text-blue-600 focus:ring-blue-500"
+            />
+          ) : (
+            <span className="h-3.5 w-3.5 flex-shrink-0" />
           )}
 
           {/* Status Indicator */}
@@ -271,30 +314,6 @@ export function DocumentSidebar({
 
   return (
     <div className="flex flex-col h-full border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-      {/* View Mode Toggles */}
-      <div className="flex border-b border-slate-200 dark:border-slate-700">
-        <button
-          onClick={() => onViewModeChange('library')}
-          className={`flex-1 py-2 text-xs font-semibold text-center transition-colors ${
-            viewMode === 'library'
-              ? 'bg-slate-100 dark:bg-slate-700 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600'
-              : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50'
-          }`}
-        >
-          Library View
-        </button>
-        <button
-          onClick={() => onViewModeChange('location')}
-          className={`flex-1 py-2 text-xs font-semibold text-center transition-colors ${
-            viewMode === 'location'
-              ? 'bg-slate-100 dark:bg-slate-700 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600'
-              : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50'
-          }`}
-        >
-          Location View
-        </button>
-      </div>
-
       {/* Search */}
       <div className="p-2 border-b border-slate-200 dark:border-slate-700">
         <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5">
@@ -318,10 +337,10 @@ export function DocumentSidebar({
           onChange={(e) => {
             const action = e.target.value;
             if (action === 'manual') onCreateDocument(undefined, 'MANUAL');
-            if (action === 'chapter') onCreateDocument(undefined, 'PROCEDURE');
+            if (action === 'chapter') handleCreateChapter();
             if (action === 'checklist') onCreateDocument(undefined, 'CHECKLIST');
             if (action === 'form') onCreateDocument(undefined, 'FORM');
-            if (action === 'import') onCreateDocument(undefined, 'EXTERNAL');
+            if (action === 'import') onImportDocument();
             e.target.value = '';
           }}
         >
@@ -334,12 +353,27 @@ export function DocumentSidebar({
         </select>
         <button
           onClick={() => onCreateDocument(undefined, 'PROCEDURE')}
-          className="p-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded hover:bg-blue-100 transition flex-shrink-0"
+          className="hidden"
           title="Tạo thư mục mới"
         >
           <FolderPlus className="w-3.5 h-3.5" />
         </button>
       </div>
+
+      {selectedDocumentIds.length > 0 && (
+        <div className="flex items-center justify-between border-b border-slate-200 bg-red-50 px-2 py-1.5 dark:border-slate-700 dark:bg-red-950/20">
+          <span className="text-xs font-semibold text-red-700 dark:text-red-300">
+            {selectedDocumentIds.length} selected
+          </span>
+          <button
+            onClick={onBulkDelete}
+            className="flex items-center gap-1 rounded bg-red-600 px-2 py-1 text-xs font-semibold text-white hover:bg-red-700"
+          >
+            <Trash2 className="h-3 w-3" />
+            Delete
+          </button>
+        </div>
+      )}
 
       {/* Tree View */}
       <div className="flex-1 overflow-y-auto py-1">

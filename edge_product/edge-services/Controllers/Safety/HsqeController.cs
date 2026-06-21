@@ -564,6 +564,72 @@ namespace MaritimeEdge.Controllers.Safety
             }
         }
 
+        [HttpPost("documents/bulk-delete")]
+        public async Task<IActionResult> BulkDeleteDocuments([FromBody] BulkDeleteDocumentsDto dto)
+        {
+            try
+            {
+                if (dto.DocumentIds == null || dto.DocumentIds.Count == 0)
+                {
+                    return BadRequest(new { message = "No documents selected" });
+                }
+
+                var existingCount = await _context.HsqeDocuments
+                    .Where(d => dto.DocumentIds.Contains(d.Id) && d.Status != "Obsolete")
+                    .CountAsync();
+
+                if (existingCount == 0)
+                {
+                    return NotFound(new { message = "Documents not found" });
+                }
+
+                var now = DateTime.UtcNow;
+                var reason = dto.Reason ?? "Bulk delete from Document Library";
+                var affected = await _context.HsqeDocuments
+                    .Where(d => dto.DocumentIds.Contains(d.Id) && d.Status != "Obsolete")
+                    .ExecuteUpdateAsync(setters => setters
+                        .SetProperty(d => d.Status, "Obsolete")
+                        .SetProperty(d => d.ObsoleteReason, reason)
+                        .SetProperty(d => d.UpdatedAt, now));
+
+                return Ok(new { deletedCount = affected });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error bulk deleting HSQE documents");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        [HttpDelete("documents/{id}")]
+        public async Task<IActionResult> DeleteDocument(Guid id)
+        {
+            try
+            {
+                var exists = await _context.HsqeDocuments.AnyAsync(d => d.Id == id);
+
+                if (!exists)
+                {
+                    return NotFound(new { message = "Document not found" });
+                }
+
+                var now = DateTime.UtcNow;
+                var affected = await _context.HsqeDocuments
+                    .Where(d => d.Id == id && d.Status != "Obsolete")
+                    .ExecuteUpdateAsync(setters => setters
+                        .SetProperty(d => d.Status, "Obsolete")
+                        .SetProperty(d => d.ObsoleteReason, "Delete from Document Library")
+                        .SetProperty(d => d.UpdatedAt, now));
+
+                return Ok(new { deletedCount = affected });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting HSQE document {Id}", id);
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
         [HttpPost("documents/{id}/submit-review")]
         public async Task<IActionResult> SubmitDocumentForReview(Guid id)
         {
@@ -1410,6 +1476,13 @@ namespace MaritimeEdge.Controllers.Safety
         {
             public string? ShipName { get; set; }
             public string? AcknowledgedBy { get; set; }
+        }
+
+        public class BulkDeleteDocumentsDto
+        {
+            public List<Guid> DocumentIds { get; set; } = new();
+            public string? DeletedBy { get; set; }
+            public string? Reason { get; set; }
         }
 
         public class CreateIncidentDto
