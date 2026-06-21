@@ -65,7 +65,7 @@ export class ApiClient {
         ...options,
         signal: controller.signal,
         headers: {
-          'Content-Type': 'application/json',
+          ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
           ...authHeaders,
           ...options.headers,
         },
@@ -189,10 +189,11 @@ export class ApiClient {
     return this.request<T>(url, { method: 'GET' })
   }
 
-  async post<T>(endpoint: string, data: unknown): Promise<T> {
+  async post<T>(endpoint: string, data: unknown, options?: RequestInit): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: data instanceof FormData ? data : JSON.stringify(data),
+      ...options,
     })
   }
 

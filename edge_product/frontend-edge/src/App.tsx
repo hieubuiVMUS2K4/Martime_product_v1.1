@@ -63,6 +63,7 @@ import { AbstractLogPage } from './pages/logbooks/AbstractLogPage'
 
 // Safety Pages
 import { DrillTimelinePage } from './pages/Safety/DrillTimelinePage'
+import { HSQEPage } from './pages/HSQE/HSQEPage'
 
 // System Pages
 import { AuditLogPage } from './pages/AuditLog/AuditLogPage'
@@ -118,6 +119,7 @@ function App() {
         
         {/* Safety Routes */}
         <Route path="safety/drills" element={<DrillTimelinePage />} />
+        <Route path="safety/hsqe" element={<HSQEPage />} />
 
         {/* PMS Routes */}
         <Route path="pms/catalog/assets" element={<AssetsPage />} />
