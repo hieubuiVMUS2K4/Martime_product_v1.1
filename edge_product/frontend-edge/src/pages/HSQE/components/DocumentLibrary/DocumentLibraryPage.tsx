@@ -10,7 +10,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   FileText, Database, Paperclip, BookOpen, GitBranch, History,
-  RefreshCw, Plus, BookOpen as BookOpenIcon, Save, X, Check, Upload, Trash2
+  RefreshCw, Plus, BookOpen as BookOpenIcon, Save, X, Check, Upload, Trash2,
+  GripVertical, Calendar, SlidersHorizontal, ListChecks
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/auth.store';
@@ -239,6 +240,328 @@ function ImportDocumentModal({
   );
 }
 
+type ChecklistQuestion = {
+  id: string;
+  code: string;
+  text: string;
+  answerType: 'date' | 'select' | 'slider' | 'text';
+  mandatory: boolean;
+  options: string[];
+  min?: number;
+  max?: number;
+};
+
+type ChecklistSection = {
+  id: string;
+  title: string;
+  questions: ChecklistQuestion[];
+};
+
+function ChecklistTemplateModal({
+  isOpen,
+  onClose,
+  onCreate,
+  defaultCode,
+  currentUserName,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onCreate: (data: { documentCode: string; title: string; content: string; category: string; createdBy: string }) => Promise<void>;
+  defaultCode: string;
+  currentUserName: string;
+}) {
+  const [code, setCode] = useState(defaultCode);
+  const [name, setName] = useState('Performance report');
+  const [saving, setSaving] = useState(false);
+  const [sections, setSections] = useState<ChecklistSection[]>([
+    {
+      id: 's1',
+      title: 'General',
+      questions: [
+        { id: 'q1', code: '', text: 'Date of report', answerType: 'date', mandatory: true, options: [] },
+        { id: 'q2', code: '', text: 'Engineer', answerType: 'select', mandatory: true, options: ['John Doe', 'Monique Smit'] },
+        { id: 'q3', code: '', text: 'Wind force (Bft)', answerType: 'slider', mandatory: true, options: [], min: 1, max: 12 },
+        { id: 'q4', code: '', text: 'Sea', answerType: 'select', mandatory: true, options: ['Slight'] },
+      ],
+    },
+  ]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setCode(defaultCode);
+  }, [defaultCode, isOpen]);
+
+  if (!isOpen) return null;
+
+  const updateSection = (sectionId: string, patch: Partial<ChecklistSection>) => {
+    setSections(prev => prev.map(section => section.id === sectionId ? { ...section, ...patch } : section));
+  };
+
+  const updateQuestion = (sectionId: string, questionId: string, patch: Partial<ChecklistQuestion>) => {
+    setSections(prev => prev.map(section => section.id === sectionId ? {
+      ...section,
+      questions: section.questions.map(item => item.id === questionId ? { ...item, ...patch } : item),
+    } : section));
+  };
+
+  const addSection = () => {
+    setSections(prev => [
+      ...prev,
+      {
+        id: `s${Date.now()}`,
+        title: `Section ${prev.length + 1}`,
+        questions: [
+          {
+            id: `q${Date.now()}`,
+            code: '',
+            text: '',
+            answerType: 'text',
+            mandatory: true,
+            options: [],
+          },
+        ],
+      },
+    ]);
+  };
+
+  const addQuestion = (sectionId: string) => {
+    setSections(prev => prev.map(section => section.id === sectionId ? {
+      ...section,
+      questions: [
+        ...section.questions,
+        {
+          id: `q${Date.now()}`,
+          code: '',
+          text: '',
+          answerType: 'text',
+          mandatory: true,
+          options: [],
+        },
+      ],
+    } : section));
+  };
+
+  const removeQuestion = (sectionId: string, questionId: string) => {
+    setSections(prev => prev.map(section => section.id === sectionId ? {
+      ...section,
+      questions: section.questions.length <= 1
+        ? section.questions
+        : section.questions.filter(item => item.id !== questionId),
+    } : section));
+  };
+
+  const checklistPayload = {
+    type: 'checklist-template',
+    name,
+    sections,
+  };
+  const answerTypeLabel: Record<ChecklistQuestion['answerType'], string> = {
+    date: 'Date',
+    select: 'Answer select',
+    slider: 'Slider',
+    text: 'Text',
+  };
+  const checklistBodyHtml = sections.map((section, sectionIndex) => `
+    <div style="margin: 18px 0 0; border: 1px solid #d8e0ea;">
+      <div style="display: grid; grid-template-columns: 72px 1fr; background: #f8fafc; border-bottom: 1px solid #d8e0ea; font-weight: 700;">
+        <div style="padding: 10px 12px; border-right: 1px solid #d8e0ea;">${sectionIndex + 1}.</div>
+        <div style="padding: 10px 12px;">${section.title}</div>
+      </div>
+      ${section.questions.map((question, questionIndex) => `
+        <div style="display: grid; grid-template-columns: 72px 1fr 160px 120px; border-bottom: 1px solid #e6edf5;">
+          <div style="padding: 10px 12px; border-right: 1px solid #e6edf5; font-weight: 600;">${sectionIndex + 1}.${questionIndex + 1}.</div>
+          <div style="padding: 10px 12px;">
+            <div style="font-weight: 600;">${question.text}</div>
+            ${question.code ? `<div style="font-size: 12px; color: #64748b;">Code: ${question.code}</div>` : ''}
+            ${question.options.length ? `<div style="font-size: 12px; color: #64748b;">Options: ${question.options.filter(Boolean).join(', ')}</div>` : ''}
+            ${question.answerType === 'slider' ? `<div style="font-size: 12px; color: #64748b;">Range: ${question.min ?? 1} - ${question.max ?? 10}</div>` : ''}
+          </div>
+          <div style="padding: 10px 12px; border-left: 1px solid #e6edf5;">${answerTypeLabel[question.answerType]}</div>
+          <div style="padding: 10px 12px; border-left: 1px solid #e6edf5;">${question.mandatory ? 'Mandatory' : 'Optional'}</div>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+
+  const checklistHtml = `
+    <section data-hsqe-checklist="true" style="font-family: Arial, sans-serif;">
+      <h1 style="font-size: 22px; margin: 0 0 8px;">${name}</h1>
+      <p style="margin: 0 0 16px; color: #64748b;">Checklist template | Code: ${code} | Version: 1</p>
+      ${checklistBodyHtml}
+      <script type="application/json">${JSON.stringify(checklistPayload)}</script>
+    </section>
+  `;
+  const today = new Date().toLocaleDateString('en-GB');
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm">
+      <div className="flex max-h-[86vh] w-full max-w-6xl flex-col overflow-hidden rounded border border-slate-300 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2 dark:border-slate-700">
+          <h3 className="text-base font-semibold text-slate-800 dark:text-slate-100">Edit checklist</h3>
+          <button onClick={onClose} className="rounded p-1 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-[1fr_1fr_1.35fr] gap-x-10 gap-y-3 border-b border-slate-200 px-4 py-3 text-sm dark:border-slate-700">
+          <label className="grid grid-cols-[120px_1fr] items-center gap-2">
+            <span>Name</span>
+            <input value={name} onChange={(e) => setName(e.target.value)} className="h-8 rounded border border-slate-300 px-2 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-800" />
+          </label>
+          <div className="grid grid-cols-[110px_1fr_36px_120px] items-center gap-2">
+            <span>Created by</span>
+            <strong>{currentUserName}</strong>
+            <span>On</span>
+            <strong>{today}</strong>
+          </div>
+          <div className="grid grid-cols-[110px_1fr_36px_120px] items-center gap-2">
+            <span>Approved by</span>
+            <strong>{currentUserName}</strong>
+            <span>On</span>
+            <strong>{today}</strong>
+          </div>
+
+          <label className="grid grid-cols-[120px_1fr] items-center gap-2">
+            <span>Version</span>
+            <strong>1</strong>
+          </label>
+          <label className="grid grid-cols-[110px_1fr] items-center gap-2">
+            <span>Code</span>
+            <input value={code} onChange={(e) => setCode(e.target.value)} className="h-8 rounded border border-slate-300 px-2 font-semibold outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-800" />
+          </label>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-4">
+          <div className="grid grid-cols-[34px_80px_1fr_300px_210px_40px] items-center border-b border-slate-200 py-2 text-sm dark:border-slate-700">
+            <GripVertical className="h-4 w-4 text-slate-500" />
+            <span>1.</span>
+            <label className="grid grid-cols-[150px_1fr] items-center gap-2">
+              <span>Paragraph name</span>
+              <input value="General" readOnly className="h-8 rounded border border-slate-300 px-2 dark:border-slate-700 dark:bg-slate-800" />
+            </label>
+            <span />
+            <span />
+            <button type="button" onClick={addQuestion} className="flex h-6 w-6 items-center justify-center rounded bg-green-500 text-white hover:bg-green-600">
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          {questions.map((question, index) => (
+            <div key={question.id} className="grid grid-cols-[34px_80px_1fr_300px_210px_40px] gap-3 border-b border-slate-200 py-3 text-sm dark:border-slate-700">
+              <GripVertical className="mt-7 h-4 w-4 text-slate-500" />
+              <span className="mt-7">{`1.${index + 1}.`}</span>
+
+              <div className="grid grid-cols-[220px_1fr] gap-3">
+                <label>
+                  <span className="mb-1 block text-xs">Code</span>
+                  <input value={question.code} onChange={(e) => updateQuestion(question.id, { code: e.target.value })} placeholder="Code" className="h-8 w-full rounded border border-slate-300 px-2 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-800" />
+                </label>
+                <label>
+                  <span className="mb-1 block text-xs">Question text</span>
+                  <input value={question.text} onChange={(e) => updateQuestion(question.id, { text: e.target.value })} placeholder="Question text" className="h-8 w-full rounded border border-slate-300 px-2 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-800" />
+                </label>
+              </div>
+
+              <div>
+                {question.answerType === 'select' && (
+                  <div>
+                    <span className="mb-1 block text-xs">Possible answers</span>
+                    <div className="space-y-1">
+                      {(question.options.length ? question.options : ['']).map((option, optionIndex) => (
+                        <input
+                          key={optionIndex}
+                          value={option}
+                          onChange={(e) => {
+                            const options = [...question.options];
+                            options[optionIndex] = e.target.value;
+                            updateQuestion(question.id, { options });
+                          }}
+                          className="h-8 w-full rounded border border-slate-300 px-2 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-800"
+                        />
+                      ))}
+                    </div>
+                    <button type="button" onClick={() => updateQuestion(question.id, { options: [...question.options, ''] })} className="mt-2 h-8 w-full rounded bg-slate-950 text-sm font-semibold text-white hover:bg-slate-800">+ Add</button>
+                  </div>
+                )}
+                {question.answerType === 'slider' && (
+                  <div className="space-y-2">
+                    <label className="block">
+                      <span className="mb-1 block text-xs">Minimum value</span>
+                      <input type="number" value={question.min ?? 1} onChange={(e) => updateQuestion(question.id, { min: Number(e.target.value) })} className="h-8 w-full rounded border border-slate-300 px-2 text-right dark:border-slate-700 dark:bg-slate-800" />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-xs">Maximum value</span>
+                      <input type="number" value={question.max ?? 10} onChange={(e) => updateQuestion(question.id, { max: Number(e.target.value) })} className="h-8 w-full rounded border border-slate-300 px-2 text-right dark:border-slate-700 dark:bg-slate-800" />
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2">
+                  <select value={question.answerType} onChange={(e) => updateQuestion(question.id, { answerType: e.target.value as ChecklistQuestion['answerType'] })} className="h-8 flex-1 rounded border border-slate-300 px-2 dark:border-slate-700 dark:bg-slate-800">
+                    <option value="date">Date</option>
+                    <option value="select">Answer select</option>
+                    <option value="slider">Slider</option>
+                    <option value="text">Text</option>
+                  </select>
+                  {question.answerType === 'date' && <Calendar className="h-4 w-4" />}
+                  {question.answerType === 'slider' && <SlidersHorizontal className="h-4 w-4" />}
+                  {question.answerType === 'select' && <ListChecks className="h-4 w-4" />}
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={question.mandatory} onChange={(e) => updateQuestion(question.id, { mandatory: e.target.checked })} className="h-4 w-4" />
+                  <span>Is mandatory</span>
+                </label>
+              </div>
+
+              <button type="button" onClick={() => removeQuestion(question.id)} className="mt-7 flex h-6 w-6 items-center justify-center rounded bg-red-50 text-red-500 hover:bg-red-100">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-center justify-end gap-2 border-t border-slate-200 px-4 py-2 dark:border-slate-700">
+          <button
+            onClick={async () => {
+              if (!code.trim() || !name.trim()) {
+                toast.error('Vui lòng nhập code và tên checklist');
+                return;
+              }
+              if (questions.some(question => !question.text.trim())) {
+                toast.error('Vui lòng nhập nội dung cho tất cả câu hỏi');
+                return;
+              }
+              setSaving(true);
+              try {
+                await onCreate({
+                  documentCode: code,
+                  title: name,
+                  content: checklistHtml,
+                  category: 'CHECKLIST',
+                  createdBy: currentUserName,
+                });
+                onClose();
+              } finally {
+                setSaving(false);
+              }
+            }}
+            disabled={saving}
+            className="flex items-center gap-1.5 rounded bg-green-500 px-4 py-1.5 text-sm font-semibold text-white hover:bg-green-600 disabled:opacity-50"
+          >
+            {saving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+            Save
+          </button>
+          <button onClick={onClose} disabled={saving} className="rounded border border-slate-200 px-4 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function BulkDeleteConfirmModal({
   isOpen,
   count,
@@ -383,6 +706,7 @@ export function DocumentLibraryPage() {
 
   // Modals
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [checklistModalOpen, setChecklistModalOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
   const [approveModalOpen, setApproveModalOpen] = useState(false);
@@ -715,6 +1039,13 @@ export function DocumentLibraryPage() {
   };
 
   const openCreateModal = (parentCode?: string, categoryOverride: DocCategory = 'PROCEDURE') => {
+    if (categoryOverride === 'CHECKLIST') {
+      setCreateDefaultCode(getNextDocumentCode('CHECKLIST'));
+      setCreateDefaultCategory('CHECKLIST');
+      setChecklistModalOpen(true);
+      return;
+    }
+
     if (parentCode) {
       const children = documents.filter(d => d.code.startsWith(parentCode + '-'));
       const nextIdx = children.length + 1;
@@ -1045,6 +1376,13 @@ export function DocumentLibraryPage() {
         onCreate={handleCreateDocument}
         defaultCode={createDefaultCode}
         defaultCategory={createDefaultCategory}
+        currentUserName={currentAuthorString}
+      />
+      <ChecklistTemplateModal
+        isOpen={checklistModalOpen}
+        onClose={() => setChecklistModalOpen(false)}
+        onCreate={handleCreateDocument}
+        defaultCode={createDefaultCode}
         currentUserName={currentAuthorString}
       />
       <ImportDocumentModal
