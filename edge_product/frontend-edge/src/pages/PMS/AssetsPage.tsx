@@ -614,6 +614,8 @@ export default function AssetsPage() {
                 <AssetDetailHeader
                   activeTab={activeAssetTab}
                   onTabChange={setActiveAssetTab}
+                  onAddMaterial={() => setShowAssignMaterialModal(true)}
+                  t={t}
                 />
               )}
               {selectedNodeIsEquipment && selectedNode && activeAssetTab === 'info' && (
@@ -624,8 +626,6 @@ export default function AssetsPage() {
                   t={t}
                   materials={equipmentMaterials}
                   loading={materialsLoading}
-                  onAdd={() => setShowAssignMaterialModal(true)}
-                  onRefresh={() => loadEquipmentMaterials(selectedNode.id)}
                   onUpdate={async (material, quantityRequired, notes) => {
                     if (material.inheritedFrom) return;
                     await materialService.updateEquipmentLink(material.materialItemId, selectedNode.id, {
@@ -1169,8 +1169,6 @@ interface EquipmentMaterialsPanelProps {
   t: (key: string, params?: Record<string, string | number>) => string;
   materials: EquipmentMaterialLink[];
   loading: boolean;
-  onAdd: () => void;
-  onRefresh: () => void;
   onUpdate: (material: EquipmentMaterialLink, quantityRequired: number, notes?: string | null) => Promise<void>;
   onRemove: (material: EquipmentMaterialLink) => Promise<void>;
   onEditingChange: (isEditing: boolean) => void;
@@ -1179,9 +1177,13 @@ interface EquipmentMaterialsPanelProps {
 function AssetDetailHeader({
   activeTab,
   onTabChange,
+  onAddMaterial,
+  t,
 }: {
   activeTab: AssetDetailTab;
   onTabChange: (tab: AssetDetailTab) => void;
+  onAddMaterial: () => void;
+  t: (key: string, params?: Record<string, string | number>) => string;
 }) {
   const tabs: Array<{ key: AssetDetailTab; label: string }> = [
     { key: 'info', label: 'Thông tin' },
@@ -1191,21 +1193,32 @@ function AssetDetailHeader({
 
   return (
     <div className="border-b border-slate-200 bg-white">
-      <div className="flex gap-1 px-5 pt-1">
-        {tabs.map(tab => (
+      <div className="flex items-center justify-between gap-3 px-5 pt-1">
+        <div className="flex gap-1">
+          {tabs.map(tab => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => onTabChange(tab.key)}
+              className={`border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+                activeTab === tab.key
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        {activeTab === 'materials' && (
           <button
-            key={tab.key}
             type="button"
-            onClick={() => onTabChange(tab.key)}
-            className={`border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
-              activeTab === tab.key
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
+            onClick={onAddMaterial}
+            className="mb-1 inline-flex items-center gap-1.5 rounded bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
           >
-            {tab.label}
+            <Plus className="h-3.5 w-3.5" /> {t('pms.assets.requiredMaterials.assign')}
           </button>
-        ))}
+        )}
       </div>
     </div>
   );
@@ -1265,28 +1278,9 @@ function AssetMaintenancePanel({ asset }: { asset: EquipmentAsset }) {
   );
 }
 
-function EquipmentMaterialsPanel({ t, materials, loading, onAdd, onRefresh, onUpdate, onRemove, onEditingChange }: EquipmentMaterialsPanelProps) {
+function EquipmentMaterialsPanel({ t, materials, loading, onUpdate, onRemove, onEditingChange }: EquipmentMaterialsPanelProps) {
   return (
     <section className="flex flex-1 flex-col overflow-hidden bg-white">
-      <div className="flex items-center justify-end gap-2 border-b border-gray-200 px-3 py-2">
-        <div className="flex shrink-0 items-center gap-2">
-          <button
-            type="button"
-            onClick={onRefresh}
-            className="rounded border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
-          >
-            {t('pms.assets.requiredMaterials.refresh')}
-          </button>
-          <button
-            type="button"
-            onClick={onAdd}
-            className="inline-flex items-center gap-1.5 rounded bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
-          >
-            <Plus className="h-3.5 w-3.5" /> {t('pms.assets.requiredMaterials.assign')}
-          </button>
-        </div>
-      </div>
-
       <div className="flex-1 overflow-auto">
         {loading ? (
           <div className="px-4 py-6 text-center text-sm text-slate-500">{t('pms.assets.requiredMaterials.loading')}</div>
