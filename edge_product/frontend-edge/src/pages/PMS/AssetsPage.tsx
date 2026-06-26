@@ -1,12 +1,15 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Plus, Upload, Download, Search, Package, Trash2, ChevronDown, ChevronRight, FolderOpen, Save, ChevronsUpDown, Edit2 } from 'lucide-react';
+import { Plus, Upload, Download, Search, Package, Trash2, ChevronDown, ChevronRight, FolderOpen, Save, ChevronsUpDown, X } from 'lucide-react';
 import { equipmentAssetService } from '@/services/equipment-asset.service';
 import { ImportAssetsModal } from '@/components/pms/ImportAssetsModal';
 import { useTranslationSafe } from '@/contexts/I18nContext';
 import { toast } from 'sonner';
-import type { EquipmentAsset } from '@/types/pms.types';
+import type { CreateEquipmentAssetDto, EquipmentAsset } from '@/types/pms.types';
 
 const STATUS_VALUES = ['', 'ACTIVE', 'STANDBY', 'UNDER_MAINTENANCE', 'DECOMMISSIONED', 'IN_STORAGE'] as const;
+const ASSET_CATEGORIES = ['SYSTEM', 'ENGINE', 'GENERATOR', 'PUMP', 'COMPRESSOR', 'SEPARATOR', 'BOILER', 'DECK_MACHINERY', 'NAVIGATION', 'SAFETY', 'ELECTRICAL', 'HVAC'];
+const CRITICALITY_VALUES = ['CRITICAL', 'HIGH', 'NORMAL', 'LOW'];
+type CreateNodeMode = 'folder' | 'asset';
 
 
 /** Build tree từ flat list có parentId */
@@ -36,6 +39,10 @@ function getDescendantIds(node: EquipmentAsset): Set<string> {
   return ids;
 }
 
+function isFolderNode(node?: EquipmentAsset | null): boolean {
+  return !!node && (node.category === 'SYSTEM' || (node.children?.length ?? 0) > 0);
+}
+
 export default function AssetsPage() {
   const { t } = useTranslationSafe();
 
@@ -51,6 +58,7 @@ export default function AssetsPage() {
   const [assets, setAssets] = useState<EquipmentAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [createNodeMode, setCreateNodeMode] = useState<CreateNodeMode | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(() => {
     try {
@@ -59,7 +67,7 @@ export default function AssetsPage() {
     } catch { return new Set<string>(); }
   });
   // Edit mode & context menu
-  const [editMode, setEditMode] = useState(false);
+  const editMode = false;
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string | null } | null>(null);
   const [inlineNew, setInlineNew] = useState<{ parentId: string | null } | null>(null);
   const [inlineCode, setInlineCode] = useState('');
@@ -320,7 +328,8 @@ export default function AssetsPage() {
     }
   };
 
-  const selectedNodeName = selectedNodeId ? assetMap.get(selectedNodeId)?.assetName : null;
+  const selectedNode = selectedNodeId ? assetMap.get(selectedNodeId) ?? null : null;
+  const selectedNodeName = selectedNode?.assetName ?? null;
 
   /** Render đệ quy 1 node trong tree */
   const renderTreeNode = (node: EquipmentAsset, depth = 0): React.ReactNode => {
@@ -328,6 +337,7 @@ export default function AssetsPage() {
     const isExpanded = expandedNodes.has(node.id);
     const isSelected = selectedNodeId === node.id;
     const childCount = node.children?.length ?? 0;
+    const isFolder = isFolderNode(node);
 
     return (
       <div key={node.id}>
@@ -337,10 +347,7 @@ export default function AssetsPage() {
             isSelected ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-gray-700 hover:bg-gray-50'
           }`}
           data-asset-node="true"
-          onClick={() => {
-            setSelectedNodeId(node.id);
-            if (hasChildren) toggleNode(node.id);
-          }}
+          onClick={() => setSelectedNodeId(node.id)}
           onContextMenu={editMode ? (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -348,7 +355,7 @@ export default function AssetsPage() {
           } : undefined}
         >
           <span
-            className="flex-shrink-0"
+            className={`flex-shrink-0 ${hasChildren ? 'cursor-pointer' : ''}`}
             onClick={e => { e.stopPropagation(); if (hasChildren) toggleNode(node.id); }}
           >
             {hasChildren ? (
@@ -359,7 +366,11 @@ export default function AssetsPage() {
               <span className="w-3 block" />
             )}
           </span>
-          <FolderOpen className="w-3 h-3 flex-shrink-0 text-gray-400" />
+          {isFolder ? (
+            <FolderOpen className="w-3 h-3 flex-shrink-0 text-amber-500" />
+          ) : (
+            <Package className="w-3 h-3 flex-shrink-0 text-slate-400" />
+          )}
           <span className="flex-1 text-left leading-snug truncate">{node.assetName}</span>
           {childCount > 0 && (
             <span className="text-gray-400 text-[10px] flex-shrink-0">{childCount}</span>
@@ -471,18 +482,21 @@ export default function AssetsPage() {
 
               </>
             )}
-            {/* Toggle edit mode */}
             <button
-              onClick={() => setEditMode(m => !m)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs border rounded transition-colors ${
-                editMode
-                  ? 'bg-amber-50 border-amber-400 text-amber-700 font-semibold'
-                  : 'border-gray-300 text-gray-600 hover:bg-gray-50'
-              }`}
-              title={t('pms.assets.toggleEditMode')}
+              onClick={() => setCreateNodeMode('folder')}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors"
+              title="Thêm thư mục"
             >
-              <Edit2 className="w-3.5 h-3.5" />
-              {editMode ? t('pms.assets.exitEdit') : t('pms.assets.editTree')}
+              <Plus className="w-3.5 h-3.5" />
+              Thêm thư mục
+            </button>
+            <button
+              onClick={() => setCreateNodeMode('asset')}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-blue-600 rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+              title="Thêm thiết bị"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Thêm thiết bị
             </button>
             <button onClick={handleDownloadTemplate} className="p-1.5 border border-gray-300 rounded text-gray-500 hover:bg-gray-50" title={t('pms.assets.downloadTemplate')}>
               <Download className="w-3.5 h-3.5" />
@@ -645,9 +659,6 @@ export default function AssetsPage() {
                         </td>
                         <td className="px-2 py-2">
                           <div className="flex items-center justify-center gap-0.5">
-                            <button onClick={() => { setSelectedNodeId(asset.id); setEditMode(true); }} className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded" title={t('pms.assets.edit')}>
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
                             <button onClick={() => handleDelete(asset)} className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded" title={t('pms.assets.delete')}>
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -793,6 +804,25 @@ export default function AssetsPage() {
         onSuccess={loadAssets}
       />
 
+      <CreateAssetModal
+        mode={createNodeMode}
+        assets={assets}
+        defaultParentId={isFolderNode(selectedNode) ? selectedNodeId : selectedNode?.parentId ?? null}
+        onClose={() => setCreateNodeMode(null)}
+        onSuccess={async (createdId, parentId) => {
+          await loadAssets();
+          if (parentId) {
+            setExpandedNodes(prev => {
+              const next = new Set(prev);
+              next.add(parentId);
+              return next;
+            });
+          }
+          setSelectedNodeId(createdId);
+          setCreateNodeMode(null);
+        }}
+      />
+
       {/* Context Menu */}
       {contextMenu && (
         <div
@@ -832,5 +862,213 @@ export default function AssetsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+interface CreateAssetModalProps {
+  mode: CreateNodeMode | null;
+  assets: EquipmentAsset[];
+  defaultParentId: string | null;
+  onClose: () => void;
+  onSuccess: (createdId: string, parentId?: string) => void | Promise<void>;
+}
+
+function CreateAssetModal({ mode, assets, defaultParentId, onClose, onSuccess }: CreateAssetModalProps) {
+  const [saving, setSaving] = useState(false);
+  const isFolderMode = mode === 'folder';
+  const [formData, setFormData] = useState<CreateEquipmentAssetDto>({
+    assetCode: '',
+    assetName: '',
+    category: 'SYSTEM',
+    parentId: defaultParentId || undefined,
+    criticality: 'NORMAL',
+    status: 'ACTIVE',
+    manufacturer: '',
+    model: '',
+    serialNumber: '',
+    location: '',
+    technicalSpecs: '',
+    notes: '',
+  });
+
+  useEffect(() => {
+    if (!mode) return;
+    setFormData({
+      assetCode: '',
+      assetName: '',
+      category: isFolderMode ? 'SYSTEM' : 'ENGINE',
+      parentId: defaultParentId || undefined,
+      criticality: 'NORMAL',
+      status: 'ACTIVE',
+      manufacturer: '',
+      model: '',
+      serialNumber: '',
+      location: '',
+      technicalSpecs: '',
+      notes: '',
+    });
+  }, [mode, defaultParentId, isFolderMode]);
+
+  const parentOptions = useMemo(() => {
+    const roots = buildTree(assets);
+    const rows: Array<{ id: string; label: string }> = [];
+    const walk = (nodes: EquipmentAsset[], depth = 0) => {
+      nodes.forEach((node) => {
+        if (isFolderNode(node)) {
+          rows.push({ id: node.id, label: `${'  '.repeat(depth)}${node.assetCode ? `${node.assetCode} - ` : ''}${node.assetName}` });
+        }
+        if (node.children?.length) walk(node.children, depth + 1);
+      });
+    };
+    walk(roots);
+    return rows;
+  }, [assets]);
+
+  if (!mode) return null;
+
+  const title = isFolderMode ? 'Thêm thư mục' : 'Thêm thiết bị';
+  const subtitle = isFolderMode
+    ? 'Tạo thư mục để gom nhóm thiết bị trong cây PMS'
+    : 'Khai báo thiết bị thật và đặt vào một thư mục cha';
+  const codeLabel = isFolderMode ? 'Mã thư mục' : 'Mã thiết bị';
+  const nameLabel = isFolderMode ? 'Tên thư mục' : 'Tên thiết bị';
+
+  const handleChange = (field: keyof CreateEquipmentAssetDto, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: field === 'parentId' ? (value || undefined) : value,
+    }));
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!formData.assetCode.trim() || !formData.assetName.trim()) {
+      toast.error('Vui lòng nhập mã và tên thiết bị');
+      return;
+    }
+
+    if (!isFolderMode && !formData.parentId) {
+      toast.error('Vui lòng chọn thư mục cha trước khi thêm thiết bị');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const created = await equipmentAssetService.create({
+        ...formData,
+        assetCode: formData.assetCode.trim(),
+        assetName: formData.assetName.trim(),
+        category: isFolderMode ? 'SYSTEM' : formData.category,
+        criticality: formData.criticality || 'NORMAL',
+        status: formData.status || 'ACTIVE',
+        manufacturer: isFolderMode ? '' : formData.manufacturer?.trim(),
+        model: isFolderMode ? '' : formData.model?.trim(),
+        serialNumber: isFolderMode ? '' : formData.serialNumber?.trim(),
+        location: formData.location?.trim(),
+        technicalSpecs: isFolderMode ? '' : formData.technicalSpecs?.trim(),
+        notes: formData.notes?.trim(),
+      });
+      toast.success(`Đã thêm thiết bị ${created.assetName}`);
+      await onSuccess(created.id, formData.parentId);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || error?.response?.data?.error || 'Không thể thêm thiết bị');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4">
+      <div className="w-full max-w-3xl overflow-hidden rounded-lg bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+          <div>
+            <h2 className="text-base font-semibold text-slate-900">{title}</h2>
+            <p className="mt-1 text-xs text-slate-500">{subtitle}</p>
+          </div>
+          <button onClick={onClose} className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700" type="button">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="max-h-[72vh] overflow-y-auto px-5 py-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Field label={codeLabel} required>
+                <input value={formData.assetCode} onChange={e => handleChange('assetCode', e.target.value)} className="h-9 w-full rounded border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder={isFolderMode ? 'ER-SYS' : 'AE-01'} />
+              </Field>
+              <Field label={nameLabel} required>
+                <input value={formData.assetName} onChange={e => handleChange('assetName', e.target.value)} className="h-9 w-full rounded border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder={isFolderMode ? 'Engine Room System' : 'Auxiliary Engine No.1'} />
+              </Field>
+              <Field label={isFolderMode ? 'Thư mục cha' : 'Đặt trong thư mục'} required={!isFolderMode}>
+                <select value={formData.parentId || ''} onChange={e => handleChange('parentId', e.target.value)} className="h-9 w-full rounded border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                  <option value="">{isFolderMode ? 'Cấp gốc' : '-- Chọn thư mục --'}</option>
+                  {parentOptions.map(option => (
+                    <option key={option.id} value={option.id}>{option.label}</option>
+                  ))}
+                </select>
+              </Field>
+              {!isFolderMode && (
+                <Field label="Phân loại">
+                  <select value={formData.category} onChange={e => handleChange('category', e.target.value)} className="h-9 w-full rounded border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                    {ASSET_CATEGORIES.filter(category => category !== 'SYSTEM').map(category => <option key={category} value={category}>{category}</option>)}
+                  </select>
+                </Field>
+              )}
+              <Field label="Vị trí">
+                <input value={formData.location || ''} onChange={e => handleChange('location', e.target.value)} className="h-9 w-full rounded border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="Engine Room" />
+              </Field>
+              {!isFolderMode && (
+                <Field label="Trạng thái">
+                  <select value={formData.status || 'ACTIVE'} onChange={e => handleChange('status', e.target.value)} className="h-9 w-full rounded border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                    <option value="ACTIVE">Đang hoạt động</option>
+                    <option value="STANDBY">Chờ sẵn</option>
+                    <option value="UNDER_MAINTENANCE">Đang bảo trì</option>
+                    <option value="DECOMMISSIONED">Ngừng sử dụng</option>
+                    <option value="IN_STORAGE">Trong kho</option>
+                  </select>
+                </Field>
+              )}
+              {!isFolderMode && <Field label="Hãng sản xuất"><input value={formData.manufacturer || ''} onChange={e => handleChange('manufacturer', e.target.value)} className="h-9 w-full rounded border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" /></Field>}
+              {!isFolderMode && <Field label="Model"><input value={formData.model || ''} onChange={e => handleChange('model', e.target.value)} className="h-9 w-full rounded border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" /></Field>}
+              {!isFolderMode && <Field label="Serial"><input value={formData.serialNumber || ''} onChange={e => handleChange('serialNumber', e.target.value)} className="h-9 w-full rounded border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" /></Field>}
+              {!isFolderMode && (
+                <Field label="Mức độ quan trọng">
+                  <select value={formData.criticality || 'NORMAL'} onChange={e => handleChange('criticality', e.target.value)} className="h-9 w-full rounded border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                    {CRITICALITY_VALUES.map(value => <option key={value} value={value}>{value}</option>)}
+                  </select>
+                </Field>
+              )}
+              {!isFolderMode && (
+                <Field label="Thông số kỹ thuật" className="md:col-span-2">
+                  <textarea value={formData.technicalSpecs || ''} onChange={e => handleChange('technicalSpecs', e.target.value)} rows={3} className="w-full resize-none rounded border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
+                </Field>
+              )}
+              <Field label="Ghi chú" className="md:col-span-2">
+                <textarea value={formData.notes || ''} onChange={e => handleChange('notes', e.target.value)} rows={3} className="w-full resize-none rounded border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
+              </Field>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
+            <button type="button" onClick={onClose} className="rounded border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100">
+              Hủy
+            </button>
+            <button type="submit" disabled={saving} className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
+              {saving ? 'Đang lưu...' : title}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, required, className = '', children }: { label: string; required?: boolean; className?: string; children: React.ReactNode }) {
+  return (
+    <label className={`block ${className}`}>
+      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+        {label}{required ? <span className="text-red-500"> *</span> : null}
+      </span>
+      {children}
+    </label>
   );
 }
