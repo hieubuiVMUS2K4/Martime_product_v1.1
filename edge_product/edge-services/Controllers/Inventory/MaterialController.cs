@@ -907,6 +907,7 @@ public class MaterialController : ControllerBase
                         name = mat.Name,
                         unit = mat.Unit,
                         onHandQuantity = mat.OnHandQuantity,
+                        quantityRequired = l.QuantityRequired,
                         minStock = mat.MinStock,
                         specification = mat.Specification,
                         notes = l.Notes,
@@ -978,6 +979,7 @@ public class MaterialController : ControllerBase
                 l.MaterialItemId,
                 l.EquipmentAssetId,
                 l.Notes,
+                l.QuantityRequired,
                 l.CreatedAt,
                 equipmentCode = assets.FirstOrDefault(a => a.Id == l.EquipmentAssetId)?.AssetCode,
                 equipmentName = assets.FirstOrDefault(a => a.Id == l.EquipmentAssetId)?.AssetName,
@@ -1017,6 +1019,7 @@ public class MaterialController : ControllerBase
                     {
                         MaterialItemId = matId,
                         EquipmentAssetId = eqId,
+                        QuantityRequired = dto.QuantityRequired,
                         Notes = dto.Notes
                     });
                     created++;
@@ -1060,6 +1063,34 @@ public class MaterialController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error removing equipment assignment");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// Update required quantity/notes for a material-equipment assignment.
+    /// </summary>
+    [HttpPut("items/{materialItemId}/equipment/{equipmentAssetId}")]
+    public async Task<IActionResult> UpdateEquipmentAssignment(Guid materialItemId, Guid equipmentAssetId, [FromBody] UpdateEquipmentMaterialDto dto)
+    {
+        try
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            var link = await _context.MaterialItemEquipments
+                .FirstOrDefaultAsync(x => x.MaterialItemId == materialItemId && x.EquipmentAssetId == equipmentAssetId);
+
+            if (link is null) return NotFound(new { error = "Link not found" });
+
+            link.QuantityRequired = dto.QuantityRequired;
+            link.Notes = dto.Notes;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Assignment updated" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating equipment material assignment");
             return StatusCode(500, new { error = "Internal server error" });
         }
     }

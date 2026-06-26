@@ -290,6 +290,18 @@ public class AssignEquipmentDto
     [Required(ErrorMessage = "EquipmentAssetIds is required")]
     public List<Guid> EquipmentAssetIds { get; set; } = new();
 
+    [Range(0, double.MaxValue, ErrorMessage = "QuantityRequired must be non-negative")]
+    public double QuantityRequired { get; set; } = 1;
+
+    [StringLength(500)]
+    public string? Notes { get; set; }
+}
+
+public class UpdateEquipmentMaterialDto
+{
+    [Range(0, double.MaxValue, ErrorMessage = "QuantityRequired must be non-negative")]
+    public double QuantityRequired { get; set; } = 1;
+
     [StringLength(500)]
     public string? Notes { get; set; }
 }

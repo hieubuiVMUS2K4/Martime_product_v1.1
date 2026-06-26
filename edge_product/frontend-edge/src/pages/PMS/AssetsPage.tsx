@@ -2,8 +2,10 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Plus, Upload, Download, Search, Package, Trash2, ChevronDown, ChevronRight, FolderOpen, Save, ChevronsUpDown, X } from 'lucide-react';
 import { equipmentAssetService } from '@/services/equipment-asset.service';
 import { ImportAssetsModal } from '@/components/pms/ImportAssetsModal';
+import { materialService, type EquipmentMaterialLink } from '@/services/materialService';
 import { useTranslationSafe } from '@/contexts/I18nContext';
 import { toast } from 'sonner';
+import type { MaterialItem } from '@/types/maritime.types';
 import type { CreateEquipmentAssetDto, EquipmentAsset } from '@/types/pms.types';
 
 const STATUS_VALUES = ['', 'ACTIVE', 'STANDBY', 'UNDER_MAINTENANCE', 'DECOMMISSIONED', 'IN_STORAGE'] as const;
@@ -87,6 +89,9 @@ export default function AssetsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(25);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+  const [equipmentMaterials, setEquipmentMaterials] = useState<EquipmentMaterialLink[]>([]);
+  const [materialsLoading, setMaterialsLoading] = useState(false);
+  const [showAssignMaterialModal, setShowAssignMaterialModal] = useState(false);
 
   useEffect(() => { loadData(); }, []);
 
@@ -330,6 +335,28 @@ export default function AssetsPage() {
 
   const selectedNode = selectedNodeId ? assetMap.get(selectedNodeId) ?? null : null;
   const selectedNodeName = selectedNode?.assetName ?? null;
+  const selectedNodeIsEquipment = !!selectedNode && !isFolderNode(selectedNode);
+
+  const loadEquipmentMaterials = useCallback(async (equipmentId: string) => {
+    try {
+      setMaterialsLoading(true);
+      const data = await materialService.getMaterialsByEquipment(equipmentId);
+      setEquipmentMaterials(data);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || 'Không thể tải vật tư của thiết bị');
+      setEquipmentMaterials([]);
+    } finally {
+      setMaterialsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedNodeIsEquipment && selectedNodeId) {
+      loadEquipmentMaterials(selectedNodeId);
+    } else {
+      setEquipmentMaterials([]);
+    }
+  }, [selectedNodeId, selectedNodeIsEquipment, loadEquipmentMaterials]);
 
   /** Render đệ quy 1 node trong tree */
   const renderTreeNode = (node: EquipmentAsset, depth = 0): React.ReactNode => {
@@ -558,6 +585,30 @@ export default function AssetsPage() {
           {!editMode ? (
             /* ── VIEW MODE: bảng dữ liệu ── */
             <>
+              {selectedNodeIsEquipment && selectedNode && (
+                <EquipmentMaterialsPanel
+                  asset={selectedNode}
+                  materials={equipmentMaterials}
+                  loading={materialsLoading}
+                  onAdd={() => setShowAssignMaterialModal(true)}
+                  onRefresh={() => loadEquipmentMaterials(selectedNode.id)}
+                  onUpdate={async (material, quantityRequired, notes) => {
+                    if (material.inheritedFrom) return;
+                    await materialService.updateEquipmentLink(material.materialItemId, selectedNode.id, {
+                      quantityRequired,
+                      notes,
+                    });
+                    await loadEquipmentMaterials(selectedNode.id);
+                    toast.success('Đã cập nhật vật tư yêu cầu');
+                  }}
+                  onRemove={async (material) => {
+                    if (material.inheritedFrom) return;
+                    await materialService.removeEquipmentLink(material.materialItemId, selectedNode.id);
+                    await loadEquipmentMaterials(selectedNode.id);
+                    toast.success('Đã xóa vật tư khỏi thiết bị');
+                  }}
+                />
+              )}
               <div className="flex-1 overflow-auto min-h-0">
                 <table className="min-w-full text-sm border-collapse">
                   <thead className="sticky top-0 z-10">
@@ -823,6 +874,16 @@ export default function AssetsPage() {
         }}
       />
 
+      <AssignEquipmentMaterialModal
+        isOpen={showAssignMaterialModal}
+        asset={selectedNodeIsEquipment ? selectedNode : null}
+        onClose={() => setShowAssignMaterialModal(false)}
+        onAssigned={async () => {
+          if (selectedNodeId) await loadEquipmentMaterials(selectedNodeId);
+          setShowAssignMaterialModal(false);
+        }}
+      />
+
       {/* Context Menu */}
       {contextMenu && (
         <div
@@ -1060,6 +1121,371 @@ function CreateAssetModal({ mode, assets, defaultParentId, onClose, onSuccess }:
       </div>
     </div>
   );
+}
+
+interface EquipmentMaterialsPanelProps {
+  asset: EquipmentAsset;
+  materials: EquipmentMaterialLink[];
+  loading: boolean;
+  onAdd: () => void;
+  onRefresh: () => void;
+  onUpdate: (material: EquipmentMaterialLink, quantityRequired: number, notes?: string | null) => Promise<void>;
+  onRemove: (material: EquipmentMaterialLink) => Promise<void>;
+}
+
+function EquipmentMaterialsPanel({ asset, materials, loading, onAdd, onRefresh, onUpdate, onRemove }: EquipmentMaterialsPanelProps) {
+  const totalRequired = materials.reduce((sum, item) => sum + Number(item.quantityRequired || 0), 0);
+  const shortageCount = materials.filter(item => Number(item.onHandQuantity || 0) < Number(item.quantityRequired || 0)).length;
+
+  return (
+    <section className="border-b border-slate-200 bg-white">
+      <div className="flex items-center justify-between gap-3 px-4 py-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <Package className="h-4 w-4 text-blue-600" />
+            <h3 className="truncate text-sm font-semibold text-slate-900">
+              Vật tư yêu cầu cho {asset.assetName}
+            </h3>
+          </div>
+          <p className="mt-1 text-xs text-slate-500">
+            {materials.length} vật tư, tổng yêu cầu {formatQuantity(totalRequired)}, {shortageCount} vật tư thiếu so với tồn kho
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={onRefresh}
+            className="rounded border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Làm mới
+          </button>
+          <button
+            type="button"
+            onClick={onAdd}
+            className="inline-flex items-center gap-1.5 rounded bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+          >
+            <Plus className="h-3.5 w-3.5" /> Gán vật tư
+          </button>
+        </div>
+      </div>
+
+      <div className="max-h-64 overflow-auto border-t border-slate-100">
+        {loading ? (
+          <div className="px-4 py-6 text-center text-sm text-slate-500">Đang tải vật tư...</div>
+        ) : materials.length === 0 ? (
+          <div className="px-4 py-6 text-center text-sm text-slate-500">
+            Thiết bị này chưa có vật tư yêu cầu. Bấm “Gán vật tư” để khai báo.
+          </div>
+        ) : (
+          <table className="min-w-full border-collapse text-xs">
+            <thead className="sticky top-0 bg-slate-50 text-slate-600">
+              <tr>
+                <th className="w-28 border-b border-r border-slate-200 px-3 py-2 text-left font-semibold">Mã vật tư</th>
+                <th className="min-w-[220px] border-b border-r border-slate-200 px-3 py-2 text-left font-semibold">Tên vật tư</th>
+                <th className="w-28 border-b border-r border-slate-200 px-3 py-2 text-right font-semibold">Yêu cầu</th>
+                <th className="w-28 border-b border-r border-slate-200 px-3 py-2 text-right font-semibold">Có sẵn</th>
+                <th className="w-24 border-b border-r border-slate-200 px-3 py-2 text-right font-semibold">Thiếu</th>
+                <th className="w-28 border-b border-r border-slate-200 px-3 py-2 text-left font-semibold">Trạng thái</th>
+                <th className="min-w-[180px] border-b border-r border-slate-200 px-3 py-2 text-left font-semibold">Ghi chú</th>
+                <th className="w-16 border-b border-slate-200 px-2 py-2"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {materials.map(material => (
+                <EquipmentMaterialRow
+                  key={`${material.materialItemId}-${material.inheritedFrom || 'direct'}`}
+                  material={material}
+                  onUpdate={onUpdate}
+                  onRemove={onRemove}
+                />
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function EquipmentMaterialRow({
+  material,
+  onUpdate,
+  onRemove,
+}: {
+  material: EquipmentMaterialLink;
+  onUpdate: (material: EquipmentMaterialLink, quantityRequired: number, notes?: string | null) => Promise<void>;
+  onRemove: (material: EquipmentMaterialLink) => Promise<void>;
+}) {
+  const [quantityRequired, setQuantityRequired] = useState(String(material.quantityRequired ?? 1));
+  const [notes, setNotes] = useState(material.notes || '');
+  const [saving, setSaving] = useState(false);
+  const inherited = !!material.inheritedFrom;
+  const required = Number(quantityRequired || 0);
+  const onHand = Number(material.onHandQuantity || 0);
+  const shortage = Math.max(0, required - onHand);
+
+  useEffect(() => {
+    setQuantityRequired(String(material.quantityRequired ?? 1));
+    setNotes(material.notes || '');
+  }, [material.materialItemId, material.quantityRequired, material.notes]);
+
+  const save = async () => {
+    if (inherited) return;
+    const nextQuantity = Math.max(0, Number(quantityRequired || 0));
+    try {
+      setSaving(true);
+      await onUpdate(material, nextQuantity, notes.trim() || null);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || 'Không thể cập nhật vật tư yêu cầu');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = async () => {
+    if (inherited) return;
+    try {
+      setSaving(true);
+      await onRemove(material);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || 'Không thể xóa vật tư khỏi thiết bị');
+      setSaving(false);
+    }
+  };
+
+  return (
+    <tr className="hover:bg-blue-50/40">
+      <td className="border-r border-slate-100 px-3 py-2 font-mono text-slate-600">{material.itemCode}</td>
+      <td className="border-r border-slate-100 px-3 py-2">
+        <div className="font-medium text-slate-800">{material.name}</div>
+        {material.specification ? <div className="mt-0.5 truncate text-slate-400">{material.specification}</div> : null}
+      </td>
+      <td className="border-r border-slate-100 px-3 py-2 text-right">
+        <div className="flex items-center justify-end gap-1">
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={quantityRequired}
+            onChange={event => setQuantityRequired(event.target.value)}
+            onBlur={save}
+            disabled={inherited || saving}
+            className="h-7 w-20 rounded border border-slate-300 px-2 text-right outline-none focus:border-blue-500 disabled:bg-slate-100"
+          />
+          <span className="w-8 text-left text-slate-500">{material.unit}</span>
+        </div>
+      </td>
+      <td className="border-r border-slate-100 px-3 py-2 text-right font-medium text-slate-700">
+        {formatQuantity(onHand)} {material.unit}
+      </td>
+      <td className={`border-r border-slate-100 px-3 py-2 text-right font-semibold ${shortage > 0 ? 'text-red-600' : 'text-green-600'}`}>
+        {formatQuantity(shortage)}
+      </td>
+      <td className="border-r border-slate-100 px-3 py-2">
+        {inherited ? (
+          <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Kế thừa</span>
+        ) : shortage > 0 ? (
+          <span className="rounded bg-red-50 px-2 py-0.5 font-medium text-red-700">Thiếu</span>
+        ) : (
+          <span className="rounded bg-green-50 px-2 py-0.5 font-medium text-green-700">Đủ</span>
+        )}
+      </td>
+      <td className="border-r border-slate-100 px-3 py-2">
+        <input
+          value={notes}
+          onChange={event => setNotes(event.target.value)}
+          onBlur={save}
+          disabled={inherited || saving}
+          placeholder="Ghi chú..."
+          className="h-7 w-full rounded border border-slate-300 px-2 outline-none focus:border-blue-500 disabled:bg-slate-100"
+        />
+      </td>
+      <td className="px-2 py-2 text-center">
+        <button
+          type="button"
+          onClick={remove}
+          disabled={inherited || saving}
+          className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
+          title={inherited ? 'Vật tư kế thừa từ thư mục cha' : 'Xóa khỏi thiết bị'}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </td>
+    </tr>
+  );
+}
+
+function AssignEquipmentMaterialModal({
+  isOpen,
+  asset,
+  onClose,
+  onAssigned,
+}: {
+  isOpen: boolean;
+  asset: EquipmentAsset | null;
+  onClose: () => void;
+  onAssigned: () => Promise<void> | void;
+}) {
+  const [items, setItems] = useState<MaterialItem[]>([]);
+  const [search, setSearch] = useState('');
+  const [selectedMaterialId, setSelectedMaterialId] = useState('');
+  const [quantityRequired, setQuantityRequired] = useState('1');
+  const [notes, setNotes] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const loadItems = useCallback(async () => {
+    if (!isOpen) return;
+    try {
+      setLoading(true);
+      const data = await materialService.getItems({ q: search.trim() || undefined, onlyActive: true });
+      setItems(data);
+      setSelectedMaterialId(prev => {
+        if (prev && data.some(item => item.id === prev)) return prev;
+        return data[0]?.id || '';
+      });
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || 'Không thể tải danh sách vật tư');
+    } finally {
+      setLoading(false);
+    }
+  }, [isOpen, search]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setQuantityRequired('1');
+    setNotes('');
+    setSelectedMaterialId('');
+  }, [isOpen, asset?.id]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(loadItems, 250);
+    return () => window.clearTimeout(timer);
+  }, [loadItems]);
+
+  if (!isOpen || !asset) return null;
+
+  const selectedItem = items.find(item => item.id === selectedMaterialId) || null;
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!selectedMaterialId) {
+      toast.error('Vui lòng chọn vật tư');
+      return;
+    }
+    const nextQuantity = Math.max(0, Number(quantityRequired || 0));
+    if (nextQuantity <= 0) {
+      toast.error('Số lượng yêu cầu phải lớn hơn 0');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await materialService.assignEquipment({
+        materialItemIds: [selectedMaterialId],
+        equipmentAssetIds: [asset.id],
+        quantityRequired: nextQuantity,
+        notes: notes.trim() || null,
+      });
+      toast.success('Đã gán vật tư vào thiết bị');
+      await onAssigned();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || 'Không thể gán vật tư vào thiết bị');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4">
+      <div className="w-full max-w-2xl overflow-hidden rounded-lg bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold text-slate-900">Gán vật tư yêu cầu</h2>
+            <p className="mt-1 truncate text-xs text-slate-500">{asset.assetCode} - {asset.assetName}</p>
+          </div>
+          <button onClick={onClose} className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700" type="button">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <form onSubmit={submit}>
+          <div className="space-y-4 px-5 py-4">
+            <Field label="Tìm vật tư">
+              <div className="flex items-center gap-2 rounded border border-slate-300 px-3">
+                <Search className="h-4 w-4 text-slate-400" />
+                <input
+                  value={search}
+                  onChange={event => setSearch(event.target.value)}
+                  placeholder="Nhập mã hoặc tên vật tư..."
+                  className="h-9 flex-1 text-sm outline-none"
+                />
+              </div>
+            </Field>
+
+            <Field label="Vật tư" required>
+              <select
+                value={selectedMaterialId}
+                onChange={event => setSelectedMaterialId(event.target.value)}
+                className="h-9 w-full rounded border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              >
+                {loading ? <option value="">Đang tải...</option> : null}
+                {!loading && items.length === 0 ? <option value="">Không có vật tư phù hợp</option> : null}
+                {items.map(item => (
+                  <option key={item.id} value={item.id}>
+                    {item.itemCode} - {item.name} ({formatQuantity(item.onHandQuantity)} {item.unit})
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Field label="Số lượng yêu cầu" required>
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={quantityRequired}
+                  onChange={event => setQuantityRequired(event.target.value)}
+                  className="h-9 w-full rounded border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+              </Field>
+              <Field label="Tồn kho hiện có">
+                <div className="flex h-9 items-center rounded border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700">
+                  {selectedItem ? `${formatQuantity(selectedItem.onHandQuantity)} ${selectedItem.unit}` : '-'}
+                </div>
+              </Field>
+            </div>
+
+            <Field label="Ghi chú">
+              <textarea
+                value={notes}
+                onChange={event => setNotes(event.target.value)}
+                rows={3}
+                className="w-full resize-none rounded border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                placeholder="Ví dụ: dùng cho bảo trì định kỳ, bộ dự phòng tối thiểu..."
+              />
+            </Field>
+          </div>
+
+          <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
+            <button type="button" onClick={onClose} className="rounded border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100">
+              Hủy
+            </button>
+            <button type="submit" disabled={saving || !selectedMaterialId} className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
+              {saving ? 'Đang gán...' : 'Gán vật tư'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function formatQuantity(value: number): string {
+  return Number.isFinite(value)
+    ? new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(value)
+    : '0';
 }
 
 function Field({ label, required, className = '', children }: { label: string; required?: boolean; className?: string; children: React.ReactNode }) {

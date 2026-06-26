@@ -104,6 +104,7 @@ export interface StockAdjustmentDto {
 export interface AssignEquipmentDto {
   materialItemIds: string[]
   equipmentAssetIds: string[]
+  quantityRequired?: number
   notes?: string | null
 }
 
@@ -125,6 +126,7 @@ export interface EquipmentMaterialLink {
   name: string
   unit: string
   onHandQuantity: number
+  quantityRequired: number
   minStock?: number | null
   specification?: string | null
   notes?: string | null
@@ -265,6 +267,12 @@ export const materialService = {
   assignEquipment: (dto: AssignEquipmentDto) =>
     apiClient.post<{ message: string; created: number; skipped: number }>(
       '/material/items/assign-equipment',
+      dto,
+    ),
+
+  updateEquipmentLink: (materialItemId: string, equipmentAssetId: string, dto: { quantityRequired: number; notes?: string | null }) =>
+    apiClient.put<{ message: string }>(
+      `/material/items/${materialItemId}/equipment/${equipmentAssetId}`,
       dto,
     ),
 

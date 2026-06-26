@@ -5260,6 +5260,9 @@ public class MaterialItemEquipment
     [MaxLength(500)]
     public string? Notes { get; set; }
 
+    /// Required quantity for this material on the equipment.
+    public double QuantityRequired { get; set; } = 1;
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
 
