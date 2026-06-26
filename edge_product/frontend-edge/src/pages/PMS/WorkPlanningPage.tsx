@@ -98,12 +98,16 @@ function buildTree(items: EquipmentAsset[]): EquipmentAsset[] {
   return roots;
 }
 
-function getDescendantIds(node: EquipmentAsset): Set<string> {
+function isEquipmentFolder(node?: EquipmentAsset | null): boolean {
+  return !!node && node.category === 'SYSTEM';
+}
+
+function getSelectableEquipmentIds(node: EquipmentAsset): Set<string> {
   const ids = new Set<string>();
   const stack = [node];
   while (stack.length) {
     const n = stack.pop()!;
-    ids.add(n.id);
+    if (!isEquipmentFolder(n)) ids.add(n.id);
     n.children?.forEach(c => stack.push(c));
   }
   return ids;
@@ -291,6 +295,18 @@ export default function WorkPlanningPage() {
 
   // === Build equipment tree ===
   const tree = useMemo(() => buildTree(assets), [assets]);
+
+  useEffect(() => {
+    const selectableIds = new Set(assets.filter(asset => !isEquipmentFolder(asset)).map(asset => asset.id));
+    setSelectedAssetIds(prev => {
+      const next = new Set([...prev].filter(id => selectableIds.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+    setCfgTreeSelectedIds(prev => {
+      const next = new Set([...prev].filter(id => selectableIds.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [assets]);
 
 
   // === Load data ===
@@ -1052,7 +1068,8 @@ export default function WorkPlanningPage() {
   };
 
   const toggleAssetSelection = (node: EquipmentAsset) => {
-    const ids = getDescendantIds(node);
+    const ids = getSelectableEquipmentIds(node);
+    if (ids.size === 0) return;
     setSelectedAssetIds(prev => {
       const n = new Set(prev);
       const allSelected = [...ids].every(id => n.has(id));
@@ -1066,7 +1083,8 @@ export default function WorkPlanningPage() {
   };
 
   const toggleCfgAssetSelection = (node: EquipmentAsset) => {
-    const ids = getDescendantIds(node);
+    const ids = getSelectableEquipmentIds(node);
+    if (ids.size === 0) return;
     setCfgTreeSelectedIds(prev => {
       const n = new Set(prev);
       const allSelected = [...ids].every(id => n.has(id));
@@ -2477,9 +2495,11 @@ function TreeNode({
   const hasChildren = node.children && node.children.length > 0;
   const isExpanded = expanded.has(node.id);
 
-  const descendants = getDescendantIds(node);
-  const allSelected = [...descendants].every(id => selected.has(id));
-  const someSelected = !allSelected && [...descendants].some(id => selected.has(id));
+  const selectableIds = getSelectableEquipmentIds(node);
+  const isFolder = isEquipmentFolder(node);
+  const canSelect = selectableIds.size > 0;
+  const allSelected = canSelect && [...selectableIds].every(id => selected.has(id));
+  const someSelected = !allSelected && [...selectableIds].some(id => selected.has(id));
 
   // Filter children by search
   const filteredChildren = search
@@ -2489,22 +2509,28 @@ function TreeNode({
   return (
     <div>
       <div
-        className="flex items-center gap-1 py-1 px-1 hover:bg-blue-50 rounded cursor-pointer"
+        className="flex items-center gap-1 py-1 px-1 hover:bg-blue-50 rounded"
         style={{ paddingLeft: `${level * 16 + 4}px` }}
       >
         {hasChildren ? (
-          <button onClick={() => onToggle(node.id)} className="p-0.5 hover:bg-gray-200 rounded">
+          <button onClick={(event) => { event.stopPropagation(); onToggle(node.id); }} className="p-0.5 hover:bg-gray-200 rounded" type="button">
             {isExpanded ? <ChevronDown className="w-3 h-3 text-gray-500" /> : <ChevronRight className="w-3 h-3 text-gray-500" />}
           </button>
         ) : (
           <span className="w-4" />
         )}
+        {isFolder ? (
+          <FolderOpen className="w-3.5 h-3.5 flex-shrink-0 text-amber-500" />
+        ) : (
+          <Package className="w-3.5 h-3.5 flex-shrink-0 text-slate-400" />
+        )}
         <input
           type="checkbox"
           checked={allSelected}
           ref={el => { if (el) el.indeterminate = someSelected; }}
+          disabled={!canSelect}
           onChange={() => onSelect(node)}
-          className="w-3.5 h-3.5 text-blue-600 rounded"
+          className="w-3.5 h-3.5 text-blue-600 rounded disabled:cursor-not-allowed disabled:opacity-40"
         />
         <span className="text-xs text-gray-700 truncate flex-1" title={`${node.assetCode} - ${node.assetName}`}>
           {node.assetCode} - {node.assetName}
