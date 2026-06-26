@@ -12,6 +12,7 @@ const STATUS_VALUES = ['', 'ACTIVE', 'STANDBY', 'UNDER_MAINTENANCE', 'DECOMMISSI
 const ASSET_CATEGORIES = ['SYSTEM', 'ENGINE', 'GENERATOR', 'PUMP', 'COMPRESSOR', 'SEPARATOR', 'BOILER', 'DECK_MACHINERY', 'NAVIGATION', 'SAFETY', 'ELECTRICAL', 'HVAC'];
 const CRITICALITY_VALUES = ['CRITICAL', 'HIGH', 'NORMAL', 'LOW'];
 type CreateNodeMode = 'folder' | 'asset';
+type AssetDetailTab = 'info' | 'materials' | 'maintenance';
 
 
 /** Build tree từ flat list có parentId */
@@ -92,6 +93,7 @@ export default function AssetsPage() {
   const [equipmentMaterials, setEquipmentMaterials] = useState<EquipmentMaterialLink[]>([]);
   const [materialsLoading, setMaterialsLoading] = useState(false);
   const [showAssignMaterialModal, setShowAssignMaterialModal] = useState(false);
+  const [activeAssetTab, setActiveAssetTab] = useState<AssetDetailTab>('info');
 
   useEffect(() => { loadData(); }, []);
 
@@ -335,7 +337,13 @@ export default function AssetsPage() {
 
   const selectedNode = selectedNodeId ? assetMap.get(selectedNodeId) ?? null : null;
   const selectedNodeName = selectedNode?.assetName ?? null;
-  const selectedNodeIsEquipment = !!selectedNode && !isFolderNode(selectedNode);
+  const selectedNodeHasChildren = !!selectedNode && assets.some(asset => asset.parentId === selectedNode.id);
+  const selectedNodeIsFolder = !!selectedNode && (isFolderNode(selectedNode) || selectedNodeHasChildren);
+  const selectedNodeIsEquipment = !!selectedNode && !selectedNodeIsFolder;
+
+  useEffect(() => {
+    if (selectedNodeIsEquipment) setActiveAssetTab('info');
+  }, [selectedNodeId, selectedNodeIsEquipment]);
 
   const loadEquipmentMaterials = useCallback(async (equipmentId: string) => {
     try {
@@ -586,8 +594,16 @@ export default function AssetsPage() {
             /* ── VIEW MODE: bảng dữ liệu ── */
             <>
               {selectedNodeIsEquipment && selectedNode && (
+                <AssetDetailHeader
+                  activeTab={activeAssetTab}
+                  onTabChange={setActiveAssetTab}
+                />
+              )}
+              {selectedNodeIsEquipment && selectedNode && activeAssetTab === 'info' && (
+                <AssetInfoPanel asset={selectedNode} />
+              )}
+              {selectedNodeIsEquipment && selectedNode && activeAssetTab === 'materials' && (
                 <EquipmentMaterialsPanel
-                  asset={selectedNode}
                   materials={equipmentMaterials}
                   loading={materialsLoading}
                   onAdd={() => setShowAssignMaterialModal(true)}
@@ -609,7 +625,10 @@ export default function AssetsPage() {
                   }}
                 />
               )}
-              <div className="flex-1 overflow-auto min-h-0">
+              {selectedNodeIsEquipment && selectedNode && activeAssetTab === 'maintenance' && (
+                <AssetMaintenancePanel asset={selectedNode} />
+              )}
+              <div className={`${selectedNodeIsEquipment ? 'hidden' : 'flex-1 overflow-auto min-h-0'}`}>
                 <table className="min-w-full text-sm border-collapse">
                   <thead className="sticky top-0 z-10">
                     <tr className="bg-blue-50">
@@ -721,7 +740,7 @@ export default function AssetsPage() {
                 </table>
               </div>
               {/* Pagination */}
-              <div className="flex items-center justify-center px-4 py-2 border-t border-gray-200 bg-white flex-shrink-0 text-xs text-gray-600">
+              <div className={`${selectedNodeIsEquipment ? 'hidden' : 'flex items-center justify-center px-4 py-2 border-t border-gray-200 bg-white flex-shrink-0 text-xs text-gray-600'}`}>
                 <div className="flex items-center gap-1">
                   <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40">‹</button>
                   {[...Array(Math.min(5, totalPages))].map((_, i) => {
@@ -858,7 +877,7 @@ export default function AssetsPage() {
       <CreateAssetModal
         mode={createNodeMode}
         assets={assets}
-        defaultParentId={isFolderNode(selectedNode) ? selectedNodeId : selectedNode?.parentId ?? null}
+        defaultParentId={selectedNodeIsFolder ? selectedNodeId : selectedNode?.parentId ?? null}
         onClose={() => setCreateNodeMode(null)}
         onSuccess={async (createdId, parentId) => {
           await loadAssets();
@@ -1124,7 +1143,6 @@ function CreateAssetModal({ mode, assets, defaultParentId, onClose, onSuccess }:
 }
 
 interface EquipmentMaterialsPanelProps {
-  asset: EquipmentAsset;
   materials: EquipmentMaterialLink[];
   loading: boolean;
   onAdd: () => void;
@@ -1133,24 +1151,99 @@ interface EquipmentMaterialsPanelProps {
   onRemove: (material: EquipmentMaterialLink) => Promise<void>;
 }
 
-function EquipmentMaterialsPanel({ asset, materials, loading, onAdd, onRefresh, onUpdate, onRemove }: EquipmentMaterialsPanelProps) {
-  const totalRequired = materials.reduce((sum, item) => sum + Number(item.quantityRequired || 0), 0);
-  const shortageCount = materials.filter(item => Number(item.onHandQuantity || 0) < Number(item.quantityRequired || 0)).length;
+function AssetDetailHeader({
+  activeTab,
+  onTabChange,
+}: {
+  activeTab: AssetDetailTab;
+  onTabChange: (tab: AssetDetailTab) => void;
+}) {
+  const tabs: Array<{ key: AssetDetailTab; label: string }> = [
+    { key: 'info', label: 'Thông tin' },
+    { key: 'materials', label: 'Vật tư yêu cầu' },
+    { key: 'maintenance', label: 'Lịch bảo trì' },
+  ];
 
   return (
-    <section className="border-b border-slate-200 bg-white">
-      <div className="flex items-center justify-between gap-3 px-4 py-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <Package className="h-4 w-4 text-blue-600" />
-            <h3 className="truncate text-sm font-semibold text-slate-900">
-              Vật tư yêu cầu cho {asset.assetName}
-            </h3>
+    <div className="border-b border-slate-200 bg-white">
+      <div className="flex gap-1 px-5 pt-1">
+        {tabs.map(tab => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => onTabChange(tab.key)}
+            className={`border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === tab.key
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AssetInfoPanel({ asset }: { asset: EquipmentAsset }) {
+  return (
+    <div className="flex-1 overflow-auto bg-slate-50 p-5">
+      <div className="grid max-w-5xl grid-cols-1 gap-4 lg:grid-cols-3">
+        <InfoCard title="Thông tin cơ bản">
+          <InfoRow label="Mã thiết bị" value={asset.assetCode} />
+          <InfoRow label="Tên thiết bị" value={asset.assetName} />
+          <InfoRow label="Phân loại" value={asset.category} />
+          <InfoRow label="Vị trí" value={asset.location} />
+          <InfoRow label="Trạng thái" value={assetStatusLabel(asset.status)} />
+          <InfoRow label="Mức độ quan trọng" value={asset.criticality} />
+        </InfoCard>
+
+        <InfoCard title="Thông số kỹ thuật">
+          <InfoRow label="Hãng sản xuất" value={asset.manufacturer} />
+          <InfoRow label="Model" value={asset.model} />
+          <InfoRow label="Serial" value={asset.serialNumber} />
+          <InfoRow label="Giờ chạy hiện tại" value={asset.currentRunningHours != null ? formatQuantity(asset.currentRunningHours) : '-'} />
+          <InfoRow label="Ngày lắp đặt" value={asset.installationDate ? formatDate(asset.installationDate) : '-'} />
+        </InfoCard>
+
+        <InfoCard title="Vai trò vận hành">
+          <InfoRow label="Người thực hiện mặc định" value={asset.defaultExecutorRole} />
+          <InfoRow label="Vai trò phê duyệt" value={asset.approverRole} />
+          <InfoRow label="Đang hoạt động" value={asset.isActive ? 'Có' : 'Không'} />
+        </InfoCard>
+
+        <InfoCard title="Thông số / Ghi chú" className="lg:col-span-3">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <TextBlock label="Thông số kỹ thuật" value={asset.technicalSpecs} />
+            <TextBlock label="Ghi chú" value={asset.notes} />
           </div>
-          <p className="mt-1 text-xs text-slate-500">
-            {materials.length} vật tư, tổng yêu cầu {formatQuantity(totalRequired)}, {shortageCount} vật tư thiếu so với tồn kho
-          </p>
+        </InfoCard>
+      </div>
+    </div>
+  );
+}
+
+function AssetMaintenancePanel({ asset }: { asset: EquipmentAsset }) {
+  return (
+    <div className="flex-1 overflow-auto bg-slate-50 p-5">
+      <div className="max-w-5xl rounded border border-slate-200 bg-white">
+        <div className="border-b border-slate-200 px-4 py-3">
+          <h3 className="text-sm font-semibold text-slate-900">Lịch bảo trì của {asset.assetName}</h3>
+          <p className="mt-1 text-xs text-slate-500">Khu vực này dành để hiển thị các schedule bảo trì gắn trực tiếp với thiết bị.</p>
         </div>
+        <div className="px-4 py-10 text-center text-sm text-slate-500">
+          Chưa tải dữ liệu lịch bảo trì. Có thể nối tiếp API schedule hiện có để hiển thị mã lịch, chu kỳ, hạn tiếp theo và trạng thái quá hạn.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EquipmentMaterialsPanel({ materials, loading, onAdd, onRefresh, onUpdate, onRemove }: EquipmentMaterialsPanelProps) {
+  return (
+    <section className="flex flex-1 flex-col overflow-hidden bg-white">
+      <div className="flex items-center justify-end gap-2 border-b border-gray-200 px-3 py-2">
         <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
@@ -1169,7 +1262,7 @@ function EquipmentMaterialsPanel({ asset, materials, loading, onAdd, onRefresh, 
         </div>
       </div>
 
-      <div className="max-h-64 overflow-auto border-t border-slate-100">
+      <div className="flex-1 overflow-auto">
         {loading ? (
           <div className="px-4 py-6 text-center text-sm text-slate-500">Đang tải vật tư...</div>
         ) : materials.length === 0 ? (
@@ -1177,20 +1270,20 @@ function EquipmentMaterialsPanel({ asset, materials, loading, onAdd, onRefresh, 
             Thiết bị này chưa có vật tư yêu cầu. Bấm “Gán vật tư” để khai báo.
           </div>
         ) : (
-          <table className="min-w-full border-collapse text-xs">
-            <thead className="sticky top-0 bg-slate-50 text-slate-600">
-              <tr>
-                <th className="w-28 border-b border-r border-slate-200 px-3 py-2 text-left font-semibold">Mã vật tư</th>
-                <th className="min-w-[220px] border-b border-r border-slate-200 px-3 py-2 text-left font-semibold">Tên vật tư</th>
-                <th className="w-28 border-b border-r border-slate-200 px-3 py-2 text-right font-semibold">Yêu cầu</th>
-                <th className="w-28 border-b border-r border-slate-200 px-3 py-2 text-right font-semibold">Có sẵn</th>
-                <th className="w-24 border-b border-r border-slate-200 px-3 py-2 text-right font-semibold">Thiếu</th>
-                <th className="w-28 border-b border-r border-slate-200 px-3 py-2 text-left font-semibold">Trạng thái</th>
-                <th className="min-w-[180px] border-b border-r border-slate-200 px-3 py-2 text-left font-semibold">Ghi chú</th>
-                <th className="w-16 border-b border-slate-200 px-2 py-2"></th>
+          <table className="min-w-full border-collapse text-sm">
+            <thead className="sticky top-0 z-10">
+              <tr className="bg-blue-50">
+                <th className="w-28 border-b border-r border-gray-200 px-3 py-2 text-left text-xs font-semibold text-gray-600">Mã vật tư</th>
+                <th className="min-w-[220px] border-b border-r border-gray-200 px-3 py-2 text-left text-xs font-semibold text-gray-600">Tên vật tư</th>
+                <th className="w-28 border-b border-r border-gray-200 px-3 py-2 text-right text-xs font-semibold text-gray-600">Yêu cầu</th>
+                <th className="w-28 border-b border-r border-gray-200 px-3 py-2 text-right text-xs font-semibold text-gray-600">Có sẵn</th>
+                <th className="w-24 border-b border-r border-gray-200 px-3 py-2 text-right text-xs font-semibold text-gray-600">Thiếu</th>
+                <th className="w-28 border-b border-r border-gray-200 px-3 py-2 text-left text-xs font-semibold text-gray-600">Trạng thái</th>
+                <th className="min-w-[180px] border-b border-r border-gray-200 px-3 py-2 text-left text-xs font-semibold text-gray-600">Ghi chú</th>
+                <th className="w-16 border-b border-gray-200 px-2 py-2"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-gray-100">
               {materials.map(material => (
                 <EquipmentMaterialRow
                   key={`${material.materialItemId}-${material.inheritedFrom || 'direct'}`}
@@ -1254,13 +1347,13 @@ function EquipmentMaterialRow({
   };
 
   return (
-    <tr className="hover:bg-blue-50/40">
-      <td className="border-r border-slate-100 px-3 py-2 font-mono text-slate-600">{material.itemCode}</td>
-      <td className="border-r border-slate-100 px-3 py-2">
+    <tr className="hover:bg-blue-50">
+      <td className="border-r border-gray-100 px-3 py-2 font-mono text-slate-600">{material.itemCode}</td>
+      <td className="border-r border-gray-100 px-3 py-2">
         <div className="font-medium text-slate-800">{material.name}</div>
         {material.specification ? <div className="mt-0.5 truncate text-slate-400">{material.specification}</div> : null}
       </td>
-      <td className="border-r border-slate-100 px-3 py-2 text-right">
+      <td className="border-r border-gray-100 px-3 py-2 text-right">
         <div className="flex items-center justify-end gap-1">
           <input
             type="number"
@@ -1275,13 +1368,13 @@ function EquipmentMaterialRow({
           <span className="w-8 text-left text-slate-500">{material.unit}</span>
         </div>
       </td>
-      <td className="border-r border-slate-100 px-3 py-2 text-right font-medium text-slate-700">
+      <td className="border-r border-gray-100 px-3 py-2 text-right font-medium text-slate-700">
         {formatQuantity(onHand)} {material.unit}
       </td>
-      <td className={`border-r border-slate-100 px-3 py-2 text-right font-semibold ${shortage > 0 ? 'text-red-600' : 'text-green-600'}`}>
+      <td className={`border-r border-gray-100 px-3 py-2 text-right font-semibold ${shortage > 0 ? 'text-red-600' : 'text-green-600'}`}>
         {formatQuantity(shortage)}
       </td>
-      <td className="border-r border-slate-100 px-3 py-2">
+      <td className="border-r border-gray-100 px-3 py-2">
         {inherited ? (
           <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Kế thừa</span>
         ) : shortage > 0 ? (
@@ -1290,7 +1383,7 @@ function EquipmentMaterialRow({
           <span className="rounded bg-green-50 px-2 py-0.5 font-medium text-green-700">Đủ</span>
         )}
       </td>
-      <td className="border-r border-slate-100 px-3 py-2">
+      <td className="border-r border-gray-100 px-3 py-2">
         <input
           value={notes}
           onChange={event => setNotes(event.target.value)}
@@ -1486,6 +1579,53 @@ function formatQuantity(value: number): string {
   return Number.isFinite(value)
     ? new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(value)
     : '0';
+}
+
+function formatDate(value: string): string {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('vi-VN');
+}
+
+function assetStatusLabel(status?: string): string {
+  switch (status) {
+    case 'ACTIVE': return 'Đang hoạt động';
+    case 'STANDBY': return 'Chờ sẵn';
+    case 'UNDER_MAINTENANCE': return 'Đang bảo trì';
+    case 'DECOMMISSIONED': return 'Ngừng sử dụng';
+    case 'IN_STORAGE': return 'Trong kho';
+    default: return status || '-';
+  }
+}
+
+function InfoCard({ title, className = '', children }: { title: string; className?: string; children: React.ReactNode }) {
+  return (
+    <section className={`rounded border border-slate-200 bg-white ${className}`}>
+      <div className="border-b border-slate-200 px-4 py-3">
+        <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+      </div>
+      <div className="space-y-3 px-4 py-3">{children}</div>
+    </section>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value?: string | number | null }) {
+  return (
+    <div className="grid grid-cols-[140px_1fr] gap-3 text-sm">
+      <span className="text-slate-500">{label}</span>
+      <span className="font-medium text-slate-800">{value || '-'}</span>
+    </div>
+  );
+}
+
+function TextBlock({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <div>
+      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</div>
+      <div className="min-h-24 whitespace-pre-wrap rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+        {value || '-'}
+      </div>
+    </div>
+  );
 }
 
 function Field({ label, required, className = '', children }: { label: string; required?: boolean; className?: string; children: React.ReactNode }) {
