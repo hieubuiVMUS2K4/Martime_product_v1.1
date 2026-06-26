@@ -94,6 +94,7 @@ export default function AssetsPage() {
   const [materialsLoading, setMaterialsLoading] = useState(false);
   const [showAssignMaterialModal, setShowAssignMaterialModal] = useState(false);
   const [activeAssetTab, setActiveAssetTab] = useState<AssetDetailTab>('info');
+  const [isEditingMaterialRow, setIsEditingMaterialRow] = useState(false);
 
   useEffect(() => { loadData(); }, []);
 
@@ -366,6 +367,22 @@ export default function AssetsPage() {
     }
   }, [selectedNodeId, selectedNodeIsEquipment, loadEquipmentMaterials]);
 
+  useEffect(() => {
+    if (!selectedNodeIsEquipment || activeAssetTab !== 'materials' || !selectedNodeId || isEditingMaterialRow) return;
+
+    const refreshMaterials = () => {
+      loadEquipmentMaterials(selectedNodeId);
+    };
+
+    const intervalId = window.setInterval(refreshMaterials, 10000);
+    window.addEventListener('focus', refreshMaterials);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', refreshMaterials);
+    };
+  }, [activeAssetTab, selectedNodeId, selectedNodeIsEquipment, isEditingMaterialRow, loadEquipmentMaterials]);
+
   /** Render đệ quy 1 node trong tree */
   const renderTreeNode = (node: EquipmentAsset, depth = 0): React.ReactNode => {
     const hasChildren = (node.children?.length ?? 0) > 0;
@@ -604,6 +621,7 @@ export default function AssetsPage() {
               )}
               {selectedNodeIsEquipment && selectedNode && activeAssetTab === 'materials' && (
                 <EquipmentMaterialsPanel
+                  t={t}
                   materials={equipmentMaterials}
                   loading={materialsLoading}
                   onAdd={() => setShowAssignMaterialModal(true)}
@@ -614,15 +632,20 @@ export default function AssetsPage() {
                       quantityRequired,
                       notes,
                     });
-                    await loadEquipmentMaterials(selectedNode.id);
+                    setEquipmentMaterials(prev => prev.map(item =>
+                      item.linkId === material.linkId
+                        ? { ...item, quantityRequired, notes }
+                        : item
+                    ));
                     toast.success('Đã cập nhật vật tư yêu cầu');
                   }}
                   onRemove={async (material) => {
                     if (material.inheritedFrom) return;
                     await materialService.removeEquipmentLink(material.materialItemId, selectedNode.id);
-                    await loadEquipmentMaterials(selectedNode.id);
+                    setEquipmentMaterials(prev => prev.filter(item => item.linkId !== material.linkId));
                     toast.success('Đã xóa vật tư khỏi thiết bị');
                   }}
+                  onEditingChange={setIsEditingMaterialRow}
                 />
               )}
               {selectedNodeIsEquipment && selectedNode && activeAssetTab === 'maintenance' && (
@@ -1143,12 +1166,14 @@ function CreateAssetModal({ mode, assets, defaultParentId, onClose, onSuccess }:
 }
 
 interface EquipmentMaterialsPanelProps {
+  t: (key: string, params?: Record<string, string | number>) => string;
   materials: EquipmentMaterialLink[];
   loading: boolean;
   onAdd: () => void;
   onRefresh: () => void;
   onUpdate: (material: EquipmentMaterialLink, quantityRequired: number, notes?: string | null) => Promise<void>;
   onRemove: (material: EquipmentMaterialLink) => Promise<void>;
+  onEditingChange: (isEditing: boolean) => void;
 }
 
 function AssetDetailHeader({
@@ -1240,7 +1265,7 @@ function AssetMaintenancePanel({ asset }: { asset: EquipmentAsset }) {
   );
 }
 
-function EquipmentMaterialsPanel({ materials, loading, onAdd, onRefresh, onUpdate, onRemove }: EquipmentMaterialsPanelProps) {
+function EquipmentMaterialsPanel({ t, materials, loading, onAdd, onRefresh, onUpdate, onRemove, onEditingChange }: EquipmentMaterialsPanelProps) {
   return (
     <section className="flex flex-1 flex-col overflow-hidden bg-white">
       <div className="flex items-center justify-end gap-2 border-b border-gray-200 px-3 py-2">
@@ -1250,46 +1275,50 @@ function EquipmentMaterialsPanel({ materials, loading, onAdd, onRefresh, onUpdat
             onClick={onRefresh}
             className="rounded border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
           >
-            Làm mới
+            {t('pms.assets.requiredMaterials.refresh')}
           </button>
           <button
             type="button"
             onClick={onAdd}
             className="inline-flex items-center gap-1.5 rounded bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
           >
-            <Plus className="h-3.5 w-3.5" /> Gán vật tư
+            <Plus className="h-3.5 w-3.5" /> {t('pms.assets.requiredMaterials.assign')}
           </button>
         </div>
       </div>
 
       <div className="flex-1 overflow-auto">
         {loading ? (
-          <div className="px-4 py-6 text-center text-sm text-slate-500">Đang tải vật tư...</div>
+          <div className="px-4 py-6 text-center text-sm text-slate-500">{t('pms.assets.requiredMaterials.loading')}</div>
         ) : materials.length === 0 ? (
           <div className="px-4 py-6 text-center text-sm text-slate-500">
-            Thiết bị này chưa có vật tư yêu cầu. Bấm “Gán vật tư” để khai báo.
+            {t('pms.assets.requiredMaterials.empty')}
           </div>
         ) : (
           <table className="min-w-full border-collapse text-sm">
             <thead className="sticky top-0 z-10">
               <tr className="bg-blue-50">
-                <th className="w-28 border-b border-r border-gray-200 px-3 py-2 text-left text-xs font-semibold text-gray-600">Mã vật tư</th>
-                <th className="min-w-[220px] border-b border-r border-gray-200 px-3 py-2 text-left text-xs font-semibold text-gray-600">Tên vật tư</th>
-                <th className="w-28 border-b border-r border-gray-200 px-3 py-2 text-right text-xs font-semibold text-gray-600">Yêu cầu</th>
-                <th className="w-28 border-b border-r border-gray-200 px-3 py-2 text-right text-xs font-semibold text-gray-600">Có sẵn</th>
-                <th className="w-24 border-b border-r border-gray-200 px-3 py-2 text-right text-xs font-semibold text-gray-600">Thiếu</th>
-                <th className="w-28 border-b border-r border-gray-200 px-3 py-2 text-left text-xs font-semibold text-gray-600">Trạng thái</th>
-                <th className="min-w-[180px] border-b border-r border-gray-200 px-3 py-2 text-left text-xs font-semibold text-gray-600">Ghi chú</th>
+                <th className="w-12 border-b border-r border-gray-200 px-3 py-2 text-left text-xs font-semibold text-gray-600">{t('pms.assets.requiredMaterials.no')}</th>
+                <th className="w-28 border-b border-r border-gray-200 px-3 py-2 text-left text-xs font-semibold text-gray-600">{t('pms.assets.requiredMaterials.itemCode')}</th>
+                <th className="min-w-[220px] border-b border-r border-gray-200 px-3 py-2 text-left text-xs font-semibold text-gray-600">{t('pms.assets.requiredMaterials.itemName')}</th>
+                <th className="w-28 border-b border-r border-gray-200 px-3 py-2 text-left text-xs font-semibold text-gray-600">{t('pms.assets.requiredMaterials.required')}</th>
+                <th className="w-28 border-b border-r border-gray-200 px-3 py-2 text-left text-xs font-semibold text-gray-600">{t('pms.assets.requiredMaterials.onHand')}</th>
+                <th className="w-24 border-b border-r border-gray-200 px-3 py-2 text-left text-xs font-semibold text-gray-600">{t('pms.assets.requiredMaterials.shortage')}</th>
+                <th className="w-28 border-b border-r border-gray-200 px-3 py-2 text-left text-xs font-semibold text-gray-600">{t('pms.assets.requiredMaterials.status')}</th>
+                <th className="min-w-[180px] border-b border-r border-gray-200 px-3 py-2 text-left text-xs font-semibold text-gray-600">{t('pms.assets.requiredMaterials.notes')}</th>
                 <th className="w-16 border-b border-gray-200 px-2 py-2"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {materials.map(material => (
+              {materials.map((material, index) => (
                 <EquipmentMaterialRow
                   key={`${material.materialItemId}-${material.inheritedFrom || 'direct'}`}
+                  index={index}
+                  t={t}
                   material={material}
                   onUpdate={onUpdate}
                   onRemove={onRemove}
+                  onEditingChange={onEditingChange}
                 />
               ))}
             </tbody>
@@ -1301,13 +1330,19 @@ function EquipmentMaterialsPanel({ materials, loading, onAdd, onRefresh, onUpdat
 }
 
 function EquipmentMaterialRow({
+  index,
+  t,
   material,
   onUpdate,
   onRemove,
+  onEditingChange,
 }: {
+  index: number;
+  t: (key: string, params?: Record<string, string | number>) => string;
   material: EquipmentMaterialLink;
   onUpdate: (material: EquipmentMaterialLink, quantityRequired: number, notes?: string | null) => Promise<void>;
   onRemove: (material: EquipmentMaterialLink) => Promise<void>;
+  onEditingChange: (isEditing: boolean) => void;
 }) {
   const [quantityRequired, setQuantityRequired] = useState(String(material.quantityRequired ?? 1));
   const [notes, setNotes] = useState(material.notes || '');
@@ -1332,6 +1367,7 @@ function EquipmentMaterialRow({
       toast.error(error?.response?.data?.error || 'Không thể cập nhật vật tư yêu cầu');
     } finally {
       setSaving(false);
+      onEditingChange(false);
     }
   };
 
@@ -1348,48 +1384,50 @@ function EquipmentMaterialRow({
 
   return (
     <tr className="hover:bg-blue-50">
-      <td className="border-r border-gray-100 px-3 py-2 font-mono text-slate-600">{material.itemCode}</td>
+      <td className="border-r border-gray-100 px-3 py-2 text-left text-xs text-gray-500">{index + 1}</td>
+      <td className="border-r border-gray-100 px-3 py-2 text-left font-mono text-slate-600">{material.itemCode}</td>
       <td className="border-r border-gray-100 px-3 py-2">
         <div className="font-medium text-slate-800">{material.name}</div>
         {material.specification ? <div className="mt-0.5 truncate text-slate-400">{material.specification}</div> : null}
       </td>
-      <td className="border-r border-gray-100 px-3 py-2 text-right">
-        <div className="flex items-center justify-end gap-1">
+      <td className="border-r border-gray-100 px-3 py-2 text-left">
+        <div className="flex items-center justify-start">
           <input
             type="number"
             min="0"
             step="0.01"
             value={quantityRequired}
             onChange={event => setQuantityRequired(event.target.value)}
+            onFocus={() => onEditingChange(true)}
             onBlur={save}
             disabled={inherited || saving}
-            className="h-7 w-20 rounded border border-slate-300 px-2 text-right outline-none focus:border-blue-500 disabled:bg-slate-100"
+            className="h-7 w-20 rounded border border-slate-300 px-2 text-left outline-none focus:border-blue-500 disabled:bg-slate-100"
           />
-          <span className="w-8 text-left text-slate-500">{material.unit}</span>
         </div>
       </td>
-      <td className="border-r border-gray-100 px-3 py-2 text-right font-medium text-slate-700">
-        {formatQuantity(onHand)} {material.unit}
+      <td className="border-r border-gray-100 px-3 py-2 text-left font-medium text-slate-700">
+        {formatQuantity(onHand)}
       </td>
-      <td className={`border-r border-gray-100 px-3 py-2 text-right font-semibold ${shortage > 0 ? 'text-red-600' : 'text-green-600'}`}>
+      <td className={`border-r border-gray-100 px-3 py-2 text-left font-semibold ${shortage > 0 ? 'text-red-600' : 'text-green-600'}`}>
         {formatQuantity(shortage)}
       </td>
       <td className="border-r border-gray-100 px-3 py-2">
         {inherited ? (
-          <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-600">Kế thừa</span>
+          <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-600">{t('pms.assets.requiredMaterials.inherited')}</span>
         ) : shortage > 0 ? (
-          <span className="rounded bg-red-50 px-2 py-0.5 font-medium text-red-700">Thiếu</span>
+          <span className="rounded bg-red-50 px-2 py-0.5 font-medium text-red-700">{t('pms.assets.requiredMaterials.insufficient')}</span>
         ) : (
-          <span className="rounded bg-green-50 px-2 py-0.5 font-medium text-green-700">Đủ</span>
+          <span className="rounded bg-green-50 px-2 py-0.5 font-medium text-green-700">{t('pms.assets.requiredMaterials.sufficient')}</span>
         )}
       </td>
       <td className="border-r border-gray-100 px-3 py-2">
         <input
           value={notes}
           onChange={event => setNotes(event.target.value)}
+          onFocus={() => onEditingChange(true)}
           onBlur={save}
           disabled={inherited || saving}
-          placeholder="Ghi chú..."
+          placeholder={t('pms.assets.requiredMaterials.notesPlaceholder')}
           className="h-7 w-full rounded border border-slate-300 px-2 outline-none focus:border-blue-500 disabled:bg-slate-100"
         />
       </td>
@@ -1399,7 +1437,7 @@ function EquipmentMaterialRow({
           onClick={remove}
           disabled={inherited || saving}
           className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
-          title={inherited ? 'Vật tư kế thừa từ thư mục cha' : 'Xóa khỏi thiết bị'}
+          title={inherited ? t('pms.assets.requiredMaterials.inheritedTitle') : t('pms.assets.requiredMaterials.remove')}
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>

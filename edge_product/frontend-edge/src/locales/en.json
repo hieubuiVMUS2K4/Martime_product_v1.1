@@ -2484,6 +2484,26 @@
         "importedCount": "Imported {count} assets",
         "importing": "Importing...",
         "importButton": "Import Excel"
+      },
+      "requiredMaterials": {
+        "refresh": "Refresh",
+        "assign": "Assign material",
+        "loading": "Loading materials...",
+        "empty": "This equipment has no required materials yet. Click Assign material to define them.",
+        "no": "No.",
+        "itemCode": "Material code",
+        "itemName": "Material name",
+        "required": "Required",
+        "onHand": "On hand",
+        "shortage": "Shortage",
+        "status": "Status",
+        "notes": "Notes",
+        "notesPlaceholder": "Notes...",
+        "inherited": "Inherited",
+        "insufficient": "Shortage",
+        "sufficient": "Enough",
+        "remove": "Remove from equipment",
+        "inheritedTitle": "Material inherited from parent folder"
       }
     },
     "groups": {

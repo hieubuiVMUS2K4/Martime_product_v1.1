@@ -2484,6 +2484,26 @@
         "importedCount": "Đã nhập {count} thiết bị",
         "importing": "Đang nhập...",
         "importButton": "Nhập Excel"
+      },
+      "requiredMaterials": {
+        "refresh": "Làm mới",
+        "assign": "Gán vật tư",
+        "loading": "Đang tải vật tư...",
+        "empty": "Thiết bị này chưa có vật tư yêu cầu. Bấm Gán vật tư để khai báo.",
+        "no": "STT",
+        "itemCode": "Mã vật tư",
+        "itemName": "Tên vật tư",
+        "required": "Yêu cầu",
+        "onHand": "Có sẵn",
+        "shortage": "Thiếu",
+        "status": "Trạng thái",
+        "notes": "Ghi chú",
+        "notesPlaceholder": "Ghi chú...",
+        "inherited": "Kế thừa",
+        "insufficient": "Thiếu",
+        "sufficient": "Đủ",
+        "remove": "Xóa khỏi thiết bị",
+        "inheritedTitle": "Vật tư kế thừa từ thư mục cha"
       }
     },
     "groups": {
