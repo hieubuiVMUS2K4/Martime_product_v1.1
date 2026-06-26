@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Plus, Upload, Download, Search, Package, Trash2, ChevronDown, ChevronRight, FolderOpen, Save, ChevronsUpDown, X } from 'lucide-react';
+import { Plus, Upload, Download, Search, Package, Trash2, ChevronDown, ChevronRight, FolderOpen, Save, ChevronsUpDown, X, Pencil } from 'lucide-react';
 import { equipmentAssetService } from '@/services/equipment-asset.service';
 import { ImportAssetsModal } from '@/components/pms/ImportAssetsModal';
 import { materialService, type EquipmentMaterialLink } from '@/services/materialService';
@@ -93,6 +93,7 @@ export default function AssetsPage() {
   const [equipmentMaterials, setEquipmentMaterials] = useState<EquipmentMaterialLink[]>([]);
   const [materialsLoading, setMaterialsLoading] = useState(false);
   const [showAssignMaterialModal, setShowAssignMaterialModal] = useState(false);
+  const [editingAsset, setEditingAsset] = useState<EquipmentAsset | null>(null);
   const [activeAssetTab, setActiveAssetTab] = useState<AssetDetailTab>('info');
   const [isEditingMaterialRow, setIsEditingMaterialRow] = useState(false);
 
@@ -614,6 +615,7 @@ export default function AssetsPage() {
                 <AssetDetailHeader
                   activeTab={activeAssetTab}
                   onTabChange={setActiveAssetTab}
+                  onEditInfo={() => setEditingAsset(selectedNode)}
                   onAddMaterial={() => setShowAssignMaterialModal(true)}
                   t={t}
                 />
@@ -916,6 +918,17 @@ export default function AssetsPage() {
         }}
       />
 
+      <EditAssetModal
+        asset={editingAsset}
+        onClose={() => setEditingAsset(null)}
+        onSuccess={async (updated) => {
+          await loadAssets();
+          setSelectedNodeId(updated.id);
+          setEditingAsset(null);
+          toast.success(t('pms.assets.saveSuccess', { name: updated.assetName }));
+        }}
+      />
+
       <AssignEquipmentMaterialModal
         isOpen={showAssignMaterialModal}
         asset={selectedNodeIsEquipment ? selectedNode : null}
@@ -974,6 +987,137 @@ interface CreateAssetModalProps {
   defaultParentId: string | null;
   onClose: () => void;
   onSuccess: (createdId: string, parentId?: string) => void | Promise<void>;
+}
+
+interface EditAssetModalProps {
+  asset: EquipmentAsset | null;
+  onClose: () => void;
+  onSuccess: (asset: EquipmentAsset) => void | Promise<void>;
+}
+
+function EditAssetModal({ asset, onClose, onSuccess }: EditAssetModalProps) {
+  const { t } = useTranslationSafe();
+  const [saving, setSaving] = useState(false);
+  const [formData, setFormData] = useState<Partial<EquipmentAsset>>({});
+
+  useEffect(() => {
+    if (!asset) return;
+    setFormData({
+      assetCode: asset.assetCode,
+      assetName: asset.assetName,
+      category: asset.category,
+      manufacturer: asset.manufacturer || '',
+      model: asset.model || '',
+      serialNumber: asset.serialNumber || '',
+      location: asset.location || '',
+      criticality: asset.criticality || 'NORMAL',
+      status: asset.status || 'ACTIVE',
+      currentRunningHours: asset.currentRunningHours ?? 0,
+      technicalSpecs: asset.technicalSpecs || '',
+      notes: asset.notes || '',
+      parentId: asset.parentId,
+      isActive: asset.isActive,
+    });
+  }, [asset]);
+
+  if (!asset) return null;
+
+  const handleChange = (field: keyof EquipmentAsset, value: string | number) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.assetCode?.trim() || !formData.assetName?.trim()) {
+      toast.error(t('pms.assets.codeNameRequired'));
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const updated = await equipmentAssetService.update(asset.id, {
+        ...formData,
+        assetCode: formData.assetCode.trim(),
+        assetName: formData.assetName.trim(),
+        currentRunningHours: Number(formData.currentRunningHours || 0),
+      });
+      await onSuccess(updated);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || t('pms.assets.saveFailed'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4">
+      <form onSubmit={handleSubmit} className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+          <div>
+            <h2 className="text-base font-semibold text-slate-900">{t('pms.assets.edit')} {asset.assetName}</h2>
+            <p className="mt-0.5 text-xs text-slate-500">{asset.assetCode}</p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="grid flex-1 grid-cols-1 gap-4 overflow-y-auto p-5 md:grid-cols-2">
+          <Field label={t('pms.assets.assetCodeLabel')} required>
+            <input value={formData.assetCode || ''} onChange={e => handleChange('assetCode', e.target.value)} className="w-full rounded border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
+          </Field>
+          <Field label={t('pms.assets.assetNameLabel')} required>
+            <input value={formData.assetName || ''} onChange={e => handleChange('assetName', e.target.value)} className="w-full rounded border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
+          </Field>
+          <Field label={t('pms.assets.categoryLabel')} required>
+            <select value={formData.category || 'ENGINE'} onChange={e => handleChange('category', e.target.value)} className="w-full rounded border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+              {ASSET_CATEGORIES.map(category => <option key={category} value={category}>{category}</option>)}
+            </select>
+          </Field>
+          <Field label={t('pms.assets.locationLabel')}>
+            <input value={formData.location || ''} onChange={e => handleChange('location', e.target.value)} className="w-full rounded border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
+          </Field>
+          <Field label={t('pms.assets.statusLabel')}>
+            <select value={formData.status || 'ACTIVE'} onChange={e => handleChange('status', e.target.value)} className="w-full rounded border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+              {STATUS_VALUES.filter(Boolean).map(status => <option key={status} value={status}>{assetStatusLabel(status)}</option>)}
+            </select>
+          </Field>
+          <Field label={t('pms.assets.criticalityLabel')}>
+            <select value={formData.criticality || 'NORMAL'} onChange={e => handleChange('criticality', e.target.value)} className="w-full rounded border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+              {CRITICALITY_VALUES.map(value => <option key={value} value={value}>{value}</option>)}
+            </select>
+          </Field>
+          <Field label={t('pms.assets.manufacturerLabel')}>
+            <input value={formData.manufacturer || ''} onChange={e => handleChange('manufacturer', e.target.value)} className="w-full rounded border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
+          </Field>
+          <Field label={t('pms.assets.modelLabel')}>
+            <input value={formData.model || ''} onChange={e => handleChange('model', e.target.value)} className="w-full rounded border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
+          </Field>
+          <Field label={t('pms.assets.serialNumberLabel')}>
+            <input value={formData.serialNumber || ''} onChange={e => handleChange('serialNumber', e.target.value)} className="w-full rounded border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
+          </Field>
+          <Field label={t('pms.assets.runningHoursLabel')}>
+            <input type="number" value={formData.currentRunningHours ?? 0} onChange={e => handleChange('currentRunningHours', Number(e.target.value))} className="w-full rounded border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
+          </Field>
+          <Field label={t('pms.assets.technicalSpecsLabel')} className="md:col-span-2">
+            <textarea rows={3} value={formData.technicalSpecs || ''} onChange={e => handleChange('technicalSpecs', e.target.value)} className="w-full resize-none rounded border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
+          </Field>
+          <Field label={t('pms.assets.notesLabel')} className="md:col-span-2">
+            <textarea rows={3} value={formData.notes || ''} onChange={e => handleChange('notes', e.target.value)} className="w-full resize-none rounded border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
+          </Field>
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
+          <button type="button" onClick={onClose} className="rounded border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100">
+            {t('common.cancel')}
+          </button>
+          <button type="submit" disabled={saving} className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
+            {saving ? t('pms.assets.saving') : t('common.save')}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
 }
 
 function CreateAssetModal({ mode, assets, defaultParentId, onClose, onSuccess }: CreateAssetModalProps) {
@@ -1177,11 +1321,13 @@ interface EquipmentMaterialsPanelProps {
 function AssetDetailHeader({
   activeTab,
   onTabChange,
+  onEditInfo,
   onAddMaterial,
   t,
 }: {
   activeTab: AssetDetailTab;
   onTabChange: (tab: AssetDetailTab) => void;
+  onEditInfo: () => void;
   onAddMaterial: () => void;
   t: (key: string, params?: Record<string, string | number>) => string;
 }) {
@@ -1210,6 +1356,15 @@ function AssetDetailHeader({
             </button>
           ))}
         </div>
+        {activeTab === 'info' && (
+          <button
+            type="button"
+            onClick={onEditInfo}
+            className="mb-1 inline-flex items-center gap-1.5 rounded border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            <Pencil className="h-3.5 w-3.5" /> {t('common.edit')}
+          </button>
+        )}
         {activeTab === 'materials' && (
           <button
             type="button"

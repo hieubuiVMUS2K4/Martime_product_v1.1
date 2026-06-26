@@ -2441,6 +2441,7 @@
       "tabBasic": "Basic",
       "tabTech": "Technical",
       "tabNotes": "Notes",
+      "assetCodeLabel": "Asset Code",
       "assetNameLabel": "Asset Name",
       "categoryLabel": "Category",
       "locationLabel": "Location",
@@ -2465,6 +2466,7 @@
       "deleteManySuccess": "Deleted {count} assets",
       "createSuccess": "Created asset {name}",
       "saveSuccess": "Saved asset {name}",
+      "codeNameRequired": "Asset Code and Asset Name are required",
       "importModal": {
         "title": "Import equipment from Excel",
         "instructions": "The file must include AssetCode, AssetName, and Category columns. Use ParentAssetCode to place child assets under the correct parent asset.",

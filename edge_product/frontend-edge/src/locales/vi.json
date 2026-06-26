@@ -2441,6 +2441,7 @@
       "tabBasic": "Cơ bản",
       "tabTech": "Kỹ thuật",
       "tabNotes": "Ghi chú",
+      "assetCodeLabel": "Mã thiết bị",
       "assetNameLabel": "Tên thiết bị",
       "categoryLabel": "Danh mục",
       "locationLabel": "Vị trí",
@@ -2465,6 +2466,7 @@
       "deleteManySuccess": "Đã xóa {count} thiết bị",
       "createSuccess": "Đã tạo thiết bị {name}",
       "saveSuccess": "Đã lưu thiết bị {name}",
+      "codeNameRequired": "Mã thiết bị và Tên thiết bị là bắt buộc",
       "importModal": {
         "title": "Nhập thiết bị từ Excel",
         "instructions": "File cần có các cột: AssetCode, AssetName, Category. Dùng ParentAssetCode để đặt thiết bị con vào đúng thiết bị cha.",
