@@ -609,7 +609,7 @@ export default function MaterialRequestPage() {
                         options={getMaterialOptions(item).map(m => ({
                           value: m.id,
                           label: `${m.itemCode} - ${m.name}`,
-                          subLabel: `Tồn: ${m.onHandQuantity ?? 0} ${m.unit || ''}`,
+                          subLabel: `Tồn: ${getInventoryQuantity(m.id) ?? '-'} ${getInventoryQuantity(m.id) == null ? '' : (m.unit || '')}`,
                         }))}
                         onChange={value => {
                           if (value) selectMaterial(idx, value);
