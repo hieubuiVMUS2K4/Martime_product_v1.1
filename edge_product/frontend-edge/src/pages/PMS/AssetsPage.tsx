@@ -347,16 +347,16 @@ export default function AssetsPage() {
     if (selectedNodeIsEquipment) setActiveAssetTab('info');
   }, [selectedNodeId, selectedNodeIsEquipment]);
 
-  const loadEquipmentMaterials = useCallback(async (equipmentId: string) => {
+  const loadEquipmentMaterials = useCallback(async (equipmentId: string, options?: { silent?: boolean }) => {
     try {
-      setMaterialsLoading(true);
+      if (!options?.silent) setMaterialsLoading(true);
       const data = await materialService.getMaterialsByEquipment(equipmentId);
       setEquipmentMaterials(data);
     } catch (error: any) {
-      toast.error(error?.response?.data?.error || 'Không thể tải vật tư của thiết bị');
-      setEquipmentMaterials([]);
+      if (!options?.silent) toast.error(error?.response?.data?.error || 'Không thể tải vật tư của thiết bị');
+      if (!options?.silent) setEquipmentMaterials([]);
     } finally {
-      setMaterialsLoading(false);
+      if (!options?.silent) setMaterialsLoading(false);
     }
   }, []);
 
@@ -372,14 +372,12 @@ export default function AssetsPage() {
     if (!selectedNodeIsEquipment || activeAssetTab !== 'materials' || !selectedNodeId || isEditingMaterialRow) return;
 
     const refreshMaterials = () => {
-      loadEquipmentMaterials(selectedNodeId);
+      loadEquipmentMaterials(selectedNodeId, { silent: true });
     };
 
-    const intervalId = window.setInterval(refreshMaterials, 10000);
     window.addEventListener('focus', refreshMaterials);
 
     return () => {
-      window.clearInterval(intervalId);
       window.removeEventListener('focus', refreshMaterials);
     };
   }, [activeAssetTab, selectedNodeId, selectedNodeIsEquipment, isEditingMaterialRow, loadEquipmentMaterials]);

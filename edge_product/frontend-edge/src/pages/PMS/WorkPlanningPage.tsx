@@ -113,6 +113,26 @@ function getSelectableEquipmentIds(node: EquipmentAsset): Set<string> {
   return ids;
 }
 
+function normalizeTreeSearch(value?: string | null): string {
+  return (value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase();
+}
+
+function matchesEquipmentTreeSearch(node: EquipmentAsset, search: string): boolean {
+  const q = normalizeTreeSearch(search);
+  if (!q) return true;
+
+  const selfMatches =
+    normalizeTreeSearch(node.assetCode).includes(q) ||
+    normalizeTreeSearch(node.assetName).includes(q);
+
+  return selfMatches || (node.children?.some(child => matchesEquipmentTreeSearch(child, search)) ?? false);
+}
+
 // === Gantt helpers ===
 interface GanttTask {
   id: string;
@@ -659,16 +679,27 @@ export default function WorkPlanningPage() {
         allLinked.forEach(m => { if (!seen.has(m.materialItemId)) seen.set(m.materialItemId, m); });
         const linkedIds = new Set(seen.keys());
         setCfgLinkedMaterialIds(linkedIds);
-        // Only auto-populate if spare parts list is currently empty (new config, not editing)
         setCfgForm(prev => {
-          if (prev.requiredSpareParts && prev.requiredSpareParts.length > 0) return prev;
-          if (seen.size === 0) return prev;
-          const autoRows = [...seen.values()].map(m => ({
+          const linkedRows = [...seen.values()].map(m => ({
             materialItemId: m.materialItemId,
-            quantityRequired: 1,
+            quantityRequired: Number(m.quantityRequired ?? 1) || 1,
             isMandatory: true,
           }));
-          return { ...prev, requiredSpareParts: autoRows };
+          if (seen.size === 0) return prev;
+
+          if (!prev.requiredSpareParts || prev.requiredSpareParts.length === 0) {
+            return { ...prev, requiredSpareParts: linkedRows };
+          }
+
+          const existingIds = new Set(prev.requiredSpareParts.map(part => part.materialItemId).filter(Boolean));
+          const updatedRows = prev.requiredSpareParts.map(part => {
+            const linked = part.materialItemId ? seen.get(part.materialItemId) : undefined;
+            return linked
+              ? { ...part, quantityRequired: Number(linked.quantityRequired ?? part.quantityRequired ?? 1) || 1 }
+              : part;
+          });
+          const appendedRows = linkedRows.filter(row => !existingIds.has(row.materialItemId));
+          return { ...prev, requiredSpareParts: [...updatedRows, ...appendedRows] };
         });
       })
       .catch(console.error);
@@ -1261,7 +1292,7 @@ export default function WorkPlanningPage() {
         <div className="w-64 flex-shrink-0 border-r border-gray-200 flex flex-col bg-white">
           {/* Tree nodes - scrollable */}
           <div className="flex-1 overflow-y-auto text-xs">
-            {tree.filter(n => !treeSearch || n.assetName.toLowerCase().includes(treeSearch.toLowerCase()) || n.assetCode.toLowerCase().includes(treeSearch.toLowerCase())).map(node => (
+            {tree.filter(node => matchesEquipmentTreeSearch(node, treeSearch)).map(node => (
               <TreeNode
                 key={node.id}
                 node={node}
@@ -2503,7 +2534,7 @@ function TreeNode({
 
   // Filter children by search
   const filteredChildren = search
-    ? node.children?.filter(c => c.assetName.toLowerCase().includes(search.toLowerCase()) || c.assetCode.toLowerCase().includes(search.toLowerCase()))
+    ? node.children?.filter(child => matchesEquipmentTreeSearch(child, search))
     : node.children;
 
   return (
@@ -2536,7 +2567,7 @@ function TreeNode({
           {node.assetCode} - {node.assetName}
         </span>
       </div>
-      {hasChildren && isExpanded && filteredChildren?.map(child => (
+      {hasChildren && (isExpanded || !!search.trim()) && filteredChildren?.map(child => (
         <TreeNode
           key={child.id}
           node={child}
