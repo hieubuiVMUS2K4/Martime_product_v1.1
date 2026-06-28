@@ -125,7 +125,7 @@ export interface EquipmentMaterialLink {
   itemCode: string
   name: string
   unit: string
-  onHandQuantity: number
+  onHandQuantity?: number | null
   quantityRequired: number
   minStock?: number | null
   specification?: string | null

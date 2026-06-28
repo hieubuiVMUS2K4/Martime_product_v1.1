@@ -3,6 +3,7 @@ import { Plus, Upload, Download, Search, Package, Trash2, ChevronDown, ChevronRi
 import { equipmentAssetService } from '@/services/equipment-asset.service';
 import { ImportAssetsModal } from '@/components/pms/ImportAssetsModal';
 import { materialService, type EquipmentMaterialLink } from '@/services/materialService';
+import { inventoryService } from '@/services/inventory.service';
 import { useTranslationSafe } from '@/contexts/I18nContext';
 import { toast } from 'sonner';
 import type { MaterialItem } from '@/types/maritime.types';
@@ -1496,8 +1497,9 @@ function EquipmentMaterialRow({
   const [saving, setSaving] = useState(false);
   const inherited = !!material.inheritedFrom;
   const required = Number(quantityRequired || 0);
-  const onHand = Number(material.onHandQuantity || 0);
-  const shortage = Math.max(0, required - onHand);
+  const hasStock = material.onHandQuantity !== null && material.onHandQuantity !== undefined;
+  const onHand = hasStock ? Number(material.onHandQuantity) : null;
+  const shortage = hasStock ? Math.max(0, required - (onHand ?? 0)) : null;
 
   useEffect(() => {
     setQuantityRequired(String(material.quantityRequired ?? 1));
@@ -1553,14 +1555,16 @@ function EquipmentMaterialRow({
         </div>
       </td>
       <td className="border-r border-gray-100 px-3 py-2 text-left font-medium text-slate-700">
-        {formatQuantity(onHand)}
+        {hasStock ? formatQuantity(onHand ?? 0) : '-'}
       </td>
-      <td className={`border-r border-gray-100 px-3 py-2 text-left font-semibold ${shortage > 0 ? 'text-red-600' : 'text-green-600'}`}>
-        {formatQuantity(shortage)}
+      <td className={`border-r border-gray-100 px-3 py-2 text-left font-semibold ${shortage === null ? 'text-slate-400' : shortage > 0 ? 'text-red-600' : 'text-green-600'}`}>
+        {shortage === null ? '-' : formatQuantity(shortage)}
       </td>
       <td className="border-r border-gray-100 px-3 py-2">
         {inherited ? (
           <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-600">{t('pms.assets.requiredMaterials.inherited')}</span>
+        ) : shortage === null ? (
+          <span className="text-slate-400">-</span>
         ) : shortage > 0 ? (
           <span className="rounded bg-red-50 px-2 py-0.5 font-medium text-red-700">{t('pms.assets.requiredMaterials.insufficient')}</span>
         ) : (
@@ -1605,6 +1609,7 @@ function AssignEquipmentMaterialModal({
   onAssigned: () => Promise<void> | void;
 }) {
   const [items, setItems] = useState<MaterialItem[]>([]);
+  const [stockByMaterialId, setStockByMaterialId] = useState<Record<string, number>>({});
   const [search, setSearch] = useState('');
   const [selectedMaterialId, setSelectedMaterialId] = useState('');
   const [quantityRequired, setQuantityRequired] = useState('1');
@@ -1616,8 +1621,16 @@ function AssignEquipmentMaterialModal({
     if (!isOpen) return;
     try {
       setLoading(true);
-      const data = await materialService.getItems({ q: search.trim() || undefined, onlyActive: true });
+      const [data, inventory] = await Promise.all([
+        materialService.getItems({ q: search.trim() || undefined, onlyActive: true }),
+        inventoryService.getAll({ page: 1, pageSize: 100000 }),
+      ]);
+      const nextStockByMaterialId: Record<string, number> = {};
+      inventory.items.forEach(row => {
+        nextStockByMaterialId[row.materialItemId] = (nextStockByMaterialId[row.materialItemId] || 0) + Number(row.quantity || 0);
+      });
       setItems(data);
+      setStockByMaterialId(nextStockByMaterialId);
       setSelectedMaterialId(prev => {
         if (prev && data.some(item => item.id === prev)) return prev;
         return data[0]?.id || '';
@@ -1644,6 +1657,7 @@ function AssignEquipmentMaterialModal({
   if (!isOpen || !asset) return null;
 
   const selectedItem = items.find(item => item.id === selectedMaterialId) || null;
+  const selectedStock = selectedItem ? stockByMaterialId[selectedItem.id] : undefined;
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -1711,7 +1725,7 @@ function AssignEquipmentMaterialModal({
                 {!loading && items.length === 0 ? <option value="">Không có vật tư phù hợp</option> : null}
                 {items.map(item => (
                   <option key={item.id} value={item.id}>
-                    {item.itemCode} - {item.name} ({formatQuantity(item.onHandQuantity)} {item.unit})
+                    {item.itemCode} - {item.name} ({stockByMaterialId[item.id] === undefined ? '-' : `${formatQuantity(stockByMaterialId[item.id])} ${item.unit}`})
                   </option>
                 ))}
               </select>
@@ -1730,7 +1744,7 @@ function AssignEquipmentMaterialModal({
               </Field>
               <Field label="Tồn kho hiện có">
                 <div className="flex h-9 items-center rounded border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700">
-                  {selectedItem ? `${formatQuantity(selectedItem.onHandQuantity)} ${selectedItem.unit}` : '-'}
+                  {selectedItem && selectedStock !== undefined ? `${formatQuantity(selectedStock)} ${selectedItem.unit}` : '-'}
                 </div>
               </Field>
             </div>

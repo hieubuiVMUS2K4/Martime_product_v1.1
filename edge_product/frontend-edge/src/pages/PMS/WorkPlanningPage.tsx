@@ -20,6 +20,7 @@ import { maritimeService } from '@/services/maritime.service';
 import { equipmentAssetService } from '@/services/equipment-asset.service';
 import { maintenanceScheduleService } from '@/services/maintenance-schedule.service';
 import { materialService } from '@/services/materialService';
+import { inventoryService } from '@/services/inventory.service';
 import { KanbanBoard } from '@/components/maintenance/KanbanBoard';
 import { AddScheduleModal } from '@/components/pms/AddScheduleModal';
 
@@ -279,6 +280,7 @@ export default function WorkPlanningPage() {
   // === Config inline form state ===
   const [cfgEditingId, setCfgEditingId] = useState<string | null>(null);
   const [cfgMaterials, setCfgMaterials] = useState<MaterialItem[]>([]);
+  const [cfgInventoryStockByMaterialId, setCfgInventoryStockByMaterialId] = useState<Record<string, number>>({});
   const [cfgSaving, setCfgSaving] = useState(false);
   const [cfgListSearch, setCfgListSearch] = useState('');
   const [cfgTreeSelectedIds, setCfgTreeSelectedIds] = useState<Set<string>>(new Set());
@@ -659,7 +661,19 @@ export default function WorkPlanningPage() {
   // Config: load materials when switching to config tab
   useEffect(() => {
     if (activeTab === 'config') {
-      materialService.getItems().then(setCfgMaterials).catch(console.error);
+      Promise.all([
+        materialService.getItems(),
+        inventoryService.getAll({ page: 1, pageSize: 100000 }),
+      ])
+        .then(([materials, inventory]) => {
+          const nextStockByMaterialId: Record<string, number> = {};
+          inventory.items.forEach(row => {
+            nextStockByMaterialId[row.materialItemId] = (nextStockByMaterialId[row.materialItemId] || 0) + Number(row.quantity || 0);
+          });
+          setCfgMaterials(materials);
+          setCfgInventoryStockByMaterialId(nextStockByMaterialId);
+        })
+        .catch(console.error);
     }
   }, [activeTab]);
 
@@ -2327,9 +2341,10 @@ export default function WorkPlanningPage() {
                               </td></tr>
                             ) : cfgForm.requiredSpareParts.map((part, i) => {
                               const mat = cfgMaterials.find(m => m.id.toString() === part.materialItemId);
-                              const rob = mat?.onHandQuantity ?? 0;
-                              const needsMore = mat && part.quantityRequired > rob;
-                              const isLow = mat && rob <= (mat.minStock || 0);
+                              const rob = part.materialItemId ? cfgInventoryStockByMaterialId[part.materialItemId] : undefined;
+                              const hasStock = rob !== undefined;
+                              const needsMore = mat && hasStock && part.quantityRequired > rob;
+                              const isLow = mat && hasStock && rob <= (mat.minStock || 0);
                               const isLinked = part.materialItemId ? cfgLinkedMaterialIds.has(part.materialItemId) : false;
                               return (
                                 <tr key={i} className={`border-b ${needsMore ? 'bg-red-50/50' : ''}`}>
@@ -2341,17 +2356,17 @@ export default function WorkPlanningPage() {
                                     </select>
                                   </td>
                                   <td className={`px-1.5 py-1 text-right text-xs ${isLow ? 'text-orange-600 font-medium' : 'text-gray-500'}`}>
-                                    {mat ? rob : '—'}
+                                    {mat && hasStock ? rob : '-'}
                                   </td>
                                   <td className="px-1.5 py-1">
                                     <input type="number" value={part.quantityRequired} onChange={e => cfgUpdateSparePart(i, 'quantityRequired', parseFloat(e.target.value) || 1)} min={0.001} step={0.001} className={`w-full border px-1 py-0.5 text-xs text-right ${needsMore ? 'border-red-300 bg-red-50' : 'border-gray-300'}`} />
                                   </td>
                                   <td className="px-0.5 py-1 text-center">
                                     {needsMore ? (
-                                      <span className="text-red-600" title={t('pms.workPlanning.config.shortage', { amount: (part.quantityRequired - rob).toFixed(1), unit: mat?.unit || '' })}><AlertTriangle size={13} /></span>
+                                      <span className="text-red-600" title={t('pms.workPlanning.config.shortage', { amount: (part.quantityRequired - (rob ?? 0)).toFixed(1), unit: mat?.unit || '' })}><AlertTriangle size={13} /></span>
                                     ) : mat && isLow ? (
                                       <span className="text-orange-500" title={t('pms.workPlanning.config.lowStock')}><AlertTriangle size={13} /></span>
-                                    ) : mat ? (
+                                    ) : mat && hasStock ? (
                                       <span className="text-green-500"><CheckCircle size={13} /></span>
                                     ) : null}
                                   </td>

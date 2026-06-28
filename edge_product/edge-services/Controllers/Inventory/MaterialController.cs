@@ -894,11 +894,23 @@ public class MaterialController : ControllerBase
                 .Where(m => matIds.Contains(m.Id) && m.IsActive)
                 .ToListAsync();
 
+            var stockByMaterialId = await _context.InventoryStocks
+                .AsNoTracking()
+                .Where(s => matIds.Contains(s.MaterialItemId) && s.Quantity > 0)
+                .GroupBy(s => s.MaterialItemId)
+                .Select(g => new
+                {
+                    MaterialItemId = g.Key,
+                    Quantity = g.Sum(s => s.Quantity)
+                })
+                .ToDictionaryAsync(x => x.MaterialItemId, x => x.Quantity);
+
             var result = deduped
                 .Select(l =>
                 {
                     var mat = materials.FirstOrDefault(m => m.Id == l.MaterialItemId);
                     if (mat is null) return null;
+                    var hasInventoryStock = stockByMaterialId.TryGetValue(mat.Id, out var inventoryQuantity);
                     return new
                     {
                         linkId = l.Id,
@@ -906,7 +918,7 @@ public class MaterialController : ControllerBase
                         itemCode = mat.ItemCode,
                         name = mat.Name,
                         unit = mat.Unit,
-                        onHandQuantity = mat.OnHandQuantity,
+                        onHandQuantity = hasInventoryStock ? (double?)(double)inventoryQuantity : null,
                         quantityRequired = l.QuantityRequired,
                         minStock = mat.MinStock,
                         specification = mat.Specification,
