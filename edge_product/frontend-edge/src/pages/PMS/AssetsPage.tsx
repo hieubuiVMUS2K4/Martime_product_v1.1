@@ -44,7 +44,7 @@ function getDescendantIds(node: EquipmentAsset): Set<string> {
 }
 
 function isFolderNode(node?: EquipmentAsset | null): boolean {
-  return !!node && (node.category === 'SYSTEM' || (node.children?.length ?? 0) > 0);
+  return !!node && node.category === 'SYSTEM';
 }
 
 export default function AssetsPage() {
@@ -340,8 +340,7 @@ export default function AssetsPage() {
 
   const selectedNode = selectedNodeId ? assetMap.get(selectedNodeId) ?? null : null;
   const selectedNodeName = selectedNode?.assetName ?? null;
-  const selectedNodeHasChildren = !!selectedNode && assets.some(asset => asset.parentId === selectedNode.id);
-  const selectedNodeIsFolder = !!selectedNode && (isFolderNode(selectedNode) || selectedNodeHasChildren);
+  const selectedNodeIsFolder = !!selectedNode && isFolderNode(selectedNode);
   const selectedNodeIsEquipment = !!selectedNode && !selectedNodeIsFolder;
 
   useEffect(() => {
@@ -901,7 +900,7 @@ export default function AssetsPage() {
       <CreateAssetModal
         mode={createNodeMode}
         assets={assets}
-        defaultParentId={selectedNodeIsFolder ? selectedNodeId : selectedNode?.parentId ?? null}
+        defaultParentId={selectedNodeId}
         onClose={() => setCreateNodeMode(null)}
         onSuccess={async (createdId, parentId) => {
           await loadAssets();
@@ -1160,9 +1159,8 @@ function CreateAssetModal({ mode, assets, defaultParentId, onClose, onSuccess }:
     const rows: Array<{ id: string; label: string }> = [];
     const walk = (nodes: EquipmentAsset[], depth = 0) => {
       nodes.forEach((node) => {
-        if (isFolderNode(node)) {
-          rows.push({ id: node.id, label: `${'  '.repeat(depth)}${node.assetCode ? `${node.assetCode} - ` : ''}${node.assetName}` });
-        }
+        const typeLabel = isFolderNode(node) ? 'Thư mục' : 'Thiết bị';
+        rows.push({ id: node.id, label: `${'  '.repeat(depth)}[${typeLabel}] ${node.assetCode ? `${node.assetCode} - ` : ''}${node.assetName}` });
         if (node.children?.length) walk(node.children, depth + 1);
       });
     };
@@ -1174,8 +1172,8 @@ function CreateAssetModal({ mode, assets, defaultParentId, onClose, onSuccess }:
 
   const title = isFolderMode ? 'Thêm thư mục' : 'Thêm thiết bị';
   const subtitle = isFolderMode
-    ? 'Tạo thư mục để gom nhóm thiết bị trong cây PMS'
-    : 'Khai báo thiết bị thật và đặt vào một thư mục cha';
+    ? 'Tạo thư mục trong cấp gốc, trong thư mục khác hoặc bên trong một thiết bị'
+    : 'Khai báo thiết bị thật dưới cấp gốc, thư mục hoặc một thiết bị cha';
   const codeLabel = isFolderMode ? 'Mã thư mục' : 'Mã thiết bị';
   const nameLabel = isFolderMode ? 'Tên thư mục' : 'Tên thiết bị';
 
@@ -1190,11 +1188,6 @@ function CreateAssetModal({ mode, assets, defaultParentId, onClose, onSuccess }:
     event.preventDefault();
     if (!formData.assetCode.trim() || !formData.assetName.trim()) {
       toast.error('Vui lòng nhập mã và tên thiết bị');
-      return;
-    }
-
-    if (!isFolderMode && !formData.parentId) {
-      toast.error('Vui lòng chọn thư mục cha trước khi thêm thiết bị');
       return;
     }
 
@@ -1245,9 +1238,9 @@ function CreateAssetModal({ mode, assets, defaultParentId, onClose, onSuccess }:
               <Field label={nameLabel} required>
                 <input value={formData.assetName} onChange={e => handleChange('assetName', e.target.value)} className="h-9 w-full rounded border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder={isFolderMode ? 'Engine Room System' : 'Auxiliary Engine No.1'} />
               </Field>
-              <Field label={isFolderMode ? 'Thư mục cha' : 'Đặt trong thư mục'} required={!isFolderMode}>
+              <Field label={isFolderMode ? 'Tạo trong node cha' : 'Đặt dưới node cha'}>
                 <select value={formData.parentId || ''} onChange={e => handleChange('parentId', e.target.value)} className="h-9 w-full rounded border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                  <option value="">{isFolderMode ? 'Cấp gốc' : '-- Chọn thư mục --'}</option>
+                  <option value="">Cấp gốc</option>
                   {parentOptions.map(option => (
                     <option key={option.id} value={option.id}>{option.label}</option>
                   ))}
