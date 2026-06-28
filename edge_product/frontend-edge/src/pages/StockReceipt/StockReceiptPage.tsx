@@ -283,6 +283,10 @@ export default function StockReceiptPage() {
   };
 
   const handleSave = async (andApprove = false) => {
+    if (formItems.some(item => !item.storeLocationId)) {
+      toast.warning('Vui lòng chọn vị trí kho cho tất cả các dòng vật tư.');
+      return;
+    }
     if (formItems.length === 0) { toast.warning('Vui lòng thêm ít nhất 1 dòng vật tư.'); return; }
     try {
       setSaving(true);
@@ -378,7 +382,7 @@ export default function StockReceiptPage() {
       if (detail.items && detail.items.length > 0) {
         const mapped: StockReceiptItem[] = detail.items.map(item => ({
           materialItemId: item.materialItemId || null,
-          itemCode: null,
+          itemCode: materialOptions.find(material => material.id === item.materialItemId)?.itemCode || null,
           itemName: item.itemName,
           description: item.description || null,
           unit: item.unit,
@@ -786,7 +790,9 @@ export default function StockReceiptPage() {
                   <tbody>
                     {formItems.length === 0 ? (
                       <tr><td colSpan={10} className="text-center py-8 text-gray-400">Không có dữ liệu</td></tr>
-                    ) : formItems.map((item, idx) => (
+                    ) : formItems.map((item, idx) => {
+                      const selectedMaterial = materialOptions.find(material => material.id === item.materialItemId);
+                      return (
                       <tr key={idx} className="border-b">
                         <td className="px-2 py-1.5 text-gray-500">{idx + 1}</td>
                         <td className="px-2 py-1.5">
@@ -802,7 +808,7 @@ export default function StockReceiptPage() {
                             onChange={value => updateFormItem(idx, 'storeLocationId', value)}
                           />
                         </td>
-                        <td className="px-2 py-1.5 text-gray-500 text-xs">{item.itemCode || '—'}</td>
+                        <td className="px-2 py-1.5 text-gray-500 text-xs">{selectedMaterial?.itemCode || item.itemCode || '—'}</td>
                         <td className="px-2 py-1.5">
                           <SearchableSelect
                             value={item.materialItemId || null}
@@ -810,8 +816,8 @@ export default function StockReceiptPage() {
                             emptyText="Không tìm thấy vật tư"
                             options={materialOptions.map(m => ({
                               value: m.id,
-                              label: `${m.itemCode} - ${m.name}`,
-                              subLabel: `Tồn: ${m.onHandQuantity ?? 0} ${m.unit || ''}`,
+                              label: m.name,
+                              subLabel: `${m.itemCode} · ${m.unit || ''}`,
                             }))}
                             onChange={value => {
                               if (value) {
@@ -831,7 +837,7 @@ export default function StockReceiptPage() {
                           />
                           <select value={item.materialItemId || ''} onChange={e => { if (e.target.value) selectMaterial(idx, e.target.value); else updateFormItem(idx, 'materialItemId', null); }} className="hidden">
                             <option value="">-- Vật tư --</option>
-                            {materialOptions.map(m => <option key={m.id} value={m.id}>{m.itemCode} - {m.name}</option>)}
+                            {materialOptions.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                           </select>
                         </td>
                         <td className="px-2 py-1.5"><input type="text" value={item.unit} onChange={e => updateFormItem(idx, 'unit', e.target.value)} className="w-full border border-gray-300 px-1 py-1 text-xs" /></td>
@@ -841,7 +847,7 @@ export default function StockReceiptPage() {
                         <td className="px-2 py-1.5"><input type="text" value={item.note || ''} onChange={e => updateFormItem(idx, 'note', e.target.value)} className="w-full border border-gray-300 px-1 py-1 text-xs" /></td>
                         <td className="px-2 py-1.5 text-center"><button onClick={() => removeFormItem(idx)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button></td>
                       </tr>
-                    ))}
+                    )})}
                 </tbody>
               </table>
             </div>

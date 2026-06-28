@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { Plus, Edit2, Trash2, Send, Eye, Search, X, Paperclip, Info, ChevronsUpDown, CheckCircle, XCircle } from 'lucide-react';
 import { materialRequestService } from '@/services/materialRequest.service';
 import { materialService } from '@/services/materialService';
+import { inventoryService } from '@/services/inventory.service';
 import { maritimeService } from '@/services/maritime.service';
 import { equipmentAssetService } from '@/services/equipment-asset.service';
 import { VESSEL_CONFIG } from '@/config/app.config';
@@ -203,6 +204,7 @@ export default function MaterialRequestPage() {
   });
   const [formItems, setFormItems] = useState<MaterialRequestItem[]>([]);
   const [materialOptions, setMaterialOptions] = useState<MaterialItem[]>([]);
+  const [inventoryStockByMaterialId, setInventoryStockByMaterialId] = useState<Record<string, number>>({});
   const [voyageOptions, setVoyageOptions] = useState<VoyageRecord[]>([]);
   const [assetOptions, setAssetOptions] = useState<EquipmentAsset[]>([]);
   const [materialIdsByEquipment, setMaterialIdsByEquipment] = useState<Record<string, string[]>>({});
@@ -233,12 +235,18 @@ export default function MaterialRequestPage() {
   useEffect(() => { loadList(); }, [loadList]);
 
   const loadFormOptions = async () => {
-    const [mats, voyages, assets] = await Promise.all([
+    const [mats, inventory, voyages, assets] = await Promise.all([
       materialService.getItems({ onlyActive: true }),
+      inventoryService.getAll({ page: 1, pageSize: 100000 }).catch(() => ({ items: [] })),
       maritimeService.voyage.getAll({ pageSize: 100 }).then(r => r).catch(() => []),
       equipmentAssetService.getAll().catch(() => []),
     ]);
+    const nextStockByMaterialId: Record<string, number> = {};
+    inventory.items.forEach(row => {
+      nextStockByMaterialId[row.materialItemId] = (nextStockByMaterialId[row.materialItemId] || 0) + Number(row.quantity || 0);
+    });
     setMaterialOptions(mats);
+    setInventoryStockByMaterialId(nextStockByMaterialId);
     setVoyageOptions(Array.isArray(voyages) ? voyages : []);
     setAssetOptions(Array.isArray(assets) ? assets : []);
   };
@@ -265,6 +273,13 @@ export default function MaterialRequestPage() {
     const linkedIds = materialIdsByEquipment[item.equipmentAssetId];
     if (!linkedIds) return [];
     return materialOptions.filter(material => linkedIds.includes(material.id));
+  };
+
+  const getInventoryQuantity = (materialItemId?: string | null) => {
+    if (!materialItemId) return null;
+    return Object.prototype.hasOwnProperty.call(inventoryStockByMaterialId, materialItemId)
+      ? inventoryStockByMaterialId[materialItemId]
+      : null;
   };
 
   const getEquipmentLabel = (equipmentAssetId: string | null | undefined) => {
@@ -440,7 +455,7 @@ export default function MaterialRequestPage() {
       materialItemId: materialId,
       itemName: mat.name,
       unit: mat.unit || 'PCS',
-      quantityOnHand: mat.onHandQuantity || 0,
+      quantityOnHand: getInventoryQuantity(materialId) ?? 0,
     } : item));
   };
 
@@ -613,7 +628,7 @@ export default function MaterialRequestPage() {
                       )}
                     </td>
                     <td className="px-2 py-1.5"><input type="text" value={item.unit} onChange={e => updateFormItem(idx, 'unit', e.target.value)} className="w-full border border-gray-300 px-1 py-1 text-xs" /></td>
-                    <td className="px-2 py-1.5 text-right text-xs text-gray-500">{item.quantityOnHand}</td>
+                    <td className="px-2 py-1.5 text-right text-xs text-gray-500">{getInventoryQuantity(item.materialItemId) ?? '-'}</td>
                     <td className="px-2 py-1.5"><input type="number" min={0} step={1} value={item.quantityRequested} onChange={e => updateFormItem(idx, 'quantityRequested', Number(e.target.value))} className="w-full border border-gray-300 px-1 py-1 text-xs text-right" /></td>
                     <td className="px-2 py-1.5"><input type="text" value={item.note || ''} onChange={e => updateFormItem(idx, 'note', e.target.value)} className="w-full border border-gray-300 px-1 py-1 text-xs" /></td>
                     <td className="px-2 py-1.5 text-center"><button onClick={() => removeFormItem(idx)} className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button></td>
