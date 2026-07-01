@@ -407,6 +407,8 @@ namespace MaritimeEdge
                     ");
 
                     await EnsurePortSeedDataAsync(dbContext, logger, app.Environment.ContentRootPath);
+                    logger.LogInformation("Seeding SMS Document Management system data...");
+                    await SmsSeedData.SeedAsync(dbContext);
                 }
                 catch (Exception ex)
                 {

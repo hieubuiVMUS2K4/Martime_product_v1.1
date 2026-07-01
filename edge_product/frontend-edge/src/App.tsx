@@ -64,6 +64,7 @@ import { AbstractLogPage } from './pages/logbooks/AbstractLogPage'
 // Safety Pages
 import { DrillTimelinePage } from './pages/Safety/DrillTimelinePage'
 import { HSQEPage } from './pages/HSQE/HSQEPage'
+import { SmsDocumentPage } from './pages/HSQE/components/SmsDocumentPage'
 
 // System Pages
 import { AuditLogPage } from './pages/AuditLog/AuditLogPage'
@@ -159,6 +160,7 @@ function App() {
       {/* Full-screen pages outside MainLayout (still protected) */}
       <Route path="/crew/:id/standalone" element={<AuthGuard><CrewDetailPage /></AuthGuard>} />
       <Route path="/pms/maintenance/:id" element={<AuthGuard><MaintenanceDetailPage /></AuthGuard>} />
+      <Route path="/safety/hsqe/form/:templateId" element={<AuthGuard><SmsDocumentPage /></AuthGuard>} />
 
       {/* Catch-all: redirect unknown routes to dashboard */}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

@@ -1299,9 +1299,32 @@ namespace MaritimeEdge.Controllers.Safety
                     }
                 }
 
+                // PIN Validation (same pattern as SMS signing)
+                if (string.IsNullOrWhiteSpace(dto.Pin) || dto.Pin.Length != 4 || !dto.Pin.All(char.IsDigit))
+                {
+                    return BadRequest(new { message = "Mã PIN chữ ký số không hợp lệ (yêu cầu 4 chữ số)." });
+                }
+
+                // Parse existing signatures
+                var signatures = new List<object>();
+                try
+                {
+                    signatures = System.Text.Json.JsonSerializer.Deserialize<List<object>>(permit.DigitalSignatures ?? "[]") ?? new List<object>();
+                }
+                catch { signatures = new List<object>(); }
+
                 if (dto.Role == "ChiefOfficer")
                 {
+                    // Officers PIN: any valid 4-digit PIN
                     permit.ChiefOfficerSigned = true;
+
+                    signatures.Add(new
+                    {
+                        name = dto.Name ?? "Đại phó",
+                        rank = dto.Rank ?? "Chief Officer",
+                        timestamp = DateTime.UtcNow,
+                        sigCode = $"SIG-CO-{Guid.NewGuid().ToString()[..8].ToUpper()}"
+                    });
                 }
                 else if (dto.Role == "Captain")
                 {
@@ -1309,11 +1332,37 @@ namespace MaritimeEdge.Controllers.Safety
                     {
                         return BadRequest(new { message = "Cần Đại phó (Chief Officer) ký nháy trước khi Thuyền trưởng phê duyệt." });
                     }
+
+                    // Captain PIN must be 1111
+                    if (dto.Pin != "1111")
+                    {
+                        return BadRequest(new { message = "Mã PIN phê duyệt của Thuyền trưởng không đúng (Gợi ý: 1111)." });
+                    }
+
                     permit.CaptainApproved = true;
+
+                    signatures.Add(new
+                    {
+                        name = dto.Name ?? "Thuyền trưởng",
+                        rank = dto.Rank ?? "Captain (Master)",
+                        timestamp = DateTime.UtcNow,
+                        sigCode = $"SIG-CAPT-{Guid.NewGuid().ToString()[..8].ToUpper()}"
+                    });
                 }
 
+                permit.DigitalSignatures = System.Text.Json.JsonSerializer.Serialize(signatures);
+                permit.UpdatedAt = DateTime.UtcNow;
+
                 await _context.SaveChangesAsync();
-                return Ok(permit);
+                return Ok(new
+                {
+                    permit.Id,
+                    permit.PermitCode,
+                    permit.ChiefOfficerSigned,
+                    permit.CaptainApproved,
+                    permit.Status,
+                    digitalSignatures = permit.DigitalSignatures
+                });
             }
             catch (Exception ex)
             {
@@ -1478,6 +1527,9 @@ namespace MaritimeEdge.Controllers.Safety
         public class SignPermitDto
         {
             public string Role { get; set; } = "ChiefOfficer"; // ChiefOfficer, Captain
+            public string Pin { get; set; } = string.Empty;
+            public string? Name { get; set; }
+            public string? Rank { get; set; }
         }
 
         public class MarkAsReadDto
