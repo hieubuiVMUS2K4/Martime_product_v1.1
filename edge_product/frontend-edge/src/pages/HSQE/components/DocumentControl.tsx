@@ -3,4 +3,4 @@
  * Points to the new Document Library implementation
  * Maintains backward compatibility with HSQEPage.tsx import
  */
-export { DocumentLibraryPage as DocumentControl } from './DocumentLibrary/DocumentLibraryPage';
+export { SmsDocumentPage as DocumentControl } from './SmsDocumentPage';

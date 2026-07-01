@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiClient } from '@/services/api.client';
+import { printSmsDocument } from '@/lib/printUtils';
 
 // Define Incident Interface
 interface CAPAItem {
@@ -76,6 +77,94 @@ export function IncidentManagement() {
     nearMiss: 298,
     unsafeAct: 2998
   });
+
+  const handlePrintIncident = () => {
+    if (!selectedIncident) return;
+    
+    const title = selectedIncident.type === 'Near-Miss' ? 'PHIẾU KHAI BÁO TÌNH HUỐNG CẬN NGUY (TL-04-08)' :
+                 selectedIncident.type === 'Non-Conformity' ? 'PHIẾU BÁO CÁO SỰ KHÔNG PHÙ HỢP (TL-04-03)' :
+                 selectedIncident.type === 'PSC-Deficiency' ? 'BÁO CÁO KHẮC PHỤC KHIẾM KHUYẾT (TL-04-07)' :
+                 'BÁO CÁO TAI NẠN, SỰ CỐ AN TOÀN (TL-04-02)';
+
+    let contentHtml = `
+      <h3 style="font-size: 13px; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #000; padding-bottom: 4px; margin-top: 15px;">I. CHI TIẾT SỰ VIỆC (INCIDENT DETAILS)</h3>
+      <table style="width: 100%; border-collapse: collapse; margin-top: 8px; border: none;">
+        <tr style="border: none;">
+          <td style="border: none; padding: 4px 0; width: 50%;"><strong>Tên tàu báo cáo:</strong> ${selectedIncident.vessel}</td>
+          <td style="border: none; padding: 4px 0; width: 50%;"><strong>Vị trí xảy ra:</strong> ${selectedIncident.location}</td>
+        </tr>
+        <tr style="border: none;">
+          <td style="border: none; padding: 4px 0; width: 50%;"><strong>Mức độ nghiêm trọng:</strong> ${selectedIncident.severity}</td>
+          <td style="border: none; padding: 4px 0; width: 50%;"><strong>Trạng thái xử lý:</strong> ${selectedIncident.status}</td>
+        </tr>
+      </table>
+
+      <h3 style="font-size: 12.5px; font-weight: bold; margin-top: 20px; margin-bottom: 5px;">1. Mô tả chi tiết sự việc:</h3>
+      <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; padding: 12px; border-radius: 6px; text-align: justify; font-style: italic; font-size: 12.5px;">
+        ${selectedIncident.description}
+      </div>
+
+      <h3 style="font-size: 12.5px; font-weight: bold; margin-top: 20px; margin-bottom: 5px;">2. Hành động khắc phục tức thời:</h3>
+      <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; padding: 12px; border-radius: 6px; text-align: justify; font-style: italic; font-size: 12.5px;">
+        ${selectedIncident.immediateActions}
+      </div>
+    `;
+
+    if (selectedIncident.whys && selectedIncident.whys.filter(Boolean).length > 0) {
+      contentHtml += `
+        <h3 style="font-size: 12.5px; font-weight: bold; margin-top: 20px; margin-bottom: 5px;">3. Phân tích nguyên nhân gốc rễ (5 Whys - TL-04-04):</h3>
+        <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 12px;">
+          ${selectedIncident.whys.filter(Boolean).map((w, i) => `<p style="margin: 4px 0;">Why ${i+1}: ${w}</p>`).join('')}
+          <p style="margin-top: 10px; border-top: 1px solid #cbd5e1; padding-top: 6px; font-family: Georgia, serif; color: #047857; font-weight: bold; font-size: 12.5px;">
+            👉 Nguyên nhân gốc rễ: ${selectedIncident.rootCause}
+          </p>
+        </div>
+      `;
+    }
+
+    if (selectedIncident.capas && selectedIncident.capas.length > 0) {
+      contentHtml += `
+        <h3 style="font-size: 12.5px; font-weight: bold; margin-top: 20px; margin-bottom: 5px;">4. Kế hoạch hành động CAPA (TL-04-05 / TL-04-07):</h3>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 8px;">
+          <thead>
+            <tr style="background-color: #f1f5f9;">
+              <th style="border: 1px solid #94a3b8; padding: 6px; font-weight: bold; text-align: left;">Nội dung hành động khắc phục/phòng ngừa</th>
+              <th style="border: 1px solid #94a3b8; padding: 6px; font-weight: bold; text-align: left; width: 120px;">PIC</th>
+              <th style="border: 1px solid #94a3b8; padding: 6px; font-weight: bold; text-align: left; width: 100px;">Hạn hoàn thành</th>
+              <th style="border: 1px solid #94a3b8; padding: 6px; font-weight: bold; text-align: center; width: 110px;">Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${selectedIncident.capas.map(c => `
+              <tr>
+                <td style="border: 1px solid #94a3b8; padding: 6px;">${c.description}</td>
+                <td style="border: 1px solid #94a3b8; padding: 6px;">${c.assignee}</td>
+                <td style="border: 1px solid #94a3b8; padding: 6px;">${c.dueDate}</td>
+                <td style="border: 1px solid #94a3b8; padding: 6px; text-align: center; font-weight: bold; color: ${c.completed ? '#047857' : '#d97706'}">
+                  ${c.completed ? 'Hoàn thành' : 'Đang thực hiện'}
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    printSmsDocument({
+      title,
+      subtitle: 'BÁO CÁO AN TOÀN & SỰ CỐ - HSQE DEPARTMENT',
+      code: selectedIncident.code,
+      version: 'Rev 1.0',
+      date: selectedIncident.date,
+      contentHtml,
+      watermark: selectedIncident.status === 'Closed' ? 'ĐÃ ĐÓNG HS' : 'BẢN PHÁT HÀNH',
+      signatures: [
+        { name: 'Thuyền trưởng', rank: 'Người báo cáo', sigCode: 'SIG-INC-' + selectedIncident.code + '-CAPT', timestamp: selectedIncident.date },
+        { name: 'DPA Hải', rank: 'Người kiểm tra', sigCode: 'SIG-INC-' + selectedIncident.code + '-DPA', timestamp: selectedIncident.date },
+        { name: 'Giám đốc', rank: 'Phê duyệt đóng HS', sigCode: 'SIG-INC-' + selectedIncident.code + '-DIR', timestamp: selectedIncident.date }
+      ]
+    });
+  };
 
   const fetchIncidents = async () => {
     setLoading(true);
@@ -1015,7 +1104,7 @@ export function IncidentManagement() {
               <span className="text-xs text-slate-400">Ấn nút In để lưu bản cứng hoặc đóng file.</span>
               <div className="flex gap-2">
                 <button
-                  onClick={() => window.print()}
+                  onClick={handlePrintIncident}
                   className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 text-xs font-bold rounded-xl transition"
                 >
                   Tải PDF / In báo cáo

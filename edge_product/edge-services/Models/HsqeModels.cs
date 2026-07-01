@@ -370,6 +370,12 @@ namespace MaritimeEdge.Models
         public bool ChiefOfficerSigned { get; set; } = false;
         public bool CaptainApproved { get; set; } = false;
 
+        /// <summary>
+        /// JSON array of digital signature entries (PIN-verified)
+        /// </summary>
+        [Column(TypeName = "text")]
+        public string DigitalSignatures { get; set; } = "[]";
+
         // Sync Metadata
         public bool IsSynced { get; set; } = false;
 

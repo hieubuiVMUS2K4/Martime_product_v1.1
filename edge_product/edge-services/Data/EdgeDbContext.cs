@@ -185,6 +185,13 @@ public class EdgeDbContext : DbContext
     public DbSet<HsqeDocumentAttachment> HsqeDocumentAttachments { get; set; } = null!;
     public DbSet<HsqeDocumentReadLog> HsqeDocumentReadLogs { get; set; } = null!;
 
+    // SMS Document Management System Rebuild
+    public DbSet<IsmElement> IsmElements { get; set; } = null!;
+    public DbSet<SmsProcedure> SmsProcedures { get; set; } = null!;
+    public DbSet<SmsProcedureAcknowledge> SmsProcedureAcknowledgements { get; set; } = null!;
+    public DbSet<SmsFormTemplate> SmsFormTemplates { get; set; } = null!;
+    public DbSet<SmsFilledRecord> SmsFilledRecords { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -3132,7 +3139,12 @@ public class EdgeDbContext : DbContext
             type == typeof(VoyageCrewAssignment) ||
             type == typeof(VoyageLogEntry) ||
             type == typeof(CargoOperation) ||
-            type == typeof(EngineData)) 
+            type == typeof(EngineData) ||
+            type == typeof(IsmElement) ||
+            type == typeof(SmsProcedure) ||
+            type == typeof(SmsProcedureAcknowledge) ||
+            type == typeof(SmsFormTemplate) ||
+            type == typeof(SmsFilledRecord)) 
             return SyncPriority.Operational;
 
         // P2.5: Crew data — important for shore HR sync
