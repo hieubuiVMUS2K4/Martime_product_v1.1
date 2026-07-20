@@ -95,6 +95,7 @@ VALUES
     ('ALARM-ELIGHT', 'Emergency Lighting', 'SAFETY', 'LSA-ALARM', 'Accommodation / Engine Room / Deck', 'CRITICAL', 'ACTIVE', NULL, 'Emergency lighting');
 
 INSERT INTO public.equipment_assets (
+    id,
     asset_code,
     name,
     category,
@@ -120,6 +121,7 @@ INSERT INTO public.equipment_assets (
     parent_id
 )
 SELECT
+    gen_random_uuid(),
     asset_code,
     name,
     category,
