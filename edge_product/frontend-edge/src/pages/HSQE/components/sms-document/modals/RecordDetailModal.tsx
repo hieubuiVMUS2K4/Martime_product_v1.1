@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, Check, Printer } from 'lucide-react';
-import { cleaningCategories, reviewQuestions } from '../sms-data';
+import { cleaningCategories } from '../../SmsDocumentPage';
 
 interface RecordDetailModalProps {
   record: any;

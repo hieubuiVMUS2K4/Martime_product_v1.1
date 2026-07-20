@@ -1,4 +1,3 @@
-import React from 'react';
 import { toast } from 'react-toastify';
 
 interface FormTL1501Props {
@@ -8,7 +7,6 @@ interface FormTL1501Props {
 }
 
 export function FormTL1501({ formValues, onFieldChange, recordStatus }: FormTL1501Props) {
-  const isDisabled = recordStatus === 'Approved' || recordStatus === 'Submitted';
   const handleFormFieldChange = onFieldChange;
 
   return (
@@ -1030,5 +1028,6 @@ export function FormTL1501({ formValues, onFieldChange, recordStatus }: FormTL15
           </button>
         )}
       </div>
+    </div>
   );
 }

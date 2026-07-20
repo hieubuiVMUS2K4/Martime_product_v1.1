@@ -1,4 +1,4 @@
-import React from 'react';
+import type React from 'react';
 import { X, Database, Search, RefreshCw } from 'lucide-react';
 
 interface TemplateSelectorModalProps {
@@ -16,11 +16,9 @@ interface TemplateSelectorModalProps {
 
 export function TemplateSelectorModal(props: TemplateSelectorModalProps) {
   const { selectedProcDetail, selectorSearch, setSelectorSearch, allFormTemplates, selectedAssignIds, setSelectedAssignIds, loadingSelector, assigningTemplates, onClose, onAssign } = props;
-  const setShowTemplateSelector = (_: boolean) => onClose();
   const handleAssignTemplates = onAssign;
 
   return (
-    {showTemplateSelector && (
       <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
         <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-xl w-full border border-slate-200 dark:border-slate-700 shadow-2xl flex flex-col max-h-[85vh]">
           
@@ -38,7 +36,7 @@ export function TemplateSelectorModal(props: TemplateSelectorModalProps) {
               </div>
             </div>
             <button
-              onClick={() => setShowTemplateSelector(false)}
+              onClick={onClose}
               className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition"
             >
               <X className="w-4 h-4 text-slate-500" />
@@ -124,7 +122,7 @@ export function TemplateSelectorModal(props: TemplateSelectorModalProps) {
           {/* Modal Footer */}
           <div className="p-5 border-t border-slate-100 dark:border-slate-700 flex items-center justify-end gap-2.5 flex-shrink-0">
             <button
-              onClick={() => setShowTemplateSelector(false)}
+              onClick={onClose}
               className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold transition"
             >
               Hủy
