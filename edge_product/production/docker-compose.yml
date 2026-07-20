@@ -72,11 +72,14 @@ services:
       ShoreAPI__ApiKey: ${SHORE_API_KEY}
       ShoreAPI__Enabled: ${SHORE_API_ENABLED:-true}
       Sync__Enabled: ${EDGE_SYNC_ENABLED:-true}
+      DocumentConversion__GotenbergUrl: ${EDGE_GOTENBERG_URL:-http://gotenberg:3000}
     volumes:
       - uploads-data:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
+      gotenberg:
+        condition: service_started
     networks:
       - edge-net
     logging:
@@ -84,6 +87,20 @@ services:
       options:
         max-size: "100m"
         max-file: "5"
+
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    restart: unless-stopped
+    command:
+      - "gotenberg"
+      - "--libreoffice-restart-after=10"
+    networks:
+      - edge-net
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
 
   frontend:
     build:

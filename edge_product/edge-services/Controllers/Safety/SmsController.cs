@@ -19,11 +19,13 @@ namespace MaritimeEdge.Controllers.Safety
     {
         private readonly EdgeDbContext _context;
         private readonly ILogger<SmsController> _logger;
+        private readonly IConfiguration _configuration;
 
-        public SmsController(EdgeDbContext context, ILogger<SmsController> logger)
+        public SmsController(EdgeDbContext context, ILogger<SmsController> logger, IConfiguration configuration)
         {
             _context = context;
             _logger = logger;
+            _configuration = configuration;
         }
 
         private static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions
@@ -620,7 +622,8 @@ namespace MaritimeEdge.Controllers.Safety
                                     streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(mediaType);
                                     formContent.Add(streamContent, "files", file.FileName);
 
-                                    var response = await httpClient.PostAsync("http://localhost:3200/forms/libreoffice/convert", formContent);
+                                    var gotenbergUrl = (_configuration["DocumentConversion:GotenbergUrl"] ?? "http://localhost:3200").TrimEnd('/');
+                                    var response = await httpClient.PostAsync($"{gotenbergUrl}/forms/libreoffice/convert", formContent);
                                     if (!response.IsSuccessStatusCode)
                                     {
                                         var errorText = await response.Content.ReadAsStringAsync();
