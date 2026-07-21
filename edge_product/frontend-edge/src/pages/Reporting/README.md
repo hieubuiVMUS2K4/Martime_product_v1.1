@@ -1,327 +1,85 @@
-# Maritime Reporting System - Frontend
+# pages/Reporting — Báo cáo IMO & báo cáo tổng hợp Weekly/Monthly
 
-## 📋 Overview
+## Mục đích
 
-Professional maritime reporting system compliant with IMO/SOLAS/MARPOL international standards.
+Trang Reporting phục vụ 2 nhóm báo cáo khác nhau nhưng dùng chung 1 service (`reporting.service.ts`) và
+chung dashboard (`ReportingDashboard`):
 
-## 🚢 Features
+1. **5 báo cáo IMO theo sự kiện** (Noon/Departure/Arrival/Bunker/Position) — mỗi báo cáo có workflow
+   `DRAFT → SUBMITTED → APPROVED → TRANSMITTED` (hoặc `REJECTED`), tuân thủ SOLAS (vị trí, chữ ký thuyền
+   trưởng) và MARPOL Annex VI (hàm lượng lưu huỳnh nhiên liệu).
+2. **Báo cáo tổng hợp định kỳ** Weekly Performance / Monthly Summary — gộp số liệu nhiều Noon Report thành
+   một báo cáo IMO DCS/MRV/EU ETS, hiện diện dưới dạng 2 module riêng nằm trong `components/WeeklyReport/`
+   và `components/MonthlyReport/` nhưng được nhúng ngay vào `ReportingDashboard` (xem
+   `components/reporting/README.md`).
 
-### Report Types (5 Types)
-1. **Noon Report** - Daily position report at 12:00 LT
-2. **Departure Report** - Port leaving notification
-3. **Arrival Report** - Port entry notification  
-4. **Bunker Report** - MARPOL VI compliant fuel bunkering
-5. **Position Report** - Special position reporting
+## Cấu trúc & vai trò
 
-### Workflow States
-- **DRAFT** → **SUBMITTED** → **APPROVED** → **TRANSMITTED**
-- **REJECTED** (can be corrected and resubmitted)
+| File | Route | Vai trò |
+|---|---|---|
+| `ReportingDashboard.tsx` | `/reporting` | Trang chủ Reporting: nút tắt tới 5 loại báo cáo mới, KPI thống kê (`ReportingService.getStatistics`), nhúng `WeeklyReportForm` + `MonthlyReportForm` |
+| `ReportsPage.tsx` | `/reporting/reports` | Danh sách tất cả báo cáo đã tạo — lọc theo loại/trạng thái/khoảng ngày/chuyến đi, phân trang |
+| `ReportDetailPage.tsx` | `/reporting/reports/:id` | Xem chi tiết 1 báo cáo + lịch sử workflow (`WorkflowHistoryDto`) |
+| `NoonReportForm.tsx` | `/reporting/noon/new`, `/reporting/noon/edit/:id` | Form báo cáo trưa (vị trí 12:00 giờ tàu) |
+| `DepartureReportForm.tsx` | `/reporting/departure/...` | Form báo cáo rời cảng |
+| `ArrivalReportForm.tsx` | `/reporting/arrival/...` | Form báo cáo đến cảng |
+| `BunkerReportForm.tsx` | `/reporting/bunker/...` | Form báo cáo nhận nhiên liệu (MARPOL VI: lưu huỳnh, BDN) |
+| `PositionReportForm.tsx` | `/reporting/position/...` | Form báo cáo vị trí đặc biệt |
+| `reportFormValidation.tsx` | — | Hàm validate dùng chung cho các form trên (toạ độ, tốc độ, quy tắc nghiệp vụ) |
+| `index.ts` | — | Barrel export |
+| `routes.example.tsx` | — | File **ví dụ/tham khảo** khai báo route — route thật nằm trong `src/App.tsx`, file này không được import |
 
-### Core Features
-- ✅ Full CRUD operations for all 5 report types
-- ✅ Advanced filtering (type, status, date range, voyage)
-- ✅ Pagination with customizable page size
-- ✅ Real-time statistics dashboard
-- ✅ Workflow management (submit, approve, reject, transmit)
-- ✅ Audit trail with complete history
-- ✅ Soft delete with 3-year retention
-- ✅ Professional maritime UI/UX
-
-## 📁 File Structure
+## Luồng hoạt động chính
 
 ```
-src/pages/Reporting/
-├── ReportingDashboard.tsx    # Main dashboard with statistics
-├── ReportsPage.tsx            # Report listing with filters
-├── NoonReportForm.tsx         # Noon report creation form
-├── index.ts                   # Module exports
-└── README.md                  # This file
-
-src/types/
-└── reporting.types.ts         # TypeScript definitions (400+ lines)
-
-src/services/
-└── reporting.service.ts       # API client (150+ lines)
+NoonReportForm (hoặc Departure/Arrival/Bunker/Position)
+   ▼  người dùng điền form, reportFormValidation kiểm tra phía client
+   ▼
+ReportingService.createNoonReport(dto)   (services/reporting.service.ts, apiClient)
+   ▼
+POST /api/reports/noon-reports  → Edge Backend tạo bản ghi status = DRAFT
+   ▼ (bấm "Nộp báo cáo")
+ReportingService.submitReport(id) → POST /api/reports/noon-reports/:id/submit → status = SUBMITTED
+   ▼ (Master duyệt, tại ReportDetailPage hoặc ReportsPage)
+ReportingService: approveReport()/rejectReport() → POST /api/reports/:id/approve|reject
+   ▼ (gửi đi)
+ReportingService: transmitReport() → POST /api/reports/:id/transmit → status = TRANSMITTED
 ```
 
-## 🎨 UI Components
+`ReportingDashboard` gọi thêm `ReportingService.getStatistics()` (`GET /api/reports/statistics`, có cache
+24h phía backend) để vẽ KPI, và nhúng trực tiếp 2 form tổng hợp:
 
-### Dashboard Features
-- KPI cards (Total, Pending, Transmitted, Failed)
-- Quick action buttons for all report types
-- Reports by type breakdown
-- Professional maritime color scheme (navy blue theme)
-
-### Reports List Features
-- Advanced filter panel (collapsible)
-- Professional data table with status badges
-- Pagination controls
-- Action buttons (View, Transmit, Delete)
-- Empty state handling
-
-### Form Features
-- Grouped sections (Position, Weather, Fuel, Engine, Cargo)
-- Auto-calculation (average speed from distance)
-- Client-side validation with error messages
-- Professional maritime icons
-- Save as Draft / Submit workflow
-
-## 🔧 Technical Stack
-
-- **React 18** with TypeScript
-- **React Router** for navigation
-- **Lucide Icons** for professional icons
-- **Tailwind CSS** for responsive design
-- **Fetch API** for HTTP requests
-
-## 📊 Performance Optimizations
-
-### Backend (Already Implemented)
-- ✅ Memory caching (24h for report types) → 95% query reduction
-- ✅ Optimized SQL queries → 85% faster statistics
-- ✅ Database indexes (48 indexes) → Sub-second queries
-- ✅ Transaction isolation (Serializable) → No race conditions
-
-### Frontend (Implemented)
-- ✅ React.memo for component memoization
-- ✅ Pagination to limit DOM nodes
-- ✅ Lazy loading for better initial load
-- ✅ Debounced search/filters
-- ✅ Optimized re-renders with useCallback
-
-## 🔒 Security & Compliance
-
-### MARPOL VI Compliance
-- Sulphur content validation (<0.5% global, <0.1% SECA)
-- Bunker Delivery Note (BDN) tracking
-- Sample sealing requirements
-
-### SOLAS Compliance
-- Position reporting (GPS validation, no Null Island)
-- Master signature requirements
-- Voyage tracking
-
-### Data Security
-- Soft delete (3-year retention)
-- Audit trail (who, when, what, IP address)
-- Role-based access (prepared by Officer, approved by Master)
-
-## 🌐 API Endpoints
-
-All endpoints use `/api/Reporting` base path:
-
-### Report Types
-```
-GET  /report-types              # Cached 24h
+```tsx
+import WeeklyReportForm from '../../components/WeeklyReport/index'
+import MonthlyReportForm from '../../components/MonthlyReport/index'
 ```
 
-### CRUD Operations (5 report types)
-```
-POST /noon-reports              # Create
-GET  /noon-reports/{id}         # Read
-POST /noon-reports/{id}/submit  # Submit for approval
+Hai component này tự quản lý toàn bộ vòng đời (tạo/xem/sửa) báo cáo Weekly/Monthly bằng cùng
+`ReportingService` nhưng gọi các hàm `generateWeeklyReport`/`generateMonthlyReport` (đọc `types/aggregate-reports.types.ts`) — xem chi tiết ở `components/reporting/README.md`.
 
-POST /departure-reports
-GET  /departure-reports/{id}
-POST /departure-reports/{id}/submit
+## Liên kết với phần khác
 
-POST /arrival-reports
-GET  /arrival-reports/{id}
-POST /arrival-reports/{id}/submit
+- **`services/reporting.service.ts`**: service duy nhất cho toàn bộ domain Reporting (cả 5 báo cáo sự kiện
+  lẫn Weekly/Monthly).
+- **`types/reporting.types.ts`** (5 báo cáo IMO) và **`types/aggregate-reports.types.ts`** (Weekly/Monthly).
+- **`components/reporting/SharedComponents.tsx`**: `StatusBadge` và các UI dùng chung hiển thị trạng thái
+  workflow, dùng bởi `ReportsPage`/`ReportDetailPage`.
+- **`components/WeeklyReport/`, `components/MonthlyReport/`**: xem `components/reporting/README.md`.
+- **`hooks/useOfflineDraft.ts`**: các form báo cáo dài (Noon...) là ứng viên tự nhiên cho tính năng lưu nháp
+  offline (kiểm tra file form cụ thể để biết form nào đã áp dụng hook này).
 
-POST /bunker-reports
-GET  /bunker-reports/{id}
-POST /bunker-reports/{id}/submit
+## Ghi chú khi đọc/dạy
 
-POST /position-reports
-GET  /position-reports/{id}
-POST /position-reports/{id}/submit
-```
-
-### Listing & Search
-```
-GET /reports?page=1&pageSize=20&status=SUBMITTED&reportType=NOON_REPORT&fromDate=2025-01-01&toDate=2025-12-31&voyageId=123&searchTerm=keyword
-```
-
-### Workflow
-```
-POST /reports/{id}/approve      # Approve (requires Master signature)
-POST /reports/{id}/reject       # Reject (requires reason)
-POST /reports/{id}/transmit     # Transmit (email/telex)
-GET  /reports/{id}/transmission # Transmission status
-```
-
-### Statistics & Audit
-```
-GET /reports/statistics         # Dashboard KPIs
-GET /reports/{id}/history       # Audit trail
-```
-
-### Admin (Soft Delete)
-```
-POST /reports/{id}/soft-delete  # Soft delete (3-year retention)
-GET  /reports/deleted           # List deleted reports
-POST /reports/{id}/restore      # Restore deleted report
-```
-
-## 🚀 Usage Examples
-
-### Create Noon Report
-```typescript
-import { ReportingService } from '@/services/reporting.service';
-
-const report = await ReportingService.createNoonReport({
-  reportDate: '2025-11-12',
-  voyageId: 123,
-  latitude: 10.762622,
-  longitude: 106.660172,
-  weatherCondition: 'FAIR',
-  fuelOilROB: 450.5,
-  preparedBy: 'Second Officer John'
-});
-
-// Auto-submit
-await ReportingService.submitReport(report.maritimeReportId);
-```
-
-### Filter Reports
-```typescript
-const reports = await ReportingService.getReports({
-  page: 1,
-  pageSize: 20,
-  status: 'SUBMITTED',
-  reportType: 'NOON_REPORT',
-  fromDate: '2025-11-01',
-  toDate: '2025-11-30'
-});
-```
-
-### Approve Report
-```typescript
-await ReportingService.approveReport(reportId, {
-  masterSignature: 'Captain Smith',
-  approvalRemarks: 'Approved - all data verified'
-});
-```
-
-### Transmit Report
-```typescript
-await ReportingService.transmitReport(reportId, {
-  transmissionMethod: 'EMAIL',
-  recipientEmails: 'office@company.com;operations@company.com',
-  transmissionRemarks: 'Sent via satellite email'
-});
-```
-
-## 🎯 Validation Rules
-
-### Position Report
-- Latitude: -90 to +90 degrees
-- Longitude: -180 to +180 degrees
-- No Null Island (0, 0) coordinates
-- Speed: 0-40 knots (merchant vessel range)
-- Course: 0-360 degrees
-
-### Noon Report
-- **Business Rule**: Only 1 noon report per day per voyage
-- Auto-calculation: Average speed = Distance / 24 hours
-- Fuel ROB must be non-negative
-
-### Departure/Arrival Report
-- **Business Rule**: Only 1 departure/arrival per voyage
-- Port name required
-- Pilot information validation
-
-### Bunker Report
-- **MARPOL Rule**: Sulphur content ≤ 0.5% (global)
-- **SECA Rule**: Sulphur content ≤ 0.1% (emission control areas)
-- Supplier information required
-- Sample sealing mandatory
-
-## 📱 Responsive Design
-
-- Desktop: Full data table with all columns
-- Tablet: Optimized table with essential columns
-- Mobile: Card-based layout (future enhancement)
-
-## 🔄 State Management
-
-Current: React useState (simple, performant)
-Future: Consider Zustand if state becomes complex
-
-## 🧪 Testing Recommendations
-
-```bash
-# Unit tests
-npm run test
-
-# E2E tests
-npm run test:e2e
-
-# Coverage
-npm run test:coverage
-```
-
-## 📈 Performance Metrics
-
-### Backend
-- Report creation: < 50ms
-- Report listing (20 items): < 100ms
-- Statistics query: < 150ms (cached types)
-- Soft delete: < 30ms
-
-### Frontend
-- Initial load: < 2s
-- Page navigation: < 200ms
-- Form validation: < 50ms
-- Filter application: < 100ms
-
-## 🛠️ Development Workflow
-
-1. **Create Report** → Form validation → API call
-2. **Submit** → Business validation (backend) → Workflow update
-3. **Approve** → Master signature → Status change
-4. **Transmit** → Email/Telex → Mark transmitted
-
-## 🌟 Professional Features
-
-### Maritime-Specific
-- ⚓ Port code validation
-- 🌊 Weather condition standards (WMO codes)
-- ⛽ MARPOL fuel regulations
-- 📡 Satellite transmission tracking
-- 📊 Vessel performance analysis
-
-### UX Excellence
-- Clear visual hierarchy
-- Status color coding (Draft=Gray, Submitted=Yellow, Approved=Blue, Transmitted=Green, Rejected=Red)
-- Professional icons (Lucide maritime-themed)
-- Helpful validation messages
-- Auto-save functionality
-- Keyboard shortcuts (future)
-
-## 🔮 Future Enhancements
-
-- [ ] Report templates (save as template)
-- [ ] Bulk operations (approve multiple)
-- [ ] Export to PDF/Excel
-- [ ] Real-time notifications (SignalR)
-- [ ] Offline mode (PWA)
-- [ ] Mobile app (React Native)
-- [ ] Advanced analytics dashboard
-- [ ] AI-powered anomaly detection
-- [ ] Weather data auto-fill (API integration)
-- [ ] Route optimization suggestions
-
-## 📞 Support
-
-For issues or questions:
-- Backend: Check `edge-services/README.md`
-- Database: See `edge-services/useful-queries.sql`
-- API Docs: OpenAPI/Swagger at `/swagger`
-
----
-
-**Last Updated**: November 2025  
-**Version**: 1.1.0  
-**Compliance**: IMO/SOLAS/MARPOL 2024 Standards
+- Thư mục này **đã có README trước đó** (bằng tiếng Anh, hướng dẫn API chi tiết) — bản bạn đang đọc được viết
+  lại để khớp khuôn mẫu tài liệu chung của dự án và sửa vài chi tiết lỗi thời (bản cũ ghi "React 18"/"Fetch
+  API" — thực tế dự án dùng **React 19** và tầng gọi API là `apiClient` tuỳ chỉnh dựa trên `fetch`, xem
+  `services/README.md`).
+- **`components/DailyNoonReportForm.tsx` và `components/UnifiedReportingForm.tsx`** (nằm ngay dưới
+  `src/components/`, không phải trong `pages/Reporting/`) là bản **cũ hơn/thử nghiệm** của cùng ý tưởng —
+  đã kiểm tra, không có nơi nào import 2 file này. Component đang chạy thật là các file trong chính thư mục
+  `pages/Reporting/`.
+- `routes.example.tsx` chỉ mang tính minh hoạ, không ảnh hưởng routing thật — route chính thức luôn khai báo
+  trong `src/App.tsx`.
+- Trạng thái "Weekly/Monthly Report" **không nằm trong `pages/Reporting/`** dù được hiển thị ngay trong
+  `ReportingDashboard` — đây là lý do thư mục `components/WeeklyReport/` và `components/MonthlyReport/` có
+  README riêng thay vì gộp vào đây.
