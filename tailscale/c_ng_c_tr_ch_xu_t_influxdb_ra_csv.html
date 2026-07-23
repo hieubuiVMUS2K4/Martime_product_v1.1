@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Công cụ Trích xuất Data Tàu (InfluxDB to CSV)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .code-block {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            padding: 1rem;
+            border-radius: 0.375rem;
+            overflow-x: auto;
+            font-family: 'Courier New', Courier, monospace;
+            position: relative;
+        }
+        .copy-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background-color: #10b981;
+            color: white;
+            border: none;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+        .copy-btn:hover { opacity: 1; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+<div class="w-full p-4 md:p-6 lg:p-8">
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        
+        <!-- Header -->
+        <div class="bg-teal-700 text-white p-6">
+            <h1 class="text-2xl font-bold mb-2"><i class="fas fa-file-csv mr-2"></i>Bộ Công Cụ Trích Xuất Dữ Liệu Tàu Ra File CSV</h1>
+            <p class="text-teal-100">Dựa trên file tín hiệu bạn cung cấp, hệ thống sẽ tạo Script để kéo trực tiếp các thông số (rudder, lat, lon, wind...) từ máy tàu qua Tailscale và lưu thành file Excel/CSV trên máy bạn.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-0">
+            
+            <!-- Cột trái: Form nhập liệu -->
+            <div class="p-6 bg-gray-100 border-r border-gray-200">
+                <h2 class="text-lg font-semibold mb-4 border-b pb-2"><i class="fas fa-sliders-h mr-2 text-gray-500"></i>Cấu hình nguồn tải</h2>
+                
+                <!-- .env Loader Section -->
+                <div class="mb-4 bg-teal-50 p-3 rounded border border-teal-200">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-semibold text-teal-800"><i class="fas fa-key mr-1"></i>Cấu hình từ .env</span>
+                        <span id="envStatus" class="text-[10px] bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded">Chưa nạp</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <label class="flex-grow cursor-pointer bg-teal-600 hover:bg-teal-700 text-white text-center text-xs py-1.5 px-3 rounded shadow transition duration-200 font-medium">
+                            <i class="fas fa-file-import mr-1"></i>Chọn file .env
+                            <input type="file" id="envFileInput" accept=".env" class="hidden" onchange="handleEnvUpload(event)">
+                        </label>
+                    </div>
+                    <p class="text-[10px] text-gray-500 mt-1"><i class="fas fa-info-circle"></i> Tự động quét file <code>.env</code> cùng thư mục nếu chạy qua server local.</p>
+                </div>
+
+                <form id="configForm" class="space-y-4">
+                    <div class="bg-white p-4 rounded shadow-sm border-l-4 border-teal-500">
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700">IP Tailscale / URL InfluxDB</label>
+                                <input type="text" id="influxIp" value="100.80.90.100" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-teal-500 focus:border-teal-500 text-sm" required>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700">Token InfluxDB</label>
+                                <input type="password" id="influxToken" placeholder="Nhập Token..." class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-teal-500 focus:border-teal-500 text-sm" required>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700">Tên Tổ Chức (Org)</label>
+                                <input type="text" id="influxOrg" value="my-org" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-teal-500 focus:border-teal-500 text-sm" required>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700">Tên Bucket (DB)</label>
+                                <input type="text" id="influxBucket" value="ship-data" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-teal-500 focus:border-teal-500 text-sm" required>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700">Khoảng thời gian muốn tải</label>
+                                <select id="timeRange" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-teal-500 focus:border-teal-500 text-sm">
+                                    <option value="-15m">15 Phút qua</option>
+                                    <option value="-1h">1 Giờ qua</option>
+                                    <option value="-12h">12 Giờ qua</option>
+                                    <option value="-1d">1 Ngày trước</option>
+                                    <option value="-7d">7 Ngày trước</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-3 bg-blue-50 text-blue-800 rounded text-xs border border-blue-200">
+                        <i class="fas fa-info-circle"></i> Đã bỏ qua cấu hình PostgreSQL theo yêu cầu. Dữ liệu sẽ được lưu thẳng thành file <code>du_lieu_tau.csv</code>.
+                    </div>
+                </form>
+            </div>
+
+            <!-- Cột phải: Kết quả -->
+            <div class="p-0 lg:col-span-2 bg-white flex flex-col">
+                <!-- Tab Navigation -->
+                <div class="flex border-b border-gray-200 bg-gray-50 overflow-x-auto" id="tabs">
+                    <button class="px-4 py-3 text-sm font-medium text-teal-600 border-b-2 border-teal-600 bg-white focus:outline-none whitespace-nowrap" data-tab="tab1">
+                        1. Phân tích Dữ liệu
+                    </button>
+                    <button class="px-4 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 focus:outline-none whitespace-nowrap" data-tab="tab2">
+                        2. Python Script (Trích xuất)
+                    </button>
+                    <button class="px-4 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 focus:outline-none whitespace-nowrap" data-tab="tab3">
+                        3. Hướng dẫn chạy
+                    </button>
+                    <button class="px-4 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 focus:outline-none whitespace-nowrap" data-tab="tab4">
+                        4. Theo dõi Realtime
+                    </button>
+                </div>
+
+                <!-- Tab Contents -->
+                <div class="p-6 flex-grow overflow-y-auto" style="max-height: 600px;">
+                    
+                    <!-- Tab 1 -->
+                    <div id="tab1" class="tab-content active">
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">Cấu trúc dữ liệu nhận diện từ file Excel của bạn</h3>
+                        <p class="text-sm text-gray-600 mb-4">Hệ thống sẽ kéo dữ liệu thuộc 3 Measurement (nhóm) sau theo đúng thực tế trên tàu:</p>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="border rounded p-3 bg-gray-50">
+                                <h4 class="font-bold text-sm text-gray-700 mb-2"><i class="fas fa-bolt text-yellow-500 mr-1"></i> electric_data (11 tín hiệu)</h4>
+                                <ul class="text-xs text-gray-600 list-disc pl-5 space-y-1">
+                                    <li><code>rudder</code> (Góc bánh lái)</li>
+                                    <li><code>propRpm</code> (Vòng tua chân vịt)</li>
+                                    <li><code>mainRpm</code> (Vòng tua máy chính)</li>
+                                    <li><code>rot</code> (Tốc độ quay trở)</li>
+                                    <li><code>sog</code> (Tốc độ trên mặt đất)</li>
+                                    <li><code>cog</code> (Hướng đi trên mặt đất)</li>
+                                    <li><code>compass</code> (La bàn)</li>
+                                    <li><code>fuelRack</code> (Thanh răng nhiên liệu)</li>
+                                    <li><code>luboPress</code> (Áp suất dầu nhờn)</li>
+                                    <li><code>volt</code> (Điện áp)</li>
+                                    <li><code>amp</code> (Dòng điện)</li>
+                                </ul>
+                            </div>
+                            <div class="border rounded p-3 bg-gray-50">
+                                <h4 class="font-bold text-sm text-gray-700 mb-2"><i class="fas fa-compass text-teal-500 mr-1"></i> bridge_data (9 tín hiệu)</h4>
+                                <ul class="text-xs text-gray-600 list-disc pl-5 space-y-1">
+                                    <li><code>lat</code>, <code>lon</code> (Tọa độ GPS)</li>
+                                    <li><code>fuelTotal</code> (Tổng nhiên liệu)</li>
+                                    <li><code>fuelMain</code> (Nhiên liệu máy chính)</li>
+                                    <li><code>fuelAux</code> (Nhiên liệu máy phụ)</li>
+                                    <li><code>fuelDaily</code> (Nhiên liệu hàng ngày)</li>
+                                    <li><code>fuelHourly</code> (Nhiên liệu hàng giờ)</li>
+                                    <li><code>coolTemp</code> (Nhiệt độ nước làm mát)</li>
+                                    <li><code>luboTemp</code> (Nhiệt độ dầu nhờn)</li>
+                                </ul>
+                            </div>
+                            <div class="border rounded p-3 bg-gray-50">
+                                <h4 class="font-bold text-sm text-gray-700 mb-2"><i class="fas fa-cogs text-blue-500 mr-1"></i> engine_data (13 tín hiệu)</h4>
+                                <ul class="text-xs text-gray-600 list-disc pl-5 space-y-1">
+                                    <li><code>lat</code>, <code>lon</code> (Tọa độ GPS phụ)</li>
+                                    <li><code>speedLog</code> (Tốc độ qua nước)</li>
+                                    <li><code>windSpeed</code> (Tốc độ gió)</li>
+                                    <li><code>windDir</code> (Hướng gió)</li>
+                                    <li><code>rpm</code> (Vòng tua động cơ phụ)</li>
+                                    <li><code>depth</code> (Độ sâu)</li>
+                                    <li><code>roll</code> (Độ nghiêng ngang)</li>
+                                    <li><code>fuel_level</code> (Mức nhiên liệu)</li>
+                                    <li><code>exhaustTemp</code> (Nhiệt độ khí xả)</li>
+                                    <li><code>startAirPress</code> (Áp suất khí khởi động)</li>
+                                    <li><code>currentSpeed</code> (Tốc độ dòng chảy)</li>
+                                    <li><code>currentDir</code> (Hướng dòng chảy)</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 2 -->
+                    <div id="tab2" class="tab-content">
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">Script kéo dữ liệu về CSV</h3>
+                        <p class="text-sm text-gray-600 mb-2">Script này sẽ gom tất cả dữ liệu từ các measurement trên và xuất ra 1 file CSV có cấu trúc: Thời gian | Tên Measurement | Tên Tín hiệu | Giá trị.</p>
+                        <p class="text-xs text-red-600 mb-2 font-semibold">Cần cài thư viện: <code class="bg-gray-200 px-1 rounded font-mono text-gray-800">pip install influxdb-client</code></p>
+                        <div class="code-block text-sm" id="codePython">
+                            <button class="copy-btn" onclick="copyToClipboard('codePython_content')"><i class="fas fa-copy"></i> Copy</button>
+                            <pre id="codePython_content" style="white-space: pre-wrap; word-break: break-all;"></pre>
+                        </div>
+                    </div>
+
+                    <!-- Tab 3 -->
+                    <div id="tab3" class="tab-content">
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">Hướng dẫn chạy để lấy file</h3>
+                        
+                        <ol class="list-decimal pl-5 space-y-3 text-sm text-gray-700">
+                            <li>
+                                <strong>Tạo file mã nguồn:</strong> Tạo một file mới trên máy tính của bạn đặt tên là <code>export_csv.py</code>.
+                            </li>
+                            <li>
+                                <strong>Dán code:</strong> Copy toàn bộ code ở Tab 2 và dán vào file vừa tạo.
+                            </li>
+                            <li>
+                                <strong>Chạy lệnh:</strong> Mở Terminal (Command Prompt) tại thư mục chứa file và gõ:
+                                <div class="bg-gray-800 text-green-400 p-2 rounded mt-1 font-mono text-xs">python export_csv.py</div>
+                            </li>
+                            <li>
+                                <strong>Nhận kết quả:</strong> Đợi script chạy xong (mất khoảng vài giây đến vài phút tùy vào dung lượng dữ liệu). Bạn sẽ thấy một file tên là <code>du_lieu_tau.csv</code> xuất hiện trong cùng thư mục.
+                            </li>
+                            <li>
+                                Bạn có thể mở trực tiếp file <code>du_lieu_tau.csv</code> này bằng Excel để vẽ biểu đồ và phân tích!
+                            </li>
+                        </ol>
+                    </div>
+
+                    <!-- Tab 4: Theo dõi Realtime -->
+                    <div id="tab4" class="tab-content">
+                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b">
+                            <div>
+                                <h3 class="text-lg font-bold text-gray-900"><i class="fas fa-satellite-dish text-teal-600 mr-2"></i>Dữ Liệu Realtime Từ Tàu</h3>
+                                <p class="text-xs text-gray-500 mt-1">Truy vấn trực tiếp các thông số từ InfluxDB trên tàu qua VPN Tailscale.</p>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-3">
+                                <!-- Status Badge -->
+                                <span id="realtimeStatus" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">
+                                    <span class="w-2 h-2 mr-1.5 rounded-full bg-gray-400"></span>Đang ngắt kết nối
+                                </span>
+                                
+                                <!-- Auto refresh switch -->
+                                <div class="flex items-center bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200">
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="autoRefreshToggle" class="sr-only peer" checked>
+                                        <div class="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-teal-600"></div>
+                                        <span class="ml-2 text-xs font-medium text-gray-700">Tự động cập nhật</span>
+                                    </label>
+                                    
+                                    <select id="refreshInterval" class="ml-2 bg-transparent text-xs font-semibold text-gray-700 focus:outline-none border-none cursor-pointer">
+                                        <option value="1000">1 giây</option>
+                                        <option value="2000" selected>2 giây</option>
+                                        <option value="5000">5 giây</option>
+                                        <option value="10000">10 giây</option>
+                                    </select>
+                                </div>
+                                
+                                <button id="refreshBtn" onclick="triggerManualRefresh()" class="bg-teal-600 hover:bg-teal-700 text-white font-semibold text-xs px-3.5 py-2 rounded-lg shadow-sm transition duration-200 flex items-center gap-1.5">
+                                    <i class="fas fa-sync-alt" id="refreshBtnIcon"></i> Làm mới
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Realtime Cards Grid (Đủ 33 trường dữ liệu từ 3 measurement) -->
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
+                            
+                            <!-- Card 1: electric_data (11 tín hiệu) -->
+                            <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm relative overflow-hidden group hover:shadow-md transition duration-200 flex flex-col justify-between">
+                                <div class="absolute top-0 left-0 w-full h-1 bg-yellow-500"></div>
+                                <div>
+                                    <div class="flex justify-between items-center mb-3 pb-2 border-b">
+                                        <span class="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center">
+                                            <i class="fas fa-bolt text-yellow-500 mr-1.5 text-sm"></i> electric_data <span class="ml-1.5 px-1.5 py-0.5 text-[10px] bg-yellow-100 text-yellow-800 rounded font-semibold">(11 tín hiệu)</span>
+                                        </span>
+                                    </div>
+                                    <div class="space-y-3">
+                                        <!-- Rudder display -->
+                                        <div>
+                                            <div class="flex justify-between text-xs font-medium mb-1">
+                                                <span class="text-gray-600">1. Góc Bánh Lái (rudder):</span>
+                                                <span id="val_rudder" class="font-bold text-gray-900">-</span>
+                                            </div>
+                                            <div class="relative h-9 bg-gray-100 rounded-lg overflow-hidden border flex items-center justify-center">
+                                                <div class="absolute left-1/2 top-0 bottom-0 w-0.5 bg-gray-400 border-dashed"></div>
+                                                <div id="rudderPointer" class="w-1.5 h-7 bg-yellow-500 rounded-full transition-all duration-300 transform origin-bottom" style="transform: rotate(0deg); margin-top: -6px;"></div>
+                                                <span class="absolute left-2 text-[9px] text-gray-400 font-bold font-mono">PORT</span>
+                                                <span class="absolute right-2 text-[9px] text-gray-400 font-bold font-mono">STBD</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Propeller RPM -->
+                                        <div>
+                                            <div class="flex justify-between text-xs font-medium mb-1">
+                                                <span class="text-gray-600">2. Vòng tua chân vịt (propRpm):</span>
+                                                <span id="val_propRpm" class="font-bold text-gray-900">-</span>
+                                            </div>
+                                            <div class="w-full bg-gray-100 rounded-full h-2 border">
+                                                <div id="rpmBar" class="bg-yellow-500 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Grid 9 thông số còn lại -->
+                                        <div class="grid grid-cols-2 gap-2 text-xs pt-1 border-t">
+                                            <div class="bg-gray-50 p-1.5 rounded">
+                                                <span class="block text-[10px] text-gray-500">3. Vòng tua máy (mainRpm):</span>
+                                                <span id="val_mainRpm" class="font-bold text-gray-900 text-xs">-</span>
+                                            </div>
+                                            <div class="bg-gray-50 p-1.5 rounded">
+                                                <span class="block text-[10px] text-gray-500">4. Vận tốc quay (rot):</span>
+                                                <span id="val_rot" class="font-bold text-gray-900 text-xs">-</span>
+                                            </div>
+                                            <div class="bg-gray-50 p-1.5 rounded">
+                                                <span class="block text-[10px] text-gray-500">5. Tốc độ đất (sog):</span>
+                                                <span id="val_sog" class="font-bold text-gray-900 text-xs">-</span>
+                                            </div>
+                                            <div class="bg-gray-50 p-1.5 rounded">
+                                                <span class="block text-[10px] text-gray-500">6. Hướng đi đất (cog):</span>
+                                                <span id="val_cog" class="font-bold text-gray-900 text-xs">-</span>
+                                            </div>
+                                            <div class="bg-gray-50 p-1.5 rounded">
+                                                <span class="block text-[10px] text-gray-500">7. La bàn (compass):</span>
+                                                <span id="val_compass" class="font-bold text-gray-900 text-xs">-</span>
+                                            </div>
+                                            <div class="bg-gray-50 p-1.5 rounded">
+                                                <span class="block text-[10px] text-gray-500">8. Thanh răng nl (fuelRack):</span>
+                                                <span id="val_fuelRack" class="font-bold text-gray-900 text-xs">-</span>
+                                            </div>
+                                            <div class="bg-gray-50 p-1.5 rounded">
+                                                <span class="block text-[10px] text-gray-500">9. Áp suất nhớt (luboPress):</span>
+                                                <span id="val_luboPress" class="font-bold text-gray-900 text-xs">-</span>
+                                            </div>
+                                            <div class="bg-gray-50 p-1.5 rounded">
+                                                <span class="block text-[10px] text-gray-500">10. Điện áp (volt):</span>
+                                                <span id="val_volt" class="font-bold text-gray-900 text-xs">-</span>
+                                            </div>
+                                            <div class="bg-gray-50 p-1.5 rounded col-span-2">
+                                                <span class="block text-[10px] text-gray-500">11. Dòng điện (amp):</span>
+                                                <span id="val_amp" class="font-bold text-gray-900 text-xs">-</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Card 2: bridge_data (9 tín hiệu) -->
+                            <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm relative overflow-hidden group hover:shadow-md transition duration-200 flex flex-col justify-between">
+                                <div class="absolute top-0 left-0 w-full h-1 bg-teal-500"></div>
+                                <div>
+                                    <div class="flex justify-between items-center mb-3 pb-2 border-b">
+                                        <span class="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center">
+                                            <i class="fas fa-compass text-teal-500 mr-1.5 text-sm"></i> bridge_data <span class="ml-1.5 px-1.5 py-0.5 text-[10px] bg-teal-100 text-teal-800 rounded font-semibold">(9 tín hiệu)</span>
+                                        </span>
+                                    </div>
+                                    <div class="space-y-3">
+                                        <!-- GPS Coordinates (lat, lon) -->
+                                        <div class="bg-teal-50 p-2.5 rounded-lg border border-teal-100">
+                                            <span class="block text-[11px] font-medium text-teal-800 mb-0.5">1-2. Tọa độ GPS Tàu (lat, lon):</span>
+                                            <div class="flex items-center justify-between">
+                                                <span id="val_coords" class="font-bold text-sm text-gray-900">-</span>
+                                                <a id="gpsMapLink" href="#" target="_blank" class="text-teal-700 hover:text-teal-900 text-xs font-bold hidden items-center gap-0.5">
+                                                    <i class="fas fa-map-marked-alt"></i> Bản đồ
+                                                </a>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- 7 thông số còn lại -->
+                                        <div class="grid grid-cols-2 gap-2 text-xs pt-1">
+                                            <div class="bg-gray-50 p-1.5 rounded">
+                                                <span class="block text-[10px] text-gray-500">3. Tổng nl (fuelTotal):</span>
+                                                <span id="val_fuelTotal" class="font-bold text-gray-900 text-xs">-</span>
+                                            </div>
+                                            <div class="bg-gray-50 p-1.5 rounded">
+                                                <span class="block text-[10px] text-gray-500">4. Nl máy chính (fuelMain):</span>
+                                                <span id="val_fuelMain" class="font-bold text-gray-900 text-xs">-</span>
+                                            </div>
+                                            <div class="bg-gray-50 p-1.5 rounded">
+                                                <span class="block text-[10px] text-gray-500">5. Nl máy phụ (fuelAux):</span>
+                                                <span id="val_fuelAux" class="font-bold text-gray-900 text-xs">-</span>
+                                            </div>
+                                            <div class="bg-gray-50 p-1.5 rounded">
+                                                <span class="block text-[10px] text-gray-500">6. Nl ngày (fuelDaily):</span>
+                                                <span id="val_fuelDaily" class="font-bold text-gray-900 text-xs">-</span>
+                                            </div>
+                                            <div class="bg-gray-50 p-1.5 rounded">
+                                                <span class="block text-[10px] text-gray-500">7. Nl giờ (fuelHourly):</span>
+                                                <span id="val_fuelHourly" class="font-bold text-gray-900 text-xs">-</span>
+                                            </div>
+                                            <div class="bg-gray-50 p-1.5 rounded">
+                                                <span class="block text-[10px] text-gray-500">8. Temp mát (coolTemp):</span>
+                                                <span id="val_coolTemp" class="font-bold text-gray-900 text-xs">-</span>
+                                            </div>
+                                            <div class="bg-gray-50 p-1.5 rounded col-span-2">
+                                                <span class="block text-[10px] text-gray-500">9. Temp nhớt (luboTemp):</span>
+                                                <span id="val_luboTemp" class="font-bold text-gray-900 text-xs">-</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Card 3: engine_data (11 tín hiệu) -->
+                            <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm relative overflow-hidden group hover:shadow-md transition duration-200 flex flex-col justify-between">
+                                <div class="absolute top-0 left-0 w-full h-1 bg-blue-500"></div>
+                                <div>
+                                    <div class="flex justify-between items-center mb-3 pb-2 border-b">
+                                        <span class="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center">
+                                            <i class="fas fa-cogs text-blue-500 mr-1.5 text-sm"></i> engine_data <span class="ml-1.5 px-1.5 py-0.5 text-[10px] bg-blue-100 text-blue-800 rounded font-semibold">(11 tín hiệu)</span>
+                                        </span>
+                                    </div>
+                                    <div class="space-y-3">
+                                        <!-- 11 thông số động cơ & môi trường -->
+                                        <div class="grid grid-cols-2 gap-2 text-xs pt-1">
+                                            <div class="bg-gray-50 p-1.5 rounded">
+                                                <span class="block text-[10px] text-gray-500">1. Tốc độ nước (speedLog):</span>
+                                                <span id="val_speedLog" class="font-bold text-gray-900 text-xs">-</span>
+                                            </div>
+                                            <div class="bg-gray-50 p-1.5 rounded">
+                                                <span class="block text-[10px] text-gray-500">2. Tốc độ gió (windSpeed):</span>
+                                                <span id="val_windSpeed" class="font-bold text-gray-900 text-xs">-</span>
+                                            </div>
+                                            <div class="bg-gray-50 p-1.5 rounded">
+                                                <span class="block text-[10px] text-gray-500">3. Hướng gió (windDir):</span>
+                                                <span id="val_windDir" class="font-bold text-gray-900 text-xs">-</span>
+                                            </div>
+                                            <div class="bg-gray-50 p-1.5 rounded">
+                                                <span class="block text-[10px] text-gray-500">4. Vòng tua phụ (rpm):</span>
+                                                <span id="val_rpm" class="font-bold text-gray-900 text-xs">-</span>
+                                            </div>
+                                            <div class="bg-gray-50 p-1.5 rounded">
+                                                <span class="block text-[10px] text-gray-500">5. Độ sâu (depth):</span>
+                                                <span id="val_depth" class="font-bold text-gray-900 text-xs">-</span>
+                                            </div>
+                                            <div class="bg-gray-50 p-1.5 rounded">
+                                                <span class="block text-[10px] text-gray-500">6. Độ nghiêng (roll):</span>
+                                                <span id="val_roll" class="font-bold text-gray-900 text-xs">-</span>
+                                            </div>
+                                            <div class="bg-gray-50 p-1.5 rounded">
+                                                <span class="block text-[10px] text-gray-500">7. Mức nhiên liệu (fuel_level):</span>
+                                                <span id="val_fuel_level" class="font-bold text-gray-900 text-xs">-</span>
+                                            </div>
+                                            <div class="bg-gray-50 p-1.5 rounded">
+                                                <span class="block text-[10px] text-gray-500">8. Temp khí xả (exhaustTemp):</span>
+                                                <span id="val_exhaustTemp" class="font-bold text-gray-900 text-xs">-</span>
+                                            </div>
+                                            <div class="bg-gray-50 p-1.5 rounded">
+                                                <span class="block text-[10px] text-gray-500">9. Áp khí k.động (startAirPress):</span>
+                                                <span id="val_startAirPress" class="font-bold text-gray-900 text-xs">-</span>
+                                            </div>
+                                            <div class="bg-gray-50 p-1.5 rounded">
+                                                <span class="block text-[10px] text-gray-500">10. Vận tốc dòng (currentSpeed):</span>
+                                                <span id="val_currentSpeed" class="font-bold text-gray-900 text-xs">-</span>
+                                            </div>
+                                            <div class="bg-gray-50 p-1.5 rounded col-span-2">
+                                                <span class="block text-[10px] text-gray-500">11. Hướng dòng (currentDir):</span>
+                                                <span id="val_currentDir" class="font-bold text-gray-900 text-xs">-</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+
+                        <!-- Chart and Logs Section -->
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                            <!-- Realtime Chart -->
+                            <div class="lg:col-span-2 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                                <h4 class="text-sm font-bold text-gray-800 mb-3 flex items-center justify-between">
+                                    <span><i class="fas fa-chart-line text-teal-600 mr-1.5"></i>Biểu đồ xu hướng Bánh lái & RPM</span>
+                                    <span class="text-[10px] text-gray-400 font-normal">20 điểm dữ liệu gần nhất</span>
+                                </h4>
+                                <div style="height: 220px; position: relative;">
+                                    <canvas id="realtimeChart"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- Connection logs -->
+                            <div class="bg-gray-900 p-4 rounded-xl text-gray-300 font-mono text-xs flex flex-col h-[280px]">
+                                <div class="flex justify-between items-center mb-2 pb-2 border-b border-gray-800 text-[10px] uppercase font-bold text-gray-500 tracking-wider">
+                                    <span>Console logs kết nối</span>
+                                    <button onclick="clearRealtimeLogs()" class="hover:text-white transition"><i class="fas fa-trash-alt"></i> Xóa</button>
+                                </div>
+                                <div id="realtimeLogs" class="flex-grow overflow-y-auto space-y-1.5 scrollbar-thin scrollbar-thumb-gray-800 scrollbar-track-transparent">
+                                    <div class="text-gray-500">[System] Đang chờ kết nối...</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Raw signal list -->
+                        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                            <div class="p-4 bg-gray-50 border-b border-gray-200">
+                                <h4 class="text-sm font-bold text-gray-800"><i class="fas fa-list text-gray-500 mr-1.5"></i>Danh sách tất cả tín hiệu nhận về</h4>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left border-collapse text-xs">
+                                    <thead>
+                                        <tr class="bg-gray-100 border-b text-gray-500 uppercase font-semibold">
+                                            <th class="p-3">Measurement</th>
+                                            <th class="p-3">Tín hiệu</th>
+                                            <th class="p-3">Giá trị</th>
+                                            <th class="p-3">Thời gian cập nhật</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="rawSignalsTableBody" class="divide-y divide-gray-100 text-gray-700">
+                                        <tr>
+                                            <td colspan="4" class="p-4 text-center text-gray-400">Chưa có dữ liệu. Vui lòng bật kết nối để hiển thị.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Xử lý chuyển Tab
+    const tabBtns = document.querySelectorAll('#tabs button');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            tabBtns.forEach(b => {
+                b.classList.remove('text-teal-600', 'border-b-2', 'border-teal-600', 'bg-white');
+                b.classList.add('text-gray-500', 'hover:text-gray-700');
+            });
+            tabContents.forEach(c => c.classList.remove('active'));
+
+            btn.classList.add('text-teal-600', 'border-b-2', 'border-teal-600', 'bg-white');
+            btn.classList.remove('text-gray-500', 'hover:text-gray-700');
+            document.getElementById(btn.dataset.tab).classList.add('active');
+            
+            // Xử lý logic Tab Realtime
+            if (btn.dataset.tab === 'tab4') {
+                if (!chartInstance) {
+                    initChart();
+                }
+                startRealtimePolling();
+            } else {
+                stopRealtimePolling();
+            }
+        });
+    });
+
+    // Cập nhật Code động dựa trên Input
+    const inputs = document.querySelectorAll('input, select');
+    
+    function generateCode() {
+        const ip = document.getElementById('influxIp').value || '100.x.x.x';
+        const token = document.getElementById('influxToken').value || 'MAY_CHUA_NHAP_TOKEN';
+        const org = document.getElementById('influxOrg').value || 'my-org';
+        const bucket = document.getElementById('influxBucket').value || 'ship-data';
+        const timeRange = document.getElementById('timeRange').value || '-1h';
+        
+        let cleanUrl = ip;
+        if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+            cleanUrl = 'http://' + cleanUrl + ':8086';
+        }
+
+        // Cập nhật Python Script (Chỉ xuất CSV)
+        const pyCode = `import os
+import csv
+from influxdb_client import InfluxDBClient
+
+# --- CẤU HÌNH KẾT NỐI (Ưu tiên đọc từ file .env cùng thư mục) ---
+def load_env_vars():
+    env_vars = {
+        "INFLUX_URL": "${cleanUrl}",
+        "INFLUX_TOKEN": "${token}",
+        "INFLUX_ORG": "${org}",
+        "INFLUX_BUCKET": "${bucket}"
+    }
+    
+    # Tìm file .env trong cùng thư mục với file script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    env_path = os.path.join(script_dir, '.env')
+    
+    if os.path.exists(env_path):
+        print(f"[*] Đã tìm thấy file .env, đang nạp cấu hình bảo mật...")
+        with open(env_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, val = line.split('=', 1)
+                    key = key.strip().upper()
+                    val = val.strip().strip('"').strip("'")
+                    
+                    if key in ['ORGANIZATION', 'INFLUX_ORG', 'ORG']:
+                        env_vars['INFLUX_ORG'] = val
+                    elif key in ['BUCKET', 'INFLUX_BUCKET']:
+                        env_vars['INFLUX_BUCKET'] = val
+                    elif key in ['TOKEN', 'INFLUX_TOKEN']:
+                        env_vars['INFLUX_TOKEN'] = val
+                    elif key in ['URL', 'INFLUX_URL']:
+                        env_vars['INFLUX_URL'] = val
+                    elif key in ['IP', 'INFLUX_IP']:
+                        env_vars['INFLUX_URL'] = f"http://{val}:8086"
+    else:
+        print(f"[!] Không thấy file .env trong thư mục chạy script, dùng giá trị cấu hình mặc định.")
+        
+    return env_vars
+
+config = load_env_vars()
+INFLUX_URL = config['INFLUX_URL']
+INFLUX_TOKEN = config['INFLUX_TOKEN']
+INFLUX_ORG = config['INFLUX_ORG']
+INFLUX_BUCKET = config['INFLUX_BUCKET']
+TIME_RANGE = "${timeRange}"
+
+OUTPUT_CSV = "du_lieu_tau.csv"
+
+def main():
+    print(f"[*] Đang kết nối đến Tàu qua Tailscale (URL: {INFLUX_URL})...")
+    client = InfluxDBClient(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG, timeout=60000)
+    query_api = client.query_api()
+
+    # Truy vấn lấy toàn bộ các measurement có trong file cấu hình của bạn
+    # (electric_data, engine_data, bridge_data, v.v...)
+    query = f'''
+        from(bucket:"{INFLUX_BUCKET}") 
+        |> range(start: {TIME_RANGE})
+        |> filter(fn: (r) => r._measurement == "electric_data" or r._measurement == "engine_data" or r._measurement == "bridge_data")
+        |> drop(columns: ["_start", "_stop", "host"])
+    '''
+
+    try:
+        print(f"[*] Đang tải dữ liệu từ {TIME_RANGE} qua mạng vệ tinh. Vui lòng đợi...")
+        tables = query_api.query(query)
+        
+        records_to_export = []
+        count = 0
+
+        # Phân tích dữ liệu trả về
+        for table in tables:
+            for record in table.records:
+                records_to_export.append({
+                    "Thời_gian": record.get_time().strftime('%Y-%m-%d %H:%M:%S'),
+                    "Nhóm_tín_hiệu": record.get_measurement(),
+                    "Tên_tín_hiệu": record.get_field(),
+                    "Giá_trị": record.get_value()
+                })
+                count += 1
+
+        if count > 0:
+            print(f"[*] Đã tải thành công {count} bản ghi. Đang ghi ra file CSV...")
+            
+            # Ghi ra file CSV
+            with open(OUTPUT_CSV, mode='w', newline='', encoding='utf-8') as file:
+                writer = csv.DictWriter(file, fieldnames=["Thời_gian", "Nhóm_tín_hiệu", "Tên_tín_hiệu", "Giá_trị"])
+                writer.writeheader()
+                writer.writerows(records_to_export)
+                
+            print(f"[SUCCESS] Hoàn thành! File đã được lưu tại: {OUTPUT_CSV}")
+            print("[INFO] Bạn có thể mở file này bằng phần mềm Excel.")
+        else:
+            print("[-] Trống: Không có dữ liệu nào trong khoảng thời gian này.")
+
+    except Exception as e:
+        print(f"[!] LỖI KẾT NỐI: Mạng Tailscale hoặc InfluxDB server gặp lỗi.")
+        print(f"Chi tiết lỗi: {e}")
+    finally:
+        client.close()
+
+if __name__ == "__main__":
+    main()
+`;
+        document.getElementById('codePython_content').textContent = pyCode;
+    }
+
+    inputs.forEach(input => {
+        if (input.id === 'envFileInput' || input.id === 'autoRefreshToggle' || input.id === 'refreshInterval') return;
+        input.addEventListener('change', generateCode);
+        if(input.tagName === 'INPUT') input.addEventListener('input', generateCode);
+    });
+
+    // --- LOGIC XỬ LÝ .ENV ---
+    function parseAndApplyEnv(text) {
+        const lines = text.split('\n');
+        const env = {};
+        lines.forEach(line => {
+            line = line.strip ? line.strip() : line.trim();
+            if (!line || line.startsWith('#')) return;
+            const idx = line.indexOf('=');
+            if (idx === -1) return;
+            const key = line.substring(0, idx).trim();
+            const value = line.substring(idx + 1).trim().replace(/^["']|["']$/g, '');
+            env[key] = value;
+        });
+
+        let org = env.Organization || env.INFLUX_ORG || env.org;
+        let bucket = env.Bucket || env.INFLUX_BUCKET || env.bucket;
+        let token = env.Token || env.INFLUX_TOKEN || env.token;
+        let url = env.Url || env.INFLUX_URL || env.url || env.Ip || env.INFLUX_IP || env.ip;
+
+        let applied = false;
+        if (org) {
+            document.getElementById('influxOrg').value = org;
+            applied = true;
+        }
+        if (bucket) {
+            document.getElementById('influxBucket').value = bucket;
+            applied = true;
+        }
+        if (token) {
+            document.getElementById('influxToken').value = token;
+            applied = true;
+        }
+        if (url) {
+            if (url.startsWith('http://') || url.startsWith('https://')) {
+                try {
+                    const parsedUrl = new URL(url);
+                    document.getElementById('influxIp').value = parsedUrl.hostname;
+                } catch (e) {
+                    document.getElementById('influxIp').value = url;
+                }
+            } else {
+                document.getElementById('influxIp').value = url;
+            }
+            applied = true;
+        }
+
+        if (applied) {
+            const statusBadge = document.getElementById('envStatus');
+            if (statusBadge) {
+                statusBadge.textContent = "Đã nạp";
+                statusBadge.className = "text-[10px] bg-green-500 text-white px-1.5 py-0.5 rounded font-semibold animate-pulse";
+            }
+            generateCode();
+            showToast("Đã tải cấu hình từ .env thành công!");
+        }
+    }
+
+    function handleEnvUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            parseAndApplyEnv(e.target.result);
+        };
+        reader.readAsText(file);
+    }
+
+    async function tryAutoLoadEnv() {
+        try {
+            const res = await fetch('.env');
+            if (res.ok) {
+                const text = await res.text();
+                parseAndApplyEnv(text);
+                console.log("Auto-loaded .env file successfully.");
+            }
+        } catch (e) {
+            console.log("Could not auto-fetch .env (normal if opened via file:// protocol):", e);
+        }
+    }
+
+    // --- LOGIC XỬ LÝ REALTIME MONITOR ---
+    let realtimeTimer = null;
+    let chartInstance = null;
+    const maxChartPoints = 20;
+    const chartData = {
+        labels: [],
+        rudder: [],
+        rpm: []
+    };
+
+    function addRealtimeLog(msg, type = 'info') {
+        const logsDiv = document.getElementById('realtimeLogs');
+        if (!logsDiv) return;
+        
+        const timestamp = new Date().toLocaleTimeString();
+        let colorClass = 'text-gray-400';
+        let prefix = '[INFO]';
+        
+        if (type === 'success') {
+            colorClass = 'text-green-400';
+            prefix = '[SUCCESS]';
+        } else if (type === 'error') {
+            colorClass = 'text-red-400';
+            prefix = '[ERROR]';
+        } else if (type === 'warn') {
+            colorClass = 'text-yellow-400';
+            prefix = '[WARN]';
+        }
+        
+        const logLine = document.createElement('div');
+        logLine.className = `${colorClass} leading-relaxed break-all`;
+        logLine.innerHTML = `<span class="text-gray-600">${timestamp}</span> ${prefix} ${msg}`;
+        logsDiv.appendChild(logLine);
+        logsDiv.scrollTop = logsDiv.scrollHeight;
+        
+        while (logsDiv.children.length > 100) {
+            logsDiv.removeChild(logsDiv.firstChild);
+        }
+    }
+
+    function clearRealtimeLogs() {
+        const logsDiv = document.getElementById('realtimeLogs');
+        if (logsDiv) logsDiv.innerHTML = '';
+    }
+
+    function initChart() {
+        const ctx = document.getElementById('realtimeChart');
+        if (!ctx) return;
+        
+        chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: chartData.labels,
+                datasets: [
+                    {
+                        label: 'Góc bánh lái (°)',
+                        data: chartData.rudder,
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        yAxisID: 'y_rudder',
+                        pointRadius: 2
+                    },
+                    {
+                        label: 'Vòng tua RPM',
+                        data: chartData.rpm,
+                        borderColor: '#0d9488',
+                        backgroundColor: 'rgba(13, 148, 136, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        yAxisID: 'y_rpm',
+                        pointRadius: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { size: 10 } }
+                    },
+                    y_rudder: {
+                        type: 'linear',
+                        position: 'left',
+                        title: { display: true, text: 'Bánh lái (°)', font: { size: 10, weight: 'bold' } },
+                        min: -40,
+                        max: 40,
+                        grid: { color: 'rgba(0,0,0,0.05)' }
+                    },
+                    y_rpm: {
+                        type: 'linear',
+                        position: 'right',
+                        title: { display: true, text: 'RPM', font: { size: 10, weight: 'bold' } },
+                        min: 0,
+                        max: 1200,
+                        grid: { drawOnChartArea: false }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { boxWidth: 12, font: { size: 10 } }
+                    }
+                }
+            }
+        });
+    }
+
+    function updateChart(timeLabel, rudderVal, rpmVal) {
+        if (!chartInstance) return;
+        
+        if (chartData.labels.length >= maxChartPoints) {
+            chartData.labels.shift();
+            chartData.rudder.shift();
+            chartData.rpm.shift();
+        }
+        
+        chartData.labels.push(timeLabel);
+        chartData.rudder.push(rudderVal !== null ? parseFloat(rudderVal) : null);
+        chartData.rpm.push(rpmVal !== null ? parseFloat(rpmVal) : null);
+        
+        chartInstance.update('none');
+    }
+
+    function updateStatusBadge(status, text) {
+        const badge = document.getElementById('realtimeStatus');
+        if (!badge) return;
+        
+        let bgClass = 'bg-gray-100 text-gray-800';
+        let dotClass = 'bg-gray-400';
+        
+        if (status === 'connected') {
+            bgClass = 'bg-green-100 text-green-800';
+            dotClass = 'bg-green-500 animate-ping';
+        } else if (status === 'connecting' || status === 'querying') {
+            bgClass = 'bg-blue-100 text-blue-800';
+            dotClass = 'bg-blue-500 animate-pulse';
+        } else if (status === 'error') {
+            bgClass = 'bg-red-100 text-red-800';
+            dotClass = 'bg-red-500';
+        }
+        
+        badge.className = `inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${bgClass}`;
+        badge.innerHTML = `<span class="w-2 h-2 mr-1.5 rounded-full ${dotClass}"></span>${text}`;
+    }
+
+    async function fetchRealtimeData() {
+        const ip = document.getElementById('influxIp').value.trim();
+        const token = document.getElementById('influxToken').value.trim();
+        const org = document.getElementById('influxOrg').value.trim();
+        const bucket = document.getElementById('influxBucket').value.trim();
+        
+        if (!token || token === 'MAY_CHUA_NHAP_TOKEN') {
+            addRealtimeLog("Vui lòng nhập Token InfluxDB để tải dữ liệu.", "warn");
+            updateStatusBadge('error', "Chưa nhập Token");
+            return;
+        }
+
+        let url = ip;
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            url = `http://${url}:8086`;
+        }
+
+        const queryEndpoint = `${url}/api/v2/query?org=${encodeURIComponent(org)}`;
+        
+        const queryFast = `
+            from(bucket: "${bucket}")
+              |> range(start: -5m)
+              |> filter(fn: (r) => r._measurement == "electric_data" or r._measurement == "engine_data" or r._measurement == "bridge_data")
+              |> last()
+        `;
+        
+        const querySlow = `
+            from(bucket: "${bucket}")
+              |> range(start: -24h)
+              |> filter(fn: (r) => r._measurement == "electric_data" or r._measurement == "engine_data" or r._measurement == "bridge_data")
+              |> filter(fn: (r) => r._field == "lat" or r._field == "lon" or r._field == "cog" or r._field == "compass" or r._field == "rot" or r._field == "sog")
+              |> last()
+        `;
+
+        updateStatusBadge('querying', "Đang truy vấn...");
+        
+        const refreshIcon = document.getElementById('refreshBtnIcon');
+        if (refreshIcon) refreshIcon.classList.add('fa-spin');
+
+        try {
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), 4000);
+
+            addRealtimeLog(`Đang gửi các truy vấn song song đến InfluxDB: ${url}/api/v2/query`, 'info');
+            
+            const [responseFast, responseSlow] = await Promise.all([
+                fetch(queryEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Token ${token}`,
+                        'Accept': 'application/csv',
+                        'Content-Type': 'application/vnd.flux'
+                    },
+                    body: queryFast,
+                    signal: controller.signal
+                }),
+                fetch(queryEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Token ${token}`,
+                        'Accept': 'application/csv',
+                        'Content-Type': 'application/vnd.flux'
+                    },
+                    body: querySlow,
+                    signal: controller.signal
+                })
+            ]);
+
+            clearTimeout(id);
+
+            if (!responseFast.ok) {
+                const errText = await responseFast.text();
+                throw new Error(`Truy vấn nhanh thất bại: HTTP ${responseFast.status} - ${errText || responseFast.statusText}`);
+            }
+            if (!responseSlow.ok) {
+                const errText = await responseSlow.text();
+                throw new Error(`Truy vấn chậm thất bại: HTTP ${responseSlow.status} - ${errText || responseSlow.statusText}`);
+            }
+
+            const csvFast = await responseFast.text();
+            const csvSlow = await responseSlow.text();
+            
+            if (refreshIcon) refreshIcon.classList.remove('fa-spin');
+            
+            const recordsFast = parseInfluxCSV(csvFast);
+            const recordsSlow = parseInfluxCSV(csvSlow);
+            const allRecords = recordsFast.concat(recordsSlow);
+            
+            if (allRecords.length === 0) {
+                addRealtimeLog("Không có dữ liệu trả về từ InfluxDB trong 24 giờ qua.", "warn");
+                updateStatusBadge('connected', "Trống");
+                return;
+            }
+
+            addRealtimeLog(`Nhận phản hồi thành công! (Dữ liệu nhanh: ${recordsFast.length} bản ghi, Định vị: ${recordsSlow.length} bản ghi)`, 'success');
+            updateStatusBadge('connected', "Đã kết nối");
+            
+            processRealtimeRecords(allRecords);
+
+        } catch (e) {
+            if (refreshIcon) refreshIcon.classList.remove('fa-spin');
+            
+            let errMsg = e.message;
+            if (e.name === 'AbortError') {
+                errMsg = "Hết thời gian chờ (Timeout 4s) - Không thể kết nối IP máy tàu.";
+            }
+            
+            addRealtimeLog(`Lỗi kết nối: ${errMsg}`, 'error');
+            updateStatusBadge('error', "Lỗi kết nối");
+            
+            if (window.location.protocol === 'file:') {
+                addRealtimeLog("LƯU Ý: Bạn đang chạy file HTML trực tiếp (file://). Trình duyệt có thể đã chặn request CORS đến máy tàu. Hãy chạy HTML qua server local hoặc cấu hình CORS cho InfluxDB.", "warn");
+            }
+        }
+    }
+
+    function parseInfluxCSV(csvText) {
+        const lines = csvText.split('\n');
+        const records = [];
+        let headers = [];
+        
+        for (let line of lines) {
+            line = line.trim();
+            if (!line) continue;
+            if (line.startsWith('#')) continue;
+            
+            const parts = line.split(',');
+            if (parts[1] === 'result') {
+                headers = parts;
+                continue;
+            }
+            
+            if (headers.length > 0 && parts.length >= headers.length) {
+                const record = {};
+                headers.forEach((header, index) => {
+                    if (header) {
+                        record[header] = parts[index];
+                    }
+                });
+                records.push(record);
+            }
+        }
+        return records;
+    }
+
+    function processRealtimeRecords(records) {
+        if (records.length === 0) return;
+        
+        const signalMap = {};
+        
+        records.forEach(r => {
+            if (!r._field) return;
+            const meas = r._measurement || '';
+            const field = r._field;
+            const val = parseFloat(r._value);
+            const parsedVal = isNaN(val) ? r._value : val;
+            const rTime = r._time ? new Date(r._time).getTime() : 0;
+
+            const fullKey = `${meas}_${field}`;
+            if (!signalMap[fullKey] || rTime >= signalMap[fullKey].time) {
+                signalMap[fullKey] = { val: parsedVal, raw: r._value, time: rTime };
+            }
+            if (!signalMap[field] || rTime >= signalMap[field].time) {
+                signalMap[field] = { val: parsedVal, raw: r._value, time: rTime };
+            }
+            if (r._time && (!signalMap._lastTime || rTime > signalMap._lastTime)) {
+                signalMap._lastTime = rTime;
+                signalMap._lastTimeStr = r._time;
+            }
+        });
+
+        const getVal = (meas, fields) => {
+            const fieldList = Array.isArray(fields) ? fields : [fields];
+            // 1. Try specified meas + field
+            for (const f of fieldList) {
+                if (meas) {
+                    const fullKey = `${meas}_${f}`;
+                    if (signalMap[fullKey] !== undefined && signalMap[fullKey].val !== null && signalMap[fullKey].val !== '') return signalMap[fullKey].val;
+                }
+            }
+            // 2. Try generic field in signalMap
+            for (const f of fieldList) {
+                if (signalMap[f] !== undefined && signalMap[f].val !== null && signalMap[f].val !== '') return signalMap[f].val;
+            }
+            // 3. Try across any measurement in signalMap ending with _f
+            for (const key in signalMap) {
+                for (const f of fieldList) {
+                    if (key.endsWith(`_${f}`)) {
+                        const item = signalMap[key];
+                        if (item && item.val !== null && item.val !== '') return item.val;
+                    }
+                }
+            }
+            return null;
+        };
+
+        const formatVal = (val, suffix = '', decimals = 1) => {
+            if (val === null || val === undefined || val === '') return '-';
+            const num = typeof val === 'number' ? val : parseFloat(val);
+            if (!isNaN(num)) {
+                return `${num.toFixed(decimals)}${suffix}`;
+            }
+            return `${val}${suffix}`;
+        };
+
+        // --- 1. ELECTRIC DATA (11 fields) ---
+        const rudder = getVal('electric_data', ['rudder', 'rudder_angle', 'rudderAngle']);
+        const propRpm = getVal('electric_data', ['propRpm', 'prop_rpm', 'propellerRpm']);
+        const mainRpm = getVal('electric_data', ['mainRpm', 'main_rpm', 'engine_main_rpm']);
+        const rot = getVal('electric_data', ['rot', 'rate_of_turn', 'rateOfTurn']);
+        const sog = getVal('electric_data', ['sog', 'speed_over_ground']);
+        const cog = getVal('electric_data', ['cog', 'course_over_ground']);
+        const compass = getVal('electric_data', ['compass', 'heading']);
+        const fuelRack = getVal('electric_data', ['fuelRack', 'fuel_rack', 'rack_position']);
+        const luboPress = getVal('electric_data', ['luboPress', 'lub_press', 'lube_press', 'oil_press']);
+        const volt = getVal('electric_data', ['volt', 'voltage', 'volts', 'elec_volt', 'v', 'battery_volt']);
+        const amp = getVal('electric_data', ['amp', 'amperage', 'ampere', 'current_amp', 'a', 'electric_amp', 'current']);
+
+        // Rudder
+        const rudderValSpan = document.getElementById('val_rudder');
+        const rudderPointer = document.getElementById('rudderPointer');
+        if (rudderValSpan && rudderPointer) {
+            if (rudder !== null) {
+                rudderValSpan.textContent = formatVal(rudder, '°', 1);
+                const rotDeg = Math.max(-35, Math.min(35, typeof rudder === 'number' ? rudder : parseFloat(rudder)));
+                rudderPointer.style.transform = `rotate(${rotDeg}deg)`;
+            } else {
+                rudderValSpan.textContent = '-';
+                rudderPointer.style.transform = `rotate(0deg)`;
+            }
+        }
+
+        // Propeller RPM
+        const rpmValSpan = document.getElementById('val_propRpm');
+        const rpmBar = document.getElementById('rpmBar');
+        if (rpmValSpan && rpmBar) {
+            if (propRpm !== null) {
+                const rpmNum = typeof propRpm === 'number' ? propRpm : parseFloat(propRpm);
+                rpmValSpan.textContent = `${Math.round(rpmNum)} RPM`;
+                const percent = Math.min(100, Math.max(0, (rpmNum / 1000) * 100));
+                rpmBar.style.width = `${percent}%`;
+            } else {
+                rpmValSpan.textContent = '-';
+                rpmBar.style.width = `0%`;
+            }
+        }
+
+        if (document.getElementById('val_mainRpm')) document.getElementById('val_mainRpm').textContent = formatVal(mainRpm, ' RPM', 0);
+        if (document.getElementById('val_rot')) document.getElementById('val_rot').textContent = formatVal(rot, '°/m', 2);
+        if (document.getElementById('val_sog')) document.getElementById('val_sog').textContent = formatVal(sog, ' Kn', 1);
+        if (document.getElementById('val_cog')) document.getElementById('val_cog').textContent = formatVal(cog, '°', 1);
+        if (document.getElementById('val_compass')) document.getElementById('val_compass').textContent = formatVal(compass, '°', 1);
+        if (document.getElementById('val_fuelRack')) document.getElementById('val_fuelRack').textContent = formatVal(fuelRack, '%', 1);
+        if (document.getElementById('val_luboPress')) document.getElementById('val_luboPress').textContent = formatVal(luboPress, ' Bar', 2);
+        if (document.getElementById('val_volt')) document.getElementById('val_volt').textContent = formatVal(volt, ' V', 1);
+        if (document.getElementById('val_amp')) document.getElementById('val_amp').textContent = formatVal(amp, ' A', 1);
+
+        // --- 2. BRIDGE DATA (9 fields) ---
+        let bLat = getVal('bridge_data', ['lat', 'latitude']);
+        let bLon = getVal('bridge_data', ['lon', 'longitude', 'lng']);
+
+        // Fallback for GPS coordinates across all measurements if 0 or missing
+        if (!bLat || parseFloat(bLat) === 0 || !bLon || parseFloat(bLon) === 0) {
+            const fallbackLat = getVal(null, ['lat', 'latitude']);
+            const fallbackLon = getVal(null, ['lon', 'longitude', 'lng']);
+            if (fallbackLat && parseFloat(fallbackLat) !== 0) bLat = fallbackLat;
+            if (fallbackLon && parseFloat(fallbackLon) !== 0) bLon = fallbackLon;
+        }
+
+        const fuelTotal = getVal('bridge_data', ['fuelTotal', 'fuel_total']);
+        const fuelMain = getVal('bridge_data', ['fuelMain', 'fuel_main']);
+        const fuelAux = getVal('bridge_data', ['fuelAux', 'fuel_aux']);
+        const fuelDaily = getVal('bridge_data', ['fuelDaily', 'fuel_daily']);
+        const fuelHourly = getVal('bridge_data', ['fuelHourly', 'fuel_hourly']);
+        const coolTemp = getVal('bridge_data', ['coolTemp', 'cool_temp', 'coolant_temp']);
+        const luboTemp = getVal('bridge_data', ['luboTemp', 'lub_temp', 'lube_temp', 'oil_temp']);
+
+        const coordsSpan = document.getElementById('val_coords');
+        const mapLink = document.getElementById('gpsMapLink');
+        if (coordsSpan && mapLink) {
+            if (bLat !== null && bLon !== null) {
+                const latVal = typeof bLat === 'number' ? bLat.toFixed(5) : parseFloat(bLat).toFixed(5);
+                const lonVal = typeof bLon === 'number' ? bLon.toFixed(5) : parseFloat(bLon).toFixed(5);
+                coordsSpan.textContent = `${latVal}° N, ${lonVal}° E`;
+                mapLink.href = `https://www.google.com/maps?q=${latVal},${lonVal}`;
+                mapLink.classList.remove('hidden');
+                mapLink.classList.add('inline-flex');
+            } else {
+                coordsSpan.textContent = '-';
+                mapLink.classList.add('hidden');
+            }
+        }
+
+        if (document.getElementById('val_fuelTotal')) document.getElementById('val_fuelTotal').textContent = formatVal(fuelTotal, ' L', 1);
+        if (document.getElementById('val_fuelMain')) document.getElementById('val_fuelMain').textContent = formatVal(fuelMain, ' L', 1);
+        if (document.getElementById('val_fuelAux')) document.getElementById('val_fuelAux').textContent = formatVal(fuelAux, ' L', 1);
+        if (document.getElementById('val_fuelDaily')) document.getElementById('val_fuelDaily').textContent = formatVal(fuelDaily, ' L', 1);
+        if (document.getElementById('val_fuelHourly')) document.getElementById('val_fuelHourly').textContent = formatVal(fuelHourly, ' L/h', 1);
+        if (document.getElementById('val_coolTemp')) document.getElementById('val_coolTemp').textContent = formatVal(coolTemp, ' °C', 1);
+        if (document.getElementById('val_luboTemp')) document.getElementById('val_luboTemp').textContent = formatVal(luboTemp, ' °C', 1);
+
+        // --- 3. ENGINE DATA (11 fields) ---
+        const speedLog = getVal('engine_data', ['speedLog', 'speed_log']);
+        const windSpeed = getVal('engine_data', ['windSpeed', 'wind_speed']);
+        const windDir = getVal('engine_data', ['windDir', 'wind_dir', 'wind_direction']);
+        const rpm = getVal('engine_data', ['rpm', 'auxRpm', 'rpm_aux', 'engineRpm', 'genRpm', 'aux_rpm', 'engine_rpm']);
+        const depth = getVal('engine_data', ['depth', 'water_depth', 'echo_depth']);
+        const roll = getVal('engine_data', ['roll', 'roll_angle', 'heel']);
+        const fuel_level = getVal('engine_data', ['fuel_level', 'fuelLevel', 'fuel_pct', 'fuelPct', 'fuelTank', 'tank_level', 'fuel_tank']);
+        const exhaustTemp = getVal('engine_data', ['exhaustTemp', 'exhaust_temp']);
+        const startAirPress = getVal('engine_data', ['startAirPress', 'start_air_press', 'air_press']);
+        const currentSpeed = getVal('engine_data', ['currentSpeed', 'current_speed']);
+        const currentDir = getVal('engine_data', ['currentDir', 'current_dir']);
+
+        if (document.getElementById('val_speedLog')) document.getElementById('val_speedLog').textContent = formatVal(speedLog, ' Kn', 1);
+        if (document.getElementById('val_windSpeed')) document.getElementById('val_windSpeed').textContent = formatVal(windSpeed, ' m/s', 1);
+        if (document.getElementById('val_windDir')) document.getElementById('val_windDir').textContent = formatVal(windDir, '°', 1);
+        if (document.getElementById('val_rpm')) document.getElementById('val_rpm').textContent = formatVal(rpm, ' RPM', 0);
+        if (document.getElementById('val_depth')) document.getElementById('val_depth').textContent = formatVal(depth, ' m', 1);
+        if (document.getElementById('val_roll')) document.getElementById('val_roll').textContent = formatVal(roll, '°', 1);
+        if (document.getElementById('val_fuel_level')) document.getElementById('val_fuel_level').textContent = formatVal(fuel_level, '%', 1);
+        if (document.getElementById('val_exhaustTemp')) document.getElementById('val_exhaustTemp').textContent = formatVal(exhaustTemp, ' °C', 1);
+        if (document.getElementById('val_startAirPress')) document.getElementById('val_startAirPress').textContent = formatVal(startAirPress, ' Bar', 2);
+        if (document.getElementById('val_currentSpeed')) document.getElementById('val_currentSpeed').textContent = formatVal(currentSpeed, ' m/s', 1);
+        if (document.getElementById('val_currentDir')) document.getElementById('val_currentDir').textContent = formatVal(currentDir, '°', 1);
+
+        // 7. Update Realtime Chart
+        let timeLabel = '';
+        if (signalMap._lastTimeStr) {
+            try {
+                timeLabel = new Date(signalMap._lastTimeStr).toLocaleTimeString();
+            } catch (err) {
+                timeLabel = new Date().toLocaleTimeString();
+            }
+        } else {
+            timeLabel = new Date().toLocaleTimeString();
+        }
+        updateChart(timeLabel, rudder, propRpm);
+        
+        // 8. Update Raw Signal Table
+        updateRawTable(records);
+    }
+
+    function updateRawTable(records) {
+        const tbody = document.getElementById('rawSignalsTableBody');
+        if (!tbody) return;
+        
+        if (records.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-400">Chưa có dữ liệu. Vui lòng bật kết nối để hiển thị.</td></tr>`;
+            return;
+        }
+        
+        tbody.innerHTML = '';
+        records.forEach(r => {
+            const timeStr = r._time ? new Date(r._time).toLocaleString() : '-';
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-gray-50 border-b';
+            tr.innerHTML = `
+                <td class="p-3 font-semibold text-gray-600">${r._measurement || '-'}</td>
+                <td class="p-3 font-mono text-teal-600 font-medium">${r._field || '-'}</td>
+                <td class="p-3 font-bold text-gray-900">${r._value || '-'}</td>
+                <td class="p-3 text-gray-500">${timeStr}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function startRealtimePolling() {
+        stopRealtimePolling();
+        
+        const isChecked = document.getElementById('autoRefreshToggle').checked;
+        if (!isChecked) return;
+        
+        const interval = parseInt(document.getElementById('refreshInterval').value) || 2000;
+        
+        addRealtimeLog(`Khởi chạy vòng lặp tự động cập nhật: mỗi ${interval/1000}s`, 'info');
+        
+        fetchRealtimeData();
+        
+        realtimeTimer = setInterval(() => {
+            fetchRealtimeData();
+        }, interval);
+    }
+
+    function stopRealtimePolling() {
+        if (realtimeTimer) {
+            clearInterval(realtimeTimer);
+            realtimeTimer = null;
+            addRealtimeLog("Đã tạm dừng tự động cập nhật.", 'info');
+            updateStatusBadge('disconnected', "Đã tạm dừng");
+        }
+    }
+
+    function triggerManualRefresh() {
+        addRealtimeLog("Yêu cầu làm mới dữ liệu thủ công...", 'info');
+        fetchRealtimeData();
+    }
+
+    // Thiết lập lắng nghe sự kiện nút và interval
+    document.getElementById('autoRefreshToggle').addEventListener('change', (e) => {
+        if (e.target.checked) {
+            startRealtimePolling();
+        } else {
+            stopRealtimePolling();
+        }
+    });
+    
+    document.getElementById('refreshInterval').addEventListener('change', () => {
+        if (document.getElementById('autoRefreshToggle').checked) {
+            startRealtimePolling();
+        }
+    });
+
+    function copyToClipboard(elementId) {
+        const content = document.getElementById(elementId).textContent;
+        try {
+            navigator.clipboard.writeText(content).then(() => {
+                showToast("Đã copy thành công!");
+            });
+        } catch (err) {
+            const text_area = document.createElement("textarea");
+            text_area.value = content;
+            document.body.appendChild(text_area);
+            text_area.select();
+            document.execCommand("copy");
+            document.body.removeChild(text_area);
+            showToast("Đã copy thành công!");
+        }
+    }
+
+    function showToast(msg) {
+        const toast = document.createElement('div');
+        toast.textContent = msg;
+        toast.className = 'fixed bottom-4 right-4 bg-teal-500 text-white px-4 py-2 rounded shadow-lg transition-opacity duration-300 z-50';
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => document.body.removeChild(toast), 300);
+        }, 2000);
+    }
+
+    // Khởi tạo render lần đầu và quét file .env tự động
+    generateCode();
+    tryAutoLoadEnv();
+
+</script>
+</body>
+</html>
