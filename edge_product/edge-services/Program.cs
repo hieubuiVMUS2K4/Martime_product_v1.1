@@ -298,9 +298,22 @@ namespace MaritimeEdge
             }
 
             builder.Services.AddHostedService<MaritimeEdge.Services.Core.DataCleanupService>();
+            builder.Services.AddHostedService<MaritimeEdge.Services.Core.EdgeSyncQueuePurgeService>();
             if (builder.Configuration.GetValue("Sync:Enabled", true))
             {
                 builder.Services.AddHostedService<MaritimeEdge.Services.Core.SyncBackgroundWorker>();
+            }
+
+            // Production Health Checks
+            builder.Services.AddHealthChecks()
+                .AddCheck<MaritimeEdge.Security.EdgeDatabaseHealthCheck>("edge_postgres_db");
+
+
+            // Secret Validation for Edge Production Mode
+            using (var loggerFactory = LoggerFactory.Create(logging => logging.AddConsole()))
+            {
+                var tempLogger = loggerFactory.CreateLogger("StartupValidation");
+                builder.Configuration.ValidateProductionSecrets(builder.Environment, tempLogger);
             }
 
             // Add Controllers
@@ -310,6 +323,7 @@ namespace MaritimeEdge
                     options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
                     options.JsonSerializerOptions.PropertyNameCaseInsensitive = true; // Accept both camelCase and PascalCase input
                 });
+
 
             builder.Services.AddAuthorizationBuilder()
                 .AddPolicy("InternalAccess", policy =>
@@ -522,6 +536,16 @@ namespace MaritimeEdge
                 }
             });
 
+            // Security Headers Middleware for Edge Production
+            app.Use(async (context, next) =>
+            {
+                context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+                context.Response.Headers.Append("X-Frame-Options", "DENY");
+                context.Response.Headers.Append("X-XSS-Protection", "1; mode=block");
+                context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
+                await next();
+            });
+
             app.UseRouting();
 
             // Rate limiting
@@ -535,7 +559,15 @@ namespace MaritimeEdge
             app.UseAuthorization();
             app.MapControllers();
 
+            // Health Check Endpoints
+            app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+            {
+                Predicate = _ => false
+            });
+            app.MapHealthChecks("/health/ready");
+
             app.Run();
+
         }
 
         private static async Task EnsurePortSeedDataAsync(EdgeDbContext dbContext, ILogger logger, string contentRootPath)

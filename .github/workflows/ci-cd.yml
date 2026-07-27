@@ -1,0 +1,51 @@
+name: Maritime System CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main", "feature/*", "release/*" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  backend-build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET 8.0
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore product.sln
+
+    - name: Build Solution
+      run: dotnet build product.sln --configuration Release --no-restore
+
+    - name: Run Unit Tests
+      run: dotnet test product.sln --configuration Release --no-build --verbosity normal
+
+  frontend-build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js 20
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Build Shore Frontend
+      run: |
+        cd shore_product/frontend
+        npm ci
+        npm run build
+
+    - name: Build Edge Frontend
+      run: |
+        cd edge_product/frontend-edge
+        npm ci
+        npm run build

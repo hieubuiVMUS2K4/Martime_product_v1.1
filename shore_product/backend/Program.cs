@@ -269,8 +269,22 @@ builder.Services.AddHostedService<ProductApi.Services.Background.ReportEvaluatio
 
 // Phase 2.3: Nonce registry cleanup service
 builder.Services.AddHostedService<ProductApi.Services.Sync.SyncNonceRegistryCleanupService>();
+builder.Services.AddHostedService<ProductApi.Services.Sync.SyncQueuePurgeService>();
+
+// Production Health Checks
+builder.Services.AddHealthChecks()
+    .AddCheck<ProductApi.Security.DatabaseHealthCheck>("postgres_db");
+
+
+// Secret Validation for Production Mode
+using (var loggerFactory = LoggerFactory.Create(logging => logging.AddConsole()))
+{
+    var tempLogger = loggerFactory.CreateLogger("StartupValidation");
+    builder.Configuration.ValidateProductionSecrets(builder.Environment, tempLogger);
+}
 
 var app = builder.Build();
+
 
 // Migrate DB using EF Core Migrations
 var autoMigrateDatabase = builder.Configuration.GetValue("Database:AutoMigrate", true);
@@ -508,6 +522,16 @@ Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "documents", "health
 Directory.CreateDirectory(Path.Combine(uploadsPath, "sync-content"));
 Directory.CreateDirectory(Path.Combine(uploadsPath, "sync-staging"));
 
+// Security Headers Middleware for Production
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+    context.Response.Headers.Append("X-Frame-Options", "DENY");
+    context.Response.Headers.Append("X-XSS-Protection", "1; mode=block");
+    context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
+    await next();
+});
+
 app.UseCors("AllowWebMobile");
 app.UseRouting();
 app.UseRateLimiter();
@@ -524,4 +548,12 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
+// Health Check Endpoints
+app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = _ => false
+});
+app.MapHealthChecks("/health/ready");
+
 app.Run();
+
