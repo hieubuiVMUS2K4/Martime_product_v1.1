@@ -609,8 +609,9 @@ public class MaintenanceSchedulerService : BackgroundService
                 .Where(sp => sp.ScheduleId == schedule.Id)
                 .ToListAsync();
 
+            // ScheduleSparePart.MaterialItemId trỏ DANH MỤC (material_items catalog).
             var materialIds = spareParts.Select(sp => sp.MaterialItemId).ToList();
-            var materials = await context.MaterialItems
+            var materials = await context.MaterialCatalogItems
                 .Where(m => materialIds.Contains(m.Id))
                 .ToDictionaryAsync(m => m.Id, m => new { m.ItemCode, m.Name });
 

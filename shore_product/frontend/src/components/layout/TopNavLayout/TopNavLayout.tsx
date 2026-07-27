@@ -34,6 +34,9 @@ const navItems: NavItemDef[] = [
         items: [
           { path: '/categories?tab=crew', label: 'Thuyền viên' },
           { path: '/categories?tab=certificate-types', label: 'Loại chứng chỉ' },
+          { path: '/categories?tab=materials', label: 'Vật tư' },
+          { path: '/categories?tab=ranks', label: 'Chức danh' },
+          { path: '/categories?tab=countries', label: 'Quốc gia' },
         ]
       }
     ]

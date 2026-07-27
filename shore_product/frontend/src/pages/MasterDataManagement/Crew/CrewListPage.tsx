@@ -9,14 +9,14 @@ import {
   ShieldCheck, AlertTriangle, XCircle, CheckCircle2,
   Search, ChevronDown, ChevronUp, Filter,
 } from 'lucide-react';
-import { useCrewList, useReferenceData, useExpiringCertificates, useCompliance, useCrewStats, useVessels } from '../../hooks/useCrew';
-import { crewApi } from '../../services/crew.service';
-import { useToast } from '../../components/common/Toast';
-import { useConfirmDialog } from '../../components/common/ConfirmDialog';
+import { useCrewList, useReferenceData, useExpiringCertificates, useCompliance, useCrewStats, useVessels } from '../../../hooks/useCrew';
+import { crewApi } from '../../../services/crew.service';
+import { useToast } from '../../../components/common/Toast';
+import { useConfirmDialog } from '../../../components/common/ConfirmDialog';
 import { CrewFormModal } from './CrewFormModal';
 import { AssignShipModal } from './AssignShipModal';
-import ProtectedImage from '../../components/common/ProtectedImage';
-import type { CrewMember, CreateCrewRequest, CrewCertificate } from '../../types/crew.types';
+import ProtectedImage from '../../../components/common/ProtectedImage';
+import type { CrewMember, CreateCrewRequest, CrewCertificate } from '../../../types/crew.types';
 import './CrewListPage.css';
 
 const AVATAR_COLORS = ['#0a7068','#7c3aed','#059669','#d97706','#dc2626','#0891b2','#4f46e5','#15803d','#b45309','#9333ea'];
@@ -348,7 +348,7 @@ export const CrewListPage: React.FC = () => {
               <th>Thuyền viên</th>
               <th>Chức danh</th>
               <th>Bộ phận</th>
-              <th>Tàu</th>
+              <th>Tên Tàu</th>
               <th>Trạng thái</th>
               <th>Lên tàu</th>
               <th>Hợp đồng</th>

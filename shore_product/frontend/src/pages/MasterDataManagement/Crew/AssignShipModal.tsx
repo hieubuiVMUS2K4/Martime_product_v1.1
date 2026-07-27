@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Ship, Anchor, Users, Check } from 'lucide-react';
-import { useVessels } from '../../hooks/useCrew';
-import type { CrewMember } from '../../types/crew.types';
+import { useVessels } from '../../../hooks/useCrew';
+import type { CrewMember } from '../../../types/crew.types';
 import './AssignShipModal.css';
 
 interface Props {

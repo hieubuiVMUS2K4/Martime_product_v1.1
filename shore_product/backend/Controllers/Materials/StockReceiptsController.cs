@@ -117,8 +117,8 @@ public class StockReceiptsController : ControllerBase
                 stock.UpdatedAt = DateTime.UtcNow;
             }
 
-            // Update MaterialItem.OnHandQuantity
-            var matItem = await _context.MaterialItems.FindAsync(item.MaterialItemId!.Value);
+            // Update MaterialItemShip.OnHandQuantity
+            var matItem = await _context.MaterialItemShips.FindAsync(item.MaterialItemId!.Value);
             if (matItem != null)
             {
                 matItem.OnHandQuantity += (double)item.QuantityReceived;

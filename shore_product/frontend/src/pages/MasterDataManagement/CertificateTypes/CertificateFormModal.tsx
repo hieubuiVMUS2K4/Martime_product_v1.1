@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ShieldCheck, Globe, Award, X, Loader2 } from 'lucide-react';
-import { certificateApi, referenceApi } from '../../services/crew.service';
-import type { CertificateType, Country, Rank } from '../../types/crew.types';
+import { certificateApi, referenceApi } from '../../../services/crew.service';
+import type { CertificateType, Country, Rank } from '../../../types/crew.types';
 import './CertificateFormModal.css';
-import '../CrewManagement/CrewFormModal.css';
+import '../Crew/CrewFormModal.css';
 
 /* ───────── types ───────── */
 interface FormData {

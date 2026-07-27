@@ -191,8 +191,8 @@ public class MaterialReceiptItem
     public virtual MaterialReceipt Receipt { get; set; } = null!;
 
     /// <summary>
-    /// Vật tư
+    /// Vật tư trên tàu (phiếu nhập cập nhật tồn kho theo tàu).
     /// </summary>
     [ForeignKey("MaterialItemId")]
-    public virtual MaterialItem MaterialItem { get; set; } = null!;
+    public virtual MaterialItem? MaterialItem { get; set; }
 }

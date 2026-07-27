@@ -486,8 +486,9 @@ public class MaintenanceCompletionService
 
             if (spareParts.Any())
             {
+                // ScheduleSparePart.MaterialItemId trỏ DANH MỤC (material_items catalog).
                 var materialIds = spareParts.Select(sp => sp.MaterialItemId).ToList();
-                var materials = await _context.MaterialItems
+                var materials = await _context.MaterialCatalogItems
                     .Where(m => materialIds.Contains(m.Id))
                     .ToDictionaryAsync(m => m.Id, m => new { m.ItemCode, m.Name });
 

@@ -888,15 +888,24 @@ public class MaterialController : ControllerBase
                 .Select(g => g.OrderBy(l => ancestorIds.IndexOf(l.EquipmentAssetId)).First())
                 .ToList();
 
+            // MaterialItemId trỏ DANH MỤC (material_items). Định danh lấy từ catalog;
+            // đơn vị/spec/tồn kho lấy từ vật tư trên tàu (material_item_ship) join theo mã.
             var matIds = deduped.Select(x => x.MaterialItemId).ToList();
-            var materials = await _context.MaterialItems
+            var catalogs = await _context.MaterialCatalogItems
                 .AsNoTracking()
                 .Where(m => matIds.Contains(m.Id) && m.IsActive)
                 .ToListAsync();
+            var catalogCodes = catalogs.Select(c => c.ItemCode).ToList();
 
-            var stockByMaterialId = await _context.InventoryStocks
+            var shipItems = await _context.MaterialItems
                 .AsNoTracking()
-                .Where(s => matIds.Contains(s.MaterialItemId) && s.Quantity > 0)
+                .Where(s => s.MaterialItemCode != null && catalogCodes.Contains(s.MaterialItemCode))
+                .ToListAsync();
+            var shipIds = shipItems.Select(s => s.Id).ToList();
+
+            var stockByShipId = await _context.InventoryStocks
+                .AsNoTracking()
+                .Where(s => shipIds.Contains(s.MaterialItemId) && s.Quantity > 0)
                 .GroupBy(s => s.MaterialItemId)
                 .Select(g => new
                 {
@@ -908,20 +917,23 @@ public class MaterialController : ControllerBase
             var result = deduped
                 .Select(l =>
                 {
-                    var mat = materials.FirstOrDefault(m => m.Id == l.MaterialItemId);
-                    if (mat is null) return null;
-                    var hasInventoryStock = stockByMaterialId.TryGetValue(mat.Id, out var inventoryQuantity);
+                    var cat = catalogs.FirstOrDefault(m => m.Id == l.MaterialItemId);
+                    if (cat is null) return null;
+                    var ship = shipItems.FirstOrDefault(s => s.MaterialItemCode == cat.ItemCode);
+                    double? onHand = null;
+                    if (ship != null)
+                        onHand = stockByShipId.TryGetValue(ship.Id, out var q) ? (double)q : ship.OnHandQuantity;
                     return new
                     {
                         linkId = l.Id,
-                        materialItemId = mat.Id,
-                        itemCode = mat.ItemCode,
-                        name = mat.Name,
-                        unit = mat.Unit,
-                        onHandQuantity = hasInventoryStock ? (double?)(double)inventoryQuantity : null,
+                        materialItemId = cat.Id,
+                        itemCode = cat.ItemCode,
+                        name = cat.Name,
+                        unit = ship?.Unit ?? "PCS",
+                        onHandQuantity = onHand,
                         quantityRequired = l.QuantityRequired,
-                        minStock = mat.MinStock,
-                        specification = mat.Specification,
+                        minStock = ship?.MinStock,
+                        specification = ship?.Specification,
                         notes = l.Notes,
                         linkedAt = l.CreatedAt,
                         inheritedFrom = l.EquipmentAssetId != equipmentAssetId ? l.EquipmentAssetId : (Guid?)null
@@ -1018,18 +1030,22 @@ public class MaterialController : ControllerBase
             var created = 0;
             var skipped = 0;
 
-            foreach (var matId in dto.MaterialItemIds)
+            foreach (var rawMatId in dto.MaterialItemIds)
             {
+                // FE gửi id của vật tư (có thể là material_item_ship) → quy về DANH MỤC (material_items).
+                var catId = await ResolveCatalogItemIdAsync(rawMatId);
+                if (catId == null) { skipped++; continue; }
+
                 foreach (var eqId in dto.EquipmentAssetIds)
                 {
                     var exists = await _context.MaterialItemEquipments
-                        .AnyAsync(x => x.MaterialItemId == matId && x.EquipmentAssetId == eqId);
+                        .AnyAsync(x => x.MaterialItemId == catId.Value && x.EquipmentAssetId == eqId);
 
                     if (exists) { skipped++; continue; }
 
                     _context.MaterialItemEquipments.Add(new MaterialItemEquipment
                     {
-                        MaterialItemId = matId,
+                        MaterialItemId = catId.Value,
                         EquipmentAssetId = eqId,
                         QuantityRequired = dto.QuantityRequired,
                         Notes = dto.Notes
@@ -1055,6 +1071,21 @@ public class MaterialController : ControllerBase
     }
 
     /// <summary>
+    /// Quy id vật tư về DANH MỤC (material_items): nếu đã là catalog id thì giữ nguyên;
+    /// nếu là material_item_ship id thì map qua material_item_code → catalog id.
+    /// </summary>
+    private async Task<Guid?> ResolveCatalogItemIdAsync(Guid id)
+    {
+        if (await _context.MaterialCatalogItems.AsNoTracking().AnyAsync(c => c.Id == id))
+            return id;
+        var ship = await _context.MaterialItems.AsNoTracking().FirstOrDefaultAsync(s => s.Id == id);
+        if (ship == null || string.IsNullOrEmpty(ship.MaterialItemCode)) return null;
+        var cat = await _context.MaterialCatalogItems.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.ItemCode == ship.MaterialItemCode);
+        return cat?.Id;
+    }
+
+    /// <summary>
     /// Remove equipment assignment from a material item
     /// </summary>
     [HttpDelete("items/{materialItemId}/equipment/{equipmentAssetId}")]
@@ -1062,8 +1093,9 @@ public class MaterialController : ControllerBase
     {
         try
         {
+            var catId = await ResolveCatalogItemIdAsync(materialItemId) ?? materialItemId;
             var link = await _context.MaterialItemEquipments
-                .FirstOrDefaultAsync(x => x.MaterialItemId == materialItemId && x.EquipmentAssetId == equipmentAssetId);
+                .FirstOrDefaultAsync(x => x.MaterialItemId == catId && x.EquipmentAssetId == equipmentAssetId);
 
             if (link is null) return NotFound(new { error = "Link not found" });
 

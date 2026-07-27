@@ -319,6 +319,47 @@ export const referenceApi = {
 };
 
 // ============================================================
+// RANKS — MASTER DATA CRUD (chức danh)
+// ============================================================
+
+export interface RankPayload {
+  rankCode: string;
+  rankName: string;
+  department?: string;
+  sortOrder?: number;
+}
+
+export const rankApi = {
+  getAll: (): Promise<Rank[]> => request(`${BASE}/ranks`),
+  create: (data: RankPayload): Promise<Rank> =>
+    request(`${BASE}/ranks`, { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: number, data: RankPayload): Promise<Rank> =>
+    request(`${BASE}/ranks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  remove: (id: number): Promise<void> =>
+    request(`${BASE}/ranks/${id}`, { method: 'DELETE' }),
+};
+
+// ============================================================
+// COUNTRIES — MASTER DATA CRUD (quốc gia)
+// ============================================================
+
+export interface CountryPayload {
+  countryCode: string;
+  countryName: string;
+  flagImageUrl?: string;
+}
+
+export const countryApi = {
+  getAll: (): Promise<Country[]> => request(`${BASE}/countries`),
+  create: (data: CountryPayload): Promise<Country> =>
+    request(`${BASE}/countries`, { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: number, data: CountryPayload): Promise<Country> =>
+    request(`${BASE}/countries/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  remove: (id: number): Promise<void> =>
+    request(`${BASE}/countries/${id}`, { method: 'DELETE' }),
+};
+
+// ============================================================
 // LOGBOOK API
 // ============================================================
 

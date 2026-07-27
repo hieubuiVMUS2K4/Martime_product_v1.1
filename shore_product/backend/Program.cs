@@ -382,12 +382,13 @@ if (autoMigrateDatabase)
                 CREATE UNIQUE INDEX IF NOT EXISTS ""IX_equipment_assets_VesselId_AssetCode""
                     ON equipment_assets (""VesselId"", ""AssetCode"");
 
-                ALTER TABLE material_items
+                ALTER TABLE material_item_ship
                 ADD COLUMN IF NOT EXISTS ""VesselId"" uuid;
 
                 DROP INDEX IF EXISTS ""IX_material_items_ItemCode"";
-                CREATE UNIQUE INDEX IF NOT EXISTS ""IX_material_items_VesselId_ItemCode""
-                    ON material_items (""VesselId"", ""ItemCode"");
+                DROP INDEX IF EXISTS ""IX_material_items_VesselId_ItemCode"";
+                CREATE UNIQUE INDEX IF NOT EXISTS ""IX_material_item_ship_VesselId_ShipItemCode""
+                    ON material_item_ship (""VesselId"", ""ShipItemCode"");
 
                 ALTER TABLE ""MaintenanceTasks""
                 ADD COLUMN IF NOT EXISTS ""VesselId"" uuid;

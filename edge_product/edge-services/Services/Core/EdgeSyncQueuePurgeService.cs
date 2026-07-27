@@ -50,7 +50,7 @@ namespace MaritimeEdge.Services.Core
             // Delete synced items older than cutoff date
             var deletedQueue = await dbContext.Database.ExecuteSqlRawAsync(
                 @"DELETE FROM ""SyncQueue"" WHERE ""IsSynced"" = true AND ""SyncedAt"" < {0}",
-                cutoffDate,
+                new object[] { cutoffDate },
                 cancellationToken);
 
             _logger.LogInformation("Edge cleanup completed: purged {DeletedQueue} synced items from SyncQueue.", deletedQueue);

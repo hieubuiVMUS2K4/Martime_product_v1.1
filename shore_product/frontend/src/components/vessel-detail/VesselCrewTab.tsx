@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { ENV } from '../../config/env';
 import { crewApi } from '../../services/crew.service';
-import '../../pages/CrewManagement/CrewListPage.css';
+import '../../pages/MasterDataManagement/Crew/CrewListPage.css';
 
 interface VesselCrewTabProps {
   vesselId: string;

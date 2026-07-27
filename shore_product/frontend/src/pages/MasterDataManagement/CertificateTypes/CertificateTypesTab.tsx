@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Plus, Pencil, Trash2, Loader2, ShieldCheck } from 'lucide-react';
-import { certificateApi } from '../../services/crew.service';
-import { useToast } from '../../components/common/Toast';
-import { useConfirmDialog } from '../../components/common/ConfirmDialog';
+import { certificateApi } from '../../../services/crew.service';
+import { useToast } from '../../../components/common/Toast';
+import { useConfirmDialog } from '../../../components/common/ConfirmDialog';
 import { CertificateFormModal } from './CertificateFormModal';
-import type { CertificateType } from '../../types/crew.types';
-import '../CrewManagement/CrewListPage.css';
+import type { CertificateType } from '../../../types/crew.types';
+import '../Crew/CrewListPage.css';
 
 /* ───────── constants ───────── */
 const CATEGORY_OPTIONS = [
@@ -180,7 +180,7 @@ export const CertificateTypesTab: React.FC = () => {
           <thead>
             <tr className="cl-tr-labels">
               <th style={{ width: 44, textAlign: 'center' }}>STT</th>
-              <th style={{ width: '14%' }}>Mã</th>
+              <th style={{ width: '14%' }}>Mã chứng chỉ</th>
               <th>Tên chứng chỉ</th>
               <th style={{ width: '10%' }}>Phân loại</th>
               <th style={{ width: '10%', textAlign: 'center' }}>Thời hạn</th>
@@ -199,7 +199,6 @@ export const CertificateTypesTab: React.FC = () => {
               <tr><td colSpan={7} className="cl-empty">
                 <ShieldCheck size={24} />
                 <p>{certs.length === 0 ? 'Chưa có loại chứng chỉ nào' : 'Không tìm thấy loại chứng chỉ phù hợp'}</p>
-                {certs.length === 0 && <button className="cl-btn cl-btn--primary" onClick={openCreate}><Plus size={13} /> Thêm loại chứng chỉ</button>}
               </td></tr>
             ) : filtered.map((c, idx) => {
               const catStyle = CATEGORY_COLORS[c.category || ''];

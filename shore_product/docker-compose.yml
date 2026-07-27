@@ -81,9 +81,27 @@ services:
     networks:
       - shore-local-net
 
+  # ─── pgAdmin (web UI for postgres) ─────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "${PGADMIN_EMAIL:?PGADMIN_EMAIL must be set in shore_product/.env}"
+      PGADMIN_DEFAULT_PASSWORD: "${PGADMIN_PASSWORD:?PGADMIN_PASSWORD must be set in shore_product/.env}"
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "8081:80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - shore-local-net
+
 volumes:
   postgres-local-data:
   backend-uploads:
+  pgadmin-data:
 
 networks:
   shore-local-net:

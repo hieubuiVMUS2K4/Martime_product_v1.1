@@ -3481,24 +3481,61 @@ public class MaterialCategory
 }
 
 /// <summary>
-/// Material items (spare parts, consumables)
+/// DANH MỤC vật tư dùng chung (đồng bộ từ Shore xuống → bảng material_items).
+/// Khớp schema shore catalog để sync sạch: chỉ mã, tên, loại, đơn giá.
+/// </summary>
+public class MaterialCatalogItem
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    /// <summary>Mã vật tư (dùng chung, duy nhất).</summary>
+    [Required]
+    [MaxLength(50)]
+    public string ItemCode { get; set; } = string.Empty;
+
+    /// <summary>Tên vật tư.</summary>
+    [Required]
+    [MaxLength(200)]
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>FK -> MaterialCategory.Id</summary>
+    public long CategoryId { get; set; }
+
+    /// <summary>Đơn giá tham chiếu.</summary>
+    public decimal? UnitPrice { get; set; }
+
+    public bool IsActive { get; set; } = true;
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>
+/// Vật tư trên tàu — bảng cũ material_items đổi tên thành material_item_ship.
+/// Giữ nguyên các trường (số lượng, kho, tracking, tên/spec denormalized cho offline).
+/// Thêm MaterialItemCode = FK trỏ danh mục material_items.ItemCode.
 /// </summary>
 public class MaterialItem
 {
     [Key]
     public Guid Id { get; set; } = Guid.NewGuid();
 
+    /// <summary>Mã vật tư trên tàu (mã nội bộ của tàu).</summary>
     [Required]
     [MaxLength(50)]
     public string ItemCode { get; set; } = string.Empty;
 
+    /// <summary>Tên vật tư (denormalized snapshot cho hoạt động offline).</summary>
     [Required]
     [MaxLength(200)]
     public string Name { get; set; } = string.Empty;
 
-    /// <summary>
-    /// FK -> MaterialCategory.Id
-    /// </summary>
+    /// <summary>Mã vật tư danh mục — FK trỏ material_items.ItemCode (loại vật tư trong danh mục chung).</summary>
+    [MaxLength(50)]
+    public string? MaterialItemCode { get; set; }
+
+    /// <summary>FK -> MaterialCategory.Id</summary>
     public long CategoryId { get; set; }
 
     public string? Specification { get; set; }
@@ -3549,7 +3586,7 @@ public class MaterialItem
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-    
+
     [MaxLength(50)]
     public string OriginNode { get; set; } = "SHIP_01";
 }
