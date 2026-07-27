@@ -4566,23 +4566,11 @@ namespace productapi.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Barcode")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
                     b.Property<long>("CategoryId")
                         .HasColumnType("bigint");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Currency")
-                        .HasMaxLength(3)
-                        .HasColumnType("character varying(3)");
-
-                    b.Property<string>("ImageUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
@@ -4592,66 +4580,21 @@ namespace productapi.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
-                    b.Property<string>("Location")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("Manufacturer")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<double?>("MaxStock")
-                        .HasColumnType("double precision");
-
-                    b.Property<double?>("MinStock")
-                        .HasColumnType("double precision");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<string>("Notes")
-                        .HasColumnType("text");
-
-                    b.Property<double>("OnHandQuantity")
-                        .HasColumnType("double precision");
-
-                    b.Property<string>("PartNumber")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<double?>("ReorderLevel")
-                        .HasColumnType("double precision");
-
-                    b.Property<double?>("ReorderQuantity")
-                        .HasColumnType("double precision");
-
-                    b.Property<string>("Specification")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Supplier")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("Unit")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<decimal?>("UnitCost")
+                    b.Property<decimal?>("UnitPrice")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid?>("VesselId")
-                        .HasColumnType("uuid");
-
                     b.HasKey("Id");
 
-                    b.HasIndex("VesselId", "ItemCode")
+                    b.HasIndex("ItemCode")
                         .IsUnique();
 
                     b.ToTable("material_items", (string)null);
@@ -4682,6 +4625,105 @@ namespace productapi.Migrations
                         .IsUnique();
 
                     b.ToTable("material_item_equipments", (string)null);
+                });
+
+            modelBuilder.Entity("ProductApi.Models.MaterialItemShip", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Barcode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<long>("CategoryId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Currency")
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Manufacturer")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("MaterialItemCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<double?>("MaxStock")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("MinStock")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<double>("OnHandQuantity")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("PartNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<double?>("ReorderLevel")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("ReorderQuantity")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("ShipItemCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Specification")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Supplier")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<decimal?>("UnitCost")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("VesselId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MaterialItemCode");
+
+                    b.HasIndex("VesselId", "ShipItemCode")
+                        .IsUnique();
+
+                    b.ToTable("material_item_ship", (string)null);
                 });
 
             modelBuilder.Entity("ProductApi.Models.MaterialRequest", b =>
@@ -4791,6 +4833,8 @@ namespace productapi.Migrations
                         .HasColumnType("character varying(20)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("MaterialItemId");
 
                     b.HasIndex("RequestId");
 
@@ -5563,6 +5607,8 @@ namespace productapi.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("MaterialItemId");
 
                     b.HasIndex("ScheduleId");
 
@@ -9555,8 +9601,34 @@ namespace productapi.Migrations
                     b.Navigation("Vessel");
                 });
 
+            modelBuilder.Entity("ProductApi.Models.MaterialItemEquipment", b =>
+                {
+                    b.HasOne("ProductApi.Models.MaterialItem", null)
+                        .WithMany()
+                        .HasForeignKey("MaterialItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ProductApi.Models.MaterialItemShip", b =>
+                {
+                    b.HasOne("ProductApi.Models.MaterialItem", "MaterialItem")
+                        .WithMany("ShipItems")
+                        .HasForeignKey("MaterialItemCode")
+                        .HasPrincipalKey("ItemCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("MaterialItem");
+                });
+
             modelBuilder.Entity("ProductApi.Models.MaterialRequestItem", b =>
                 {
+                    b.HasOne("ProductApi.Models.MaterialItem", null)
+                        .WithMany()
+                        .HasForeignKey("MaterialItemId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("ProductApi.Models.MaterialRequest", "Request")
                         .WithMany("Items")
                         .HasForeignKey("RequestId")
@@ -9621,6 +9693,12 @@ namespace productapi.Migrations
 
             modelBuilder.Entity("ProductApi.Models.ScheduleSparePart", b =>
                 {
+                    b.HasOne("ProductApi.Models.MaterialItem", null)
+                        .WithMany()
+                        .HasForeignKey("MaterialItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("ProductApi.Models.MaintenanceSchedule", "Schedule")
                         .WithMany("SpareParts")
                         .HasForeignKey("ScheduleId")
@@ -10023,6 +10101,11 @@ namespace productapi.Migrations
                     b.Navigation("ChecklistTemplates");
 
                     b.Navigation("SpareParts");
+                });
+
+            modelBuilder.Entity("ProductApi.Models.MaterialItem", b =>
+                {
+                    b.Navigation("ShipItems");
                 });
 
             modelBuilder.Entity("ProductApi.Models.MaterialRequest", b =>

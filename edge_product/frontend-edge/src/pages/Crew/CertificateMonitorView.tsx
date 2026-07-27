@@ -1313,7 +1313,7 @@ export function CrewCertificatePage() {
               <table className="min-w-full text-sm border-collapse">
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-blue-50">
-                    <th className="w-32 px-3 py-2 text-left text-xs font-semibold text-gray-600 border-b border-r border-gray-200 relative">
+                    <th className="w-52 px-3 py-2 text-left text-xs font-semibold text-gray-600 border-b border-r border-gray-200 relative">
                       <div className="flex items-center justify-between">
                         {t('crew.table.crewId')}
                         <SortDropdown col="crewId" options={[{label:'A → Z', dir:'asc'},{label:'Z → A', dir:'desc'}]} />
@@ -1331,13 +1331,13 @@ export function CrewCertificatePage() {
                         <SortDropdown col="position" options={[{label:'A → Z', dir:'asc'},{label:'Z → A', dir:'desc'}]} />
                       </div>
                     </th>
-                    <th className="w-20 px-3 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200 relative">
+                    <th className="w-36 px-3 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200 relative">
                       <div className="flex items-center justify-center">
                         {t('crew.monitor.totalCerts')}
                         <SortDropdown col="totalCerts" options={[{label:t('crew.monitor.ascending'), dir:'asc'},{label:t('crew.monitor.descending'), dir:'desc'}]} />
                       </div>
                     </th>
-                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 border-b border-gray-200">
+                    <th className="w-96 px-3 py-2 text-left text-xs font-semibold text-gray-600 border-b border-gray-200">
                       {t('crew.table.status')}
                     </th>
                   </tr>

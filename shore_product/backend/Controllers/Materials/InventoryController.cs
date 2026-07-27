@@ -26,16 +26,18 @@ public class InventoryController : ControllerBase
             stockQuery = stockQuery.Where(s => s.StoreLocationId == locId);
 
         var query = from s in stockQuery
-                    join m in _context.MaterialItems.AsNoTracking() on s.MaterialItemId equals m.Id
+                    join m in _context.MaterialItemShips.AsNoTracking() on s.MaterialItemId equals m.Id
                     join l in _context.StoreLocations.AsNoTracking() on s.StoreLocationId equals l.Id
+                    join cat in _context.MaterialItems.AsNoTracking() on m.MaterialItemCode equals cat.ItemCode into catj
+                    from cat in catj.DefaultIfEmpty()
                     where m.IsActive
                     select new
                     {
                         s.Id,
                         s.MaterialItemId,
                         s.StoreLocationId,
-                        itemCode = m.ItemCode,
-                        itemName = m.Name,
+                        itemCode = m.ShipItemCode,
+                        itemName = cat != null ? cat.Name : m.MaterialItemCode,
                         unit = m.Unit,
                         storeLocationName = l.Name,
                         s.Quantity,
@@ -74,7 +76,7 @@ public class InventoryController : ControllerBase
         
         var lowStockCount = await (
             from s in _context.InventoryStocks.AsNoTracking()
-            join m in _context.MaterialItems.AsNoTracking() on s.MaterialItemId equals m.Id
+            join m in _context.MaterialItemShips.AsNoTracking() on s.MaterialItemId equals m.Id
             where m.MinStock != null && (double)s.Quantity <= m.MinStock.Value
             select s
         ).CountAsync();

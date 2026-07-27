@@ -757,112 +757,112 @@ namespace MaritimeEdge.Data.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2026, 7, 1, 6, 35, 4, 961, DateTimeKind.Utc).AddTicks(2417),
+                            CreatedAt = new DateTime(2026, 7, 27, 17, 22, 4, 878, DateTimeKind.Utc).AddTicks(8561),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "MAST",
                             RankName = "Master (Captain)",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 7, 1, 6, 35, 4, 961, DateTimeKind.Utc).AddTicks(2422)
+                            UpdatedAt = new DateTime(2026, 7, 27, 17, 22, 4, 878, DateTimeKind.Utc).AddTicks(8565)
                         },
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2026, 7, 1, 6, 35, 4, 961, DateTimeKind.Utc).AddTicks(2423),
+                            CreatedAt = new DateTime(2026, 7, 27, 17, 22, 4, 878, DateTimeKind.Utc).AddTicks(8569),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "C/O",
                             RankName = "Chief Officer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 7, 1, 6, 35, 4, 961, DateTimeKind.Utc).AddTicks(2423)
+                            UpdatedAt = new DateTime(2026, 7, 27, 17, 22, 4, 878, DateTimeKind.Utc).AddTicks(8570)
                         },
                         new
                         {
                             Id = 3,
-                            CreatedAt = new DateTime(2026, 7, 1, 6, 35, 4, 961, DateTimeKind.Utc).AddTicks(2424),
+                            CreatedAt = new DateTime(2026, 7, 27, 17, 22, 4, 878, DateTimeKind.Utc).AddTicks(8571),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "2/O",
                             RankName = "Second Officer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 7, 1, 6, 35, 4, 961, DateTimeKind.Utc).AddTicks(2425)
+                            UpdatedAt = new DateTime(2026, 7, 27, 17, 22, 4, 878, DateTimeKind.Utc).AddTicks(8571)
                         },
                         new
                         {
                             Id = 4,
-                            CreatedAt = new DateTime(2026, 7, 1, 6, 35, 4, 961, DateTimeKind.Utc).AddTicks(2425),
+                            CreatedAt = new DateTime(2026, 7, 27, 17, 22, 4, 878, DateTimeKind.Utc).AddTicks(8588),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "3/O",
                             RankName = "Third Officer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 7, 1, 6, 35, 4, 961, DateTimeKind.Utc).AddTicks(2426)
+                            UpdatedAt = new DateTime(2026, 7, 27, 17, 22, 4, 878, DateTimeKind.Utc).AddTicks(8588)
                         },
                         new
                         {
                             Id = 5,
-                            CreatedAt = new DateTime(2026, 7, 1, 6, 35, 4, 961, DateTimeKind.Utc).AddTicks(2427),
+                            CreatedAt = new DateTime(2026, 7, 27, 17, 22, 4, 878, DateTimeKind.Utc).AddTicks(8589),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "C/E",
                             RankName = "Chief Engineer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 7, 1, 6, 35, 4, 961, DateTimeKind.Utc).AddTicks(2427)
+                            UpdatedAt = new DateTime(2026, 7, 27, 17, 22, 4, 878, DateTimeKind.Utc).AddTicks(8589)
                         },
                         new
                         {
                             Id = 6,
-                            CreatedAt = new DateTime(2026, 7, 1, 6, 35, 4, 961, DateTimeKind.Utc).AddTicks(2428),
+                            CreatedAt = new DateTime(2026, 7, 27, 17, 22, 4, 878, DateTimeKind.Utc).AddTicks(8592),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "2/E",
                             RankName = "Second Engineer",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 7, 1, 6, 35, 4, 961, DateTimeKind.Utc).AddTicks(2428)
+                            UpdatedAt = new DateTime(2026, 7, 27, 17, 22, 4, 878, DateTimeKind.Utc).AddTicks(8592)
                         },
                         new
                         {
                             Id = 7,
-                            CreatedAt = new DateTime(2026, 7, 1, 6, 35, 4, 961, DateTimeKind.Utc).AddTicks(2429),
+                            CreatedAt = new DateTime(2026, 7, 27, 17, 22, 4, 878, DateTimeKind.Utc).AddTicks(8593),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "BOSN",
                             RankName = "Bosun",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 7, 1, 6, 35, 4, 961, DateTimeKind.Utc).AddTicks(2429)
+                            UpdatedAt = new DateTime(2026, 7, 27, 17, 22, 4, 878, DateTimeKind.Utc).AddTicks(8593)
                         },
                         new
                         {
                             Id = 8,
-                            CreatedAt = new DateTime(2026, 7, 1, 6, 35, 4, 961, DateTimeKind.Utc).AddTicks(2430),
+                            CreatedAt = new DateTime(2026, 7, 27, 17, 22, 4, 878, DateTimeKind.Utc).AddTicks(8594),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "AB",
                             RankName = "Able Seaman",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 7, 1, 6, 35, 4, 961, DateTimeKind.Utc).AddTicks(2430)
+                            UpdatedAt = new DateTime(2026, 7, 27, 17, 22, 4, 878, DateTimeKind.Utc).AddTicks(8594)
                         },
                         new
                         {
                             Id = 9,
-                            CreatedAt = new DateTime(2026, 7, 1, 6, 35, 4, 961, DateTimeKind.Utc).AddTicks(2431),
+                            CreatedAt = new DateTime(2026, 7, 27, 17, 22, 4, 878, DateTimeKind.Utc).AddTicks(8595),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "OILR",
                             RankName = "Oiler",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 7, 1, 6, 35, 4, 961, DateTimeKind.Utc).AddTicks(2431)
+                            UpdatedAt = new DateTime(2026, 7, 27, 17, 22, 4, 878, DateTimeKind.Utc).AddTicks(8595)
                         },
                         new
                         {
                             Id = 10,
-                            CreatedAt = new DateTime(2026, 7, 1, 6, 35, 4, 961, DateTimeKind.Utc).AddTicks(2432),
+                            CreatedAt = new DateTime(2026, 7, 27, 17, 22, 4, 878, DateTimeKind.Utc).AddTicks(8597),
                             Department = "DECK",
                             IsActive = true,
                             RankCode = "COOK",
                             RankName = "Chief Cook",
                             SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 7, 1, 6, 35, 4, 961, DateTimeKind.Utc).AddTicks(2433)
+                            UpdatedAt = new DateTime(2026, 7, 27, 17, 22, 4, 878, DateTimeKind.Utc).AddTicks(8597)
                         });
                 });
 
@@ -7389,6 +7389,62 @@ namespace MaritimeEdge.Data.Migrations
                     b.ToTable("maritime_reports", "public");
                 });
 
+            modelBuilder.Entity("MaritimeEdge.Models.MaterialCatalogItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<long>("CategoryId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("category_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("ItemCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("item_code");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<decimal?>("UnitPrice")
+                        .HasColumnType("decimal(18,4)")
+                        .HasColumnName("unit_price");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_material_catalog_items");
+
+                    b.HasIndex("CategoryId")
+                        .HasDatabaseName("idx_material_catalog_category");
+
+                    b.HasIndex("IsActive")
+                        .HasDatabaseName("idx_material_catalog_active")
+                        .HasFilter("is_active = true");
+
+                    b.HasIndex("ItemCode")
+                        .IsUnique()
+                        .HasDatabaseName("idx_material_catalog_code_unique");
+
+                    b.ToTable("material_items", "public");
+                });
+
             modelBuilder.Entity("MaritimeEdge.Models.MaterialCategory", b =>
                 {
                     b.Property<long>("Id")
@@ -7513,6 +7569,11 @@ namespace MaritimeEdge.Data.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("manufacturer");
 
+                    b.Property<string>("MaterialItemCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("material_item_code");
+
                     b.Property<double?>("MaxStock")
                         .HasColumnType("decimal(14,3)")
                         .HasColumnName("max_stock");
@@ -7585,24 +7646,27 @@ namespace MaritimeEdge.Data.Migrations
                         .HasName("p_k_material_items");
 
                     b.HasIndex("Barcode")
-                        .HasDatabaseName("idx_material_item_barcode");
+                        .HasDatabaseName("idx_material_item_ship_barcode");
 
                     b.HasIndex("CategoryId")
-                        .HasDatabaseName("idx_material_item_category");
+                        .HasDatabaseName("idx_material_item_ship_category");
 
                     b.HasIndex("IsActive")
-                        .HasDatabaseName("idx_material_item_active")
+                        .HasDatabaseName("idx_material_item_ship_active")
                         .HasFilter("is_active = true");
 
                     b.HasIndex("IsSynced")
-                        .HasDatabaseName("idx_material_item_synced")
+                        .HasDatabaseName("idx_material_item_ship_synced")
                         .HasFilter("is_synced = false");
 
                     b.HasIndex("ItemCode")
                         .IsUnique()
-                        .HasDatabaseName("idx_material_item_code_unique");
+                        .HasDatabaseName("idx_material_item_ship_code_unique");
 
-                    b.ToTable("material_items", "public");
+                    b.HasIndex("MaterialItemCode")
+                        .HasDatabaseName("idx_material_item_ship_catalog_code");
+
+                    b.ToTable("material_item_ship", "public");
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.MaterialItemEquipment", b =>
@@ -7635,6 +7699,8 @@ namespace MaritimeEdge.Data.Migrations
 
                     b.HasKey("Id")
                         .HasName("p_k_material_item_equipments");
+
+                    b.HasIndex("MaterialItemId");
 
                     b.ToTable("material_item_equipments", "public");
                 });
@@ -7783,6 +7849,8 @@ namespace MaritimeEdge.Data.Migrations
 
                     b.HasKey("Id")
                         .HasName("p_k_material_request_items");
+
+                    b.HasIndex("MaterialItemId");
 
                     b.HasIndex("RequestId");
 
@@ -9505,6 +9573,8 @@ namespace MaritimeEdge.Data.Migrations
 
                     b.HasKey("Id")
                         .HasName("p_k_schedule_spare_parts");
+
+                    b.HasIndex("MaterialItemId");
 
                     b.ToTable("schedule_spare_parts", "public");
                 });
@@ -15470,6 +15540,15 @@ namespace MaritimeEdge.Data.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
+            modelBuilder.Entity("MaritimeEdge.Models.MaterialCatalogItem", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.MaterialCategory", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("MaritimeEdge.Models.MaterialCategory", b =>
                 {
                     b.HasOne("MaritimeEdge.Models.MaterialCategory", null)
@@ -15485,10 +15564,30 @@ namespace MaritimeEdge.Data.Migrations
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("MaritimeEdge.Models.MaterialCatalogItem", null)
+                        .WithMany()
+                        .HasForeignKey("MaterialItemCode")
+                        .HasPrincipalKey("ItemCode")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.MaterialItemEquipment", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.MaterialCatalogItem", null)
+                        .WithMany()
+                        .HasForeignKey("MaterialItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.MaterialRequestItem", b =>
                 {
+                    b.HasOne("MaritimeEdge.Models.MaterialCatalogItem", null)
+                        .WithMany()
+                        .HasForeignKey("MaterialItemId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("MaritimeEdge.Models.MaterialRequest", "Request")
                         .WithMany("Items")
                         .HasForeignKey("RequestId")
@@ -15621,6 +15720,15 @@ namespace MaritimeEdge.Data.Migrations
                         .HasConstraintName("f_k_schedule_checklist_templates_maintenance_schedules_schedule~");
 
                     b.Navigation("Schedule");
+                });
+
+            modelBuilder.Entity("MaritimeEdge.Models.ScheduleSparePart", b =>
+                {
+                    b.HasOne("MaritimeEdge.Models.MaterialCatalogItem", null)
+                        .WithMany()
+                        .HasForeignKey("MaterialItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("MaritimeEdge.Models.ShipAuxiliaryEngine", b =>

@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProductApi.Data;
 using ProductApi.Models;
+using ProductApi.Services.Sync;
+using Maritime.Shared.Models.Sync;
 
 namespace ProductApi.Controllers.Materials;
 
@@ -10,8 +12,13 @@ namespace ProductApi.Controllers.Materials;
 public class MaterialController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly ISyncOutboxService? _syncOutbox;
 
-    public MaterialController(AppDbContext context) => _context = context;
+    public MaterialController(AppDbContext context, ISyncOutboxService? syncOutbox = null)
+    {
+        _context = context;
+        _syncOutbox = syncOutbox;
+    }
 
     // ============================================================
     // CATEGORIES
@@ -59,6 +66,7 @@ public class MaterialController : ControllerBase
         var entity = new MaterialCategory { CategoryCode = dto.CategoryCode, Name = dto.Name, Description = dto.Description, ParentCategoryId = dto.ParentCategoryId };
         _context.MaterialCategories.Add(entity);
         await _context.SaveChangesAsync();
+        await BroadcastCategoryAsync(entity, SyncActionType.CREATE);
         return CreatedAtAction(nameof(GetCategoryById), new { id = entity.Id }, entity);
     }
 
@@ -72,6 +80,7 @@ public class MaterialController : ControllerBase
         entity.ParentCategoryId = dto.ParentCategoryId;
         entity.IsActive = dto.IsActive;
         await _context.SaveChangesAsync();
+        await BroadcastCategoryAsync(entity, SyncActionType.UPDATE);
         return Ok(entity);
     }
 
@@ -82,55 +91,173 @@ public class MaterialController : ControllerBase
         if (entity == null) return NotFound();
         entity.IsActive = false;
         await _context.SaveChangesAsync();
+        await BroadcastCategoryAsync(entity, SyncActionType.UPDATE);
         return Ok(new { message = "Deleted", id, categoryCode = entity.CategoryCode, name = entity.Name });
+    }
+
+    // Đẩy danh mục loại vật tư xuống tất cả tàu (shore làm chủ).
+    private async Task BroadcastCategoryAsync(MaterialCategory c, SyncActionType action)
+    {
+        if (_syncOutbox == null) return;
+        await _syncOutbox.BroadcastAsync("material_category", c.Id.ToString(), action, c);
     }
 
     [HttpGet("categories/{id:long}/items")]
     public async Task<IActionResult> GetItemsByCategory(long id, [FromQuery] string? q)
     {
-        var query = _context.MaterialItems.Where(i => i.CategoryId == id && i.IsActive).AsNoTracking();
+        // Vật tư theo tàu (material_item_ship) thuộc loại này, kèm tên lấy từ danh mục chung.
+        var query = from i in _context.MaterialItemShips.AsNoTracking()
+                    where i.CategoryId == id && i.IsActive
+                    join c in _context.MaterialItems.AsNoTracking() on i.MaterialItemCode equals c.ItemCode into cj
+                    from c in cj.DefaultIfEmpty()
+                    select new { i, name = c != null ? c.Name : i.MaterialItemCode };
+        if (!string.IsNullOrEmpty(q))
+            query = query.Where(x => x.name.Contains(q) || x.i.ShipItemCode.Contains(q) || x.i.MaterialItemCode.Contains(q));
+        var rows = await query.OrderBy(x => x.i.ShipItemCode).ToListAsync();
+        return Ok(rows.Select(x => Project(x.i, x.name)));
+    }
+
+    // Helper: chuẩn hoá dữ liệu vật tư theo tàu trả về cho FE (giữ field itemCode/name như cũ).
+    private static object Project(MaterialItemShip i, string name) => new
+    {
+        i.Id, itemCode = i.ShipItemCode, shipItemCode = i.ShipItemCode, materialItemCode = i.MaterialItemCode,
+        name, i.CategoryId, i.Specification, i.Unit, i.OnHandQuantity, i.MinStock, i.MaxStock,
+        i.ReorderLevel, i.ReorderQuantity, i.Location, i.Manufacturer, i.Supplier, i.PartNumber,
+        i.Barcode, i.UnitCost, i.Currency, i.Notes, i.ImageUrl, i.IsActive, i.VesselId, i.CreatedAt, i.UpdatedAt
+    };
+
+    // ============================================================
+    // CATALOG ITEMS (danh mục vật tư dùng chung — material_items)
+    // ============================================================
+
+    [HttpGet("catalog")]
+    public async Task<IActionResult> GetCatalog([FromQuery] string? q, [FromQuery] long? categoryId,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
+    {
+        var query = _context.MaterialItems.Where(i => i.IsActive).AsNoTracking();
         if (!string.IsNullOrEmpty(q))
             query = query.Where(i => i.Name.Contains(q) || i.ItemCode.Contains(q));
-        return Ok(await query.OrderBy(i => i.ItemCode).ToListAsync());
+        if (categoryId.HasValue)
+            query = query.Where(i => i.CategoryId == categoryId.Value);
+        var total = await query.CountAsync();
+        var items = await query.OrderBy(i => i.ItemCode).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+        return Ok(new { items, total, page, pageSize });
+    }
+
+    [HttpGet("catalog/{id:guid}")]
+    public async Task<IActionResult> GetCatalogById(Guid id)
+    {
+        var item = await _context.MaterialItems.AsNoTracking().FirstOrDefaultAsync(i => i.Id == id);
+        return item == null ? NotFound() : Ok(item);
+    }
+
+    [HttpPost("catalog")]
+    public async Task<IActionResult> CreateCatalog([FromBody] MaterialItem dto)
+    {
+        if (await _context.MaterialItems.AnyAsync(i => i.ItemCode == dto.ItemCode))
+            return Conflict(new { message = "Item code already exists" });
+        var entity = new MaterialItem
+        {
+            ItemCode = dto.ItemCode, Name = dto.Name, CategoryId = dto.CategoryId, UnitPrice = dto.UnitPrice,
+        };
+        _context.MaterialItems.Add(entity);
+        await _context.SaveChangesAsync();
+        await BroadcastCatalogAsync(entity, SyncActionType.CREATE);
+        return CreatedAtAction(nameof(GetCatalogById), new { id = entity.Id }, entity);
+    }
+
+    [HttpPut("catalog/{id:guid}")]
+    public async Task<IActionResult> UpdateCatalog(Guid id, [FromBody] MaterialItem dto)
+    {
+        var entity = await _context.MaterialItems.FindAsync(id);
+        if (entity == null) return NotFound();
+        entity.Name = dto.Name; entity.CategoryId = dto.CategoryId; entity.UnitPrice = dto.UnitPrice;
+        entity.IsActive = dto.IsActive; entity.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        await BroadcastCatalogAsync(entity, SyncActionType.UPDATE);
+        return Ok(entity);
+    }
+
+    [HttpDelete("catalog/{id:guid}")]
+    public async Task<IActionResult> DeleteCatalog(Guid id)
+    {
+        var entity = await _context.MaterialItems.FindAsync(id);
+        if (entity == null) return NotFound();
+        entity.IsActive = false; entity.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        await BroadcastCatalogAsync(entity, SyncActionType.UPDATE);
+        return Ok(new { message = "Deleted", id, itemCode = entity.ItemCode, name = entity.Name });
+    }
+
+    // Đẩy danh mục vật tư dùng chung xuống tất cả tàu (shore làm chủ).
+    private async Task BroadcastCatalogAsync(MaterialItem c, SyncActionType action)
+    {
+        if (_syncOutbox == null) return;
+        await _syncOutbox.BroadcastAsync("material_item_catalog", c.Id.ToString(), action, c);
+    }
+
+    // Đồng bộ TOÀN BỘ danh mục hiện có xuống tàu (initial/full resync).
+    // Đẩy loại vật tư trước, rồi tới vật tư (vì catalog tham chiếu category_id).
+    [HttpPost("sync/broadcast-all")]
+    public async Task<IActionResult> BroadcastAllCatalog()
+    {
+        if (_syncOutbox == null) return Ok(new { message = "Sync outbox không khả dụng" });
+        var cats = await _context.MaterialCategories.Where(c => c.IsActive).AsNoTracking().ToListAsync();
+        foreach (var c in cats)
+            await _syncOutbox.BroadcastAsync("material_category", c.Id.ToString(), SyncActionType.CREATE, c);
+        var items = await _context.MaterialItems.Where(i => i.IsActive).AsNoTracking().ToListAsync();
+        foreach (var i in items)
+            await _syncOutbox.BroadcastAsync("material_item_catalog", i.Id.ToString(), SyncActionType.CREATE, i);
+        return Ok(new { message = "Đã đẩy toàn bộ danh mục xuống tàu", categories = cats.Count, items = items.Count });
     }
 
     // ============================================================
-    // ITEMS
+    // SHIP ITEMS (vật tư theo tàu — material_item_ship)
     // ============================================================
 
     [HttpGet("items")]
     public async Task<IActionResult> GetItems([FromQuery] string? q, [FromQuery] long? categoryId,
         [FromQuery] bool? lowStock, [FromQuery] Guid? vesselId, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
-        var query = _context.MaterialItems.Where(i => i.IsActive).AsNoTracking();
+        var baseQuery = from i in _context.MaterialItemShips.AsNoTracking()
+                        where i.IsActive
+                        join c in _context.MaterialItems.AsNoTracking() on i.MaterialItemCode equals c.ItemCode into cj
+                        from c in cj.DefaultIfEmpty()
+                        select new { i, name = c != null ? c.Name : i.MaterialItemCode };
         if (!string.IsNullOrEmpty(q))
-            query = query.Where(i => i.Name.Contains(q) || i.ItemCode.Contains(q) || (i.PartNumber != null && i.PartNumber.Contains(q)));
+            baseQuery = baseQuery.Where(x => x.name.Contains(q) || x.i.ShipItemCode.Contains(q)
+                || x.i.MaterialItemCode.Contains(q) || (x.i.PartNumber != null && x.i.PartNumber.Contains(q)));
         if (categoryId.HasValue)
-            query = query.Where(i => i.CategoryId == categoryId.Value);
+            baseQuery = baseQuery.Where(x => x.i.CategoryId == categoryId.Value);
         if (lowStock == true)
-            query = query.Where(i => i.MinStock.HasValue && i.OnHandQuantity <= i.MinStock.Value);
+            baseQuery = baseQuery.Where(x => x.i.MinStock.HasValue && x.i.OnHandQuantity <= x.i.MinStock.Value);
         if (vesselId.HasValue)
-            query = query.Where(i => i.VesselId == vesselId.Value);
-        var total = await query.CountAsync();
-        var items = await query.OrderBy(i => i.ItemCode).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+            baseQuery = baseQuery.Where(x => x.i.VesselId == vesselId.Value);
+        var total = await baseQuery.CountAsync();
+        var rows = await baseQuery.OrderBy(x => x.i.ShipItemCode).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+        var items = rows.Select(x => Project(x.i, x.name));
         return Ok(new { items, total, page, pageSize });
     }
 
     [HttpGet("items/detailed")]
     public async Task<IActionResult> GetItemsDetailed([FromQuery] string? q)
     {
-        var query = _context.MaterialItems.Where(i => i.IsActive).AsNoTracking();
+        var baseQuery = from i in _context.MaterialItemShips.AsNoTracking()
+                        where i.IsActive
+                        join c in _context.MaterialItems.AsNoTracking() on i.MaterialItemCode equals c.ItemCode into cj
+                        from c in cj.DefaultIfEmpty()
+                        select new { i, name = c != null ? c.Name : i.MaterialItemCode };
         if (!string.IsNullOrEmpty(q))
-            query = query.Where(i => i.Name.Contains(q) || i.ItemCode.Contains(q));
-        var items = await query.OrderBy(i => i.ItemCode).ToListAsync();
-        var catIds = items.Select(i => i.CategoryId).Distinct().ToList();
+            baseQuery = baseQuery.Where(x => x.name.Contains(q) || x.i.ShipItemCode.Contains(q) || x.i.MaterialItemCode.Contains(q));
+        var rows = await baseQuery.OrderBy(x => x.i.ShipItemCode).ToListAsync();
+        var catIds = rows.Select(x => x.i.CategoryId).Distinct().ToList();
         var cats = await _context.MaterialCategories.Where(c => catIds.Contains(c.Id)).AsNoTracking()
             .ToDictionaryAsync(c => c.Id, c => c.Name);
-        var result = items.Select(i => new
+        var result = rows.Select(x => new
         {
-            i.Id, i.ItemCode, i.Name, i.CategoryId,
-            categoryName = cats.GetValueOrDefault(i.CategoryId, ""),
-            i.Unit, i.OnHandQuantity, i.MinStock, i.MaxStock, i.UnitCost, i.IsActive
+            x.i.Id, itemCode = x.i.ShipItemCode, materialItemCode = x.i.MaterialItemCode, name = x.name, x.i.CategoryId,
+            categoryName = cats.GetValueOrDefault(x.i.CategoryId, ""),
+            x.i.Unit, x.i.OnHandQuantity, x.i.MinStock, x.i.MaxStock, x.i.UnitCost, x.i.IsActive
         });
         return Ok(result);
     }
@@ -138,51 +265,66 @@ public class MaterialController : ControllerBase
     [HttpGet("items/low-stock")]
     public async Task<IActionResult> GetLowStock()
     {
-        var items = await _context.MaterialItems
-            .Where(i => i.IsActive && i.MinStock.HasValue && i.OnHandQuantity <= i.MinStock.Value)
-            .AsNoTracking().ToListAsync();
-        return Ok(items);
+        var rows = await (from i in _context.MaterialItemShips.AsNoTracking()
+                          where i.IsActive && i.MinStock.HasValue && i.OnHandQuantity <= i.MinStock.Value
+                          join c in _context.MaterialItems.AsNoTracking() on i.MaterialItemCode equals c.ItemCode into cj
+                          from c in cj.DefaultIfEmpty()
+                          select new { i, name = c != null ? c.Name : i.MaterialItemCode }).ToListAsync();
+        return Ok(rows.Select(x => Project(x.i, x.name)));
     }
 
     [HttpGet("items/{id:guid}")]
     public async Task<IActionResult> GetItemById(Guid id)
     {
-        var item = await _context.MaterialItems.AsNoTracking().FirstOrDefaultAsync(i => i.Id == id);
-        return item == null ? NotFound() : Ok(item);
+        var item = await _context.MaterialItemShips.AsNoTracking().FirstOrDefaultAsync(i => i.Id == id);
+        if (item == null) return NotFound();
+        var name = await _context.MaterialItems.AsNoTracking()
+            .Where(c => c.ItemCode == item.MaterialItemCode).Select(c => c.Name).FirstOrDefaultAsync();
+        return Ok(Project(item, name ?? item.MaterialItemCode));
     }
 
     [HttpPost("items")]
-    public async Task<IActionResult> CreateItem([FromBody] MaterialItem dto)
+    public async Task<IActionResult> CreateItem([FromBody] MaterialItemShip dto)
     {
-        if (await _context.MaterialItems.AnyAsync(i => i.ItemCode == dto.ItemCode))
-            return Conflict(new { message = "Item code already exists" });
-        var entity = new MaterialItem
+        // Mã vật tư (MaterialItemCode) phải tồn tại trong danh mục chung.
+        if (!await _context.MaterialItems.AnyAsync(c => c.ItemCode == dto.MaterialItemCode))
+            return BadRequest(new { message = "MaterialItemCode không tồn tại trong danh mục vật tư" });
+        if (await _context.MaterialItemShips.AnyAsync(i => i.VesselId == dto.VesselId && i.ShipItemCode == dto.ShipItemCode))
+            return Conflict(new { message = "Ship item code already exists for this vessel" });
+        var entity = new MaterialItemShip
         {
-            ItemCode = dto.ItemCode, Name = dto.Name, CategoryId = dto.CategoryId,
+            ShipItemCode = dto.ShipItemCode, MaterialItemCode = dto.MaterialItemCode, CategoryId = dto.CategoryId,
             Specification = dto.Specification, Unit = dto.Unit, OnHandQuantity = dto.OnHandQuantity,
             MinStock = dto.MinStock, MaxStock = dto.MaxStock, ReorderLevel = dto.ReorderLevel,
             ReorderQuantity = dto.ReorderQuantity, Location = dto.Location, Manufacturer = dto.Manufacturer,
             Supplier = dto.Supplier, PartNumber = dto.PartNumber, Barcode = dto.Barcode,
             UnitCost = dto.UnitCost, Currency = dto.Currency, Notes = dto.Notes, ImageUrl = dto.ImageUrl,
+            VesselId = dto.VesselId,
         };
-        _context.MaterialItems.Add(entity);
+        _context.MaterialItemShips.Add(entity);
         await _context.SaveChangesAsync();
         return CreatedAtAction(nameof(GetItemById), new { id = entity.Id }, entity);
     }
 
     [HttpPut("items/{id:guid}")]
-    public async Task<IActionResult> UpdateItem(Guid id, [FromBody] MaterialItem dto)
+    public async Task<IActionResult> UpdateItem(Guid id, [FromBody] MaterialItemShip dto)
     {
-        var entity = await _context.MaterialItems.FindAsync(id);
+        var entity = await _context.MaterialItemShips.FindAsync(id);
         if (entity == null) return NotFound();
-        entity.Name = dto.Name; entity.CategoryId = dto.CategoryId; entity.Specification = dto.Specification;
+        if (!string.IsNullOrEmpty(dto.MaterialItemCode) && dto.MaterialItemCode != entity.MaterialItemCode)
+        {
+            if (!await _context.MaterialItems.AnyAsync(c => c.ItemCode == dto.MaterialItemCode))
+                return BadRequest(new { message = "MaterialItemCode không tồn tại trong danh mục vật tư" });
+            entity.MaterialItemCode = dto.MaterialItemCode;
+        }
+        entity.ShipItemCode = dto.ShipItemCode; entity.CategoryId = dto.CategoryId; entity.Specification = dto.Specification;
         entity.Unit = dto.Unit; entity.MinStock = dto.MinStock; entity.MaxStock = dto.MaxStock;
         entity.ReorderLevel = dto.ReorderLevel; entity.ReorderQuantity = dto.ReorderQuantity;
         entity.Location = dto.Location; entity.Manufacturer = dto.Manufacturer; entity.Supplier = dto.Supplier;
         entity.PartNumber = dto.PartNumber; entity.Barcode = dto.Barcode;
         entity.UnitCost = dto.UnitCost; entity.Currency = dto.Currency;
         entity.Notes = dto.Notes; entity.ImageUrl = dto.ImageUrl; entity.IsActive = dto.IsActive;
-        entity.UpdatedAt = DateTime.UtcNow;
+        entity.VesselId = dto.VesselId; entity.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
         return Ok(entity);
     }
@@ -190,11 +332,11 @@ public class MaterialController : ControllerBase
     [HttpDelete("items/{id:guid}")]
     public async Task<IActionResult> DeleteItem(Guid id)
     {
-        var entity = await _context.MaterialItems.FindAsync(id);
+        var entity = await _context.MaterialItemShips.FindAsync(id);
         if (entity == null) return NotFound();
         entity.IsActive = false; entity.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
-        return Ok(new { message = "Deleted", id, itemCode = entity.ItemCode, name = entity.Name });
+        return Ok(new { message = "Deleted", id, shipItemCode = entity.ShipItemCode, materialItemCode = entity.MaterialItemCode });
     }
 
     // ============================================================

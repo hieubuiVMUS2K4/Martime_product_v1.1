@@ -36,6 +36,9 @@ public class SyncConflictHandler : ISyncConflictHandler
         ["rank"] = typeof(Maritime.Shared.Models.Crew.Rank),
         ["rank_certificate"] = typeof(Maritime.Shared.Models.Crew.RankCertificate),
         ["country_certificate"] = typeof(Maritime.Shared.Models.Crew.CountryCertificate),
+        // Danh mục vật tư (shore làm chủ → đẩy xuống tàu)
+        ["material_category"] = typeof(MaterialCategory),
+        ["material_item_catalog"] = typeof(MaterialCatalogItem),
 
         // Crew entities (field-level merge)
         ["crew_member"] = typeof(Maritime.Shared.Models.Crew.CrewMember),
@@ -68,7 +71,8 @@ public class SyncConflictHandler : ISyncConflictHandler
     // Master data tables — always accept from Shore
     private static readonly HashSet<string> _masterDataTables = new(StringComparer.OrdinalIgnoreCase)
     {
-        "certificate", "country", "rank", "rank_certificate", "country_certificate"
+        "certificate", "country", "rank", "rank_certificate", "country_certificate",
+        "material_category", "material_item_catalog"
     };
 
     // Human-readable labels for crew fields that should trigger notifications
@@ -396,6 +400,16 @@ public class SyncConflictHandler : ISyncConflictHandler
 
     private static async Task<object?> FindByKeyAsync(EdgeDbContext context, Type entityType, string recordKey)
     {
+        // Xác định kiểu khoá chính từ model để convert đúng (int vs long vs Guid).
+        var keyType = context.Model.FindEntityType(entityType)?.FindPrimaryKey()?.Properties.FirstOrDefault()?.ClrType;
+        if (keyType == typeof(Guid) && Guid.TryParse(recordKey, out var g))
+            return await context.FindAsync(entityType, g);
+        if (keyType == typeof(long) && long.TryParse(recordKey, out var l))
+            return await context.FindAsync(entityType, l);
+        if (keyType == typeof(int) && int.TryParse(recordKey, out var i))
+            return await context.FindAsync(entityType, i);
+
+        // Fallback heuristic khi không xác định được kiểu khoá.
         if (Guid.TryParse(recordKey, out var guidKey))
             return await context.FindAsync(entityType, guidKey);
         if (int.TryParse(recordKey, out var intKey))

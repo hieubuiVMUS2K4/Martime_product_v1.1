@@ -194,7 +194,10 @@ public class SyncInboxService : ISyncInboxService
 
         // Materials — Catalog
         ["material_category"]      = typeof(ProductApi.Models.MaterialCategory),
-        ["material_item"]          = typeof(ProductApi.Models.MaterialItem),
+        // Vật tư theo tàu (có VesselId, số lượng) — đồng bộ từ edge lên.
+        ["material_item"]          = typeof(ProductApi.Models.MaterialItemShip),
+        // Danh mục vật tư dùng chung (shore-authoritative, đẩy xuống edge).
+        ["material_item_catalog"]  = typeof(ProductApi.Models.MaterialItem),
         ["material_item_equipment"]= typeof(ProductApi.Models.MaterialItemEquipment),
         ["store_location"]         = typeof(ProductApi.Models.StoreLocation),
 
@@ -1844,7 +1847,7 @@ public class SyncInboxService : ISyncInboxService
                 vessel = await _context.Vessels.AsNoTracking().FirstOrDefaultAsync(v => v.IMO == originNode);
                 asset.VesselId = vessel?.Id;
                 break;
-            case ProductApi.Models.MaterialItem mat:
+            case ProductApi.Models.MaterialItemShip mat:
                 vessel = await _context.Vessels.AsNoTracking().FirstOrDefaultAsync(v => v.IMO == originNode);
                 mat.VesselId = vessel?.Id;
                 break;

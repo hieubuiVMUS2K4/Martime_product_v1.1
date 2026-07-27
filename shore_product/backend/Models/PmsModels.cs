@@ -205,6 +205,7 @@ public class ScheduleSparePart
     [Required]
     public Guid ScheduleId { get; set; }
 
+    /// <summary>FK → DANH MỤC vật tư material_items.Id (định mức phụ tùng theo loại).</summary>
     [Required]
     public Guid MaterialItemId { get; set; }
 

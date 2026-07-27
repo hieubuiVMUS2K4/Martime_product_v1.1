@@ -30,7 +30,9 @@ public class MaterialCategory
 }
 
 // ============================================================
-// MATERIALS — ITEMS (spare parts, consumables)
+// MATERIALS — CATALOG ITEMS (fleet-wide shared "danh mục vật tư")
+// Bảng danh mục dùng chung cho tất cả các tàu của công ty.
+// Chỉ chứa thông tin định danh vật tư: mã, tên, loại, đơn giá.
 // ============================================================
 
 public class MaterialItem
@@ -38,13 +40,50 @@ public class MaterialItem
     [Key]
     public Guid Id { get; set; } = Guid.NewGuid();
 
+    /// <summary>Mã vật tư (dùng chung toàn fleet, duy nhất).</summary>
     [Required]
     [MaxLength(50)]
     public string ItemCode { get; set; } = string.Empty;
 
+    /// <summary>Tên vật tư.</summary>
     [Required]
     [MaxLength(200)]
     public string Name { get; set; } = string.Empty;
+
+    /// <summary>Mã loại vật tư (FK → material_categories).</summary>
+    public long CategoryId { get; set; }
+
+    /// <summary>Đơn giá tham chiếu của vật tư.</summary>
+    public decimal? UnitPrice { get; set; }
+
+    public bool IsActive { get; set; } = true;
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    public virtual ICollection<MaterialItemShip> ShipItems { get; set; } = new List<MaterialItemShip>();
+}
+
+// ============================================================
+// MATERIALS — SHIP ITEMS (vật tư theo từng tàu / kho trên tàu)
+// Bảng cũ material_items đổi tên thành material_item_ship.
+// Giữ số lượng, min/max, vị trí kho, VesselId... theo từng tàu.
+// ============================================================
+
+public class MaterialItemShip
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    /// <summary>Mã vật tư trên tàu (mã nội bộ của tàu, trước đây là ItemCode).</summary>
+    [Required]
+    [MaxLength(50)]
+    public string ShipItemCode { get; set; } = string.Empty;
+
+    /// <summary>Mã vật tư — FK trỏ về danh mục chung material_items.ItemCode (trước đây là cột Name).</summary>
+    [Required]
+    [MaxLength(50)]
+    public string MaterialItemCode { get; set; } = string.Empty;
 
     public long CategoryId { get; set; }
 
@@ -87,11 +126,15 @@ public class MaterialItem
 
     public bool IsActive { get; set; } = true;
 
-    /// <summary>Vessel this material item belongs to (null = fleet-wide/unassigned)</summary>
+    /// <summary>Vessel this ship material item belongs to (null = fleet-wide/unassigned)</summary>
     public Guid? VesselId { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    [ForeignKey(nameof(MaterialItemCode))]
+    [System.Text.Json.Serialization.JsonIgnore]
+    public virtual MaterialItem? MaterialItem { get; set; }
 }
 
 // ============================================================
@@ -103,6 +146,7 @@ public class MaterialItemEquipment
     [Key]
     public Guid Id { get; set; } = Guid.NewGuid();
 
+    /// <summary>FK → DANH MỤC vật tư material_items.Id (loại vật tư dùng cho thiết bị).</summary>
     [Required]
     public Guid MaterialItemId { get; set; }
 
@@ -216,6 +260,7 @@ public class MaterialRequestItem
 
     public Guid? EquipmentAssetId { get; set; }
 
+    /// <summary>FK → DANH MỤC vật tư material_items.Id (yêu cầu theo loại vật tư). Null = freeform.</summary>
     public Guid? MaterialItemId { get; set; }
 
     [Required]

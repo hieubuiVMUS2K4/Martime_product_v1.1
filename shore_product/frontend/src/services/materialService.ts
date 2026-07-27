@@ -301,3 +301,51 @@ export const materialService = {
   getItemActivity: (itemId: string) =>
     apiClient.get<ItemActivityResponse>(`/material/items/${itemId}/activity`),
 }
+
+// ============================================================
+// MATERIAL CATALOG (danh mục vật tư dùng chung — bảng material_items mới)
+// ============================================================
+
+export interface MaterialCatalogItem {
+  id: string // Guid
+  itemCode: string
+  name: string
+  categoryId: number
+  unitPrice?: number | null
+  isActive: boolean
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface MaterialCatalogPayload {
+  itemCode: string
+  name: string
+  categoryId: number
+  unitPrice?: number | null
+  isActive?: boolean
+}
+
+export const materialCatalogService = {
+  getAll: async (options?: { q?: string; categoryId?: number }): Promise<MaterialCatalogItem[]> => {
+    const params = new URLSearchParams()
+    if (options?.q) params.append('q', options.q)
+    if (options?.categoryId) params.append('categoryId', String(options.categoryId))
+    params.append('pageSize', '1000')
+    const res = await apiClient.get<{ items: MaterialCatalogItem[]; total: number; page: number; pageSize: number }>(
+      `/material/catalog?${params}`,
+    )
+    return res.items ?? (Array.isArray(res) ? (res as MaterialCatalogItem[]) : [])
+  },
+
+  getById: (id: string) =>
+    apiClient.get<MaterialCatalogItem>(`/material/catalog/${id}`),
+
+  create: (dto: MaterialCatalogPayload) =>
+    apiClient.post<MaterialCatalogItem>('/material/catalog', dto),
+
+  update: (id: string, dto: MaterialCatalogPayload) =>
+    apiClient.put<MaterialCatalogItem>(`/material/catalog/${id}`, dto),
+
+  remove: (id: string) =>
+    apiClient.delete<{ message: string; id: string; itemCode: string; name: string }>(`/material/catalog/${id}`),
+}

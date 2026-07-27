@@ -727,7 +727,7 @@ function SectionedCrewView({
                     <SortDropdown col="fullName" options={[{label:'A → Z', dir:'asc'},{label:'Z → A', dir:'desc'}]} />
                   </div>
                 </th>
-                <th className="w-44 px-3 py-2 text-left border-b border-r border-gray-200 dark:border-gray-700">
+                <th className="w-96 px-3 py-2 text-left border-b border-r border-gray-200 dark:border-gray-700">
                   <div className="flex items-center justify-between gap-1">
                     <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">{t('crew.table.rank')}</span>
                     <SortDropdown col="position" options={[{label:'A → Z', dir:'asc'},{label:'Z → A', dir:'desc'}]} />

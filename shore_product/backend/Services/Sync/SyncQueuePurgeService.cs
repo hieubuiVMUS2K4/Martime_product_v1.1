@@ -50,12 +50,12 @@ namespace ProductApi.Services.Sync
             // Execute raw SQL for high efficiency deletion
             var deletedIdempotency = await dbContext.Database.ExecuteSqlRawAsync(
                 @"DELETE FROM ""SyncIdempotencyRecords"" WHERE ""CreatedAt"" < {0}",
-                cutoffDate,
+                new object[] { cutoffDate },
                 cancellationToken);
 
             var deletedLogs = await dbContext.Database.ExecuteSqlRawAsync(
                 @"DELETE FROM ""SyncLogs"" WHERE ""Timestamp"" < {0}",
-                cutoffDate,
+                new object[] { cutoffDate },
                 cancellationToken);
 
             _logger.LogInformation("Purged {DeletedIdempotency} idempotency records and {DeletedLogs} sync logs.",

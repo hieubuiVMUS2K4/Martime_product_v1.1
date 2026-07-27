@@ -163,6 +163,7 @@ namespace ProductApi.Data
         // ============================================================
         public DbSet<MaterialCategory> MaterialCategories { get; set; } = null!;
         public DbSet<MaterialItem> MaterialItems { get; set; } = null!;
+        public DbSet<MaterialItemShip> MaterialItemShips { get; set; } = null!;
         public DbSet<MaterialItemEquipment> MaterialItemEquipments { get; set; } = null!;
         public DbSet<StoreLocation> StoreLocations { get; set; } = null!;
         public DbSet<MaterialRequest> MaterialRequests { get; set; } = null!;
@@ -1736,6 +1737,10 @@ namespace ProductApi.Data
             modelBuilder.Entity<ScheduleSparePart>(entity =>
             {
                 entity.ToTable("schedule_spare_parts");
+                // Định mức phụ tùng tham chiếu DANH MỤC vật tư dùng chung (material_items).
+                entity.HasOne<MaterialItem>().WithMany()
+                    .HasForeignKey(e => e.MaterialItemId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<ScheduleChecklistTemplate>(entity =>
@@ -1760,16 +1765,35 @@ namespace ProductApi.Data
 
             modelBuilder.Entity<MaterialItem>(entity =>
             {
+                // Danh mục vật tư dùng chung toàn fleet.
                 entity.ToTable("material_items");
-                // Unique per vessel: same item code can exist for different vessels
-                entity.HasIndex(e => new { e.VesselId, e.ItemCode }).IsUnique();
+                entity.HasIndex(e => e.ItemCode).IsUnique();
+                entity.Property(e => e.UnitPrice).HasPrecision(18, 4);
+            });
+
+            modelBuilder.Entity<MaterialItemShip>(entity =>
+            {
+                // Vật tư theo từng tàu / kho trên tàu.
+                entity.ToTable("material_item_ship");
+                // Mã vật tư trên tàu duy nhất theo từng tàu.
+                entity.HasIndex(e => new { e.VesselId, e.ShipItemCode }).IsUnique();
                 entity.Property(e => e.UnitCost).HasPrecision(18, 4);
+                // FK trỏ về danh mục chung theo mã vật tư (ItemCode là alternate key của material_items).
+                entity.HasOne(e => e.MaterialItem)
+                    .WithMany(c => c.ShipItems)
+                    .HasForeignKey(e => e.MaterialItemCode)
+                    .HasPrincipalKey(c => c.ItemCode)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<MaterialItemEquipment>(entity =>
             {
                 entity.ToTable("material_item_equipments");
                 entity.HasIndex(e => new { e.MaterialItemId, e.EquipmentAssetId }).IsUnique();
+                // Liên kết vật tư–thiết bị tham chiếu DANH MỤC vật tư (material_items).
+                entity.HasOne<MaterialItem>().WithMany()
+                    .HasForeignKey(e => e.MaterialItemId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<StoreLocation>(entity =>
@@ -1797,6 +1821,10 @@ namespace ProductApi.Data
                     .WithMany(r => r.Items)
                     .HasForeignKey(e => e.RequestId)
                     .OnDelete(DeleteBehavior.Cascade);
+                // Dòng yêu cầu tham chiếu DANH MỤC vật tư (material_items), nullable (cho phép freeform).
+                entity.HasOne<MaterialItem>().WithMany()
+                    .HasForeignKey(e => e.MaterialItemId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
 
             modelBuilder.Entity<StockReceipt>(entity =>

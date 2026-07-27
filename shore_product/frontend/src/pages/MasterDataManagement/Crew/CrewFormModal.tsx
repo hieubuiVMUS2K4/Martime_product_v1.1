@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, User, Phone, MapPin, GraduationCap, Heart, Ship } from 'lucide-react';
-import { useReferenceData } from '../../hooks/useCrew';
-import type { CrewMember, CreateCrewRequest } from '../../types/crew.types';
+import { useReferenceData } from '../../../hooks/useCrew';
+import type { CrewMember, CreateCrewRequest } from '../../../types/crew.types';
 import './CrewFormModal.css';
 
 interface Props {

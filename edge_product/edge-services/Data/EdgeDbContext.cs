@@ -89,6 +89,7 @@ public class EdgeDbContext : DbContext
     // Inventory & Materials
     public DbSet<MaterialCategory> MaterialCategories { get; set; } = null!;
     public DbSet<MaterialItem> MaterialItems { get; set; } = null!;
+    public DbSet<MaterialCatalogItem> MaterialCatalogItems { get; set; } = null!;
     public DbSet<MaterialReceipt> MaterialReceipts { get; set; } = null!;
     public DbSet<MaterialReceiptItem> MaterialReceiptItems { get; set; } = null!;
     public DbSet<StoreLocation> StoreLocations { get; set; } = null!;
@@ -2052,10 +2053,36 @@ public class EdgeDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
-        // ========== MATERIAL ITEMS ==========
-        modelBuilder.Entity<MaterialItem>(entity =>
+        // ========== MATERIAL CATALOG (material_items) ==========
+        // DANH MỤC vật tư dùng chung (đồng bộ từ Shore). Khớp schema shore catalog.
+        modelBuilder.Entity<MaterialCatalogItem>(entity =>
         {
             entity.ToTable("material_items");
+
+            entity.Property(e => e.UnitPrice).HasColumnType("decimal(18,4)");
+
+            entity.HasIndex(e => e.ItemCode)
+                .IsUnique()
+                .HasDatabaseName("idx_material_catalog_code_unique");
+
+            entity.HasIndex(e => e.CategoryId)
+                .HasDatabaseName("idx_material_catalog_category");
+
+            entity.HasIndex(e => e.IsActive)
+                .HasDatabaseName("idx_material_catalog_active")
+                .HasFilter("is_active = true");
+
+            entity.HasOne<MaterialCategory>()
+                .WithMany()
+                .HasForeignKey(e => e.CategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ========== MATERIAL ITEM SHIP (material_item_ship) ==========
+        // Vật tư theo tàu — bảng cũ material_items đổi tên. Class vẫn là MaterialItem.
+        modelBuilder.Entity<MaterialItem>(entity =>
+        {
+            entity.ToTable("material_item_ship");
 
             entity.Property(e => e.OnHandQuantity).HasColumnType("decimal(14,3)");
             entity.Property(e => e.MinStock).HasColumnType("decimal(14,3)");
@@ -2066,26 +2093,36 @@ public class EdgeDbContext : DbContext
 
             entity.HasIndex(e => e.ItemCode)
                 .IsUnique()
-                .HasDatabaseName("idx_material_item_code_unique");
+                .HasDatabaseName("idx_material_item_ship_code_unique");
+
+            entity.HasIndex(e => e.MaterialItemCode)
+                .HasDatabaseName("idx_material_item_ship_catalog_code");
 
             entity.HasIndex(e => e.CategoryId)
-                .HasDatabaseName("idx_material_item_category");
+                .HasDatabaseName("idx_material_item_ship_category");
 
             entity.HasIndex(e => e.Barcode)
-                .HasDatabaseName("idx_material_item_barcode");
+                .HasDatabaseName("idx_material_item_ship_barcode");
 
             entity.HasIndex(e => e.IsActive)
-                .HasDatabaseName("idx_material_item_active")
+                .HasDatabaseName("idx_material_item_ship_active")
                 .HasFilter("is_active = true");
 
             entity.HasIndex(e => e.IsSynced)
-                .HasDatabaseName("idx_material_item_synced")
+                .HasDatabaseName("idx_material_item_ship_synced")
                 .HasFilter("is_synced = false");
 
             entity.HasOne<MaterialCategory>()
                 .WithMany()
                 .HasForeignKey(e => e.CategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // FK trỏ danh mục qua mã vật tư (ItemCode là alternate key của material_items).
+            entity.HasOne<MaterialCatalogItem>()
+                .WithMany()
+                .HasForeignKey(e => e.MaterialItemCode)
+                .HasPrincipalKey(c => c.ItemCode)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // ========== STORE LOCATIONS ==========
@@ -2140,6 +2177,29 @@ public class EdgeDbContext : DbContext
 
             entity.Property(e => e.QuantityOnHand).HasColumnType("decimal(14,3)");
             entity.Property(e => e.QuantityRequested).HasColumnType("decimal(14,3)");
+
+            // Yêu cầu theo loại → trỏ DANH MỤC material_items (nullable, freeform).
+            entity.HasOne<MaterialCatalogItem>()
+                .WithMany()
+                .HasForeignKey(e => e.MaterialItemId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Relink sang DANH MỤC: định mức phụ tùng + liên kết vật tư-thiết bị.
+        modelBuilder.Entity<ScheduleSparePart>(entity =>
+        {
+            entity.HasOne<MaterialCatalogItem>()
+                .WithMany()
+                .HasForeignKey(e => e.MaterialItemId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<MaterialItemEquipment>(entity =>
+        {
+            entity.HasOne<MaterialCatalogItem>()
+                .WithMany()
+                .HasForeignKey(e => e.MaterialItemId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ========== STOCK RECEIPTS ==========
