@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './styles/globals.css'
 import './components/editor/editor.css'
 import App from './App.tsx'
+import ErrorBoundary from './components/ErrorBoundary.tsx'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,13 +28,15 @@ const enableTransitions = () => {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <I18nProvider>
-          <App />
-        </I18nProvider>
-      </BrowserRouter>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <I18nProvider>
+            <App />
+          </I18nProvider>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </ErrorBoundary>
   </StrictMode>,
 )
 
@@ -41,3 +44,12 @@ createRoot(document.getElementById('root')!).render(
 requestAnimationFrame(() => {
   requestAnimationFrame(enableTransitions);
 });
+
+// Register Service Worker for offline maritime resilience
+if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((err) => {
+      console.warn('SW registration failed:', err);
+    });
+  });
+}
