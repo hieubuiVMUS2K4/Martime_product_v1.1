@@ -224,3 +224,10 @@ test-results/
 .eslintcache
 .stylelintcache
 .cache
+
+# Dumps & Large Exports
+dumps/*.sql
+*.zip
+temp-*
+test-output.json
+
