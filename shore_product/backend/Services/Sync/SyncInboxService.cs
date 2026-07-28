@@ -1220,7 +1220,10 @@ public class SyncInboxService : ISyncInboxService
     // ============================================================
     private async Task ProcessUpdateAsync(Type entityType, SyncQueueItemDto item)
     {
-        var existing = await FindEntityByKeyAsync(entityType, item.RecordKey);
+        // Payload is passed for identity fallback: an UPDATE means the row already exists, so
+        // a key miss is a renamed key, not a new record. ProcessCreateAsync deliberately does
+        // NOT do this — there, a key miss really is a new record.
+        var existing = await FindEntityByKeyAsync(entityType, item.RecordKey, item.Payload);
 
         // For vessel-scoped tables: if the existing record belongs to a DIFFERENT vessel,
         // treat this as a new record creation (same seed ID, different vessel).
@@ -1297,14 +1300,20 @@ public class SyncInboxService : ISyncInboxService
             }
             catch { payloadKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase); }
 
-            // Snapshot non-payload value-type properties on existing entity
+            // Snapshot non-payload properties on existing entity
             var savedValueTypes = new Dictionary<string, object?>();
             foreach (var prop in existing.GetType().GetProperties())
             {
                 if (!prop.CanRead || !prop.CanWrite) continue;
                 if (prop.Name == "Id") continue;
-                // Only protect non-nullable value types (bool, int, DateTime…)
-                if (!prop.PropertyType.IsValueType || Nullable.GetUnderlyingType(prop.PropertyType) != null) continue;
+                // Protect non-nullable value types (bool, int, DateTime…) AND strings.
+                // Strings need it just as much: a property initialised to a non-empty default
+                // (e.g. CrewCertificate.Status = "VALID") survives the empty-string check in the
+                // conflict resolvers, so a delta that omits Status would quietly flip an EXPIRED
+                // certificate back to VALID.
+                var isProtectedType = prop.PropertyType == typeof(string)
+                    || (prop.PropertyType.IsValueType && Nullable.GetUnderlyingType(prop.PropertyType) == null);
+                if (!isProtectedType) continue;
                 // Check if this property was actually in the payload (PascalCase, camelCase, or snake_case)
                 var camel = char.ToLowerInvariant(prop.Name[0]) + prop.Name.Substring(1);
                 var snake = System.Text.RegularExpressions.Regex.Replace(prop.Name, "([A-Z])", "_$1").TrimStart('_').ToLowerInvariant();
@@ -1399,6 +1408,14 @@ public class SyncInboxService : ISyncInboxService
                     // freshDiff==0: do nothing — preserve any notification already written by the delta
                 }
 
+                // Edge sends its own CertificateId/CountryId in crew_certificate payloads and
+                // those ids are edge-local, so remap them here too — until now only the create
+                // path did this, leaving updates to fail against the certificates FK.
+                if (item.TableName == "crew_certificate")
+                {
+                    await ResolveOrphanedForeignKeysAsync(entityType, existing, item.Payload);
+                }
+
                 UpdateSyncMetadata(existing, item);
                 await ResolveCrewVesselIdAsync(existing, item.OriginNode);
 
@@ -1475,9 +1492,16 @@ public class SyncInboxService : ISyncInboxService
             // freshDiff==0: do nothing — preserve any notification already written by the delta
         }
 
+        // Same remap as the merge path above — the patch path writes payload values straight
+        // onto the entity, so an edge-local CertificateId would reach the DB unresolved.
+        if (item.TableName == "crew_certificate")
+        {
+            await ResolveOrphanedForeignKeysAsync(entityType, existing, item.Payload);
+        }
+
         UpdateSyncMetadata(existing, item);
         await ResolveCrewVesselIdAsync(existing, item.OriginNode);
-        _logger.LogDebug("Patched {Table}/{Key} from {Node}", 
+        _logger.LogDebug("Patched {Table}/{Key} from {Node}",
             item.TableName, item.RecordKey, item.OriginNode);
     }
 
@@ -1675,7 +1699,7 @@ public class SyncInboxService : ISyncInboxService
         return false;
     }
 
-    private async Task<object?> FindEntityByKeyAsync(Type entityType, string recordKey)
+    private async Task<object?> FindEntityByKeyAsync(Type entityType, string recordKey, string? rawPayload = null)
     {
         // crew_certificate: edge sends int Id as recordKey, but some older paths
         // may send CertificateNumber. Try Id first, then fall back to CertificateNumber.
@@ -1693,7 +1717,12 @@ public class SyncInboxService : ISyncInboxService
                 .AsTracking()
                 .FirstOrDefaultAsync(c => c.CertificateNumber == recordKey);
             if (byNumber != null) return byNumber;
-            return null;
+
+            // CertificateNumber is MUTABLE yet edge uses it as the record key, so renaming a
+            // certificate on board arrives keyed by a number shore has never seen. Fall back to
+            // the identity anchors edge enriches the payload with — otherwise shore treats the
+            // rename as a brand-new record and rebuilds it from partial data.
+            return await FindCrewCertificateByPayloadAsync(rawPayload);
         }
 
         var keyProperty = _context.Model.FindEntityType(entityType)?
@@ -1737,16 +1766,128 @@ public class SyncInboxService : ISyncInboxService
     }
 
     /// <summary>
+    /// Locate an existing crew certificate from the payload's identity anchors when the record
+    /// key no longer matches it (CertificateNumber renamed on edge).
+    /// Returns null unless the match is unambiguous — a crew member may legitimately hold
+    /// several certificates of the same type, and guessing wrong overwrites the wrong one.
+    /// </summary>
+    private async Task<CrewCertificate?> FindCrewCertificateByPayloadAsync(string? rawPayload)
+    {
+        if (string.IsNullOrWhiteSpace(rawPayload)) return null;
+
+        // Two payload shapes reach this method and they carry DIFFERENT identity fields:
+        //  • delta   → only the enrichment fields (CrewId, CrewFullName, CertificateCode)
+        //  • snapshot→ the real columns (CrewMemberId, CertificateId) and no enrichment at all
+        // Both must be handled, or a rename arriving as a snapshot falls through to CREATE and
+        // tries to insert over an existing primary key.
+        CrewMember? crew = null;
+        var payloadCrewId = ExtractGuidFromPayload(rawPayload, "crewMemberId", "CrewMemberId", "crew_member_id");
+        if (payloadCrewId is { } cid && cid != Guid.Empty)
+            crew = await _context.CrewMembers.FirstOrDefaultAsync(c => c.Id == cid);
+        crew ??= await ResolveCrewMemberFromPayloadAsync(rawPayload);
+        if (crew == null) return null;
+
+        // Edge's row id — only trustworthy once confirmed to belong to the same crew member,
+        // since edge and shore assign this identity column independently.
+        var payloadId = ExtractIntFromPayload(rawPayload, "id", "Id");
+        if (payloadId is > 0)
+        {
+            var byPayloadId = await _context.CrewCertificates
+                .AsTracking()
+                .FirstOrDefaultAsync(c => c.Id == payloadId.Value && c.CrewMemberId == crew.Id);
+            if (byPayloadId != null)
+            {
+                _logger.LogInformation(
+                    "Crew certificate {Id} for crew {CrewId} resolved via payload Id (record key did not match)",
+                    byPayloadId.Id, crew.CrewId);
+                return byPayloadId;
+            }
+        }
+
+        // Certificate type: prefer the code (edge and shore ids may differ), fall back to the
+        // raw CertificateId that snapshot payloads carry instead.
+        int? certTypeId = null;
+        var certCode = ExtractCertificateCodeFromPayload(rawPayload);
+        if (!string.IsNullOrWhiteSpace(certCode))
+        {
+            certTypeId = (await _context.Set<Certificate>()
+                .FirstOrDefaultAsync(c => c.CertificateCode == certCode))?.Id;
+        }
+        if (certTypeId is not > 0)
+            certTypeId = ExtractIntFromPayload(rawPayload, "certificateId", "CertificateId", "certificate_id");
+        if (certTypeId is not > 0) return null;
+
+        var matches = await _context.CrewCertificates
+            .AsTracking()
+            .Where(c => c.CrewMemberId == crew.Id && c.CertificateId == certTypeId.Value)
+            .ToListAsync();
+
+        if (matches.Count != 1)
+        {
+            if (matches.Count > 1)
+                _logger.LogWarning(
+                    "Crew {CrewId} holds {Count} certificates of type {TypeId} — cannot resolve renamed certificate unambiguously",
+                    crew.CrewId, matches.Count, certTypeId.Value);
+            return null;
+        }
+
+        _logger.LogInformation(
+            "Crew certificate {Id} resolved via crew {CrewId} + certificate type {TypeId}",
+            matches[0].Id, crew.CrewId, certTypeId.Value);
+        return matches[0];
+    }
+
+    private static Guid? ExtractGuidFromPayload(string json, params string[] propNames)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            foreach (var name in propNames)
+            {
+                if (doc.RootElement.TryGetProperty(name, out var el)
+                    && el.ValueKind == JsonValueKind.String
+                    && Guid.TryParse(el.GetString(), out var value))
+                    return value;
+            }
+        }
+        catch { /* payload is not valid JSON */ }
+        return null;
+    }
+
+    private static int? ExtractIntFromPayload(string json, params string[] propNames)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            foreach (var name in propNames)
+            {
+                if (doc.RootElement.TryGetProperty(name, out var el)
+                    && el.ValueKind == JsonValueKind.Number
+                    && el.TryGetInt32(out var value))
+                    return value;
+            }
+        }
+        catch { /* payload is not valid JSON */ }
+        return null;
+    }
+
+    /// <summary>
     /// Force the entity's primary key to match RecordKey from the sync item.
     /// Prevents phantom duplicates when the payload is missing/mismatched Id
     /// (e.g. partial payloads produce Guid.NewGuid() default).
     /// </summary>
     private void ForceEntityPrimaryKey(Type entityType, object entity, string recordKey)
     {
-        // crew_certificate: PK is auto-increment int — do NOT force it from recordKey (which is CertificateNumber).
-        // The correct int PK will be assigned by the DB on INSERT. CertificateNumber is set via payload deserialization.
+        // crew_certificate: PK is auto-increment int — do NOT force it from recordKey (which is
+        // CertificateNumber). Actively CLEAR it instead: the column is GENERATED BY DEFAULT AS
+        // IDENTITY, so an Id carried in the payload is honoured verbatim by Postgres, and edge's
+        // id means nothing on shore (separate sequences). Leaving it set makes the insert collide
+        // with whatever shore row already owns that id — a 23505 on PK_crew_certificates.
         if (entityType == typeof(CrewCertificate))
+        {
+            if (entity is CrewCertificate cc) cc.Id = 0;
             return;
+        }
         var entry = _context.Entry(entity);
         var keyProp = entry.Metadata.FindPrimaryKey()?.Properties.FirstOrDefault();
         if (keyProp?.PropertyInfo == null) return;
@@ -2021,38 +2162,35 @@ public class SyncInboxService : ISyncInboxService
             }
 
             // ── CertificateId resolution ──
-            if (cert.CertificateId > 0)
+            // CertificateId == 0 is the case that matters most, not one to skip: a delta payload
+            // that omits the column deserializes to 0, which then trips the FK to certificates.
+            // Unlike CountryId below, this FK is non-nullable — an unresolved value cannot be
+            // nulled out, so fail loudly rather than let the DB raise an opaque 23503.
+            var shoreCert = cert.CertificateId > 0
+                ? await _context.Set<Certificate>().FirstOrDefaultAsync(c => c.Id == cert.CertificateId)
+                : null;
+            if (shoreCert == null)
             {
-                var shoreCert = await _context.Set<Certificate>().FirstOrDefaultAsync(c => c.Id == cert.CertificateId);
-                if (shoreCert == null)
-                {
-                    string? certCode = null;
-                    if (!string.IsNullOrEmpty(rawPayload))
-                        certCode = ExtractCertificateCodeFromPayload(rawPayload);
+                var certCode = string.IsNullOrEmpty(rawPayload)
+                    ? null
+                    : ExtractCertificateCodeFromPayload(rawPayload);
 
-                    if (!string.IsNullOrEmpty(certCode))
-                    {
-                        var matched = await _context.Set<Certificate>()
-                            .FirstOrDefaultAsync(c => c.CertificateCode == certCode);
-                        if (matched != null)
-                        {
-                            _logger.LogInformation(
-                                "CrewCertificate {CertNum}: Resolved edge CertificateId {EdgeId} → shore {ShoreId} via code {Code}",
-                                cert.CertificateNumber, cert.CertificateId, matched.Id, certCode);
-                            cert.CertificateId = matched.Id;
-                        }
-                        else
-                        {
-                            _logger.LogWarning("CrewCertificate {CertNum}: CertificateCode {Code} not found on shore",
-                                cert.CertificateNumber, certCode);
-                        }
-                    }
-                    else
-                    {
-                        _logger.LogWarning("CrewCertificate {CertNum}: CertificateId {Id} not found on shore and no code in payload",
-                            cert.CertificateNumber, cert.CertificateId);
-                    }
+                var matched = string.IsNullOrEmpty(certCode)
+                    ? null
+                    : await _context.Set<Certificate>().FirstOrDefaultAsync(c => c.CertificateCode == certCode);
+
+                if (matched == null)
+                {
+                    throw new InvalidOperationException(
+                        $"Unable to resolve CertificateId for crew certificate {cert.CertificateNumber} "
+                        + $"(incoming CertificateId={cert.CertificateId}, "
+                        + $"CertificateCode='{certCode ?? "<missing from payload>"}')");
                 }
+
+                _logger.LogInformation(
+                    "CrewCertificate {CertNum}: Resolved CertificateId {IncomingId} → shore {ShoreId} via code {Code}",
+                    cert.CertificateNumber, cert.CertificateId, matched.Id, certCode);
+                cert.CertificateId = matched.Id;
             }
 
             // ── CountryId resolution ──
@@ -2344,6 +2482,14 @@ public class SyncInboxService : ISyncInboxService
         try
         {
             using var doc = JsonDocument.Parse(json);
+            // Top-level first — edge enriches crew_certificate deltas with a flat CountryCode.
+            foreach (var flatName in new[] { "countryCode", "CountryCode", "country_code" })
+            {
+                if (doc.RootElement.TryGetProperty(flatName, out var flatEl)
+                    && flatEl.ValueKind == JsonValueKind.String)
+                    return flatEl.GetString();
+            }
+
             foreach (var propName in new[] { "country", "Country" })
             {
                 if (doc.RootElement.TryGetProperty(propName, out var el)
@@ -2513,6 +2659,16 @@ public class SyncInboxService : ISyncInboxService
         try
         {
             using var doc = JsonDocument.Parse(json);
+            // Edge enriches crew_certificate payloads with a TOP-LEVEL CertificateCode
+            // (see EdgeDbContext.EnrichCrewCertificatePayload); only older full-entity
+            // payloads carry it nested under the Certificate navigation property.
+            foreach (var flatName in new[] { "certificateCode", "CertificateCode", "certificate_code" })
+            {
+                if (doc.RootElement.TryGetProperty(flatName, out var flatEl)
+                    && flatEl.ValueKind == JsonValueKind.String)
+                    return flatEl.GetString();
+            }
+
             foreach (var propName in new[] { "certificate", "Certificate" })
             {
                 if (doc.RootElement.TryGetProperty(propName, out var el)

@@ -3138,6 +3138,15 @@ public class EdgeDbContext : DbContext
 
     private void EnrichCrewCertificatePayload(Dictionary<string, object?> payload, CrewCertificate crewCertificate)
     {
+        // Identity anchors — an UPDATE payload carries only the CHANGED columns, and the
+        // record key for this table is CertificateNumber, which the crew can rename on board.
+        // Without these, a rename reaches shore keyed by a number shore has never seen, so it
+        // rebuilds the row from partial data with CertificateId=0 and trips the FK to
+        // certificates. Always send them so shore can identify (and remap) the row.
+        payload["Id"] = crewCertificate.Id;
+        payload["CrewMemberId"] = crewCertificate.CrewMemberId;
+        payload["CertificateId"] = crewCertificate.CertificateId;
+
         var crewMember = CrewMembers.Local.FirstOrDefault(c => c.Id == crewCertificate.CrewMemberId)
             ?? CrewMembers.AsNoTracking().FirstOrDefault(c => c.Id == crewCertificate.CrewMemberId);
         if (crewMember != null)
