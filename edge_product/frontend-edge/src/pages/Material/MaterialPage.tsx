@@ -6,6 +6,7 @@ import { ItemFormModal } from './ItemFormModal';
 import { CategoryFormModal } from './CategoryFormModal';
 import { ImportReceiptModal } from './ImportReceiptModal';
 import { AssignEquipmentModal } from './AssignEquipmentModal';
+import { MaterialCatalogTab } from './MaterialCatalogTab';
 import { useTranslationSafe } from '@/contexts/I18nContext';
 import type { MaterialItem, MaterialCategory } from '@/types/maritime.types';
 
@@ -13,6 +14,7 @@ import type { MaterialItem, MaterialCategory } from '@/types/maritime.types';
 export function MaterialPage() {
   const { t } = useTranslationSafe();
 
+  const [activeTab, setActiveTab] = useState<'ship' | 'catalog'>('ship');
   const [items, setItems] = useState<MaterialItem[]>([]);
   const [categories, setCategories] = useState<MaterialCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -204,6 +206,26 @@ export function MaterialPage() {
   return (
     <div className="h-full w-full flex flex-col overflow-hidden bg-white">
 
+      {/* ── TAB BAR ── */}
+      <div className="flex items-center gap-6 px-4 border-b border-gray-200 flex-shrink-0 bg-white">
+        <button
+          onClick={() => setActiveTab('ship')}
+          className={`flex items-center gap-1.5 px-1 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === 'ship' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+        >
+          {t('materials.page.tabShip')}
+        </button>
+        <button
+          onClick={() => setActiveTab('catalog')}
+          className={`flex items-center gap-1.5 px-1 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === 'catalog' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+        >
+          {t('materials.page.tabCatalog')}
+        </button>
+      </div>
+
+      {activeTab === 'catalog' && <MaterialCatalogTab />}
+
+      {activeTab === 'ship' && (
+      <>
       {/* ── HEADER ROW ── */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white flex-shrink-0">
         <div className="flex items-center gap-2">
@@ -287,7 +309,7 @@ export function MaterialPage() {
                   <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
                 </div>
               </th>
-              <th className="w-40 px-3 py-2 text-left border-b border-r border-gray-200">
+              <th className="w-52 px-3 py-2 text-left border-b border-r border-gray-200">
                 <div className="flex items-center justify-between gap-1">
                   <span className="text-xs font-semibold text-gray-600">{t('materials.page.colCategory')}</span>
                   <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
@@ -299,7 +321,7 @@ export function MaterialPage() {
                   <ChevronsUpDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
                 </div>
               </th>
-              <th className="min-w-[180px] px-3 py-2 text-left border-b border-r border-gray-200">
+              <th className="min-w-[150px] px-3 py-2 text-left border-b border-r border-gray-200">
                 <div className="flex items-center justify-between gap-1">
                   <span className="text-xs font-semibold text-gray-600">{t('materials.page.colDescription')}</span>
                 </div>
@@ -521,6 +543,8 @@ export function MaterialPage() {
           <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="w-7 h-7 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40">›</button>
         </div>
       </div>
+      </>
+      )}
 
       {/* ── MODALS ── */}
       <ItemFormModal

@@ -169,20 +169,16 @@ export const CrewListPage: React.FC = () => {
     } finally { setSaving(false); }
   }, [clearSel, refetch, refetchStats, toast]);
 
-  const openBatchAssign = useCallback(() => {
-    const pool = selectedCrew.filter(c => !c.isOnboard);
-    if (!pool.length) { toast.error('Không có thuyền viên nào ở bờ trong danh sách'); return; }
-    setAssignList(pool); setAssignMode('assign');
-  }, [selectedCrew, toast]);
-
+  // Lưu ý: chức năng "Gán lên tàu" đã chuyển sang trang chi tiết tàu → tab Thuyền viên.
+  // Ở đây chỉ còn "Rút về bờ".
   const openBatchUnassign = useCallback(() => {
     const onboard = selectedCrew.filter(c => c.isOnboard);
     if (!onboard.length) { toast.error('Không có thuyền viên nào trên tàu trong danh sách'); return; }
     setAssignList(onboard); setAssignMode('unassign');
   }, [selectedCrew, toast]);
 
-  const openSingleAssign = useCallback((m: CrewMember) => {
-    setAssignList([m]); setAssignMode(m.isOnboard ? 'unassign' : 'assign');
+  const openSingleUnassign = useCallback((m: CrewMember) => {
+    setAssignList([m]); setAssignMode('unassign');
   }, []);
 
   const allChecked = crew.length > 0 && selectedIds.size === crew.length;
@@ -454,10 +450,12 @@ export const CrewListPage: React.FC = () => {
             <ExternalLink size={13} /> Mở trong tab mới
           </button>
           <div className="cl-ctx-divider" />
-          <button className="cl-ctx-item" onClick={() => { openSingleAssign(contextMenu.crew); closeContextMenu(); }}>
-            {contextMenu.crew.isOnboard ? <Anchor size={13} /> : <Ship size={13} />}
-            {contextMenu.crew.isOnboard ? ' Rút về bờ' : ' Gán lên tàu'}
-          </button>
+          {/* "Gán lên tàu" đã chuyển sang trang chi tiết tàu → tab Thuyền viên */}
+          {contextMenu.crew.isOnboard && (
+            <button className="cl-ctx-item" onClick={() => { openSingleUnassign(contextMenu.crew); closeContextMenu(); }}>
+              <Anchor size={13} /> Rút về bờ
+            </button>
+          )}
           <button className="cl-ctx-item" onClick={() => { openEdit(contextMenu.crew); closeContextMenu(); }}>
             <Pencil size={13} /> Chỉnh sửa
           </button>
@@ -473,9 +471,7 @@ export const CrewListPage: React.FC = () => {
         <div className="cl-selbar">
           <span className="cl-selbar-count">{selectedIds.size} đã chọn</span>
           <div className="cl-selbar-actions">
-            <button className="cl-selbar-btn cl-selbar-btn--assign" onClick={openBatchAssign}>
-              <Ship size={13} /> Gán lên tàu
-            </button>
+            {/* "Gán lên tàu" đã chuyển sang trang chi tiết tàu → tab Thuyền viên */}
             <button className="cl-selbar-btn cl-selbar-btn--unassign" onClick={openBatchUnassign}>
               <Anchor size={13} /> Rút về bờ
             </button>

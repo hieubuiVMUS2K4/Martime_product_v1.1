@@ -2027,6 +2027,22 @@
       "categories": "Categories",
       "receipts": "Receipts"
     },
+    "catalog": {
+      "title": "Company Material Catalog",
+      "syncNote": "— synced from shore",
+      "reload": "Reload",
+      "loading": "Loading company material catalog...",
+      "searchCode": "Search code",
+      "searchName": "Search name",
+      "allCategories": "All categories",
+      "colNo": "No.",
+      "colCode": "Item Code",
+      "colName": "Name",
+      "colCategory": "Category",
+      "colPrice": "Unit Price",
+      "emptyNotSynced": "No items in catalog yet (not synced from shore)",
+      "emptyFiltered": "No matching items found"
+    },
     "category": {
       "code": "Category Code",
       "codePlaceholder": "e.g., CAT-001",
@@ -2236,7 +2252,9 @@
       "adjustFailed": "Failed to adjust stock"
     },
     "page": {
-      "materialList": "Material List",
+      "materialList": "Ship Material List",
+      "tabShip": "Ship Materials",
+      "tabCatalog": "Company Material Catalog",
       "addNew": "Add New",
       "manageCategories": "Manage Categories",
       "colCode": "Item Code",

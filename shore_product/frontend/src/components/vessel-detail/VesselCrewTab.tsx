@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Ship } from 'lucide-react';
 import { ENV } from '../../config/env';
 import { crewApi } from '../../services/crew.service';
+import { AssignCrewToVesselModal } from './AssignCrewToVesselModal';
 import '../../pages/MasterDataManagement/Crew/CrewListPage.css';
 
 interface VesselCrewTabProps {
@@ -38,12 +39,15 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
+export function VesselCrewTab({ vesselId, vesselName }: VesselCrewTabProps) {
   const navigate = useNavigate();
   const [crew, setCrew] = useState<CrewMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCrew, setSelectedCrew] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; crew: CrewMember } | null>(null);
+
+  // Modal gán thuyền viên lên tàu (chuyển từ tab Danh mục → Thuyền viên sang đây)
+  const [assignOpen, setAssignOpen] = useState(false);
   
   // Sorting state
   const [sortType, setSortType] = useState<{ col: string; dir: 'asc' | 'desc' } | null>({ col: 'crewId', dir: 'asc' });
@@ -216,6 +220,19 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
 
   return (
     <div className="cl-page relative">
+      {/* Toolbar */}
+      <div className="cl-header">
+        <div className="cl-header-left">
+          <h1 className="cl-title">Thuyền viên trên tàu</h1>
+          <span className="cl-count-badge">{crew.length}</span>
+        </div>
+        <div className="cl-header-right">
+          <button className="cl-btn cl-btn--primary" onClick={() => setAssignOpen(true)}>
+            <Ship size={13} /> Gán thuyền viên lên tàu
+          </button>
+        </div>
+      </div>
+
       {/* Edge Changes Notification Banner */}
       {unviewedChangesCount > 0 && (
         <div style={{
@@ -410,6 +427,16 @@ export function VesselCrewTab({ vesselId }: VesselCrewTabProps) {
             Xóa
           </button>
         </div>
+      )}
+
+      {/* Modal gán thuyền viên lên tàu */}
+      {assignOpen && (
+        <AssignCrewToVesselModal
+          vesselId={vesselId}
+          vesselName={vesselName}
+          onClose={() => setAssignOpen(false)}
+          onAssigned={loadCrew}
+        />
       )}
     </div>
   );

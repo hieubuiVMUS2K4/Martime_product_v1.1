@@ -2027,6 +2027,22 @@
       "categories": "Danh mục",
       "receipts": "Phiếu nhập"
     },
+    "catalog": {
+      "title": "Danh mục vật tư của công ty",
+      "syncNote": "— đồng bộ từ bờ",
+      "reload": "Tải lại",
+      "loading": "Đang tải danh mục vật tư của công ty...",
+      "searchCode": "Tìm mã",
+      "searchName": "Tìm tên",
+      "allCategories": "Tất cả loại",
+      "colNo": "TT",
+      "colCode": "Mã vật tư",
+      "colName": "Tên vật tư",
+      "colCategory": "Loại vật tư",
+      "colPrice": "Đơn giá",
+      "emptyNotSynced": "Chưa có vật tư nào trong danh mục (chưa đồng bộ từ bờ)",
+      "emptyFiltered": "Không tìm thấy vật tư phù hợp"
+    },
     "category": {
       "code": "Mã danh mục",
       "codePlaceholder": "VD: CAT-001",
@@ -2236,7 +2252,9 @@
       "adjustFailed": "Điều chỉnh tồn kho thất bại"
     },
     "page": {
-      "materialList": "Danh mục vật tư",
+      "materialList": "Danh sách vật tư của tàu",
+      "tabShip": "Vật tư của tàu",
+      "tabCatalog": "Danh mục vật tư của công ty",
       "addNew": "Thêm mới",
       "manageCategories": "Quản lý danh mục",
       "colCode": "Mã vật tư",

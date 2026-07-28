@@ -56,7 +56,8 @@ export const crewApi = {
     if (params?.isOnboard !== undefined && params?.isOnboard !== null)
       sp.set('isOnboard', String(params.isOnboard));
     if (params?.shipId) sp.set('shipId', params.shipId);
-    if (params?.poolOnly) sp.set('poolOnly', 'true');
+    // Backend nhận query param tên "pool" (CrewController.GetAllCrew)
+    if (params?.poolOnly) sp.set('pool', 'true');
     if (params?.rankName) sp.set('rankName', params.rankName);
     if (params?.department) sp.set('department', params.department);
     if (params?.vesselName) sp.set('vesselName', params.vesselName);

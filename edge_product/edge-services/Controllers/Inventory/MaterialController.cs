@@ -313,6 +313,47 @@ public class MaterialController : ControllerBase
     }
 
     /// <summary>
+    /// DANH MỤC vật tư của công ty (material_items, đồng bộ từ Shore) — chỉ đọc.
+    /// </summary>
+    [HttpGet("catalog")]
+    public async Task<IActionResult> GetCatalog([FromQuery] string? q = null, [FromQuery] long? categoryId = null)
+    {
+        try
+        {
+            var query = _context.MaterialCatalogItems.AsNoTracking().Where(c => c.IsActive);
+            if (categoryId.HasValue) query = query.Where(c => c.CategoryId == categoryId.Value);
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                var w = q.Trim();
+                query = query.Where(c => c.ItemCode.Contains(w) || c.Name.Contains(w));
+            }
+            var items = await query.OrderBy(c => c.ItemCode).ToListAsync();
+            var catIds = items.Select(i => i.CategoryId).Distinct().ToList();
+            var cats = await _context.MaterialCategories.AsNoTracking()
+                .Where(c => catIds.Contains(c.Id))
+                .ToDictionaryAsync(c => c.Id, c => c.Name);
+            var result = items.Select(i => new
+            {
+                i.Id,
+                i.ItemCode,
+                i.Name,
+                i.CategoryId,
+                categoryName = cats.TryGetValue(i.CategoryId, out var n) ? n : "",
+                i.UnitPrice,
+                i.IsActive,
+                i.CreatedAt,
+                i.UpdatedAt
+            });
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting material catalog");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
     /// Get all material items with detailed information including category details
     /// </summary>
     [HttpGet("items/detailed")]
