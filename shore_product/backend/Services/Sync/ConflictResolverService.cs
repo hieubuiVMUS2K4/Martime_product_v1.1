@@ -1,4 +1,5 @@
 ﻿using Maritime.Shared.Interfaces;
+using System.Reflection;
 using System.Text.Json;
 
 namespace ProductApi.Services.Sync;
@@ -233,6 +234,7 @@ public class ConflictResolverService : IConflictResolverService
         foreach (var prop in properties)
         {
             if (prop.GetSetMethod() == null) continue; // Skip read-only
+            if (!IsCopyableScalar(prop)) continue;     // Never touch navigation properties
 
             // Skip primary key - EF Core does not allow modifying key properties
             if (prop.Name == "Id") continue;
@@ -298,14 +300,20 @@ public class ConflictResolverService : IConflictResolverService
 
     private ConflictResolution ResolveCrewCertificateConflict(object existing, object incoming, string originNode)
     {
-        // Shore wins: CertificateNumber, IssueDate, ExpiryDate, Status
-        // Edge wins: DocumentFilePath, Remarks (scanned on board)
-        var shoreFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "CertificateNumber", "CertificateNo", "IssueDate", "ExpiryDate", 
-            "Status", "IssuingAuthority", "CountryId"
-        };
-        var edgeFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        // Mirrors ResolveCrewMemberConflict so certificates sync both ways like crew data does.
+        // Previously the official metadata was dropped outright when it came from a ship, so an
+        // edit made on board was discarded while still being logged SUCCESS — the crew saw the
+        // change stick locally and it silently never reached shore.
+        //
+        // There is deliberately NO "shore wins unless edge is newer" tier here:
+        //  1. crew_member reserves only SocialInsuranceNumber/TaxIdNumber for shore; every field
+        //     a user actually edits applies straight from edge. Certificates have no comparable
+        //     admin-only field, so the equivalent reserved set is empty.
+        //  2. Such a tier would have to compare UpdatedAt, which is not an edit clock:
+        //     UpdateSyncMetadata stamps UpdatedAt = UtcNow on EVERY sync apply, so shore's value
+        //     advances on each round trip — including on the very apply that rejected the edit —
+        //     and an edge edit could never win it back.
+        var edgeOwnedFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "DocumentFilePath", "FilePath", "Remarks", "FileUrl"
         };
@@ -314,21 +322,32 @@ public class ConflictResolverService : IConflictResolverService
         foreach (var prop in existingType.GetProperties())
         {
             if (prop.GetSetMethod() == null) continue;
-            
-            // Skip primary key
-            if (prop.Name == "Id") continue;
-            
-            var incomingValue = prop.GetValue(incoming);
-            if (incomingValue == null) continue;
+            if (!IsCopyableScalar(prop)) continue;     // Never touch navigation properties
 
-            bool shouldApply;
-            if (originNode == "SHORE")
-                shouldApply = !edgeFields.Contains(prop.Name);
-            else
-                shouldApply = !shoreFields.Contains(prop.Name);
+            // Skip primary key — EF Core does not allow modifying key properties
+            if (prop.Name == "Id") continue;
+
+            var incomingValue = prop.GetValue(incoming);
+            // Skip null and empty string: a delta payload that omits a field deserializes to
+            // the model default, and applying that would blank out real shore data.
+            if (incomingValue == null) continue;
+            if (incomingValue is string s && s.Length == 0) continue;
+
+            // Shore pushing → apply everything except the file paths the ship owns.
+            // Edge pushing → apply everything.
+            var shouldApply = originNode != "SHORE" || !edgeOwnedFields.Contains(prop.Name);
 
             if (shouldApply)
-                prop.SetValue(existing, incomingValue);
+            {
+                try
+                {
+                    prop.SetValue(existing, incomingValue);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug("Skipping certificate field {Prop}: {Error}", prop.Name, ex.Message);
+                }
+            }
         }
 
         return ConflictResolution.Apply(existing);
@@ -353,6 +372,7 @@ public class ConflictResolverService : IConflictResolverService
         foreach (var prop in existingType.GetProperties())
         {
             if (prop.GetSetMethod() == null) continue;
+            if (!IsCopyableScalar(prop)) continue;     // Never touch navigation properties
             if (prop.Name == "Id") continue;
 
             var incomingValue = prop.GetValue(incoming);
@@ -424,6 +444,7 @@ public class ConflictResolverService : IConflictResolverService
         foreach (var prop in properties)
         {
             if (prop.GetSetMethod() == null) continue;
+            if (!IsCopyableScalar(prop)) continue;     // Never touch navigation properties
             if (prop.Name == "Id" || prop.Name == "CreatedAt" || prop.Name == "CancelledAt") continue;
 
             var existingValue = prop.GetValue(existing);
@@ -500,6 +521,7 @@ public class ConflictResolverService : IConflictResolverService
         foreach (var prop in properties)
         {
             if (prop.GetSetMethod() == null) continue;
+            if (!IsCopyableScalar(prop)) continue;     // Never touch navigation properties
             if (prop.Name == "Id" || prop.Name == "VoyageId") continue;
 
             var incomingValue = prop.GetValue(incoming);
@@ -547,6 +569,30 @@ public class ConflictResolverService : IConflictResolverService
         }
 
         return ConflictResolution.Apply(incoming);
+    }
+
+    /// <summary>
+    /// True when a property holds a plain value that is safe to copy between entity instances.
+    ///
+    /// Navigation properties must NEVER be copied. An entity deserialised from a sync payload
+    /// has them at their initialiser value — an EMPTY List&lt;&gt; — because they are [JsonIgnore]d
+    /// and stripped from payloads. Assigning that empty list over a tracked entity's LOADED
+    /// collection makes EF treat the real children as orphans, and the crew relationships are
+    /// configured OnDelete(Cascade), so EF deletes them.
+    ///
+    /// This is exactly how 8 crew certificates were destroyed on shore: a batch processed
+    /// crew_certificate items first (loading them into the change tracker), then crew_member
+    /// items whose resolver blanked CrewMember.Certificates. Certificates processed AFTER the
+    /// crew_member items in the same batch survived, which is what pinned down the cause.
+    /// </summary>
+    private static bool IsCopyableScalar(PropertyInfo prop)
+    {
+        var type = prop.PropertyType;
+        if (type == typeof(string)) return true;
+        // Covers int, long, bool, DateTime, Guid, enums and their Nullable<> forms
+        if (type.IsValueType) return true;
+        // Collections and entity references — owned by EF's relationship fixup, never by us
+        return false;
     }
 
     private static DateTime? GetUpdatedAt(object entity)
