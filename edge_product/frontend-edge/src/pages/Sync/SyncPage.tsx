@@ -3,8 +3,9 @@ import {
   RefreshCw, Cloud, Clock, AlertTriangle,
   CheckCircle2, XCircle, Loader2, Database, ArrowUpDown,
   Wifi, WifiOff, Send, ChevronDown, ChevronUp, RotateCcw, Users, ArrowRight,
-  Ship, FileText, Navigation, Calendar, Package
+  Ship, FileText, Navigation, Calendar, Package, Settings
 } from 'lucide-react'
+import { ShoreConfigModal } from './ShoreConfigModal'
 import { useTranslationSafe } from '@/contexts/I18nContext'
 import { syncService } from '@/services/maritime.service'
 import type { SnapshotResponse } from '@/services/maritime.service'
@@ -471,6 +472,7 @@ export function SyncPage() {
   const [resetting, setResetting] = useState(false)
   const [showSyncModal, setShowSyncModal] = useState(false)
   const [showSnapshotModal, setShowSnapshotModal] = useState(false)
+  const [showShoreConfigModal, setShowShoreConfigModal] = useState(false)
   const [snapshotResult, setSnapshotResult] = useState<SnapshotResponse | null>(null)
   const [syncResult, setSyncResult] = useState<{ totalSynced: number; pendingRecords: number } | null>(null)
 
@@ -669,6 +671,16 @@ export function SyncPage() {
             >
               <Database className="w-4 h-4" />
               {t('sync.snapshotData')}
+            </button>
+
+            {/* Shore config button — opens ShoreConfigModal */}
+            <button
+              onClick={() => setShowShoreConfigModal(true)}
+              title="Cấu hình kết nối bờ"
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm font-medium"
+            >
+              <Settings className="w-4 h-4" />
+              Cấu hình kết nối bờ
             </button>
 
             {/* Sync trigger */}
@@ -922,6 +934,11 @@ export function SyncPage() {
           onConfirm={handleSnapshot}
           onClose={() => setShowSnapshotModal(false)}
         />
+      )}
+
+      {/* Shore Config Modal */}
+      {showShoreConfigModal && (
+        <ShoreConfigModal onClose={() => setShowShoreConfigModal(false)} />
       )}
     </div>
   )

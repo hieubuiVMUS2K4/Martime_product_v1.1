@@ -725,6 +725,71 @@ export const syncService = {
 }
 
 // ============================================================
+// EDGE PROVISIONING
+// ============================================================
+export interface EdgeProvisioningStatus {
+  isActive: boolean
+  profileId?: number
+  nodeId?: string
+  shoreUrl?: string
+  lastHandshake?: string
+  handshakeStatus?: string
+  source: string
+}
+
+export interface EdgeProvisioningImportResponse {
+  profileId: number
+  preview: {
+    nodeId: string
+    vesselImo: string
+    vesselName: string
+    shoreBaseUrl: string
+    keyVersion: number
+    protocolVersion: string
+    securityEnabled: boolean
+  }
+}
+
+export interface EdgeProvisioningHistoryItem {
+  id: number
+  isActive: boolean
+  nodeId: string
+  vesselImo: string
+  vesselName: string
+  shoreBaseUrl: string
+  keyVersion: number
+  importedAt: string
+  importedFrom: 'zip_upload' | 'json_upload'
+  activatedAt?: string
+  lastHandshakeAt?: string
+  handshakeStatus?: string
+}
+
+export const provisioningService = {
+  getStatus: () => apiClient.get<EdgeProvisioningStatus>('/edge/provisioning/status'),
+
+  import: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return apiClient.post<EdgeProvisioningImportResponse>('/edge/provisioning/import', formData)
+  },
+
+  testConnection: (profileId: number) =>
+    apiClient.post<{ success: boolean; message: string; serverTime?: string }>(
+      '/edge/provisioning/test',
+      { profileId }
+    ),
+
+  activate: (profileId: number) =>
+    apiClient.post<{ activated: boolean; previousProfileId?: number }>(
+      '/edge/provisioning/activate',
+      { profileId }
+    ),
+
+  getHistory: () => apiClient.get<EdgeProvisioningHistoryItem[]>('/edge/provisioning/history'),
+}
+
+// ============================================================
 // DASHBOARD
 // ============================================================
 

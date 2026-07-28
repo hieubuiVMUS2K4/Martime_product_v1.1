@@ -4,9 +4,10 @@ import {
   Ship, Plus, RefreshCw, Pencil, Trash2,
   AlertTriangle,
   X, Loader2,
-  ExternalLink, FileText, Map
+  ExternalLink, FileText, Map, Settings
 } from 'lucide-react';
 import { ENV } from '../../config/env';
+import { ProvisioningModal } from './ProvisioningModal';
 import './VesselsPage.css';
 
 // ============================================================
@@ -131,6 +132,9 @@ export const VesselsPage: React.FC = () => {
   // Context menu
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; vessel: Vessel } | null>(null);
   const [selectedVesselId, setSelectedVesselId] = useState<string | null>(null);
+
+  // Provisioning
+  const [provisionTarget, setProvisionTarget] = useState<Vessel | null>(null);
 
   const handleContextMenu = useCallback((e: React.MouseEvent, vessel: Vessel) => {
     e.preventDefault();
@@ -358,6 +362,12 @@ export const VesselsPage: React.FC = () => {
                   <Pencil size={12} /> Sửa
                 </button>
                 <button
+                  className="vp-card-action"
+                  onClick={(e) => { e.stopPropagation(); setProvisionTarget(v); }}
+                >
+                  <Settings size={12} /> Cấu hình
+                </button>
+                <button
                   className="vp-card-action vp-card-action--danger"
                   onClick={(e) => { e.stopPropagation(); setDeleteTarget(v); }}
                 >
@@ -466,6 +476,12 @@ export const VesselsPage: React.FC = () => {
           >
             <Pencil size={13} /> Chỉnh sửa
           </button>
+          <button
+            className="vp-ctx-item"
+            onClick={() => { setProvisionTarget(contextMenu.vessel); closeContextMenu(); }}
+          >
+            <Settings size={13} /> Cấu hình kết nối Edge
+          </button>
           <div className="vp-ctx-divider" />
           <button
             className="vp-ctx-item vp-ctx-item--danger"
@@ -498,6 +514,16 @@ export const VesselsPage: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Provisioning Modal */}
+      {provisionTarget && (
+        <ProvisioningModal
+          vesselId={provisionTarget.id}
+          vesselName={provisionTarget.name}
+          imo={provisionTarget.imo}
+          onClose={() => setProvisionTarget(null)}
+        />
       )}
     </div>
   );

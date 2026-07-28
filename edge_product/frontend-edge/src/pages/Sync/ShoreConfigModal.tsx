@@ -1,0 +1,258 @@
+import { useState, useEffect, useCallback } from 'react'
+import {
+  X, Settings, Upload, Loader2, CheckCircle2, XCircle,
+  Plug, ShieldCheck, History, RefreshCw, AlertTriangle
+} from 'lucide-react'
+import {
+  provisioningService,
+  type EdgeProvisioningStatus,
+  type EdgeProvisioningHistoryItem,
+} from '@/services/maritime.service'
+
+interface ShoreConfigModalProps {
+  onClose: () => void
+}
+
+export function ShoreConfigModal({ onClose }: ShoreConfigModalProps) {
+  const [status, setStatus] = useState<EdgeProvisioningStatus | null>(null)
+  const [history, setHistory] = useState<EdgeProvisioningHistoryItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const [uploading, setUploading] = useState(false)
+  const [testingId, setTestingId] = useState<number | null>(null)
+  const [activatingId, setActivatingId] = useState<number | null>(null)
+  const [testResult, setTestResult] = useState<{ id: number; success: boolean; message: string } | null>(null)
+
+  const load = useCallback(async () => {
+    try {
+      setError(null)
+      const [statusRes, historyRes] = await Promise.all([
+        provisioningService.getStatus(),
+        provisioningService.getHistory(),
+      ])
+      setStatus(statusRes)
+      setHistory(historyRes)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Không tải được trạng thái cấu hình')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    setError(null)
+    try {
+      await provisioningService.import(file)
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Import gói cấu hình thất bại')
+    } finally {
+      setUploading(false)
+      e.target.value = ''
+    }
+  }
+
+  const handleTest = async (id: number) => {
+    setTestingId(id)
+    setTestResult(null)
+    setError(null)
+    try {
+      const result = await provisioningService.testConnection(id)
+      setTestResult({ id, success: result.success, message: result.message })
+      await load()
+    } catch (err) {
+      setTestResult({ id, success: false, message: err instanceof Error ? err.message : 'Test thất bại' })
+    } finally {
+      setTestingId(null)
+    }
+  }
+
+  const handleActivate = async (id: number) => {
+    const item = history.find(h => h.id === id)
+    if (item && item.handshakeStatus !== 'success') {
+      const confirmed = window.confirm(
+        '⚠ Chưa test kết nối thành công. Activate có thể làm mất kết nối sync.\n\nBạn có chắc chắn muốn tiếp tục?'
+      )
+      if (!confirmed) return
+      const confirmedAgain = window.confirm('Xác nhận lần 2: Vẫn muốn Activate profile này?')
+      if (!confirmedAgain) return
+    }
+    setActivatingId(id)
+    setError(null)
+    try {
+      await provisioningService.activate(id)
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Activate thất bại')
+    } finally {
+      setActivatingId(null)
+    }
+  }
+
+  const formatTime = (dateStr?: string) => {
+    if (!dateStr) return '—'
+    return new Date(dateStr).toLocaleString('vi-VN', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-4 max-h-[85vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-slate-700 to-slate-800 sticky top-0 z-10">
+          <div className="flex items-center gap-3 text-white">
+            <Settings className="w-5 h-5" />
+            <span className="font-semibold text-lg">Cấu hình kết nối bờ</span>
+          </div>
+          <button onClick={onClose} className="text-white/70 hover:text-white transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+              <span className="text-red-700 text-sm">{error}</span>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+            </div>
+          ) : (
+            <>
+              {/* Current status */}
+              <section>
+                <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2 mb-2">
+                  <ShieldCheck className="w-4 h-4 text-blue-600" />
+                  Trạng thái hiện tại
+                </h3>
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm">
+                  {status?.isActive ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div><span className="text-gray-500">Node ID:</span> <span className="font-medium">{status.nodeId}</span></div>
+                      <div><span className="text-gray-500">Shore URL:</span> <span className="font-medium">{status.shoreUrl}</span></div>
+                      <div><span className="text-gray-500">Handshake:</span> <span className="font-medium">{status.handshakeStatus ?? '—'}</span></div>
+                      <div><span className="text-gray-500">Lần cuối:</span> <span className="font-medium">{formatTime(status.lastHandshake)}</span></div>
+                    </div>
+                  ) : (
+                    <span className="text-amber-600 flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4" /> Chưa có cấu hình đang hoạt động (Legacy/Chưa cấu hình)
+                    </span>
+                  )}
+                </div>
+              </section>
+
+              {/* Upload */}
+              <section>
+                <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2 mb-2">
+                  <Upload className="w-4 h-4 text-blue-600" />
+                  Import gói cấu hình mới
+                </h3>
+                <label className="flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer hover:border-blue-400 hover:bg-blue-50/40 transition-colors">
+                  {uploading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                      <span className="text-sm text-gray-600">Đang tải lên...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm text-gray-600">Chọn file .zip hoặc .json (Provisioning Package)</span>
+                    </>
+                  )}
+                  <input type="file" accept=".zip,.json" className="hidden" disabled={uploading} onChange={handleFileChange} />
+                </label>
+              </section>
+
+              {/* History / Test / Activate */}
+              <section>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <History className="w-4 h-4 text-blue-600" />
+                    Lịch sử cấu hình
+                  </h3>
+                  <button onClick={load} className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1">
+                    <RefreshCw className="w-3 h-3" /> Làm mới
+                  </button>
+                </div>
+
+                {history.length === 0 ? (
+                  <div className="text-sm text-gray-400 text-center py-6">Chưa có gói cấu hình nào được import.</div>
+                ) : (
+                  <div className="space-y-2">
+                    {history.map(item => (
+                      <div key={item.id} className={`border rounded-xl p-3 text-sm ${item.isActive ? 'border-blue-300 bg-blue-50/40' : 'border-gray-200'}`}>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="font-medium">{item.vesselName}</span>{' '}
+                            <span className="text-gray-400">({item.nodeId})</span>
+                            {item.isActive && (
+                              <span className="ml-2 bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full">ĐANG DÙNG</span>
+                            )}
+                          </div>
+                          <span className="text-xs text-gray-400">{formatTime(item.importedAt)}</span>
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          Shore: {item.shoreBaseUrl} · Key v{item.keyVersion} · Handshake: {item.handshakeStatus ?? 'never'}
+                        </div>
+
+                        {testResult?.id === item.id && (
+                          <div className={`mt-2 text-xs flex items-center gap-1 ${testResult.success ? 'text-emerald-600' : 'text-red-600'}`}>
+                            {testResult.success ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                            {testResult.message}
+                          </div>
+                        )}
+
+                        {!item.isActive && (
+                          <div className="flex items-center gap-2 mt-2">
+                            <button
+                              onClick={() => handleTest(item.id)}
+                              disabled={testingId === item.id}
+                              className="flex items-center gap-1 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-50"
+                            >
+                              {testingId === item.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plug className="w-3 h-3" />}
+                              Test kết nối
+                            </button>
+                            <button
+                              onClick={() => handleActivate(item.id)}
+                              disabled={activatingId === item.id}
+                              className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs hover:bg-blue-700 disabled:opacity-50"
+                            >
+                              {activatingId === item.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3 h-3" />}
+                              Activate
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </>
+          )}
+        </div>
+
+        <div className="flex items-center justify-end gap-3 px-6 py-4 bg-gray-50 border-t border-gray-100 sticky bottom-0">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors">
+            Đóng
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
