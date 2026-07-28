@@ -104,6 +104,30 @@ namespace MaritimeEdge
                 configuration["ShoreAPI:ApiKey"] = shoreApiKey;
         }
 
+        /// <summary>
+        /// Legacy Mode only (Vessel Provisioning v3 plan — Phase 1).
+        /// Map cac bien EDGE_SYNC_* / EDGE_NODE_API_TOKEN tu .env vao IConfiguration de
+        /// SyncSecurity:* va NodeApiToken duoc nap dung nhu tai lieu implementation_plan.md mo ta.
+        /// Managed Mode (khi da co edge_provisioning_profile active) KHONG duoc dua vao ham nay
+        /// cho sync runtime — chi la fallback cho production dang chay Legacy Mode.
+        /// </summary>
+        private static void ApplyLegacySyncSecurityEnvironment(ConfigurationManager configuration)
+        {
+            void Map(string envKey, string configKey)
+            {
+                var val = Environment.GetEnvironmentVariable(envKey);
+                if (!string.IsNullOrWhiteSpace(val))
+                    configuration[configKey] = val;
+            }
+
+            Map("EDGE_SYNC_NODE_ID", "SyncSecurity:NodeId");
+            Map("EDGE_SYNC_SIGNING_KEY", "SyncSecurity:SigningKey");
+            Map("EDGE_SYNC_KEY_VERSION", "SyncSecurity:KeyVersion");
+            Map("EDGE_SYNC_SECURITY_ENABLED", "SyncSecurity:Enabled");
+            Map("EDGE_SYNC_PROTOCOL_VERSION", "SyncSecurity:ProtocolVersion");
+            Map("EDGE_NODE_API_TOKEN", "NodeApiToken");
+        }
+
         public static async Task Main(string[] args)
         {
             // Load .env file TRƯỚC KHI khởi tạo builder
@@ -111,6 +135,7 @@ namespace MaritimeEdge
 
             var builder = WebApplication.CreateBuilder(args);
             ApplyLegacyShoreApiEnvironment(builder.Configuration);
+            ApplyLegacySyncSecurityEnvironment(builder.Configuration);
 
             // Configure default port - Listen on all network interfaces for mobile access
             // Can be overridden by command line: dotnet run --urls "http://0.0.0.0:5001"
@@ -149,6 +174,12 @@ namespace MaritimeEdge
                 var apiKey = builder.Configuration["ShoreAPI:ApiKey"];
                 if (!string.IsNullOrEmpty(apiKey) && apiKey != "your-api-key-here")
                     client.DefaultRequestHeaders.Add("X-API-Key", apiKey);
+
+                // Vessel Provisioning v3 (Legacy Mode fallback) — per-node API token,
+                // doc tu NodeApiToken (duoc map boi ApplyLegacySyncSecurityEnvironment tu EDGE_NODE_API_TOKEN).
+                var nodeToken = builder.Configuration["NodeApiToken"];
+                if (!string.IsNullOrEmpty(nodeToken) && nodeToken != "your-api-key-here")
+                    client.DefaultRequestHeaders.Add("X-Node-Api-Token", nodeToken);
             });
 
             // Add Memory Cache for performance optimization
