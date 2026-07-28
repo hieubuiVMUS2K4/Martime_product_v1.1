@@ -4,6 +4,7 @@ using MaritimeEdge.Models;
 using MaritimeEdge.DTOs;
 using MaritimeEdge.DTOs.Common;
 using MaritimeEdge.Constants;
+using Maritime.Shared.Models.Crew;
 using Maritime.Shared.Models.Documents;
 using MaritimeEdge.Services.Common;
 
@@ -510,9 +511,13 @@ public class VoyageManagementService : IVoyageManagementService
 
         _context.VoyageCrewAssignments.Add(assignment);
         await _context.SaveChangesAsync();
-        
+
+        // Mở mục sổ thuyền viên ngay khi vừa gán — không đợi tới lúc lên tàu.
+        await SyncSeamanBookEntryAsync(assignment, voyage);
+        await _context.SaveChangesAsync();
+
         _logger.LogInformation("Assigned crew {CrewId} to voyage {VoyageId}", dto.CrewMemberId, dto.VoyageId);
-        
+
         // Reload with navigation properties for DTO mapping
         var loaded = await _context.VoyageCrewAssignments
             .Include(a => a.CrewMember)
@@ -557,6 +562,12 @@ public class VoyageManagementService : IVoyageManagementService
         }
 
         await _context.SaveChangesAsync();
+
+        // Mở mục sổ thuyền viên cho từng người vừa gán
+        foreach (var assignment in assignments)
+            await SyncSeamanBookEntryAsync(assignment, voyage);
+        await _context.SaveChangesAsync();
+
         _logger.LogInformation("Bulk assigned {Count} crew to voyage {VoyageId}", assignments.Count, dto.VoyageId);
         return assignments;
     }
@@ -627,8 +638,9 @@ public class VoyageManagementService : IVoyageManagementService
                 assignment.Id);
         }
 
+        // Sổ thuyền viên là nơi lưu kỳ phục vụ (thay cho service_records — xoá hẳn ở GĐ 7)
         if (shouldSyncServiceRecord)
-            await SyncServiceRecordAsync(assignment, voyage);
+            await SyncSeamanBookEntryAsync(assignment, voyage);
 
         await _context.SaveChangesAsync();
         
@@ -759,6 +771,130 @@ public class VoyageManagementService : IVoyageManagementService
         serviceRecord.UpdatedAt = DateTime.UtcNow;
         serviceRecord.IsSynced = false;
         serviceRecord.OriginNode = assignment.OriginNode;
+    }
+
+    /// <summary>
+    /// Sinh / cập nhật mục SỔ THUYỀN VIÊN từ một kỳ phân công.
+    ///
+    /// Một kỳ phục vụ = một lần sign-on → sign-off = đúng một dòng SEA_SERVICE.
+    /// Chống trùng bằng AssignmentId (khoá thật), thay cho chuỗi marker nhét trong BoardingRecords
+    /// mà phiên bản service_records trước đây dùng.
+    ///
+    /// Thông số tàu được CHỤP LẠI từ ship_data ngay tại đây. Trước kia giao diện tự điền bằng
+    /// hằng số viết cứng ("MV VINALINES VIGOR", IMO 9568762...) nên mọi mục sổ đều sai tàu.
+    /// </summary>
+    private async Task SyncSeamanBookEntryAsync(VoyageCrewAssignment assignment, VoyageRecord? voyage)
+    {
+        var status = assignment.Status?.Trim().ToUpperInvariant();
+        if (status is not ("ASSIGNED" or "ONBOARD" or "DISEMBARKED" or "CANCELLED")) return;
+
+        // Huỷ phân công khi chưa từng lên tàu → không có kỳ phục vụ nào để ghi
+        if (status == "CANCELLED" && !assignment.EmbarkDate.HasValue) return;
+
+        var entry = await _context.CrewLogbookEntries
+            .FirstOrDefaultAsync(e => e.AssignmentId == assignment.Id
+                                   && e.EntryType == "SEA_SERVICE");
+
+        // Bờ có thể đã mở sẵn kỳ phục vụ khi gán thuyền viên lên tàu (chưa gắn chuyến nào).
+        // Nhận lại chính mục đó thay vì tạo mục thứ hai cho cùng một kỳ.
+        entry ??= await _context.CrewLogbookEntries
+            .Where(e => e.CrewMemberId == assignment.CrewMemberId
+                     && e.EntryType == "SEA_SERVICE"
+                     && e.AssignmentId == null
+                     && e.RecordStatus != "CLOSED")
+            .OrderByDescending(e => e.SignOnDate ?? e.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        var isNew = entry == null;
+        if (!isNew) entry!.AssignmentId = assignment.Id;
+
+        if (isNew)
+        {
+            entry = new CrewLogbookEntry
+            {
+                CrewMemberId = assignment.CrewMemberId,
+                EntryType = "SEA_SERVICE",
+                EntryOrigin = "EDGE",
+                EntrySource = "AUTO",
+                AssignmentId = assignment.Id,
+                CreatedAt = DateTime.UtcNow,
+            };
+        }
+
+        entry!.VoyageId = assignment.VoyageId;
+        entry.RankId = assignment.RankId;
+        entry.RankAtTime = await ResolveRankNameAsync(assignment) ?? entry.RankAtTime;
+
+        // ── Ảnh chụp định danh tàu ──────────────────────────────
+        // Chỉ chụp một lần lúc tạo: sổ thuyền viên là giấy tờ pháp lý, mục ghi hôm nay phải giữ
+        // nguyên tên/cờ tàu của hôm nay kể cả khi tàu đổi tên về sau.
+        if (isNew)
+        {
+            var ship = await GetLatestShipDataAsync();
+            entry.VesselName = ship?.ShipName ?? voyage?.VesselName;
+            entry.ImoNumber = ship?.ImoNumber;
+            entry.CallSign = ship?.CallSign ?? voyage?.CallSign;
+            entry.VesselFlag = ship?.Flag ?? voyage?.VesselFlag;
+            entry.VesselType = ship?.TypeOfVessel;
+            entry.YearBuilt = ship?.YearBuilt;
+            entry.GrossTonnage = ship?.GrossTonnageInternational is double gt ? Convert.ToDecimal(gt) : null;
+
+            if (ship != null)
+            {
+                var engine = await _context.ShipMainEngines.AsNoTracking()
+                    .Where(m => m.ShipDataId == ship.Id)
+                    .OrderBy(m => m.SortOrder)
+                    .FirstOrDefaultAsync();
+                entry.MainEngineType = engine?.MeType;
+                entry.MainEnginePowerKw = engine?.MePowerKW is double kw ? Convert.ToInt32(kw) : null;
+
+                // Deadweight lấy theo đường nước mùa hè (Summer) — chuẩn dùng cho hồ sơ đi biển
+                var summer = await _context.ShipLoadLines.AsNoTracking()
+                    .Where(l => l.ShipDataId == ship.Id && l.LoadLineType == "S")
+                    .FirstOrDefaultAsync();
+                entry.Deadweight = summer?.DeadweightMt is double dwt ? Convert.ToDecimal(dwt) : null;
+            }
+
+            entry.Title = string.IsNullOrWhiteSpace(entry.VesselName) ? "Kỳ phục vụ" : $"Tàu {entry.VesselName}";
+            entry.Description = $"Kỳ phục vụ sinh tự động từ chuyến {voyage?.VoyageNumber ?? "-"}";
+        }
+
+        if (voyage != null)
+            entry.TradeArea = BuildTradeArea(voyage) ?? entry.TradeArea;
+
+        // ── Lên tàu ─────────────────────────────────────────────
+        entry.SignOnDate = assignment.EmbarkDate ?? entry.SignOnDate;
+        entry.SignOnPortCode = assignment.EmbarkPortCode ?? entry.SignOnPortCode;
+        entry.SignOnPortName = assignment.EmbarkPortName ?? entry.SignOnPortName;
+        entry.EntryDate = entry.SignOnDate ?? DateTime.UtcNow;
+
+        // ── Rời tàu ─────────────────────────────────────────────
+        if (status is "DISEMBARKED" or "CANCELLED")
+        {
+            entry.SignOffDate = assignment.DisembarkDate ?? entry.SignOffDate ?? DateTime.UtcNow;
+            entry.SignOffPortCode = assignment.DisembarkPortCode ?? entry.SignOffPortCode;
+            entry.SignOffPortName = assignment.DisembarkPortName ?? entry.SignOffPortName;
+            entry.RecordStatus = "CLOSED";
+        }
+        else
+        {
+            // Quay lại trạng thái đang phục vụ: xoá dấu vết rời tàu nếu có
+            entry.SignOffDate = null;
+            entry.SignOffPortCode = null;
+            entry.SignOffPortName = null;
+            entry.RecordStatus = status == "ONBOARD" ? "OPEN" : "DRAFT";
+        }
+
+        entry.Status = entry.RecordStatus == "CLOSED" ? "Approved" : "Draft";
+        entry.UpdatedAt = DateTime.UtcNow;
+        entry.IsSynced = false;
+        entry.OriginNode = assignment.OriginNode;
+
+        if (isNew) _context.CrewLogbookEntries.Add(entry);
+
+        _logger.LogInformation(
+            "Sổ thuyền viên: {Action} kỳ phục vụ crew={CrewId} tàu={Vessel} trạng thái={Status}",
+            isNew ? "tạo" : "cập nhật", assignment.CrewMemberId, entry.VesselName, entry.RecordStatus);
     }
 
     private async Task<ShipData?> GetLatestShipDataAsync()

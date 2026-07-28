@@ -970,4 +970,57 @@ export interface CrewLogbookEntry {
   syncVersion: number;
   createdAt: string;
   updatedAt: string;
+
+  // ── Kỳ phục vụ (entryType = SEA_SERVICE) ──────────────────
+  // Trước đây nhóm này bị nhét chung vào chuỗi JSON trong `description`.
+  vesselId?: string | null;
+  voyageId?: string | null;
+  assignmentId?: string | null;
+  rankId?: number | null;
+
+  vesselName?: string | null;
+  imoNumber?: string | null;
+  callSign?: string | null;
+  vesselFlag?: string | null;
+  vesselType?: string | null;
+  tradeArea?: string | null;
+  grossTonnage?: number | null;
+  deadweight?: number | null;
+  yearBuilt?: number | null;
+  mainEngineType?: string | null;
+  mainEnginePowerKw?: number | null;
+  mainEngineMaker?: string | null;
+  rankAtTime?: string | null;
+
+  signOnDate?: string | null;
+  signOnPortCode?: string | null;
+  signOnPortName?: string | null;
+  signOnBy?: string | null;
+
+  signOffDate?: string | null;
+  signOffPortCode?: string | null;
+  signOffPortName?: string | null;
+  signOffReason?: string | null;
+  signOffBy?: string | null;
+
+  conduct?: string | null;
+  masterName?: string | null;
+  endorsedBy?: string | null;
+  endorsedAt?: string | null;
+
+  recordStatus?: string | null;
+  signOffRequestedBy?: string | null;
+  signOffRequestedAt?: string | null;
+  signOffRequestReason?: string | null;
+  approvedBy?: string | null;
+  approvedAt?: string | null;
+  rejectedBy?: string | null;
+  rejectedAt?: string | null;
+  rejectionReason?: string | null;
+  approvalHistory?: string | null;
+
+  entrySource?: string | null;
+  isManuallyEdited?: boolean;
+  lastEditedBy?: string | null;
+  lastEditedAt?: string | null;
 }

@@ -4,7 +4,9 @@ import {
   Cloud, Book, Edit3, Check, AlertTriangle
 } from 'lucide-react';
 import { maritimeService } from '../../services/maritime.service';
+import { shipDataService } from '../../services/ship-data.service';
 import type { CrewLogbookEntry } from '@/types/maritime.types';
+import type { ShipData } from '@/types/ship-data.types';
 import { toast } from 'sonner';
 
 interface CrewLogbookSectionProps {
@@ -56,6 +58,9 @@ interface SeaServiceDetails {
 
 export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemberId, onSaved }) => {
   const [crew, setCrew] = useState<any>(null);
+  // Thông số con tàu THẬT của node này. Trước đây form điền bằng hằng số viết cứng
+  // ("MV VINALINES VIGOR", IMO 9568762...) nên mọi mục sổ lưu xuống đều sai tàu.
+  const [ship, setShip] = useState<ShipData | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -103,16 +108,19 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
 
   // Sea Service Form State
   const [serviceFormData, setServiceFormData] = useState<Partial<SeaServiceDetails> & { title: string; description: string }>({
+    // Giá trị khởi tạo để TRỐNG — sẽ được điền từ hồ sơ tàu thật khi mở form
+    // (xem handleOpenAddService). Không đặt số liệu mẫu ở đây: người dùng bấm lưu
+    // là số liệu mẫu trở thành dữ liệu thật trong giấy tờ pháp lý.
     title: '',
     description: '',
     callSign: '',
     imoNumber: '',
-    flagState: 'VIỆT NAM / VIETNAM',
-    grossTonnage: '9,980 GT',
-    enginePower: '4,200 kW',
-    rank: 'Thủy thủ trực ca / OS',
+    flagState: '',
+    grossTonnage: '',
+    enginePower: '',
+    rank: '',
     signOnDate: new Date().toISOString().split('T')[0],
-    signOnPort: 'Hải Phòng, Việt Nam',
+    signOnPort: '',
     signOffDate: '',
     signOffPort: '',
     conduct: 'Tốt / Good'
@@ -125,6 +133,14 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
       // Load crew member basic info to prefill
       const crewData = await maritimeService.crew.getById(crewMemberId);
       setCrew(crewData);
+
+      // Thông số tàu thật — nguồn duy nhất cho phần định danh tàu của mục sổ
+      try {
+        const shipRes = await shipDataService.get();
+        setShip(shipRes.exists ? shipRes.data : null);
+      } catch {
+        setShip(null); // không chặn việc mở sổ nếu chưa khai báo hồ sơ tàu
+      }
 
       // Load all logbook entries
       const allEntries = await maritimeService.logbook.getEntries(crewMemberId);
@@ -186,25 +202,33 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
         setBookMeta(defaultMeta);
       }
 
-      // Parse Sea Service entries
+      // Sea Service entries — đọc từ CỘT THẬT trước.
+      // Mục cũ (tạo trước khi tách cột) vẫn giữ dữ liệu trong chuỗi JSON ở `description`,
+      // nên vẫn thử parse để chúng hiển thị được; cột thật luôn thắng khi có giá trị.
       const serviceEntries = allEntries.filter(e => e.entryType === 'SEA_SERVICE');
       const parsedServices = serviceEntries.map(e => {
-        let details: SeaServiceDetails = {
-          callSign: '',
-          imoNumber: '',
-          flagState: 'VIỆT NAM',
-          grossTonnage: '',
-          enginePower: '',
-          rank: '',
-          signOnDate: '',
-          signOnPort: '',
-          signOffDate: '',
-          signOffPort: '',
-          conduct: 'Tốt / Good'
-        };
+        let legacy: Partial<SeaServiceDetails> = {};
         try {
-          details = { ...details, ...JSON.parse(e.description) };
-        } catch { /* ignore */ }
+          legacy = JSON.parse(e.description) ?? {};
+        } catch { /* mục mới: description là câu chữ thường, không phải JSON */ }
+
+        const details: SeaServiceDetails = {
+          callSign: e.callSign ?? legacy.callSign ?? '',
+          imoNumber: e.imoNumber ?? legacy.imoNumber ?? '',
+          flagState: e.vesselFlag ?? legacy.flagState ?? '',
+          grossTonnage: e.grossTonnage != null
+            ? `${e.grossTonnage.toLocaleString('en-US')} GT`
+            : (legacy.grossTonnage ?? ''),
+          enginePower: e.mainEnginePowerKw != null
+            ? `${e.mainEnginePowerKw.toLocaleString('en-US')} kW`
+            : (legacy.enginePower ?? ''),
+          rank: e.rankAtTime ?? legacy.rank ?? '',
+          signOnDate: e.signOnDate ?? legacy.signOnDate ?? '',
+          signOnPort: e.signOnPortName ?? legacy.signOnPort ?? '',
+          signOffDate: e.signOffDate ?? legacy.signOffDate ?? '',
+          signOffPort: e.signOffPortName ?? legacy.signOffPort ?? '',
+          conduct: e.conduct ?? legacy.conduct ?? '',
+        };
         return { entry: e, details };
       });
 
@@ -293,20 +317,27 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
   // Sea Service CRUD handlers
   const handleOpenAddService = () => {
     setEditingService(null);
+    // Điền từ hồ sơ tàu thật, KHÔNG dùng hằng số. Để trống nếu chưa khai báo hồ sơ tàu —
+    // thà để trống còn hơn ghi số liệu của một con tàu khác vào giấy tờ pháp lý.
+    const engine = ship?.mainEngines?.[0];
+    const summerLine = ship?.loadLines?.find(l => l.loadLineType === 'S');
     setServiceFormData({
-      title: 'Tàu MV VINALINES VIGOR',
-      callSign: '3WKD9',
-      imoNumber: 'IMO 9568762',
-      flagState: 'VIỆT NAM / VIETNAM',
-      grossTonnage: '20,854 GT',
-      enginePower: '6,480 kW',
-      rank: crew?.rank?.rankName || 'Thủy thủ trực ca / OS',
+      title: ship?.shipName ? `Tàu ${ship.shipName}` : '',
+      callSign: ship?.callSign ?? '',
+      imoNumber: ship?.imoNumber ?? '',
+      flagState: ship?.flag ?? '',
+      grossTonnage: ship?.grossTonnageInternational != null
+        ? `${ship.grossTonnageInternational.toLocaleString('en-US')} GT` : '',
+      enginePower: engine?.mePowerKW != null
+        ? `${engine.mePowerKW.toLocaleString('en-US')} kW` : '',
+      rank: crew?.rank?.rankName || '',
       signOnDate: new Date().toISOString().split('T')[0],
-      signOnPort: 'Hải Phòng, Việt Nam',
+      signOnPort: '',
       signOffDate: '',
       signOffPort: '',
       conduct: 'Tốt / Good',
-      description: ''
+      description: summerLine?.deadweightMt != null
+        ? `DWT ${summerLine.deadweightMt.toLocaleString('en-US')} mt` : ''
     });
     setIsServiceModalOpen(true);
   };
@@ -340,27 +371,40 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
 
     try {
       setSubmittingService(true);
-      const jsonDetails = {
-        callSign: serviceFormData.callSign,
-        imoNumber: serviceFormData.imoNumber,
-        flagState: serviceFormData.flagState,
-        grossTonnage: serviceFormData.grossTonnage,
-        enginePower: serviceFormData.enginePower,
-        rank: serviceFormData.rank,
-        signOnDate: serviceFormData.signOnDate,
-        signOnPort: serviceFormData.signOnPort,
-        signOffDate: serviceFormData.signOffDate,
-        signOffPort: serviceFormData.signOffPort,
-        conduct: serviceFormData.conduct
+
+      // "20,854 GT" / "6,480 kW" → 20854 / 6480. Người dùng gõ có dấu phẩy và đơn vị,
+      // còn cột trong DB là số.
+      const toNumber = (s?: string) => {
+        const n = parseFloat((s ?? '').replace(/[^0-9.]/g, ''));
+        return Number.isFinite(n) ? n : null;
       };
 
       const payload = {
         title: serviceFormData.title,
         entryType: "SEA_SERVICE",
         entryDate: new Date(serviceFormData.signOnDate || Date.now()).toISOString(),
-        description: JSON.stringify(jsonDetails),
-        notes: serviceFormData.description, // general remarks
-        status: "Approved"
+        // description giờ là ghi chú người đọc được, KHÔNG còn là kho chứa JSON
+        description: serviceFormData.description || `Kỳ phục vụ ${serviceFormData.title}`,
+        notes: serviceFormData.description,
+        status: "Approved",
+
+        // Ghi thẳng vào cột thật
+        vesselName: serviceFormData.title?.replace(/^Tàu\s+/i, '') || null,
+        imoNumber: serviceFormData.imoNumber || null,
+        callSign: serviceFormData.callSign || null,
+        vesselFlag: serviceFormData.flagState || null,
+        grossTonnage: toNumber(serviceFormData.grossTonnage),
+        mainEnginePowerKw: toNumber(serviceFormData.enginePower),
+        rankAtTime: serviceFormData.rank || null,
+        signOnDate: serviceFormData.signOnDate ? new Date(serviceFormData.signOnDate).toISOString() : null,
+        signOnPortName: serviceFormData.signOnPort || null,
+        signOffDate: serviceFormData.signOffDate ? new Date(serviceFormData.signOffDate).toISOString() : null,
+        signOffPortName: serviceFormData.signOffPort || null,
+        conduct: serviceFormData.conduct || null,
+        recordStatus: serviceFormData.signOffDate ? 'CLOSED' : 'OPEN',
+        // Nhập tay: đánh dấu để phân biệt với mục sinh tự động từ phân công
+        entrySource: 'MANUAL',
+        isManuallyEdited: true,
       };
 
       if (editingService) {
@@ -726,15 +770,22 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                         )}
                       </td>
                       <td className="px-4 py-3.5">
-                        <div className="font-bold text-slate-800 uppercase tracking-wider text-xs">{entry.title}</div>
-                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">IMO {details.imoNumber || '---'}</div>
+                        <div className="font-bold text-slate-800 uppercase tracking-wider text-xs">{entry.vesselName || entry.title}</div>
+                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                          {details.imoNumber ? `IMO ${details.imoNumber}` : 'IMO ---'}
+                          {details.callSign && <span className="ml-2">{details.callSign}</span>}
+                        </div>
                       </td>
                       <td className="px-4 py-3.5">
-                        <div className="text-slate-650 font-semibold">{details.flagState}</div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">{details.grossTonnage} / {details.enginePower}</div>
+                        <div className="text-slate-650 font-semibold">{details.flagState || '---'}</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">
+                          {[details.grossTonnage, details.enginePower, entry.vesselType].filter(Boolean).join(' · ') || '---'}
+                        </div>
                       </td>
                       <td className="px-4 py-3.5">
-                        <span className="inline-flex px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-semibold border border-blue-100">{details.rank}</span>
+                        {details.rank
+                          ? <span className="inline-flex px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-semibold border border-blue-100">{details.rank}</span>
+                          : <span className="text-slate-300">---</span>}
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="font-bold text-green-700">{details.signOnDate ? new Date(details.signOnDate).toLocaleDateString('vi-VN') : '---'}</div>
@@ -746,6 +797,14 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                             <div className="font-bold text-rose-700">{new Date(details.signOffDate).toLocaleDateString('vi-VN')}</div>
                             <div className="text-[10px] text-slate-500 mt-0.5">{details.signOffPort}</div>
                           </>
+                        ) : entry.recordStatus === 'DRAFT' ? (
+                          <span className="inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-100">
+                            Đã phân công / Assigned
+                          </span>
+                        ) : entry.recordStatus === 'PENDING_APPROVAL' ? (
+                          <span className="inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold bg-orange-50 text-orange-700 border border-orange-100">
+                            Chờ bờ duyệt / Pending
+                          </span>
                         ) : (
                           <span className="inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
                             Đang đi tàu / Onboard

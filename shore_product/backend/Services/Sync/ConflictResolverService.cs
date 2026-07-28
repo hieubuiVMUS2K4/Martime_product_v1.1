@@ -198,6 +198,12 @@ public class ConflictResolverService : IConflictResolverService
             return ResolveCrewCertificateConflict(existing, incoming, originNode);
         }
 
+        // Sổ thuyền viên — sở hữu theo từng trường, danh sách nằm trong chính model
+        if (tableName == "crew_logbook_entry")
+        {
+            return ResolveCrewLogbookConflict(existing, incoming, originNode);
+        }
+
         // Rule 4: Documents — Shore wins metadata, Edge wins file path
         if (tableName.EndsWith("_document"))
         {
@@ -347,6 +353,62 @@ public class ConflictResolverService : IConflictResolverService
                 {
                     _logger.LogDebug("Skipping certificate field {Prop}: {Error}", prop.Name, ex.Message);
                 }
+            }
+        }
+
+        return ConflictResolution.Apply(existing);
+    }
+
+    /// <summary>
+    /// Sổ thuyền viên. Không dùng so sánh UpdatedAt như các bảng khác: UpdateSyncMetadata đóng dấu
+    /// UpdatedAt = UtcNow trên MỌI lần đồng bộ, nên bên nào vừa được sync chạm vào sẽ luôn "mới hơn"
+    /// và bên kia vĩnh viễn không thắng nổi. Ở đây chia theo THẨM QUYỀN, không theo thời điểm.
+    /// </summary>
+    private ConflictResolution ResolveCrewLogbookConflict(object existing, object incoming, string originNode)
+    {
+        var fromShore = originNode == "SHORE";
+        var existingType = existing.GetType();
+
+        foreach (var prop in existingType.GetProperties())
+        {
+            if (prop.GetSetMethod() == null) continue;
+            if (!IsCopyableScalar(prop)) continue;     // Never touch navigation properties
+            if (prop.Name == "Id") continue;
+
+            var incomingValue = prop.GetValue(incoming);
+            if (incomingValue == null) continue;
+            if (incomingValue is string s && s.Length == 0) continue;
+
+            // Trạng thái duyệt: mỗi bên chỉ được đặt những giá trị thuộc thẩm quyền của mình,
+            // nếu không một lần đồng bộ ngược có thể tự ý "duyệt" hoặc "rút lại duyệt".
+            if (prop.Name == nameof(CrewLogbookEntry.RecordStatus))
+            {
+                var status = incomingValue as string;
+                if (status != null)
+                {
+                    var allowed = fromShore
+                        ? !CrewLogbookEntry.EdgeOnlyStatuses.Contains(status)
+                        : !CrewLogbookEntry.ShoreOnlyStatuses.Contains(status);
+                    if (!allowed)
+                    {
+                        _logger.LogWarning(
+                            "CrewLogbook {Id}: bỏ qua RecordStatus '{Status}' từ {Origin} — không thuộc thẩm quyền",
+                            prop.GetValue(existing), status, originNode);
+                        continue;
+                    }
+                }
+                prop.SetValue(existing, incomingValue);
+                continue;
+            }
+
+            var shouldApply = fromShore
+                ? !CrewLogbookEntry.EdgeOwnedFields.Contains(prop.Name)
+                : !CrewLogbookEntry.ShoreOwnedFields.Contains(prop.Name);
+
+            if (shouldApply)
+            {
+                try { prop.SetValue(existing, incomingValue); }
+                catch (Exception ex) { _logger.LogDebug("Bỏ qua trường {Prop}: {Error}", prop.Name, ex.Message); }
             }
         }
 

@@ -274,6 +274,39 @@ public class LogbookController : ControllerBase
             existing.VesselPosition = entryUpdate.VesselPosition;
             existing.OperationalNotes = entryUpdate.OperationalNotes;
 
+            // Kỳ phục vụ (SEA_SERVICE). Thiếu nhóm này thì mọi chỉnh sửa từ giao diện đều
+            // rơi vào hư không — controller lưu xong vẫn trả về giá trị cũ.
+            existing.VesselName = entryUpdate.VesselName;
+            existing.ImoNumber = entryUpdate.ImoNumber;
+            existing.CallSign = entryUpdate.CallSign;
+            existing.VesselFlag = entryUpdate.VesselFlag;
+            existing.VesselType = entryUpdate.VesselType;
+            existing.TradeArea = entryUpdate.TradeArea;
+            existing.GrossTonnage = entryUpdate.GrossTonnage;
+            existing.Deadweight = entryUpdate.Deadweight;
+            existing.YearBuilt = entryUpdate.YearBuilt;
+            existing.MainEngineType = entryUpdate.MainEngineType;
+            existing.MainEnginePowerKw = entryUpdate.MainEnginePowerKw;
+            existing.MainEngineMaker = entryUpdate.MainEngineMaker;
+            existing.RankAtTime = entryUpdate.RankAtTime;
+
+            existing.SignOnDate = entryUpdate.SignOnDate;
+            existing.SignOnPortCode = entryUpdate.SignOnPortCode;
+            existing.SignOnPortName = entryUpdate.SignOnPortName;
+            existing.SignOffDate = entryUpdate.SignOffDate;
+            existing.SignOffPortCode = entryUpdate.SignOffPortCode;
+            existing.SignOffPortName = entryUpdate.SignOffPortName;
+            existing.SignOffReason = entryUpdate.SignOffReason;
+
+            existing.Conduct = entryUpdate.Conduct;
+            existing.MasterName = entryUpdate.MasterName;
+            if (!string.IsNullOrWhiteSpace(entryUpdate.RecordStatus))
+                existing.RecordStatus = entryUpdate.RecordStatus;
+
+            // Sửa tay thì ghi vết, để phân biệt với dữ liệu sinh tự động từ phân công
+            existing.IsManuallyEdited = true;
+            existing.LastEditedAt = DateTime.UtcNow;
+
             // Sync metadata
             existing.IsSynced = false;
             existing.SyncVersion += 1;

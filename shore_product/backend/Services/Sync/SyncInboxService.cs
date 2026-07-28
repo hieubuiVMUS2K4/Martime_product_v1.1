@@ -1985,9 +1985,17 @@ public class SyncInboxService : ISyncInboxService
         // If the vessel is not found on shore yet, null out VesselId to prevent the FK violation.
         switch (entity)
         {
-            case CrewMember crew:
-                vessel = await _context.Vessels.AsNoTracking().FirstOrDefaultAsync(v => v.IMO == originNode);
-                crew.VesselId = vessel?.Id;
+            case CrewMember:
+                // KHÔNG suy ra tàu cho thuyền viên từ OriginNode.
+                //
+                // OriginNode bị UpdateSyncMetadata ghi đè bằng node vừa gửi tới, nên với một
+                // thuyền viên tạo trên bờ rồi phát xuống tàu, cú đồng bộ dội ngược sẽ biến
+                // OriginNode thành IMO của tàu đó. Suy ra VesselId từ đó tức là TỰ GÁN người
+                // vừa tạo lên một con tàu mà không ai ra lệnh — và với TargetNode = "*" thì
+                // tàu nào dội về sau cùng sẽ thắng.
+                //
+                // VesselId của thuyền viên CHỈ được đặt bởi thao tác gán tường minh
+                // (CrewService.AssignToVesselAsync), không bao giờ bởi đồng bộ.
                 break;
             case ProductApi.Models.EquipmentAsset asset:
                 vessel = await _context.Vessels.AsNoTracking().FirstOrDefaultAsync(v => v.IMO == originNode);
@@ -2129,17 +2137,22 @@ public class SyncInboxService : ISyncInboxService
                 }
             }
 
-            // Always remap VesselId to shore's vessel GUID.
-            // Same pattern as ResolveCrewVesselIdAsync: ConflictResolver may have copied
-            // edge vessel GUID before this runs, so always overwrite with shore's lookup.
-            if (!string.IsNullOrWhiteSpace(crew.OriginNode) && crew.OriginNode != "SHORE")
+            // VesselId của thuyền viên KHÔNG được suy ra từ OriginNode — xem giải thích đầy đủ
+            // trong ResolveCrewVesselIdAsync. Đồng bộ không bao giờ được tự gán người lên tàu.
+            //
+            // Nhưng GUID tàu do Edge gửi lên là vô nghĩa trên bờ (hai bên đánh GUID độc lập),
+            // để nguyên sẽ vi phạm khoá ngoại. Nên chỉ xoá giá trị lạ, tuyệt đối không gán mới.
+            if (crew.VesselId.HasValue)
             {
-                var vessel = await _context.Vessels.AsNoTracking()
-                    .FirstOrDefaultAsync(v => v.IMO == crew.OriginNode);
-                crew.VesselId = vessel?.Id;
-                if (vessel != null)
-                    _logger.LogDebug("CrewMember {CrewId}: Remapped VesselId to shore vessel for IMO {IMO}",
-                        crew.CrewId, crew.OriginNode);
+                var vesselExists = await _context.Vessels.AsNoTracking()
+                    .AnyAsync(v => v.Id == crew.VesselId.Value);
+                if (!vesselExists)
+                {
+                    _logger.LogWarning(
+                        "CrewMember {CrewId}: VesselId {VesselId} không tồn tại trên bờ — xoá về null (KHÔNG tự gán tàu khác)",
+                        crew.CrewId, crew.VesselId);
+                    crew.VesselId = null;
+                }
             }
         }
         // CrewCertificate → Certificate + Country: resolve FK IDs by code

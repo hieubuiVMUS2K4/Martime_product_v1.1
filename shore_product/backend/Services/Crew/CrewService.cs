@@ -437,6 +437,9 @@ public class CrewService : ICrewService
         crew.UpdatedAt = DateTime.UtcNow;
         crew.IsSynced = false;
 
+        // Mở kỳ phục vụ trong sổ thuyền viên ngay khi gán lên tàu
+        var logbookEntry = await OpenSeamanBookEntryAsync(crew, vessel);
+
         await _context.SaveChangesAsync();
 
         if (_syncOutbox != null)
@@ -448,6 +451,9 @@ public class CrewService : ICrewService
 
                 // Sync crew member to the specific vessel
                 await _syncOutbox.EnqueueAsync(targetNode, "crew_member", crew.Id.ToString(), SyncActionType.UPDATE, crew);
+
+                // Kỳ phục vụ vừa mở — để tàu thấy ngay mục sổ đang mở của người này
+                await _syncOutbox.EnqueueAsync(targetNode, "crew_logbook_entry", logbookEntry.Id.ToString(), SyncActionType.SNAPSHOT, logbookEntry);
 
                 // Also sync all certificates for this crew member
                 var crewCerts = await _context.CrewCertificates.AsNoTracking()
@@ -482,6 +488,81 @@ public class CrewService : ICrewService
 
         _logger.LogInformation("Assigned crew {CrewId} to vessel {VesselName} with PendingReview status", crew.CrewId, vessel.Name);
         return MapToDto(crew, vessel.Name);
+    }
+
+    /// <summary>
+    /// Mở (hoặc dùng lại) kỳ phục vụ đang mở của thuyền viên trên con tàu này.
+    ///
+    /// Idempotent theo cặp (thuyền viên, tàu) + kỳ chưa đóng: gán đi gán lại, hoặc gán từ bờ rồi
+    /// sau đó phân công vào một chuyến dưới tàu, đều chỉ ra ĐÚNG MỘT mục sổ. Phía tàu
+    /// (SyncSeamanBookEntryAsync) sẽ nhận lại chính mục này và gắn thêm AssignmentId/VoyageId.
+    ///
+    /// Thông số tàu được chụp lại tại thời điểm gán — sổ thuyền viên là giấy tờ pháp lý nên
+    /// mục ghi hôm nay phải giữ nguyên tên/cờ tàu của hôm nay.
+    /// </summary>
+    private async Task<CrewLogbookEntry> OpenSeamanBookEntryAsync(CrewMember crew, ProductApi.Models.Vessel vessel)
+    {
+        var entry = await _context.CrewLogbookEntries
+            .AsTracking()
+            .FirstOrDefaultAsync(e => e.CrewMemberId == crew.Id
+                                   && e.VesselId == vessel.Id
+                                   && e.EntryType == "SEA_SERVICE"
+                                   && e.RecordStatus != "CLOSED");
+
+        var isNew = entry == null;
+        if (isNew)
+        {
+            entry = new CrewLogbookEntry
+            {
+                CrewMemberId = crew.Id,
+                EntryType = "SEA_SERVICE",
+                EntryOrigin = "SHORE",
+                EntrySource = "AUTO",
+                CreatedAt = DateTime.UtcNow,
+            };
+        }
+
+        entry!.VesselId = vessel.Id;
+        entry.VesselName = vessel.Name;
+        entry.ImoNumber = vessel.IMO;
+        entry.CallSign = vessel.CallSign;
+        entry.VesselFlag = vessel.Flag;
+        entry.VesselType = vessel.VesselType;
+        entry.GrossTonnage = vessel.GrossTonnage > 0 ? Convert.ToDecimal(vessel.GrossTonnage) : null;
+        entry.Deadweight = vessel.DeadWeight > 0 ? Convert.ToDecimal(vessel.DeadWeight) : null;
+        entry.YearBuilt = vessel.BuildDate != default ? vessel.BuildDate.Year : null;
+
+        entry.RankId = crew.RankId;
+        if (crew.RankId.HasValue)
+        {
+            entry.RankAtTime = await _context.Set<Rank>()
+                .Where(r => r.Id == crew.RankId.Value)
+                .Select(r => r.RankName)
+                .FirstOrDefaultAsync() ?? entry.RankAtTime;
+        }
+
+        entry.SignOnDate = crew.EmbarkDate ?? DateTime.UtcNow;
+        entry.EntryDate = entry.SignOnDate.Value;
+        entry.RecordStatus = "DRAFT";
+        entry.Status = "Draft";
+
+        if (isNew)
+        {
+            entry.Title = string.IsNullOrWhiteSpace(vessel.Name) ? "Kỳ phục vụ" : $"Tàu {vessel.Name}";
+            entry.Description = $"Kỳ phục vụ mở khi gán lên tàu {vessel.Name}";
+        }
+
+        entry.UpdatedAt = DateTime.UtcNow;
+        entry.IsSynced = false;
+        entry.OriginNode = "SHORE";
+
+        if (isNew) await _context.CrewLogbookEntries.AddAsync(entry);
+
+        _logger.LogInformation(
+            "Sổ thuyền viên: {Action} kỳ phục vụ cho {CrewId} trên tàu {Vessel}",
+            isNew ? "mở" : "cập nhật", crew.CrewId, vessel.Name);
+
+        return entry;
     }
 
     public async Task<CrewMemberDto?> UnassignFromVesselAsync(Guid crewId)
