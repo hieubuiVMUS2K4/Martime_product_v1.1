@@ -44,6 +44,9 @@ public class SyncConflictHandler : ISyncConflictHandler
         ["crew_member"] = typeof(Maritime.Shared.Models.Crew.CrewMember),
         ["crew_certificate"] = typeof(Maritime.Shared.Models.Crew.CrewCertificate),
         ["service_record"] = typeof(Maritime.Shared.Models.Crew.ServiceRecord),
+        // Sổ thuyền viên. Thiếu dòng này thì mọi thứ Shore gửi xuống đều bị vứt lặng lẽ ở
+        // dòng "Unknown table from shore" — kết quả phê duyệt của bờ không bao giờ tới tàu.
+        ["crew_logbook_entry"] = typeof(Maritime.Shared.Models.Crew.CrewLogbookEntry),
 
         // Documents
         ["travel_document"] = typeof(Maritime.Shared.Models.Documents.TravelDocument),
@@ -338,13 +341,30 @@ public class SyncConflictHandler : ISyncConflictHandler
         {
             if (prop.GetSetMethod() == null) continue;
             if (prop.Name == "Id") continue; // Never overwrite PK
+            if (!IsCopyableScalar(prop)) continue; // Never touch navigation properties
 
             var incomingValue = prop.GetValue(incoming);
             if (incomingValue == null) continue;
+            if (incomingValue is string es && es.Length == 0) continue;
 
             bool shouldApply = true;
 
-            if (tableName == "crew_member")
+            if (tableName == "crew_logbook_entry")
+            {
+                // Sổ thuyền viên: tàu làm chủ sự kiện lên/rời tàu và thông số con tàu.
+                if (prop.Name == nameof(Maritime.Shared.Models.Crew.CrewLogbookEntry.RecordStatus))
+                {
+                    // Chỉ nhận từ bờ những trạng thái thuộc thẩm quyền của bờ
+                    var status = incomingValue as string;
+                    shouldApply = status == null
+                        || !Maritime.Shared.Models.Crew.CrewLogbookEntry.EdgeOnlyStatuses.Contains(status);
+                }
+                else
+                {
+                    shouldApply = !Maritime.Shared.Models.Crew.CrewLogbookEntry.EdgeOwnedFields.Contains(prop.Name);
+                }
+            }
+            else if (tableName == "crew_member")
             {
                 // For crew: shore wins HR fields, edge keeps operational fields
                 var edgeOwnedFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -396,6 +416,27 @@ public class SyncConflictHandler : ISyncConflictHandler
                 prop.SetValue(existing, incomingValue);
             }
         }
+    }
+
+    /// <summary>
+    /// True khi thuộc tính mang giá trị thuần, an toàn để copy giữa hai thực thể.
+    ///
+    /// Navigation property TUYỆT ĐỐI không được copy. Thực thể dựng từ payload đồng bộ có chúng ở
+    /// giá trị khởi tạo — một List&lt;&gt; RỖNG — vì bị [JsonIgnore] và bị lược khỏi payload. Gán list
+    /// rỗng đó đè lên collection ĐÃ NẠP của thực thể đang được EF theo dõi sẽ khiến EF coi các bản
+    /// ghi con là mồ côi, mà quan hệ crew cấu hình OnDelete(Cascade) nên EF xoá chúng thật.
+    ///
+    /// Đúng cơ chế này đã xoá mất 8 chứng chỉ thuyền viên trên Shore ngày 28/07/2026.
+    /// Phía Edge chưa nổ nhưng là cùng một quả mìn.
+    /// </summary>
+    private static bool IsCopyableScalar(System.Reflection.PropertyInfo prop)
+    {
+        var type = prop.PropertyType;
+        if (type == typeof(string)) return true;
+        // Bao gồm int, long, bool, DateTime, Guid, enum và dạng Nullable<> của chúng
+        if (type.IsValueType) return true;
+        // Collection và tham chiếu thực thể — thuộc quyền EF, không phải của ta
+        return false;
     }
 
     private static async Task<object?> FindByKeyAsync(EdgeDbContext context, Type entityType, string recordKey)
