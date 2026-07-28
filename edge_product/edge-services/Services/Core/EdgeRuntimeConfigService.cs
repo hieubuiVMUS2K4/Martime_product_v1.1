@@ -15,8 +15,11 @@ public class EdgeSyncConfig
     public string NodeApiToken { get; set; } = string.Empty;
     public string SigningKey { get; set; } = string.Empty;
     public int KeyVersion { get; set; } = 1;
+    public string ProtocolVersion { get; set; } = "2";
     public bool SecurityEnabled { get; set; }
     public Guid? ShoreVesselId { get; set; }
+    public string? VesselImo { get; set; }
+    public string? VesselName { get; set; }
     public string Source { get; set; } = "db"; // "db" | "legacy_config"
 }
 
@@ -85,23 +88,31 @@ public class EdgeRuntimeConfigService : IEdgeRuntimeConfigService
 
         if (activeProfile != null)
         {
+            // A profile exists — this vessel HAS migrated to Managed Mode. From this point on,
+            // Fail-Closed applies unconditionally: if the profile is corrupted/undecryptable, we
+            // must NOT silently fall back to legacy .env (that risks syncing under the wrong
+            // vessel identity). BuildFromProfile() throws ConfigInvalidException in that case.
             return BuildFromProfile(activeProfile);
         }
 
         var configMode = _configuration["Sync:ConfigMode"]
                           ?? Environment.GetEnvironmentVariable("EDGE_SYNC_CONFIG_MODE");
 
-        if (string.Equals(configMode, "Legacy", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(configMode, "Managed", StringComparison.OrdinalIgnoreCase))
         {
-            _logger.LogWarning(
-                "No active EdgeProvisioningProfile found — falling back to Legacy Mode (EDGE_SYNC_CONFIG_MODE=Legacy).");
-            return BuildFromLegacyConfig();
+            // Explicit opt-in to strict Managed Mode even though no profile has been imported yet
+            // (e.g. to test the Fail-Closed path). Stop sync rather than fall back.
+            throw new ProvisioningRequiredException(
+                "EDGE_SYNC_CONFIG_MODE=Managed nhưng chưa có Vessel Provisioning Profile nào được " +
+                "kích hoạt. Vui lòng import & activate provisioning package qua Settings → Shore Connection.");
         }
 
-        throw new ProvisioningRequiredException(
-            "Chưa có Vessel Provisioning Profile nào được kích hoạt (Managed Mode). " +
-            "Vui lòng import & activate provisioning package qua Settings → Shore Connection, " +
-            "hoặc đặt EDGE_SYNC_CONFIG_MODE=Legacy để dùng cấu hình cũ tạm thời.");
+        // No profile has EVER been imported on this node — this vessel has not migrated to
+        // Vessel Provisioning v3 yet. This is NOT the dangerous "silent fallback after DB
+        // corruption" case the Fail-Closed rule guards against; it is simply pre-v3 status quo,
+        // so Legacy (.env / appsettings.json) is used automatically without requiring an explicit
+        // flag. Once an admin imports+activates a profile, Managed Mode takes over automatically.
+        return BuildFromLegacyConfig();
     }
 
     private EdgeSyncConfig BuildFromProfile(Models.EdgeProvisioningProfile profile)
@@ -142,8 +153,11 @@ public class EdgeRuntimeConfigService : IEdgeRuntimeConfigService
             NodeApiToken = nodeApiToken,
             SigningKey = signingKey,
             KeyVersion = profile.KeyVersion,
+            ProtocolVersion = profile.ProtocolVersion,
             SecurityEnabled = profile.SecurityEnabled,
             ShoreVesselId = profile.VesselId,
+            VesselImo = profile.VesselImo,
+            VesselName = profile.VesselName,
             Source = "db"
         };
     }
@@ -174,8 +188,11 @@ public class EdgeRuntimeConfigService : IEdgeRuntimeConfigService
             NodeApiToken = nodeApiToken,
             SigningKey = signingKey ?? string.Empty,
             KeyVersion = int.TryParse(_configuration["SyncSecurity:KeyVersion"], out var kv) ? kv : 1,
+            ProtocolVersion = _configuration["SyncSecurity:ProtocolVersion"] ?? "2",
             SecurityEnabled = bool.TryParse(_configuration["SyncSecurity:Enabled"], out var enabled) && enabled,
             ShoreVesselId = shoreVesselId,
+            VesselImo = _configuration["Vessel:IMO"],
+            VesselName = _configuration["Vessel:Name"],
             Source = "legacy_config"
         };
     }

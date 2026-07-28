@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Extensions.Logging;
 
 namespace MaritimeEdge.Services.Core;
 
@@ -22,14 +23,18 @@ public sealed class SyncRequestSigningService : ISyncRequestSigningService
     private const string ContentHashHeader = "X-Sync-Content-SHA256";
     private const string ProtocolHeader = "X-Sync-Protocol";
 
-    private readonly IConfiguration _configuration;
+    private readonly IEdgeRuntimeConfigService _runtimeConfigService;
+    private readonly ILogger<SyncRequestSigningService> _logger;
 
-    public SyncRequestSigningService(IConfiguration configuration)
+    public SyncRequestSigningService(
+        IEdgeRuntimeConfigService runtimeConfigService,
+        ILogger<SyncRequestSigningService> logger)
     {
-        _configuration = configuration;
+        _runtimeConfigService = runtimeConfigService;
+        _logger = logger;
     }
 
-    public Task<HttpRequestMessage> CreateSignedRequestAsync(
+    public async Task<HttpRequestMessage> CreateSignedRequestAsync(
         HttpMethod method,
         string url,
         string? jsonBody,
@@ -43,18 +48,34 @@ public sealed class SyncRequestSigningService : ISyncRequestSigningService
             request.Content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
         }
 
-        if (!_configuration.GetValue("SyncSecurity:Enabled", false))
-            return Task.FromResult(request);
+        EdgeSyncConfig syncConfig;
+        try
+        {
+            syncConfig = await _runtimeConfigService.GetSyncConfigAsync();
+        }
+        catch (ProvisioningRequiredException ex)
+        {
+            _logger.LogWarning("Skipping request signing — {Message}", ex.Message);
+            return request;
+        }
+        catch (ConfigInvalidException ex)
+        {
+            _logger.LogError("Skipping request signing — {Message}", ex.Message);
+            return request;
+        }
 
-        var nodeId = _configuration["SyncSecurity:NodeId"] ?? _configuration["Vessel:IMO"] ?? "UNKNOWN";
-        var signingKey = _configuration["SyncSecurity:SigningKey"];
-        var protocolVersion = _configuration["SyncSecurity:ProtocolVersion"] ?? "2";
-        var keyVersion = _configuration.GetValue("SyncSecurity:KeyVersion", 1);
+        if (!syncConfig.SecurityEnabled)
+            return request;
+
+        var nodeId = syncConfig.NodeId;
+        var signingKey = syncConfig.SigningKey;
+        var protocolVersion = syncConfig.ProtocolVersion;
+        var keyVersion = syncConfig.KeyVersion;
 
         if (string.IsNullOrWhiteSpace(signingKey))
-            throw new InvalidOperationException("SyncSecurity:SigningKey must be configured when signed sync is enabled.");
+            throw new InvalidOperationException("SigningKey must be configured when signed sync is enabled.");
         if (keyVersion <= 0)
-            throw new InvalidOperationException("SyncSecurity:KeyVersion must be a positive integer when signed sync is enabled.");
+            throw new InvalidOperationException("KeyVersion must be a positive integer when signed sync is enabled.");
 
         var bodyBytes = jsonBody == null ? Array.Empty<byte>() : Encoding.UTF8.GetBytes(jsonBody);
         var contentHash = ComputeSha256Hex(bodyBytes);
@@ -82,7 +103,7 @@ public sealed class SyncRequestSigningService : ISyncRequestSigningService
         request.Headers.TryAddWithoutValidation(ContentHashHeader, contentHash);
         request.Headers.TryAddWithoutValidation(ProtocolHeader, protocolVersion);
 
-        return Task.FromResult(request);
+        return request;
     }
 
     private static string ComputeSha256Hex(byte[] content)

@@ -41,6 +41,7 @@ public class SyncService : ISyncService
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<SyncService> _logger;
     private readonly IConfiguration _configuration;
+    private readonly IEdgeRuntimeConfigService _runtimeConfigService;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ISyncRequestSigningService _syncRequestSigningService;
     private readonly ISyncFileStorageService _syncFileStorageService;
@@ -94,6 +95,7 @@ public class SyncService : ISyncService
         IServiceProvider serviceProvider, 
         ILogger<SyncService> logger,
         IConfiguration configuration,
+        IEdgeRuntimeConfigService runtimeConfigService,
         IHttpClientFactory httpClientFactory,
         ISyncRequestSigningService syncRequestSigningService,
         ISyncFileStorageService syncFileStorageService,
@@ -102,6 +104,7 @@ public class SyncService : ISyncService
         _serviceProvider = serviceProvider;
         _logger = logger;
         _configuration = configuration;
+        _runtimeConfigService = runtimeConfigService;
         _httpClientFactory = httpClientFactory;
         _syncRequestSigningService = syncRequestSigningService;
         _syncFileStorageService = syncFileStorageService;
@@ -137,7 +140,8 @@ public class SyncService : ISyncService
 
             var networkType = await GetCurrentNetworkStatusAsync();
             var allowedPriorities = GetAllowedPriorities(networkType);
-            var nodeId = _configuration["SyncSecurity:NodeId"] ?? _configuration["Vessel:IMO"] ?? "UNKNOWN";
+            var syncConfig = await ResolveSyncConfigAsync();
+            var nodeId = syncConfig?.NodeId ?? "UNKNOWN";
             var nowUtc = DateTime.UtcNow;
 
             _logger.LogInformation("Starting Sync. Network: {Network}. Allowed: [{Priorities}]",
@@ -206,19 +210,20 @@ public class SyncService : ISyncService
     /// </summary>
     public async Task PullFromShoreAsync(CancellationToken cancellationToken)
     {
-        var baseUrl = _configuration["ShoreAPI:BaseUrl"];
+        var syncConfig = await ResolveSyncConfigAsync();
         var enabled = _configuration.GetValue("ShoreAPI:Enabled", true);
-        if (!enabled || string.IsNullOrEmpty(baseUrl))
+        if (!enabled || syncConfig == null || string.IsNullOrEmpty(syncConfig.ShoreBaseUrl))
         {
             _logger.LogDebug("Shore API pull disabled or not configured.");
             return;
         }
+        var baseUrl = syncConfig.ShoreBaseUrl;
 
         using var scope = _serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<EdgeDbContext>();
         var conflictHandler = scope.ServiceProvider.GetService<ISyncConflictHandler>();
 
-        var nodeId = _configuration["SyncSecurity:NodeId"] ?? _configuration["Vessel:IMO"] ?? "UNKNOWN";
+        var nodeId = syncConfig.NodeId;
         var retryPolicy = LoadRetryPolicyConfig();
 
         try
@@ -327,18 +332,19 @@ public class SyncService : ISyncService
 
     public async Task SendHeartbeatAsync(CancellationToken cancellationToken)
     {
-        var baseUrl = _configuration["ShoreAPI:BaseUrl"];
+        var syncConfig = await ResolveSyncConfigAsync();
         var enabled = _configuration.GetValue("ShoreAPI:Enabled", true);
-        if (!enabled || string.IsNullOrEmpty(baseUrl))
+        if (!enabled || syncConfig == null || string.IsNullOrEmpty(syncConfig.ShoreBaseUrl))
         {
             _logger.LogDebug("Shore API heartbeat disabled or not configured.");
             return;
         }
+        var baseUrl = syncConfig.ShoreBaseUrl;
 
         using var scope = _serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<EdgeDbContext>();
 
-        var nodeId = _configuration["SyncSecurity:NodeId"] ?? _configuration["Vessel:IMO"] ?? "UNKNOWN";
+        var nodeId = syncConfig.NodeId;
         var networkType = await GetCurrentNetworkStatusAsync();
         var pendingSyncItems = await context.SyncQueue
             .AsNoTracking()
@@ -348,8 +354,8 @@ public class SyncService : ISyncService
         var heartbeat = new SyncHeartbeatRequest
         {
             NodeId = nodeId,
-            ShipName = _configuration["Vessel:Name"],
-            ImoNumber = _configuration["Vessel:IMO"],
+            ShipName = syncConfig.VesselName ?? _configuration["Vessel:Name"],
+            ImoNumber = syncConfig.VesselImo ?? _configuration["Vessel:IMO"],
             NetworkType = networkType.ToString(),
             PendingSyncItems = pendingSyncItems,
             SentAt = DateTime.UtcNow
@@ -373,6 +379,31 @@ public class SyncService : ISyncService
     // ============================================================
     // PRIVATE METHODS
     // ============================================================
+
+    /// <summary>
+    /// Vessel Provisioning v3: resolves NodeId/ShoreBaseUrl/Vessel identity via
+    /// <see cref="IEdgeRuntimeConfigService"/> instead of reading <c>_configuration</c> directly.
+    /// Returns null (does NOT throw) on Fail-Closed conditions (no active profile in strict Managed
+    /// mode, or corrupted profile) so callers can simply skip the current sync cycle rather than
+    /// crash the background worker loop.
+    /// </summary>
+    private async Task<EdgeSyncConfig?> ResolveSyncConfigAsync()
+    {
+        try
+        {
+            return await _runtimeConfigService.GetSyncConfigAsync();
+        }
+        catch (ProvisioningRequiredException ex)
+        {
+            _logger.LogWarning("Sync paused — {Message}", ex.Message);
+            return null;
+        }
+        catch (ConfigInvalidException ex)
+        {
+            _logger.LogError("Sync paused — {Message}", ex.Message);
+            return null;
+        }
+    }
 
     private async Task MarkOriginalRecordSyncedAsync(EdgeDbContext context, string tableName, string recordKey)
     {
@@ -434,10 +465,10 @@ public class SyncService : ISyncService
     private async Task SendBatchToShoreAsync(
         List<SyncQueue> items, EdgeDbContext context, CancellationToken cancellationToken)
     {
-        var baseUrl = _configuration["ShoreAPI:BaseUrl"];
+        var syncConfig = await ResolveSyncConfigAsync();
         var enabled = _configuration.GetValue("ShoreAPI:Enabled", true);
 
-        if (!enabled || string.IsNullOrEmpty(baseUrl))
+        if (!enabled || syncConfig == null || string.IsNullOrEmpty(syncConfig.ShoreBaseUrl))
         {
             _logger.LogDebug("Shore API disabled. Marking items as simulated sync.");
             // In dev mode without Shore: mark as synced for testing
@@ -450,8 +481,9 @@ public class SyncService : ISyncService
             await context.SaveChangesAsync(cancellationToken);
             return;
         }
+        var baseUrl = syncConfig.ShoreBaseUrl;
 
-        var nodeId = _configuration["SyncSecurity:NodeId"] ?? _configuration["Vessel:IMO"] ?? "UNKNOWN";
+        var nodeId = syncConfig.NodeId;
         var retryPolicy = LoadRetryPolicyConfig();
 
         // Map SyncQueue → SyncQueueItemDto (wire format)
@@ -1225,10 +1257,11 @@ public class SyncService : ISyncService
 
     private async Task ProcessFileTransferCycleAsync(EdgeDbContext context, CancellationToken cancellationToken)
     {
-        var baseUrl = _configuration["ShoreAPI:BaseUrl"];
+        var syncConfig = await ResolveSyncConfigAsync();
         var enabled = _configuration.GetValue("ShoreAPI:Enabled", true);
-        if (!enabled || string.IsNullOrWhiteSpace(baseUrl))
+        if (!enabled || syncConfig == null || string.IsNullOrWhiteSpace(syncConfig.ShoreBaseUrl))
             return;
+        var baseUrl = syncConfig.ShoreBaseUrl;
 
         var networkType = await GetCurrentNetworkStatusAsync();
         var allowedFilePriorities = GetAllowedFileTransferPriorities(networkType);
@@ -1238,7 +1271,7 @@ public class SyncService : ISyncService
             return;
         }
 
-        var nodeId = _configuration["SyncSecurity:NodeId"] ?? _configuration["Vessel:IMO"] ?? "UNKNOWN";
+        var nodeId = syncConfig.NodeId;
         var shoreNodeId = _configuration["SyncSecurity:ShoreNodeId"] ?? "SHORE";
 
         await PublishPendingFileRequestsToShoreAsync(context, baseUrl, nodeId, shoreNodeId, allowedFilePriorities, cancellationToken);
