@@ -198,6 +198,9 @@ namespace MaritimeEdge
             builder.Services.AddScoped<ISyncFilePreparationService, SyncFilePreparationService>();
             builder.Services.AddScoped<ISyncRequestSigningService, SyncRequestSigningService>();
             builder.Services.AddScoped<ISyncConflictHandler, SyncConflictHandler>();
+            // Vessel Provisioning v3 — Managed Mode (Phase 3)
+            builder.Services.AddSingleton<MaritimeEdge.Security.IEdgeDataEncryptionService, MaritimeEdge.Security.EdgeDataEncryptionService>();
+            builder.Services.AddScoped<MaritimeEdge.Services.Core.IEdgeRuntimeConfigService, MaritimeEdge.Services.Core.EdgeRuntimeConfigService>();
             builder.Services.AddScoped<IWatchkeepingService, WatchkeepingService>();
             builder.Services.AddScoped<IDeckLogbookService, DeckLogbookService>();
             builder.Services.AddScoped<IEngineLogbookService, EngineLogbookService>();

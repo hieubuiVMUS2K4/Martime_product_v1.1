@@ -192,6 +192,9 @@ public class EdgeDbContext : DbContext
     public DbSet<SmsFormTemplate> SmsFormTemplates { get; set; } = null!;
     public DbSet<SmsFilledRecord> SmsFilledRecords { get; set; } = null!;
 
+    // Vessel Provisioning v3 — Managed Mode config source of truth
+    public DbSet<EdgeProvisioningProfile> EdgeProvisioningProfiles { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -1214,7 +1217,7 @@ public class EdgeDbContext : DbContext
         modelBuilder.Entity<SyncQueue>(entity =>
         {
             entity.ToTable("sync_queue");
-            
+
             entity.HasIndex(e => new { e.Priority, e.NextRetryAt })
                 .HasDatabaseName("idx_sync_priority_retry")
                 .HasFilter("synced_at IS NULL");
@@ -1228,6 +1231,15 @@ public class EdgeDbContext : DbContext
             // FIXME: SyncQueue.RecordId property does not exist - commented out
             // entity.HasIndex(e => new { e.TableName, e.RecordId })
             //     .HasDatabaseName("idx_sync_table_record");
+        });
+
+        // Vessel Provisioning v3 — Managed Mode profile (only 1 row may be active at a time)
+        modelBuilder.Entity<EdgeProvisioningProfile>(entity =>
+        {
+            entity.ToTable("edge_provisioning_profile");
+
+            entity.HasIndex(e => e.IsActive)
+                .HasDatabaseName("idx_epp_is_active");
         });
 
         modelBuilder.Entity<SyncFileManifest>(entity =>
