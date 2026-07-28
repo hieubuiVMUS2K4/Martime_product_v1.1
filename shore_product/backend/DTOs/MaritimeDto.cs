@@ -168,6 +168,14 @@ namespace ProductApi.DTOs
         public DateTime? LastShoreSyncAt { get; set; }
     }
 
+    /// <summary>Vessel Provisioning v3 — optional body for POST /api/vessels/{id}/provision.</summary>
+    public class ProvisionNodeRequestDto
+    {
+        /// <summary>Override the default node id (edge-{imo}-main), e.g. for a secondary/test edge node.</summary>
+        [StringLength(50)]
+        public string? NodeId { get; set; }
+    }
+
     public class CreateVesselDto
     {
         [Required]

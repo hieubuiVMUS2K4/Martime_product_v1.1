@@ -1,6 +1,8 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProductApi.Data;
+using ProductApi.Models;
 using ProductApi.Services;
 using ProductApi.DTOs;
 using System.Text.Json;
@@ -14,13 +16,20 @@ namespace ProductApi.Controllers
     {
         private readonly IVesselService _vesselService;
         private readonly IAlertService _alertService;
+        private readonly IVesselProvisioningService _provisioningService;
         private readonly ILogger<VesselsController> _logger;
         private readonly AppDbContext _context;
 
-        public VesselsController(IVesselService vesselService, IAlertService alertService, ILogger<VesselsController> logger, AppDbContext context)
+        public VesselsController(
+            IVesselService vesselService,
+            IAlertService alertService,
+            IVesselProvisioningService provisioningService,
+            ILogger<VesselsController> logger,
+            AppDbContext context)
         {
             _vesselService = vesselService;
             _alertService = alertService;
+            _provisioningService = provisioningService;
             _logger = logger;
             _context = context;
         }
@@ -165,6 +174,30 @@ namespace ProductApi.Controllers
                 }
 
                 var vessel = await _vesselService.CreateVesselAsync(vesselDto);
+
+                // Vessel Provisioning v3 (Component 2): auto-create a placeholder SyncNodeTracker
+                // in "Unknown" status. No secrets are generated here — that only happens when the
+                // admin explicitly clicks "Provision" (POST /api/vessels/{id}/provision).
+                var existingNode = await _context.SyncNodeTrackers
+                    .FirstOrDefaultAsync(n => n.ImoNumber == vessel.IMO);
+                if (existingNode == null)
+                {
+                    _context.SyncNodeTrackers.Add(new SyncNodeTracker
+                    {
+                        NodeId = $"pending-{vessel.IMO}",
+                        ShipName = vessel.Name,
+                        ImoNumber = vessel.IMO,
+                        IsRegistered = false,
+                        IsRevoked = false,
+                        ProvisioningStatus = "Unknown",
+                        KeyVersion = 1,
+                        NodeApiTokenVersion = 1,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    });
+                    await _context.SaveChangesAsync();
+                }
+
                 return CreatedAtAction(nameof(GetVessel), new { id = vessel.Id }, vessel);
             }
             catch (Exception ex)
@@ -172,6 +205,126 @@ namespace ProductApi.Controllers
                 _logger.LogError(ex, "Error creating vessel with IMO {IMO}", vesselDto.IMO);
                 return StatusCode(500, "Internal server error");
             }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // Vessel Provisioning v3 — Component 2 (Shore Backend Endpoints)
+        // ═══════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// POST /api/vessels/{id}/provision — Generate (or rotate, if already provisioned) node
+        /// secrets (NodeApiToken + SigningKey). Plaintext secrets are NEVER returned by this
+        /// endpoint — they are stored encrypted and only ever exposed via the ZIP download
+        /// (GET /provisioning-package).
+        /// </summary>
+        [HttpPost("{id:guid}/provision")]
+        [Authorize(Policy = "FleetManagement")]
+        public async Task<IActionResult> ProvisionVessel(Guid id, [FromBody] ProvisionNodeRequestDto? request)
+        {
+            try
+            {
+                var provisionedBy = User?.Identity?.Name ?? "unknown";
+                var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+
+                var result = await _provisioningService.ProvisionNodeAsync(id, provisionedBy, clientIp, request?.NodeId);
+
+                return Ok(new
+                {
+                    result.NodeId,
+                    result.ProvisionedAt,
+                    result.Status,
+                    result.KeyVersion,
+                    message = "Secrets đã sinh. Tải Provisioning Package bằng /provisioning-package."
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error provisioning node for vessel {VesselId}", id);
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        /// <summary>
+        /// GET /api/vessels/{id}/provisioning-package — Download the Provisioning Package ZIP
+        /// (edge-provisioning.json + .env.shore-sync + README.txt). Requires the node to already
+        /// have been provisioned at least once. Every download is audited (count, timestamp, by, ip).
+        /// </summary>
+        [HttpGet("{id:guid}/provisioning-package")]
+        [Authorize(Policy = "FleetManagement")]
+        public async Task<IActionResult> DownloadProvisioningPackage(Guid id)
+        {
+            try
+            {
+                var downloadedBy = User?.Identity?.Name ?? "unknown";
+                var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+                var shoreBaseUrl = ResolveShoreBaseUrl();
+
+                var bundle = await _provisioningService.BuildProvisioningPackageAsync(id, shoreBaseUrl, downloadedBy, clientIp);
+
+                return File(bundle.ZipContent, "application/zip", bundle.FileName);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error building provisioning package for vessel {VesselId}", id);
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        /// <summary>
+        /// POST /api/vessels/{id}/provision/rotate — Generate a brand-new NodeApiToken + SigningKey,
+        /// keep the previous signing key valid for a grace window, and mark the node as needing
+        /// re-import (ProvisioningStatus → Downloaded, "🔴 Needs Re-import" badge on Shore UI).
+        /// </summary>
+        [HttpPost("{id:guid}/provision/rotate")]
+        [Authorize(Policy = "FleetManagement")]
+        public async Task<IActionResult> RotateProvisioningKey(Guid id)
+        {
+            try
+            {
+                var rotatedBy = User?.Identity?.Name ?? "unknown";
+                var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+
+                var result = await _provisioningService.RotateKeyAsync(id, rotatedBy, clientIp);
+
+                return Ok(new
+                {
+                    result.NodeId,
+                    newKeyVersion = result.KeyVersion,
+                    message = "Key mới đã sinh. Tải lại Provisioning Package. Tàu cần import lại config."
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error rotating provisioning key for vessel {VesselId}", id);
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        /// <summary>
+        /// Resolve the Shore base URL that will be embedded into the Provisioning Package so Edge
+        /// knows where to sync to. Prefers explicit config (Shore:PublicBaseUrl); falls back to the
+        /// scheme+host of the current request (works for both reverse-proxied and direct access).
+        /// </summary>
+        private string ResolveShoreBaseUrl()
+        {
+            var configured = HttpContext.RequestServices
+                .GetRequiredService<IConfiguration>()["Shore:PublicBaseUrl"];
+            if (!string.IsNullOrWhiteSpace(configured))
+                return configured.TrimEnd('/');
+
+            return $"{Request.Scheme}://{Request.Host}";
         }
 
         /// <summary>

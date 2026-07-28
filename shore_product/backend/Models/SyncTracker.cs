@@ -118,6 +118,44 @@ public class SyncNodeTracker
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    // ── Vessel Provisioning v3 ──
+
+    /// <summary>Lifecycle status: Unknown | Provisioned | Downloaded | PendingFirstContact | Registered | Active | Revoked | Disabled.</summary>
+    [MaxLength(30)]
+    public string ProvisioningStatus { get; set; } = "Unknown";
+
+    /// <summary>UTC timestamp when secrets (NodeApiToken/SigningKey) were generated via ProvisionNodeAsync().</summary>
+    public DateTime? ProvisionedAt { get; set; }
+
+    /// <summary>Per-node API token, encrypted at rest via IDataEncryptionService.</summary>
+    [MaxLength(1000)]
+    public string? NodeApiToken { get; set; }
+
+    /// <summary>SHA256 hex of the raw token — used for fast lookup during handshake/auth without decrypting.</summary>
+    [MaxLength(128)]
+    public string? NodeApiTokenHash { get; set; }
+
+    public int NodeApiTokenVersion { get; set; } = 1;
+
+    public DateTime? NodeApiTokenRotatedAt { get; set; }
+
+    /// <summary>How many times the provisioning package (ZIP) has been downloaded for this node.</summary>
+    public int ConfigDownloadCount { get; set; }
+
+    public DateTime? LastConfigDownloadedAt { get; set; }
+
+    [MaxLength(200)]
+    public string? LastConfigDownloadedBy { get; set; }
+
+    [MaxLength(50)]
+    public string? LastConfigDownloadedIp { get; set; }
+
+    /// <summary>First time Edge successfully called POST /api/sync/handshake with a valid NodeApiToken.</summary>
+    public DateTime? FirstHandshakeAt { get; set; }
+
+    /// <summary>Most recent successful handshake from Edge.</summary>
+    public DateTime? LastHandshakeAt { get; set; }
 }
 
 /// <summary>

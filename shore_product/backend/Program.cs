@@ -114,6 +114,8 @@ builder.Services.AddAuthorizationBuilder()
 builder.Services.AddSingleton<IAuthorizationHandler, InternalAccessHandler>();
 builder.Services.AddSingleton<IDataEncryptionService, DataEncryptionService>();
 builder.Services.AddScoped<ProductApi.Security.SyncRequestVerificationMiddleware>();
+builder.Services.AddScoped<ProductApi.Services.IVesselProvisioningService, ProductApi.Services.VesselProvisioningService>();
+builder.Services.AddScoped<ProductApi.Security.NodeApiTokenMiddleware>();
 
 builder.Services.AddRateLimiter(options =>
 {
@@ -509,6 +511,10 @@ Directory.CreateDirectory(Path.Combine(uploadsPath, "sync-staging"));
 app.UseCors("AllowWebMobile");
 app.UseRouting();
 app.UseRateLimiter();
+app.UseWhen(
+    context => ProductApi.Security.SyncRequestVerificationMiddleware.IsProtectedSyncRequest(context.Request) ||
+               context.Request.Path.StartsWithSegments("/api/sync", StringComparison.OrdinalIgnoreCase),
+    branch => branch.UseMiddleware<ProductApi.Security.NodeApiTokenMiddleware>());
 app.UseWhen(
     context => ProductApi.Security.SyncRequestVerificationMiddleware.IsProtectedSyncRequest(context.Request),
     branch => branch.UseMiddleware<ProductApi.Security.SyncRequestVerificationMiddleware>());

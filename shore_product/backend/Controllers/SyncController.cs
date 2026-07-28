@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using ProductApi.Data;
 using ProductApi.Models;
+using ProductApi.Security;
+using ProductApi.Services;
 using ProductApi.Services.Sync;
 using System.Text.Json;
 
@@ -25,6 +27,7 @@ public class SyncController : ControllerBase
     private readonly ISyncOutboxService _syncOutbox;
     private readonly ISyncFileTransferService _syncFileTransfer;
     private readonly ICrewSyncOrchestrator _crewSync;
+    private readonly IVesselProvisioningService _provisioningService;
     private readonly ILogger<SyncController> _logger;
 
     public SyncController(
@@ -33,6 +36,7 @@ public class SyncController : ControllerBase
         ISyncOutboxService syncOutbox,
         ISyncFileTransferService syncFileTransfer,
         ICrewSyncOrchestrator crewSync,
+        IVesselProvisioningService provisioningService,
         ILogger<SyncController> logger)
     {
         _context = context;
@@ -40,7 +44,64 @@ public class SyncController : ControllerBase
         _syncOutbox = syncOutbox;
         _syncFileTransfer = syncFileTransfer;
         _crewSync = crewSync;
+        _provisioningService = provisioningService;
         _logger = logger;
+    }
+
+    /// <summary>
+    /// POST /api/sync/handshake — Vessel Provisioning v3 (Component 3).
+    /// Edge calls this right after importing a provisioning package, using the raw NodeApiToken
+    /// (header X-Node-Api-Token) to prove which node it is. On success, Shore records
+    /// FirstHandshakeAt/LastHandshakeAt and advances ProvisioningStatus to PendingFirstContact.
+    /// </summary>
+    [HttpPost("handshake")]
+    public async Task<IActionResult> Handshake([FromBody] SyncHandshakeDto handshake)
+    {
+        var rawToken = Request.Headers[NodeApiTokenMiddleware.NodeApiTokenHeader].FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(rawToken))
+        {
+            return Unauthorized(new { error = "Missing X-Node-Api-Token header." });
+        }
+
+        var node = await _provisioningService.ValidateNodeTokenAsync(rawToken);
+        if (node == null)
+        {
+            return Unauthorized(new { error = "Invalid or revoked node API token." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(handshake.NodeId) &&
+            !string.Equals(node.NodeId, handshake.NodeId, StringComparison.Ordinal))
+        {
+            return BadRequest(new { error = "Token does not belong to the specified nodeId." });
+        }
+
+        var trackedNode = await _context.SyncNodeTrackers.AsTracking().FirstAsync(n => n.Id == node.Id);
+        var now = DateTime.UtcNow;
+
+        trackedNode.FirstHandshakeAt ??= now;
+        trackedNode.LastHandshakeAt = now;
+        trackedNode.LastHeartbeatAt = now;
+        trackedNode.IsOnline = true;
+        if (!string.IsNullOrWhiteSpace(handshake.NetworkType))
+            trackedNode.CurrentNetworkType = handshake.NetworkType;
+        if (trackedNode.ProvisioningStatus is "Provisioned" or "Downloaded")
+            trackedNode.ProvisioningStatus = "PendingFirstContact";
+        trackedNode.UpdatedAt = now;
+
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation(
+            "Handshake accepted for node {NodeId} (edgeVersion={EdgeVersion}, networkType={NetworkType})",
+            trackedNode.NodeId, handshake.EdgeVersion, handshake.NetworkType);
+
+        return Ok(new
+        {
+            accepted = true,
+            serverTime = now,
+            nodeId = trackedNode.NodeId,
+            vesselImo = trackedNode.ImoNumber,
+            provisioningStatus = trackedNode.ProvisioningStatus
+        });
     }
 
     /// <summary>
@@ -774,4 +835,13 @@ public class SyncHeartbeatDto
     public int PendingSyncItems { get; set; }
     /// <summary>UTC timestamp set by Edge just before sending — used to compute one-way latency.</summary>
     public DateTime? SentAt { get; set; }
+}
+
+/// <summary>Vessel Provisioning v3 — payload for POST /api/sync/handshake.</summary>
+public class SyncHandshakeDto
+{
+    public string? NodeId { get; set; }
+    public string? VesselImo { get; set; }
+    public string? EdgeVersion { get; set; }
+    public string? NetworkType { get; set; }
 }

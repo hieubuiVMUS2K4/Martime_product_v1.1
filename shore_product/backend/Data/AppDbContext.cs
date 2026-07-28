@@ -319,9 +319,14 @@ namespace ProductApi.Data
                 entity.HasIndex(e => e.IsOnline);
                 entity.HasIndex(e => e.IsRegistered);
                 entity.HasIndex(e => e.IsRevoked);
+                entity.HasIndex(e => e.NodeApiTokenHash);
+                entity.HasIndex(e => e.ProvisioningStatus);
                 entity.Property(e => e.SigningKey).HasMaxLength(500);
                 entity.Property(e => e.PreviousSigningKey).HasMaxLength(500);
                 entity.Property(e => e.RevokedReason).HasMaxLength(500);
+                entity.Property(e => e.ProvisioningStatus).HasMaxLength(30).HasDefaultValue("Unknown");
+                entity.Property(e => e.NodeApiTokenVersion).HasDefaultValue(1);
+                entity.Property(e => e.ConfigDownloadCount).HasDefaultValue(0);
             });
 
             modelBuilder.Entity<VoyageRecord>(entity =>
