@@ -43,29 +43,29 @@ const navItems: NavItemDef[] = [
   },
   { type: 'link', path: '/vessels', label: 'Danh sách tàu' },
   { type: 'link', path: '/vessels/tracking', label: '🛰️ Tracking' },
-  {
-    type: 'dropdown',
-    label: 'Thông tin',
-    groups: [
-      {
-        title: 'QUY TRÌNH',
-        items: [
-          { path: '/onboarding', label: 'Onboarding' },
-          { path: '/verification-queue', label: 'Xác minh' },
-          { path: '/compliance', label: 'Tuân thủ' },
-        ]
-      },
-      {
-        title: 'ĐIỀU PHỐI',
-        items: [   
-          { path: '/assignments', label: 'Phân công' },
-          { path: '/external-requests', label: 'Tuyển ngoài' },
-          { path: '/travel', label: 'Di chuyển' },
-          { path: '/onboard-events', label: 'Onboard' },
-        ]
-      }
-    ]
-  },
+  // {
+  //   type: 'dropdown',
+  //   label: 'Thông tin',
+  //   groups: [
+  //     {
+  //       title: 'QUY TRÌNH',
+  //       items: [
+  //         { path: '/onboarding', label: 'Onboarding' },
+  //         { path: '/verification-queue', label: 'Xác minh' },
+  //         { path: '/compliance', label: 'Tuân thủ' },
+  //       ]
+  //     },
+  //     {
+  //       title: 'ĐIỀU PHỐI',
+  //       items: [   
+  //         { path: '/assignments', label: 'Phân công' },
+  //         { path: '/external-requests', label: 'Tuyển ngoài' },
+  //         { path: '/travel', label: 'Di chuyển' },
+  //         { path: '/onboard-events', label: 'Onboard' },
+  //       ]
+  //     }
+  //   ]
+  // },
   { type: 'link', path: '/report', label: 'Báo cáo' },
   { type: 'link', path: '/sync',   label: 'Đồng bộ' },
 ];

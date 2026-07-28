@@ -2,6 +2,19 @@ import { apiClient, getAuthToken } from './api.client'
 import { API_CONFIG } from '@/config/app.config'
 import type { MaterialCategory, MaterialItem } from '@/types/maritime.types'
 
+// Danh mục vật tư của công ty (material_items — đồng bộ từ Shore)
+export interface MaterialCatalogItem {
+  id: string
+  itemCode: string
+  name: string
+  categoryId: number
+  categoryName?: string
+  unitPrice?: number | null
+  isActive: boolean
+  createdAt?: string
+  updatedAt?: string
+}
+
 // ============================================================
 // MATERIAL CATEGORY DTOs
 // ============================================================
@@ -217,6 +230,14 @@ export const materialService = {
     if (options?.q) params.append('q', options.q)
     if (options?.onlyActive !== undefined) params.append('onlyActive', String(options.onlyActive))
     return apiClient.get<MaterialItem[]>(`/material/items?${params}`)
+  },
+
+  // DANH MỤC vật tư của công ty (material_items, đồng bộ từ Shore) — chỉ đọc.
+  getCatalog: (options?: { categoryId?: number; q?: string }) => {
+    const params = new URLSearchParams()
+    if (options?.categoryId) params.append('categoryId', String(options.categoryId))
+    if (options?.q) params.append('q', options.q)
+    return apiClient.get<MaterialCatalogItem[]>(`/material/catalog?${params}`)
   },
 
   getItemsDetailed: (options?: { categoryId?: number; q?: string; onlyActive?: boolean }) => {
