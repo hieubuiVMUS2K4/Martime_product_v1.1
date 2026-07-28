@@ -16,15 +16,17 @@ public class SyncController : ControllerBase
     private readonly ISyncService _syncService;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _configuration;
+    private readonly IEdgeRuntimeConfigService _runtimeConfigService;
 
     public SyncController(EdgeDbContext context, ILogger<SyncController> logger, ISyncService syncService,
-        IHttpClientFactory httpClientFactory, IConfiguration configuration)
+        IHttpClientFactory httpClientFactory, IConfiguration configuration, IEdgeRuntimeConfigService runtimeConfigService)
     {
         _context = context;
         _logger = logger;
         _syncService = syncService;
         _httpClientFactory = httpClientFactory;
         _configuration = configuration;
+        _runtimeConfigService = runtimeConfigService;
     }
 
     [HttpGet("queue")]
@@ -72,7 +74,15 @@ public class SyncController : ControllerBase
             bool isOnline = false;
             try
             {
-                var shoreBaseUrl = _configuration["ShoreAPI:BaseUrl"];
+                string? shoreBaseUrl = null;
+                try
+                {
+                    var syncConfig = await _runtimeConfigService.GetSyncConfigAsync();
+                    shoreBaseUrl = syncConfig?.ShoreBaseUrl;
+                }
+                catch (ProvisioningRequiredException) { }
+                catch (ConfigInvalidException) { }
+
                 if (!string.IsNullOrEmpty(shoreBaseUrl))
                 {
                     var client = _httpClientFactory.CreateClient("ShoreAPI");

@@ -1,5 +1,6 @@
 using MaritimeEdge.Data;
 using MaritimeEdge.Models;
+using MaritimeEdge.Services.Core;
 using Microsoft.EntityFrameworkCore;
 
 namespace MaritimeEdge.Services.Voyage;
@@ -14,7 +15,7 @@ namespace MaritimeEdge.Services.Voyage;
         private readonly ILogger<TelemetrySimulatorService> _logger;
         private readonly IConfiguration _configuration;
         private readonly Random _random = new Random();
-    private readonly string _vesselImo;
+    private string _vesselImo = "UNKNOWN";
     
     // Counters for different update intervals
     private int _tickCounter = 0;
@@ -30,9 +31,6 @@ namespace MaritimeEdge.Services.Voyage;
         _serviceProvider = serviceProvider;
         _logger = logger;
         _configuration = configuration;
-        _vesselImo = _configuration["SyncSecurity:NodeId"]
-                  ?? _configuration["Vessel:IMO"]
-                  ?? "UNKNOWN";
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -58,6 +56,9 @@ namespace MaritimeEdge.Services.Voyage;
 
         // Wait 10 seconds before starting simulation
         await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
+
+        _vesselImo = await ResolveNodeIdAsync();
+        _logger.LogInformation("Telemetry Simulator using OriginNode: {NodeId}", _vesselImo);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -321,5 +322,32 @@ namespace MaritimeEdge.Services.Voyage;
             await dbContext.EnvironmentalData
             .Where(e => e.Timestamp < envCutoff)
             .ExecuteDeleteAsync();
+    }
+
+    /// <summary>
+    /// Vessel Provisioning v3: resolves NodeId via <see cref="IEdgeRuntimeConfigService"/> instead of
+    /// reading <c>_configuration["SyncSecurity:NodeId"]</c> directly. Cached once at service startup
+    /// (BackgroundService is Singleton) — a service restart is needed to pick up a newly activated
+    /// Managed profile. Falls back to "UNKNOWN" (does not throw) on Fail-Closed conditions.
+    /// </summary>
+    private async Task<string> ResolveNodeIdAsync()
+    {
+        try
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var runtimeConfigService = scope.ServiceProvider.GetRequiredService<IEdgeRuntimeConfigService>();
+            var syncConfig = await runtimeConfigService.GetSyncConfigAsync();
+            return syncConfig?.NodeId ?? "UNKNOWN";
+        }
+        catch (ProvisioningRequiredException ex)
+        {
+            _logger.LogWarning("Telemetry Simulator: NodeId unavailable — {Message}", ex.Message);
+            return "UNKNOWN";
+        }
+        catch (ConfigInvalidException ex)
+        {
+            _logger.LogError("Telemetry Simulator: NodeId unavailable — {Message}", ex.Message);
+            return "UNKNOWN";
+        }
     }
 }

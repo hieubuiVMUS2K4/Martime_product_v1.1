@@ -2,6 +2,7 @@ using System.Text.Json;
 using MaritimeEdge.Data;
 using MaritimeEdge.Models;
 using Maritime.Shared.Models.Sync;
+using MaritimeEdge.Services.Core;
 using Microsoft.EntityFrameworkCore;
 
 namespace MaritimeEdge.Services.Voyage;
@@ -21,7 +22,7 @@ public class EngineSyncEnqueuerService : BackgroundService
 
     private readonly int _intervalSeconds;
     private readonly int _batchSize;
-    private readonly string _vesselImo;
+    private string _vesselImo = "UNKNOWN";
 
     private static readonly JsonSerializerOptions _jsonOptions = new()
     {
@@ -41,12 +42,6 @@ public class EngineSyncEnqueuerService : BackgroundService
 
         _intervalSeconds = _configuration.GetValue("EngineSyncEnqueuer:IntervalSeconds", 30);
         _batchSize = _configuration.GetValue("EngineSyncEnqueuer:BatchSize", 100);
-
-        // Lấy IMO thực của tàu từ config (dùng để set OriginNode khớp với Shore)
-        _vesselImo = _configuration["SyncSecurity:NodeId"]
-                  ?? _configuration["Vessel:IMO"]
-                  ?? "UNKNOWN";
-        _logger.LogInformation("EngineSyncEnqueuer using OriginNode (IMO): {Imo}", _vesselImo);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -64,6 +59,9 @@ public class EngineSyncEnqueuerService : BackgroundService
 
         // Warmup delay
         await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
+
+        _vesselImo = await ResolveNodeIdAsync();
+        _logger.LogInformation("Engine Sync Enqueuer using OriginNode: {NodeId}", _vesselImo);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -167,5 +165,33 @@ public class EngineSyncEnqueuerService : BackgroundService
         _logger.LogInformation(
             "✅ Enqueued {Count} engine records to SyncQueue for sync to Shore",
             syncQueueItems.Count);
+    }
+
+    /// <summary>
+    /// Vessel Provisioning v3: resolves NodeId via <see cref="IEdgeRuntimeConfigService"/> instead of
+    /// reading <c>_configuration["SyncSecurity:NodeId"]</c> directly. Cached once at service startup
+    /// (BackgroundService is Singleton) — a service restart is needed to pick up a newly activated
+    /// Managed profile, which is acceptable since profile activation is an admin action, not a
+    /// per-request concern. Falls back to "UNKNOWN" (does not throw) on Fail-Closed conditions.
+    /// </summary>
+    private async Task<string> ResolveNodeIdAsync()
+    {
+        try
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var runtimeConfigService = scope.ServiceProvider.GetRequiredService<IEdgeRuntimeConfigService>();
+            var syncConfig = await runtimeConfigService.GetSyncConfigAsync();
+            return syncConfig?.NodeId ?? "UNKNOWN";
+        }
+        catch (ProvisioningRequiredException ex)
+        {
+            _logger.LogWarning("Engine Sync Enqueuer: NodeId unavailable — {Message}", ex.Message);
+            return "UNKNOWN";
+        }
+        catch (ConfigInvalidException ex)
+        {
+            _logger.LogError("Engine Sync Enqueuer: NodeId unavailable — {Message}", ex.Message);
+            return "UNKNOWN";
+        }
     }
 }

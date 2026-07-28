@@ -3,6 +3,7 @@ using MaritimeEdge.Data;
 using MaritimeEdge.Models;
 using Maritime.Shared.Interfaces;
 using Maritime.Shared.Models.Sync;
+using MaritimeEdge.Services.Core;
 using Microsoft.EntityFrameworkCore;
 
 namespace MaritimeEdge.Services.Sync;
@@ -27,7 +28,6 @@ public abstract class BaseSyncEnqueuerService<TEntity> : BackgroundService
 
     protected int IntervalSeconds { get; private set; }
     protected int BatchSize { get; private set; }
-    protected string VesselImo { get; private set; }
     protected abstract string ConfigPrefix { get; } // e.g., "AlertSyncEnqueuer", "PositionSyncEnqueuer"
     protected abstract string EntityTableName { get; } // e.g., "safety_alarm", "engine_event"
 
@@ -49,9 +49,6 @@ public abstract class BaseSyncEnqueuerService<TEntity> : BackgroundService
 
         IntervalSeconds = Configuration.GetValue($"{ConfigPrefix}:IntervalSeconds", 10);
         BatchSize = Configuration.GetValue($"{ConfigPrefix}:BatchSize", 50);
-        VesselImo = Configuration["SyncSecurity:NodeId"]
-                 ?? Configuration["Vessel:IMO"]
-                 ?? "UNKNOWN";
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -102,6 +99,9 @@ public abstract class BaseSyncEnqueuerService<TEntity> : BackgroundService
         var unsynced = await GetUnsyncedRecordsAsync(dbContext, ct);
         if (unsynced.Count == 0) return;
 
+        var runtimeConfigService = scope.ServiceProvider.GetRequiredService<IEdgeRuntimeConfigService>();
+        var nodeId = await ResolveNodeIdAsync(runtimeConfigService);
+
         Logger.LogInformation("Enqueuing {Count} {EntityType} records to SyncQueue", 
             unsynced.Count, EntityTableName);
 
@@ -127,7 +127,7 @@ public abstract class BaseSyncEnqueuerService<TEntity> : BackgroundService
             });
 
             entity.IsSynced = true;
-            entity.OriginNode = VesselImo;
+            entity.OriginNode = nodeId;
             entity.UpdatedAt = now;
         }
 
@@ -136,6 +136,34 @@ public abstract class BaseSyncEnqueuerService<TEntity> : BackgroundService
 
         Logger.LogInformation("✅ Enqueued {Count} {EntityType} records to SyncQueue", 
             syncQueueItems.Count, EntityTableName);
+    }
+
+    /// <summary>
+    /// Vessel Provisioning v3: resolves the current NodeId via <see cref="IEdgeRuntimeConfigService"/>
+    /// (Managed profile or Legacy config fallback) instead of caching a stale value from
+    /// <c>_configuration["SyncSecurity:NodeId"]</c> at service construction time. Falls back to
+    /// "UNKNOWN" (does NOT throw) on Fail-Closed conditions so record enqueueing is never blocked —
+    /// items are still queued locally and will simply carry an "UNKNOWN" origin until sync is
+    /// configured; the sync loop itself (SyncService) is the one that enforces Fail-Closed for
+    /// actually transmitting data to Shore.
+    /// </summary>
+    private async Task<string> ResolveNodeIdAsync(IEdgeRuntimeConfigService runtimeConfigService)
+    {
+        try
+        {
+            var syncConfig = await runtimeConfigService.GetSyncConfigAsync();
+            return syncConfig?.NodeId ?? "UNKNOWN";
+        }
+        catch (ProvisioningRequiredException ex)
+        {
+            Logger.LogWarning("{ServiceName}: NodeId unavailable — {Message}", GetType().Name, ex.Message);
+            return "UNKNOWN";
+        }
+        catch (ConfigInvalidException ex)
+        {
+            Logger.LogError("{ServiceName}: NodeId unavailable — {Message}", GetType().Name, ex.Message);
+            return "UNKNOWN";
+        }
     }
 
     /// <summary>

@@ -2,6 +2,7 @@ using System.Net.Sockets;
 using System.Text;
 using MaritimeEdge.Data;
 using MaritimeEdge.Models;
+using MaritimeEdge.Services.Core;
 using MaritimeEdge.Services.Parsers;
 using Microsoft.EntityFrameworkCore;
 
@@ -33,7 +34,7 @@ public class GpsCollectorService : BackgroundService
     private readonly int _maxReconnectDelayMs;
     private readonly int _bufferSize;
     private readonly bool _logRawNmea;
-    private readonly string _vesselImo;
+    private string _vesselImo = "UNKNOWN";
 
     // Trạng thái kết nối
     private int _reconnectAttempts;
@@ -57,9 +58,6 @@ public class GpsCollectorService : BackgroundService
         _maxReconnectDelayMs = _configuration.GetValue("GpsCollector:MaxReconnectDelayMs", 60000);
         _bufferSize = _configuration.GetValue("GpsCollector:ReadBufferSize", 4096);
         _logRawNmea = _configuration.GetValue("GpsCollector:LogRawNmea", false);
-        _vesselImo = _configuration["SyncSecurity:NodeId"]
-                  ?? _configuration["Vessel:IMO"]
-                  ?? "UNKNOWN";
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -77,6 +75,9 @@ public class GpsCollectorService : BackgroundService
 
         // Warmup delay
         await Task.Delay(TimeSpan.FromSeconds(3), stoppingToken);
+
+        _vesselImo = await ResolveNodeIdAsync();
+        _logger.LogInformation("GPS Collector Service using OriginNode: {NodeId}", _vesselImo);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -395,5 +396,34 @@ public class GpsCollectorService : BackgroundService
     {
         Disconnect();
         base.Dispose();
+    }
+
+    /// <summary>
+    /// Vessel Provisioning v3: resolves NodeId via <see cref="IEdgeRuntimeConfigService"/> instead of
+    /// reading <c>_configuration["SyncSecurity:NodeId"]</c> directly. Cached once at service startup
+    /// (BackgroundService is Singleton) — a service restart is needed to pick up a newly activated
+    /// Managed profile, which is acceptable given the high-frequency (per-NMEA-sentence) usage of this
+    /// value; resolving per-sentence would add unnecessary DB load. Falls back to "UNKNOWN" (does not
+    /// throw) on Fail-Closed conditions.
+    /// </summary>
+    private async Task<string> ResolveNodeIdAsync()
+    {
+        try
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var runtimeConfigService = scope.ServiceProvider.GetRequiredService<IEdgeRuntimeConfigService>();
+            var syncConfig = await runtimeConfigService.GetSyncConfigAsync();
+            return syncConfig?.NodeId ?? "UNKNOWN";
+        }
+        catch (ProvisioningRequiredException ex)
+        {
+            _logger.LogWarning("GPS Collector Service: NodeId unavailable — {Message}", ex.Message);
+            return "UNKNOWN";
+        }
+        catch (ConfigInvalidException ex)
+        {
+            _logger.LogError("GPS Collector Service: NodeId unavailable — {Message}", ex.Message);
+            return "UNKNOWN";
+        }
     }
 }

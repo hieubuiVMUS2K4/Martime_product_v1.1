@@ -6,6 +6,7 @@ using MaritimeEdge.Models;
 using MaritimeEdge.DTOs;
 using MaritimeEdge.Services.Maintenance;
 using MaritimeEdge.Services.Voyage;
+using MaritimeEdge.Services.Core;
 using System.Text.Json;
 
 namespace MaritimeEdge.Services.Reporting;
@@ -81,6 +82,7 @@ public class ReportingService : IReportingService
     private readonly IConfiguration _configuration;
     private readonly IVoyageContextService _voyageContext;
     private readonly IMapper _mapper;
+    private readonly IEdgeRuntimeConfigService _runtimeConfigService;
     private static readonly TimeSpan CacheDuration = TimeSpan.FromHours(24);
 
     public ReportingService(
@@ -90,7 +92,8 @@ public class ReportingService : IReportingService
         IHttpClientFactory httpClientFactory,
         IConfiguration configuration,
         IVoyageContextService voyageContext,
-        IMapper mapper)
+        IMapper mapper,
+        IEdgeRuntimeConfigService runtimeConfigService)
     {
         _context = context;
         _logger = logger;
@@ -99,6 +102,7 @@ public class ReportingService : IReportingService
         _configuration = configuration;
         _voyageContext = voyageContext;
         _mapper = mapper;
+        _runtimeConfigService = runtimeConfigService;
     }
 
     // ============================================================
@@ -1813,8 +1817,21 @@ public class ReportingService : IReportingService
     /// </summary>
     private async Task<(bool Success, string? Error)> SendReportToShoreAsync(List<Maritime.Shared.DTOs.Sync.SyncQueueItemDto> items)
     {
-        var baseUrl = _configuration["ShoreAPI:BaseUrl"];
         var enabled = _configuration.GetValue("ShoreAPI:Enabled", true);
+        string? baseUrl = null;
+        try
+        {
+            var syncConfig = await _runtimeConfigService.GetSyncConfigAsync();
+            baseUrl = syncConfig?.ShoreBaseUrl;
+        }
+        catch (ProvisioningRequiredException ex)
+        {
+            _logger.LogWarning("SendReportToShoreAsync: Shore base URL unavailable — {Message}", ex.Message);
+        }
+        catch (ConfigInvalidException ex)
+        {
+            _logger.LogError("SendReportToShoreAsync: Shore base URL unavailable — {Message}", ex.Message);
+        }
 
         if (!enabled || string.IsNullOrEmpty(baseUrl))
         {
@@ -1848,6 +1865,31 @@ public class ReportingService : IReportingService
         catch (TaskCanceledException)
         {
             return (false, "Request timed out");
+        }
+    }
+
+    /// <summary>
+    /// Vessel Provisioning v3: resolves NodeId via <see cref="IEdgeRuntimeConfigService"/> instead of
+    /// reading <c>_configuration["Vessel:IMO"]</c> directly. Falls back to "UNKNOWN" (does not throw)
+    /// on Fail-Closed conditions so report transmission is never blocked at this stage — the actual
+    /// gate-keeping for whether data reaches Shore happens in SendReportToShoreAsync/SyncService.
+    /// </summary>
+    private async Task<string> ResolveNodeIdAsync()
+    {
+        try
+        {
+            var syncConfig = await _runtimeConfigService.GetSyncConfigAsync();
+            return syncConfig?.NodeId ?? "UNKNOWN";
+        }
+        catch (ProvisioningRequiredException ex)
+        {
+            _logger.LogWarning("BuildReportSyncItemsAsync: NodeId unavailable — {Message}", ex.Message);
+            return "UNKNOWN";
+        }
+        catch (ConfigInvalidException ex)
+        {
+            _logger.LogError("BuildReportSyncItemsAsync: NodeId unavailable — {Message}", ex.Message);
+            return "UNKNOWN";
         }
     }
 
@@ -1959,7 +2001,7 @@ public class ReportingService : IReportingService
     /// </summary>
     private async Task<List<Maritime.Shared.DTOs.Sync.SyncQueueItemDto>> BuildReportSyncItemsAsync(MaritimeReport report)
     {
-        var nodeId = _configuration["Vessel:IMO"] ?? "UNKNOWN";
+        var nodeId = await ResolveNodeIdAsync();
         var items = new List<Maritime.Shared.DTOs.Sync.SyncQueueItemDto>();
 
         // Override OriginNode to match vessel IMO so Shore can correlate with Vessels table

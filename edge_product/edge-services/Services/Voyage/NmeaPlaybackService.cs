@@ -1,5 +1,6 @@
 using MaritimeEdge.Data;
 using MaritimeEdge.Models;
+using MaritimeEdge.Services.Core;
 using MaritimeEdge.Services.Parsers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -19,7 +20,7 @@ public class NmeaPlaybackService : BackgroundService
     private readonly ILogger<NmeaPlaybackService> _logger;
     private readonly IConfiguration _configuration;
     private readonly NmeaParser _nmeaParser;
-    private readonly string _vesselImo;
+    private string _vesselImo = "UNKNOWN";
 
     public NmeaPlaybackService(
         IServiceProvider serviceProvider,
@@ -31,9 +32,6 @@ public class NmeaPlaybackService : BackgroundService
         _logger = logger;
         _configuration = configuration;
         _nmeaParser = nmeaParser;
-        _vesselImo = _configuration["SyncSecurity:NodeId"]
-                  ?? _configuration["Vessel:IMO"]
-                  ?? "UNKNOWN";
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -69,6 +67,9 @@ public class NmeaPlaybackService : BackgroundService
 
         // ── RESUME LOGIC: Tìm dòng NMEA gần nhất với vị trí cuối trong DB ──
         int currentLine = await FindResumeLineAsync(allLines);
+
+        _vesselImo = await ResolveNodeIdAsync();
+        _logger.LogInformation("NMEA Playback Service using OriginNode: {NodeId}", _vesselImo);
 
         if (currentLine > 0)
         {
@@ -201,6 +202,33 @@ public class NmeaPlaybackService : BackgroundService
         {
             _logger.LogWarning(ex, "Failed to find resume line in NMEA file. Starting from beginning.");
             return 0;
+        }
+    }
+
+    /// <summary>
+    /// Vessel Provisioning v3: resolves NodeId via <see cref="IEdgeRuntimeConfigService"/> instead of
+    /// reading <c>_configuration["SyncSecurity:NodeId"]</c> directly. Cached once at service startup
+    /// (BackgroundService is Singleton) — a service restart is needed to pick up a newly activated
+    /// Managed profile. Falls back to "UNKNOWN" (does not throw) on Fail-Closed conditions.
+    /// </summary>
+    private async Task<string> ResolveNodeIdAsync()
+    {
+        try
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var runtimeConfigService = scope.ServiceProvider.GetRequiredService<IEdgeRuntimeConfigService>();
+            var syncConfig = await runtimeConfigService.GetSyncConfigAsync();
+            return syncConfig?.NodeId ?? "UNKNOWN";
+        }
+        catch (ProvisioningRequiredException ex)
+        {
+            _logger.LogWarning("NMEA Playback Service: NodeId unavailable — {Message}", ex.Message);
+            return "UNKNOWN";
+        }
+        catch (ConfigInvalidException ex)
+        {
+            _logger.LogError("NMEA Playback Service: NodeId unavailable — {Message}", ex.Message);
+            return "UNKNOWN";
         }
     }
 }
