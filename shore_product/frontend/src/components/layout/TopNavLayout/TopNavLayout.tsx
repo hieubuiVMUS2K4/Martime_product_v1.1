@@ -37,6 +37,7 @@ const navItems: NavItemDef[] = [
           { path: '/categories?tab=materials', label: 'Vật tư' },
           { path: '/categories?tab=ranks', label: 'Chức danh' },
           { path: '/categories?tab=countries', label: 'Quốc gia' },
+          { path: '/categories?tab=ports', label: 'Cảng' },
         ]
       }
     ]
@@ -66,6 +67,7 @@ const navItems: NavItemDef[] = [
   //     }
   //   ]
   // },
+  { type: 'link', path: '/sign-off-requests', label: 'Duyệt xuống tàu' },
   { type: 'link', path: '/report', label: 'Báo cáo' },
   { type: 'link', path: '/sync',   label: 'Đồng bộ' },
 ];

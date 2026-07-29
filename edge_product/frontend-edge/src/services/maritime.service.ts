@@ -239,6 +239,43 @@ export class MaritimeService {
       this.request<{ message: string }>(`/crew/${crewMemberId}/logbook/${entryId}`, {
         method: 'DELETE'
       }),
+
+    /** Tàu đề nghị cho thuyền viên xuống tàu — phải chờ bờ duyệt mới có hiệu lực */
+    requestSignOff: (
+      crewMemberId: string,
+      entryId: string,
+      data: {
+        signOffDate?: string
+        portCode?: string
+        portName?: string
+        reason: string
+        requestedBy?: string
+        conduct?: string
+        remarks?: string
+      }
+    ) =>
+      this.request<CrewLogbookEntry>(`/crew/${crewMemberId}/logbook/${entryId}/request-sign-off`, {
+        method: 'POST',
+        body: JSON.stringify(data)
+      }),
+
+    /** Sau khi bờ từ chối: sửa rồi gửi lại (resubmit=true) hoặc huỷ hẳn (false) */
+    signOffFollowUp: (
+      crewMemberId: string,
+      entryId: string,
+      data: {
+        resubmit: boolean
+        signOffDate?: string
+        portCode?: string
+        portName?: string
+        reason?: string
+        requestedBy?: string
+      }
+    ) =>
+      this.request<CrewLogbookEntry>(`/crew/${crewMemberId}/logbook/${entryId}/sign-off-follow-up`, {
+        method: 'POST',
+        body: JSON.stringify(data)
+      }),
   }
 
   // === CERTIFICATE MANAGEMENT ===

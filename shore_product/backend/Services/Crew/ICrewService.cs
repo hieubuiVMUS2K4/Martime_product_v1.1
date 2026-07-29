@@ -78,4 +78,18 @@ public interface ICrewService
 
     /// <summary>Unassign a crew member from vessel (set VesselId=null, IsOnboard=false, DisembarkDate).</summary>
     Task<CrewMemberDto?> UnassignFromVesselAsync(Guid crewId);
+
+    /// <summary>
+    /// Cho thuyền viên xuống tàu từ bờ — đóng kỳ phục vụ trong sổ thuyền viên.
+    /// Bờ có thẩm quyền quyết định ngay, khác với đường từ tàu (phải chờ bờ duyệt).
+    /// </summary>
+    Task<CrewMemberDto?> SignOffFromVesselAsync(
+        Guid crewId,
+        DateTime? signOffDate,
+        string? portCode,
+        string? portName,
+        string? reason,
+        string? signedOffBy,
+        string? conduct,
+        string? remarks);
 }

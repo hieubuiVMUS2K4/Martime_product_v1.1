@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MaritimeEdge.Data;
 using MaritimeEdge.Models;
@@ -216,4 +216,5 @@ public class PortController : ControllerBase
 
         return Ok(countries);
     }
+
 }

@@ -184,25 +184,33 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
         setBookMeta(defaultMeta);
       }
 
-      // Parse Sea Service entries
+      // Sea Service entries — đọc từ CỘT THẬT trước.
+      // Mục cũ (tạo trước khi tách cột) vẫn giữ dữ liệu trong chuỗi JSON ở `description`,
+      // nên vẫn thử parse để chúng hiển thị được; cột thật luôn thắng khi có giá trị.
       const serviceEntries = allEntries.filter(e => e.entryType === 'SEA_SERVICE');
       const parsedServices = serviceEntries.map(e => {
-        let details: SeaServiceDetails = {
-          callSign: '',
-          imoNumber: '',
-          flagState: 'VIỆT NAM',
-          grossTonnage: '',
-          enginePower: '',
-          rank: '',
-          signOnDate: '',
-          signOnPort: '',
-          signOffDate: '',
-          signOffPort: '',
-          conduct: 'Tốt / Good'
-        };
+        let legacy: Partial<SeaServiceDetails> = {};
         try {
-          details = { ...details, ...JSON.parse(e.description) };
-        } catch { /* ignore */ }
+          legacy = JSON.parse(e.description) ?? {};
+        } catch { /* mục mới: description là câu chữ thường, không phải JSON */ }
+
+        const details: SeaServiceDetails = {
+          callSign: e.callSign ?? legacy.callSign ?? '',
+          imoNumber: e.imoNumber ?? legacy.imoNumber ?? '',
+          flagState: e.vesselFlag ?? legacy.flagState ?? '',
+          grossTonnage: e.grossTonnage != null
+            ? `${e.grossTonnage.toLocaleString('en-US')} GT`
+            : (legacy.grossTonnage ?? ''),
+          enginePower: e.mainEnginePowerKw != null
+            ? `${e.mainEnginePowerKw.toLocaleString('en-US')} kW`
+            : (legacy.enginePower ?? ''),
+          rank: e.rankAtTime ?? legacy.rank ?? '',
+          signOnDate: e.signOnDate ?? legacy.signOnDate ?? '',
+          signOnPort: e.signOnPortName ?? legacy.signOnPort ?? '',
+          signOffDate: e.signOffDate ?? legacy.signOffDate ?? '',
+          signOffPort: e.signOffPortName ?? legacy.signOffPort ?? '',
+          conduct: e.conduct ?? legacy.conduct ?? '',
+        };
         return { entry: e, details };
       });
 
@@ -672,15 +680,22 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                         )}
                       </td>
                       <td className="px-4 py-3.5">
-                        <div className="font-bold text-slate-800 uppercase tracking-wider text-xs">{entry.title}</div>
-                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">IMO {details.imoNumber || '---'}</div>
+                        <div className="font-bold text-slate-800 uppercase tracking-wider text-xs">{entry.vesselName || entry.title}</div>
+                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                          {details.imoNumber ? `IMO ${details.imoNumber}` : 'IMO ---'}
+                          {details.callSign && <span className="ml-2">{details.callSign}</span>}
+                        </div>
                       </td>
                       <td className="px-4 py-3.5">
-                        <div className="text-slate-650 font-semibold">{details.flagState}</div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">{details.grossTonnage} / {details.enginePower}</div>
+                        <div className="text-slate-650 font-semibold">{details.flagState || '---'}</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">
+                          {[details.grossTonnage, details.enginePower, entry.vesselType].filter(Boolean).join(' · ') || '---'}
+                        </div>
                       </td>
                       <td className="px-4 py-3.5">
-                        <span className="inline-flex px-2 py-0.5 rounded bg-teal-50 text-teal-700 font-semibold border border-teal-100">{details.rank}</span>
+                        {details.rank
+                          ? <span className="inline-flex px-2 py-0.5 rounded bg-teal-50 text-teal-700 font-semibold border border-teal-100">{details.rank}</span>
+                          : <span className="text-slate-300">---</span>}
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="font-bold text-green-700">{details.signOnDate ? new Date(details.signOnDate).toLocaleDateString('vi-VN') : '---'}</div>
@@ -692,6 +707,23 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                             <div className="font-bold text-rose-700">{new Date(details.signOffDate).toLocaleDateString('vi-VN')}</div>
                             <div className="text-[10px] text-slate-500 mt-0.5">{details.signOffPort}</div>
                           </>
+                        ) : entry.recordStatus === 'DRAFT' ? (
+                          <span className="inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-100">
+                            Đã phân công / Assigned
+                          </span>
+                        ) : entry.recordStatus === 'PENDING_APPROVAL' ? (
+                          <span className="inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold bg-orange-50 text-orange-700 border border-orange-100">
+                            Chờ bờ duyệt / Pending
+                          </span>
+                        ) : entry.recordStatus === 'REJECTED' ? (
+                          <div>
+                            <span className="inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold bg-red-50 text-red-700 border border-red-200">
+                              Bờ từ chối / Rejected
+                            </span>
+                            <div className="text-[10px] text-red-600 mt-0.5 max-w-[180px]" title={entry.rejectionReason ?? ''}>
+                              {entry.rejectionReason}
+                            </div>
+                          </div>
                         ) : (
                           <span className="inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
                             Đang đi tàu / Onboard

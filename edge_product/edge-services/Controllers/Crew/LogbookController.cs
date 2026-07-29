@@ -10,6 +10,34 @@ using System.Threading.Tasks;
 
 namespace MaritimeEdge.Controllers.Crew;
 
+/// <summary>Tàu đề nghị cho một thuyền viên xuống tàu. Phải chờ bờ duyệt mới có hiệu lực.</summary>
+public class SignOffRequestDto
+{
+    public DateTime? SignOffDate { get; set; }
+    public string? PortCode { get; set; }
+    public string? PortName { get; set; }
+
+    /// <summary>Lý do — BẮT BUỘC. Bờ cần biết vì sao để quyết định duyệt hay không.</summary>
+    public string Reason { get; set; } = string.Empty;
+
+    public string? RequestedBy { get; set; }
+    public string? Conduct { get; set; }
+    public string? Remarks { get; set; }
+}
+
+/// <summary>Tàu phản hồi sau khi bờ từ chối: sửa lại rồi gửi tiếp, hoặc bỏ hẳn ý định.</summary>
+public class SignOffFollowUpDto
+{
+    /// <summary>true = gửi lại sau khi sửa; false = đồng ý huỷ việc xuống tàu.</summary>
+    public bool Resubmit { get; set; }
+
+    public DateTime? SignOffDate { get; set; }
+    public string? PortCode { get; set; }
+    public string? PortName { get; set; }
+    public string? Reason { get; set; }
+    public string? RequestedBy { get; set; }
+}
+
 /// <summary>
 /// REST Controller for Managing Crew Member Logbook Entries (Edge-side)
 /// </summary>
@@ -387,5 +415,181 @@ public class LogbookController : ControllerBase
             _logger.LogError(ex, "Error deleting logbook entry {Id} on Edge for crew {CrewId}", entryId, crewMemberId);
             return StatusCode(500, new { error = "Internal server error" });
         }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // XUỐNG TÀU — đường từ tàu, phải chờ bờ phê duyệt
+    // ════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// POST /api/crew/{crewMemberId}/logbook/{entryId}/request-sign-off
+    /// Tàu đề nghị cho thuyền viên xuống tàu. Kỳ phục vụ chuyển sang PENDING_APPROVAL và
+    /// chờ bờ quyết định — trong lúc chờ, người đó VẪN đang phục vụ bình thường.
+    /// </summary>
+    [HttpPost("{entryId:guid}/request-sign-off")]
+    public async Task<IActionResult> RequestSignOff(Guid crewMemberId, Guid entryId, [FromBody] SignOffRequestDto dto)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(dto.Reason))
+                return BadRequest(new { error = "Phải ghi lý do cho xuống tàu" });
+
+            var entry = await _context.CrewLogbookEntries
+                .FirstOrDefaultAsync(e => e.Id == entryId && e.CrewMemberId == crewMemberId);
+            if (entry == null) return NotFound(new { error = "Không tìm thấy kỳ phục vụ" });
+
+            if (entry.RecordStatus == "CLOSED")
+                return BadRequest(new { error = "Kỳ phục vụ đã đóng, không đề nghị lại được" });
+            if (entry.RecordStatus == "PENDING_APPROVAL")
+                return BadRequest(new { error = "Đã có đề nghị đang chờ bờ duyệt" });
+
+            var when = NormalizeUtc(dto.SignOffDate) ?? DateTime.UtcNow;
+            if (entry.SignOnDate.HasValue && when < entry.SignOnDate.Value)
+                return BadRequest(new { error = "Ngày rời tàu không thể trước ngày lên tàu" });
+
+            entry.RecordStatus = "PENDING_APPROVAL";
+            entry.SignOffRequestedBy = dto.RequestedBy;
+            entry.SignOffRequestedAt = DateTime.UtcNow;
+            entry.SignOffRequestReason = dto.Reason;
+
+            // Ngày/cảng là ĐỀ NGHỊ, chưa chính thức — chỉ chốt khi bờ duyệt
+            entry.SignOffDate = when;
+            entry.SignOffPortCode = dto.PortCode;
+            entry.SignOffPortName = dto.PortName;
+            if (!string.IsNullOrWhiteSpace(dto.Conduct)) entry.Conduct = dto.Conduct;
+            if (!string.IsNullOrWhiteSpace(dto.Remarks)) entry.Notes = dto.Remarks;
+
+            AppendApprovalHistory(entry, "REQUEST", dto.RequestedBy, dto.Reason);
+            await SaveAndQueueAsync(entry);
+
+            _logger.LogInformation("Tàu đề nghị cho {CrewId} xuống tàu, lý do: {Reason}", crewMemberId, dto.Reason);
+            return Ok(entry);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi khi đề nghị cho xuống tàu, kỳ {Id}", entryId);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// POST /api/crew/{crewMemberId}/logbook/{entryId}/sign-off-follow-up
+    /// Sau khi bờ từ chối: tàu sửa lại rồi gửi tiếp (Resubmit = true),
+    /// hoặc đồng ý huỷ luôn việc xuống tàu (Resubmit = false) — kỳ quay về đang phục vụ.
+    /// </summary>
+    [HttpPost("{entryId:guid}/sign-off-follow-up")]
+    public async Task<IActionResult> SignOffFollowUp(Guid crewMemberId, Guid entryId, [FromBody] SignOffFollowUpDto dto)
+    {
+        try
+        {
+            var entry = await _context.CrewLogbookEntries
+                .FirstOrDefaultAsync(e => e.Id == entryId && e.CrewMemberId == crewMemberId);
+            if (entry == null) return NotFound(new { error = "Không tìm thấy kỳ phục vụ" });
+
+            if (entry.RecordStatus != "REJECTED")
+                return BadRequest(new { error = "Chỉ dùng được sau khi bờ từ chối" });
+
+            if (dto.Resubmit)
+            {
+                if (string.IsNullOrWhiteSpace(dto.Reason))
+                    return BadRequest(new { error = "Phải ghi lý do khi gửi lại" });
+
+                var when = NormalizeUtc(dto.SignOffDate) ?? entry.SignOffDate ?? DateTime.UtcNow;
+                if (entry.SignOnDate.HasValue && when < entry.SignOnDate.Value)
+                    return BadRequest(new { error = "Ngày rời tàu không thể trước ngày lên tàu" });
+
+                entry.RecordStatus = "PENDING_APPROVAL";
+                entry.SignOffDate = when;
+                entry.SignOffPortCode = dto.PortCode ?? entry.SignOffPortCode;
+                entry.SignOffPortName = dto.PortName ?? entry.SignOffPortName;
+                entry.SignOffRequestReason = dto.Reason;
+                entry.SignOffRequestedBy = dto.RequestedBy;
+                entry.SignOffRequestedAt = DateTime.UtcNow;
+                AppendApprovalHistory(entry, "RESUBMIT", dto.RequestedBy, dto.Reason);
+            }
+            else
+            {
+                // Huỷ ý định xuống tàu — xoá sạch dấu vết đề nghị, người đó phục vụ tiếp
+                entry.RecordStatus = "OPEN";
+                entry.SignOffDate = null;
+                entry.SignOffPortCode = null;
+                entry.SignOffPortName = null;
+                entry.SignOffRequestReason = null;
+                entry.SignOffRequestedBy = null;
+                entry.SignOffRequestedAt = null;
+                AppendApprovalHistory(entry, "CANCELLED", dto.RequestedBy, "Tàu đồng ý huỷ việc xuống tàu");
+            }
+
+            await SaveAndQueueAsync(entry);
+            return Ok(entry);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi khi phản hồi từ chối, kỳ {Id}", entryId);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    // ── Helpers ─────────────────────────────────────────────────
+
+    private static DateTime? NormalizeUtc(DateTime? value)
+        => value.HasValue ? DateTime.SpecifyKind(value.Value, DateTimeKind.Utc) : null;
+
+    /// <summary>
+    /// Ghi thêm một vòng vào nhật ký phê duyệt. Giữ CẢ lịch sử thay vì ghi đè lần cuối —
+    /// sau vài vòng đề nghị / từ chối / gửi lại vẫn tra được đã bàn những gì.
+    /// </summary>
+    private static void AppendApprovalHistory(
+        Maritime.Shared.Models.Crew.CrewLogbookEntry entry, string action, string? by, string? note)
+    {
+        var rounds = new System.Collections.Generic.List<System.Text.Json.JsonElement>();
+        if (!string.IsNullOrWhiteSpace(entry.ApprovalHistory))
+        {
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(entry.ApprovalHistory);
+                if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    foreach (var el in doc.RootElement.EnumerateArray()) rounds.Add(el.Clone());
+            }
+            catch { /* nhật ký hỏng — bắt đầu lại, không làm hỏng thao tác chính */ }
+        }
+
+        var entryJson = System.Text.Json.JsonSerializer.SerializeToElement(new
+        {
+            at = DateTime.UtcNow,
+            action,
+            by,
+            note,
+            source = "EDGE"
+        });
+        rounds.Add(entryJson);
+        entry.ApprovalHistory = System.Text.Json.JsonSerializer.Serialize(rounds);
+    }
+
+    private async Task SaveAndQueueAsync(Maritime.Shared.Models.Crew.CrewLogbookEntry entry)
+    {
+        entry.UpdatedAt = DateTime.UtcNow;
+        entry.IsSynced = false;
+        entry.SyncVersion += 1;
+
+        _context.CrewLogbookEntries.Update(entry);
+        await _context.SaveChangesAsync();
+
+        _context.SyncQueue.Add(new SyncQueue
+        {
+            TableName = "crew_logbook_entry",
+            RecordKey = entry.Id.ToString(),
+            ActionType = SyncActionType.SNAPSHOT,
+            Payload = System.Text.Json.JsonSerializer.Serialize(entry, new System.Text.Json.JsonSerializerOptions
+            {
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
+            }),
+            Priority = SyncPriority.Operational,
+            CreatedAt = DateTime.UtcNow,
+            RetryCount = 0,
+            MaxRetries = 5
+        });
+        await _context.SaveChangesAsync();
     }
 }
