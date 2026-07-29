@@ -1,13 +1,16 @@
 /* Design Tokens / CSS Variables — Shore Command Center Theme */
 :root {
-  /* Brand Colors — Deep teal / sea-chart palette (Shore identity) */
-  --color-primary: #134e4a;
-  --color-primary-light: #1a6b64;
-  --color-primary-lighter: #e6f5f3;
-  --color-primary-hover: #0d3d3a;
-  --color-accent: #14b8a6;
-  --color-accent-hover: #0d9488;
-  --color-accent-light: #ccfbf1;
+  /* Brand Colors — Navy (Shore identity).
+     Bộ biến này chi phối TẤT CẢ hộp thoại thêm/sửa của phân hệ bờ, nên đổi ở đây
+     là các modal ăn theo mà không phải sửa từng file. Trước đây là teal, lệch hẳn
+     với thanh điều hướng và bảng đã chuyển sang navy. */
+  --color-primary: #0b2545;
+  --color-primary-light: #1b4c7e;
+  --color-primary-lighter: #eef2f7;
+  --color-primary-hover: #16375f;
+  --color-accent: #1b4c7e;
+  --color-accent-hover: #16375f;
+  --color-accent-light: #dce9f8;
 
   /* Semantic */
   --color-success: #10b981;
@@ -20,17 +23,17 @@
   --color-info-light: #cffafe;
 
   /* Neutral */
-  --color-background: #f0fdfa;
+  --color-background: #f5f7fa;
   --color-surface: #ffffff;
-  --color-surface-hover: #f0fdfa;
-  --color-border: #d1e7e4;
-  --color-border-light: #e6f5f3;
-  --color-divider: #d1e7e4;
+  --color-surface-hover: #eef2f7;
+  --color-border: #d6dee8;
+  --color-border-light: #eef2f7;
+  --color-divider: #d6dee8;
 
   /* Text */
-  --color-text: #0c1e1c;
-  --color-text-secondary: #3d5856;
-  --color-text-light: #7c9a97;
+  --color-text: #14202e;
+  --color-text-secondary: #475569;
+  --color-text-light: #94a3b8;
   --color-text-inverse: #ffffff;
 
   /* Spacing */

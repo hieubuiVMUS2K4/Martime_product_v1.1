@@ -196,3 +196,19 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Nút Lưu / Cập nhật của mọi hộp thoại danh mục.
+   .btn-primary được khai ở nhiều file (Button.css và 3 file trong AssignmentManagement)
+   với cùng độ ưu tiên, nên file nào gộp sau thì thắng — nút từng bị kéo về xanh ngọc dù
+   Button.css đã trỏ đúng biến. Luật này có phạm vi .cfm-footer nên ưu tiên cao hơn hẳn,
+   không file nào đè được nữa. */
+.cfm-footer .btn-primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+.cfm-footer .btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+.cfm-footer .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }

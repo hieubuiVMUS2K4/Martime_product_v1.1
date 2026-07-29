@@ -2,7 +2,7 @@
 
 .back-btn {
   display: inline-flex; align-items: center; gap: 6px;
-  background: none; border: none; cursor: pointer; color: #14b8a6;
+  background: none; border: none; cursor: pointer; color: var(--color-primary);
   font-size: 0.84rem; font-weight: 500; margin-bottom: 16px; padding: 0;
 }
 .back-btn:hover { text-decoration: underline; }
@@ -70,7 +70,7 @@
 }
 .severity-blocker { color: #ef4444; }
 .severity-warning { color: #f59e0b; }
-.severity-info { color: #14b8a6; }
+.severity-info { color: var(--color-primary); }
 
 /* Comments */
 .comment-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
@@ -86,14 +86,14 @@
   flex: 1; border: 1px solid #e2e8f0; border-radius: 8px;
   padding: 8px 12px; font-size: 0.84rem; outline: none;
 }
-.comment-input input:focus { border-color: #14b8a6; }
+.comment-input input:focus { border-color: var(--color-primary); }
 
 /* History timeline */
 .history-timeline { display: flex; flex-direction: column; gap: 12px; }
 .history-item { display: flex; gap: 10px; position: relative; }
 .history-dot {
   width: 10px; height: 10px; border-radius: 50%;
-  background: #14b8a6; margin-top: 4px; flex-shrink: 0;
+  background: var(--color-primary); margin-top: 4px; flex-shrink: 0;
 }
 .history-content { flex: 1; }
 .history-transition { font-size: 0.84rem; font-weight: 500; color: #1a202c; }
@@ -105,9 +105,9 @@
 .btn-primary {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 8px 16px; border-radius: 8px; border: none;
-  background: #14b8a6; color: #fff; font-size: 0.82rem; font-weight: 500; cursor: pointer;
+  background: var(--color-primary); color: #fff; font-size: 0.82rem; font-weight: 500; cursor: pointer;
 }
-.btn-primary:hover { background: #0d9488; }
+.btn-primary:hover { background: var(--color-primary-hover); }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-secondary {
   display: inline-flex; align-items: center; gap: 5px;

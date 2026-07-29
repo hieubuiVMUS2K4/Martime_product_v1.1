@@ -310,10 +310,10 @@ export function VesselCrewTab({ vesselId, vesselName }: VesselCrewTabProps) {
                       onContextMenu={(e) => handleContextMenu(e, crewMember)}
                       className={`cl-tr${idx % 2 === 1 ? ' cl-tr--alt' : ''}${selectedCrew === crewMember.id ? ' cl-tr--selected' : ''}`}
                     >
-                      <td style={{ borderRight: '1px solid #edf2f8' }}>
+                      <td >
                         <span style={{ fontFamily: 'monospace', fontSize: '12px', color: 'var(--moc-muted)' }}>{crewMember.crewId}</span>
                       </td>
-                      <td style={{ borderRight: '1px solid #edf2f8' }}>
+                      <td >
                         <span style={{ fontWeight: 600, color: 'var(--moc-blue)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
                           onClick={() => handleViewCrew(crewMember)}>
                           {crewMember.fullName}
@@ -325,13 +325,13 @@ export function VesselCrewTab({ vesselId, vesselName }: VesselCrewTabProps) {
                           )}
                         </span>
                       </td>
-                      <td style={{ borderRight: '1px solid #edf2f8' }}>
+                      <td >
                         {crewMember.rank?.rankName || crewMember.rank?.name || '-'}
                       </td>
-                      <td style={{ borderRight: '1px solid #edf2f8', color: 'var(--moc-muted)' }}>
+                      <td style={{ color: 'var(--moc-muted)' }}>
                         {crewMember.countryName || 'N/A'}
                       </td>
-                      <td style={{ borderRight: '1px solid #edf2f8', color: 'var(--moc-muted)' }}>
+                      <td style={{ color: 'var(--moc-muted)' }}>
                         {crewMember.embarkDate
                           ? new Date(crewMember.embarkDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
                           : '-'}

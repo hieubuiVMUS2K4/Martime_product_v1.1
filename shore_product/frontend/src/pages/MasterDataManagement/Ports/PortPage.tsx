@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Anchor, Plus, Pencil, Search, RefreshCw, Loader2, AlertTriangle, X, Ban } from 'lucide-react';
+import { Anchor, Plus, Pencil, RefreshCw, Loader2, AlertTriangle, X, Ban, ChevronLeft, ChevronRight } from 'lucide-react';
+// Dung chung he lop cl-* voi cac muc danh muc khac
+import '../Crew/CrewListPage.css';
 import { portApi } from '../../../services/crew.service';
 import type { Port, PortPayload } from '../../../services/crew.service';
 
@@ -20,8 +22,9 @@ export const PortPage: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const [showInactive, setShowInactive] = useState(false);
+  const [fCode, setFCode] = useState('');
+  const [fName, setFName] = useState('');
+  const [fCountry, setFCountry] = useState('');
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 20;
 
@@ -36,8 +39,12 @@ export const PortPage: React.FC = () => {
     try {
       setError(null);
       const res = await portApi.search({
-        search: search || undefined,
-        isActive: showInactive ? undefined : true,
+        code: fCode || undefined,
+        name: fName || undefined,
+        country: fCountry || undefined,
+        // Chỉ lấy cảng đang dùng. Cảng đã ngừng vẫn nằm trong CSDL để dữ liệu cũ
+        // (chuyến đi, sổ thuyền viên) còn tham chiếu được, chỉ không hiện ở danh mục.
+        isActive: true,
         page,
         pageSize: PAGE_SIZE,
       });
@@ -48,16 +55,13 @@ export const PortPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [search, showInactive, page]);
+  }, [fCode, fName, fCountry, page]);
 
   // Hoãn 300ms để không bắn request theo từng phím gõ
   useEffect(() => {
     const t = setTimeout(load, 300);
     return () => clearTimeout(t);
   }, [load]);
-
-  // Đổi từ khoá tìm hay bộ lọc thì về trang 1, nếu không sẽ rơi vào trang trống
-  useEffect(() => { setPage(1); }, [search, showInactive]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -101,135 +105,130 @@ export const PortPage: React.FC = () => {
   };
 
   return (
-    <div className="p-1">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <Anchor size={17} className="text-teal-600" />
-          <h2 className="font-bold text-gray-800">Danh mục cảng</h2>
-          <span className="px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 text-xs font-bold border border-teal-200">
-            {total}
-          </span>
+    <div className="cl-page">
+      {/* Toolbar — cùng khuôn cl-header với các mục danh mục khác */}
+      <div className="cl-header">
+        <div className="cl-header-left">
+          <Anchor size={16} className="cl-header-icon" />
+          <h1 className="cl-title">Danh mục cảng</h1>
+          <span className="cl-count-badge">{total}</span>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={load} className="p-1.5 rounded border border-gray-300 hover:bg-gray-50" title="Làm mới">
-            <RefreshCw size={13} />
-          </button>
-          <button onClick={openCreate}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded bg-teal-600 text-white hover:bg-teal-700">
-            <Plus size={13} /> Thêm cảng
-          </button>
+        <div className="cl-header-right">
+          <button className="cl-btn cl-btn--ghost" onClick={load} title="Làm mới"><RefreshCw size={13} /></button>
+          <button className="cl-btn cl-btn--primary" onClick={openCreate}><Plus size={13} /> Thêm cảng</button>
         </div>
-      </div>
-
-      <div className="flex items-center gap-3 mb-3">
-        <div className="relative flex-1 max-w-md">
-          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Tìm theo tên cảng, mã UN/LOCODE hoặc quốc gia..."
-            className="w-full border border-gray-300 rounded pl-7 pr-3 py-1.5 text-sm" />
-        </div>
-        <label className="flex items-center gap-1.5 text-sm text-gray-600">
-          <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} />
-          Hiện cả cảng đã ngừng
-        </label>
       </div>
 
       {error && (
-        <div className="mb-3 flex items-start gap-2 rounded bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
-          <AlertTriangle size={14} className="mt-0.5 shrink-0" /> {error}
+        <div className="cl-error">
+          <AlertTriangle size={13} /> {error}
         </div>
       )}
 
-      {loading ? (
-        <div className="flex items-center justify-center p-12 text-gray-500">
-          <Loader2 size={22} className="animate-spin mr-2" /> Đang tải...
-        </div>
-      ) : ports.length === 0 ? (
-        <div className="flex flex-col items-center justify-center p-12 text-gray-400">
-          <Anchor size={28} className="mb-2" />
-          <p className="text-sm">Chưa có cảng nào</p>
-          <p className="text-xs mt-1">Danh mục cảng được đẩy lên từ tàu, hoặc thêm tay tại đây</p>
-        </div>
-      ) : (
-        <div className="overflow-x-auto border border-gray-200 rounded-lg">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-xs uppercase text-gray-600">
-              <tr>
-                <th className="px-4 py-2.5 text-left">Mã</th>
-                <th className="px-4 py-2.5 text-left">Tên cảng</th>
-                <th className="px-4 py-2.5 text-left">Quốc gia</th>
-                <th className="px-4 py-2.5 text-left">Toạ độ</th>
-                <th className="px-4 py-2.5 text-left">Múi giờ</th>
-                <th className="px-4 py-2.5 text-center">Trạng thái</th>
-                <th className="px-4 py-2.5 text-right">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 bg-white">
-              {ports.map(p => (
-                <tr key={p.id} className={`hover:bg-slate-50 ${!p.isActive ? 'opacity-50' : ''}`}>
-                  <td className="px-4 py-2.5 font-mono font-semibold text-teal-700">{p.portCode}</td>
-                  <td className="px-4 py-2.5 text-gray-800">{p.portName}</td>
-                  <td className="px-4 py-2.5 text-gray-600">
-                    {p.country ?? '—'}
-                    {p.countryCode && <span className="ml-1.5 text-xs text-gray-400 font-mono">{p.countryCode}</span>}
-                  </td>
-                  <td className="px-4 py-2.5 text-xs text-gray-500 font-mono">
-                    {p.latitude != null && p.longitude != null
-                      ? `${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)}` : '—'}
-                  </td>
-                  <td className="px-4 py-2.5 text-xs text-gray-500">{p.timeZone ?? '—'}</td>
-                  <td className="px-4 py-2.5 text-center">
-                    {p.isActive
-                      ? <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-50 text-green-700 border border-green-200">Đang dùng</span>
-                      : <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-500 border border-gray-200">Đã ngừng</span>}
-                  </td>
-                  <td className="px-4 py-2.5 text-right whitespace-nowrap">
-                    <div className="inline-flex gap-1.5">
-                      <button onClick={() => openEdit(p)} title="Sửa"
-                        className="p-1.5 rounded border border-gray-200 hover:bg-blue-50 hover:text-blue-600">
-                        <Pencil size={12} />
-                      </button>
-                      {p.isActive && (
-                        <button onClick={() => handleDeactivate(p)} title="Ngừng sử dụng"
-                          className="p-1.5 rounded border border-gray-200 hover:bg-amber-50 hover:text-amber-600">
-                          <Ban size={12} />
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {!loading && total > 0 && (
-        <div className="flex items-center justify-between mt-3 text-sm">
-          <span className="text-gray-500">
-            Hiển thị {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} / {total} cảng
-          </span>
-          <div className="flex items-center gap-1">
-            <button onClick={() => setPage(1)} disabled={page === 1}
-              className="px-2 py-1 rounded border border-gray-300 disabled:opacity-40 hover:bg-gray-50">
-              «
-            </button>
-            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-              className="px-2.5 py-1 rounded border border-gray-300 disabled:opacity-40 hover:bg-gray-50">
-              Trước
-            </button>
-            <span className="px-3 text-gray-600">Trang {page} / {totalPages}</span>
-            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
-              className="px-2.5 py-1 rounded border border-gray-300 disabled:opacity-40 hover:bg-gray-50">
-              Sau
-            </button>
-            <button onClick={() => setPage(totalPages)} disabled={page >= totalPages}
-              className="px-2 py-1 rounded border border-gray-300 disabled:opacity-40 hover:bg-gray-50">
-              »
-            </button>
+      {/* Lớp phủ mờ thay vì tháo bảng ra: hàng lọc nằm TRONG bảng, tháo đi thì ô nhập
+          biến mất giữa chừng, mất con trỏ và không gõ tiếp được chữ thứ hai. */}
+      <div className="cl-table-card" style={{ position: 'relative' }}>
+        {loading && (
+          <div style={{
+            position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.55)',
+            zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Loader2 size={24} className="spin" style={{ color: 'var(--moc-blue)' }} />
           </div>
-        </div>
-      )}
+        )}
+        <table className="cl-table">
+          <thead>
+            <tr className="cl-tr-labels">
+              <th style={{ width: '11%' }}>Mã</th>
+              <th style={{ width: '28%' }}>Tên cảng</th>
+              <th style={{ width: '18%' }}>Quốc gia</th>
+              <th style={{ width: '17%' }}>Toạ độ</th>
+              <th style={{ width: '12%' }}>Múi giờ</th>
+              <th style={{ width: '9%', textAlign: 'center' }}>Trạng thái</th>
+              <th style={{ width: '9%', textAlign: 'center' }}>Thao tác</th>
+            </tr>
+            <tr className="cl-tr-filters">
+              <th>
+                <div className="cl-search-wrap">
+                  <input className="cl-cf" placeholder="Tìm mã" value={fCode}
+                    onChange={e => { setFCode(e.target.value); setPage(1); }} />
+                </div>
+              </th>
+              <th>
+                <div className="cl-search-wrap">
+                  <input className="cl-cf" placeholder="Tìm tên cảng" value={fName}
+                    onChange={e => { setFName(e.target.value); setPage(1); }} />
+                </div>
+              </th>
+              <th>
+                <div className="cl-search-wrap">
+                  <input className="cl-cf" placeholder="Tìm quốc gia" value={fCountry}
+                    onChange={e => { setFCountry(e.target.value); setPage(1); }} />
+                </div>
+              </th>
+              <th></th><th></th><th></th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {ports.length === 0 && !loading ? (
+              <tr><td colSpan={7} className="cl-empty">
+                <Anchor size={24} />
+                <p>Chưa có cảng nào</p>
+                <p>Danh mục cảng được đẩy lên từ tàu, hoặc thêm tay tại đây</p>
+              </td></tr>
+            ) : ports.map((p, idx) => (
+              <tr key={p.id} className={`cl-tr${idx % 2 === 1 ? ' cl-tr--alt' : ''}`}
+                style={!p.isActive ? { opacity: 0.55 } : undefined}>
+                <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{p.portCode}</td>
+                <td>{p.portName}</td>
+                <td>
+                  {p.country ?? '—'}
+                  {p.countryCode && <span className="cl-muted" style={{ marginLeft: 6, fontFamily: 'monospace' }}>{p.countryCode}</span>}
+                </td>
+                <td className="cl-muted" style={{ fontFamily: 'monospace', fontSize: 11.5 }}>
+                  {p.latitude != null && p.longitude != null
+                    ? `${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)}` : '—'}
+                </td>
+                <td className="cl-muted">{p.timeZone ?? '—'}</td>
+                <td style={{ textAlign: 'center' }}>
+                  <span className={`cl-status-badge ${p.isActive ? 'cl-status-badge--on' : 'cl-status-badge--off'}`}>
+                    <span className="cl-status-badge__dot" />
+                    {p.isActive ? 'Đang dùng' : 'Đã ngừng'}
+                  </span>
+                </td>
+                <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                  <button className="cl-icon-btn" onClick={() => openEdit(p)} title="Sửa"><Pencil size={13} /></button>
+                  {p.isActive && (
+                    <button className="cl-icon-btn" onClick={() => handleDeactivate(p)} title="Ngừng sử dụng"><Ban size={13} /></button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Chân trang — cùng khuôn với CrewListPage */}
+      <div className="cl-footer">
+        <span className="cl-footer-info">
+          Hiển thị {ports.length} / {total} cảng
+        </span>
+        {totalPages > 1 && (
+          <div className="cl-pagi-btns">
+            <button className="cl-pagi-btn" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}><ChevronLeft size={14} /></button>
+            {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+              let n: number;
+              if (totalPages <= 7) n = i + 1;
+              else if (page <= 4) n = i + 1;
+              else if (page >= totalPages - 3) n = totalPages - 6 + i;
+              else n = page - 3 + i;
+              return <button key={n} className={`cl-pagi-btn${n === page ? ' cl-pagi-btn--cur' : ''}`} onClick={() => setPage(n)}>{n}</button>;
+            })}
+            <button className="cl-pagi-btn" disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}><ChevronRight size={14} /></button>
+          </div>
+        )}
+      </div>
+
 
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setModalOpen(false)}>
@@ -316,7 +315,7 @@ export const PortPage: React.FC = () => {
                 <button type="button" onClick={() => setModalOpen(false)}
                   className="px-3.5 py-1.5 text-sm rounded border border-gray-300 hover:bg-gray-50">Hủy</button>
                 <button type="submit" disabled={saving}
-                  className="px-3.5 py-1.5 text-sm rounded bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-60 inline-flex items-center gap-1.5">
+                  className="cl-btn cl-btn--primary" style={{ padding: '6px 14px' }}>
                   {saving && <Loader2 size={13} className="animate-spin" />}
                   {editing ? 'Lưu thay đổi' : 'Thêm cảng'}
                 </button>

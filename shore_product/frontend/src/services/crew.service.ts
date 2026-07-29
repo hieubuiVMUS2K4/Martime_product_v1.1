@@ -461,9 +461,12 @@ export interface PortListResponse {
 }
 
 export const portApi = {
-  search: (params?: { search?: string; countryCode?: string; isActive?: boolean; page?: number; pageSize?: number }): Promise<PortListResponse> => {
+  search: (params?: { search?: string; code?: string; name?: string; country?: string; countryCode?: string; isActive?: boolean; page?: number; pageSize?: number }): Promise<PortListResponse> => {
     const q = new URLSearchParams();
     if (params?.search) q.set('search', params.search);
+    if (params?.code) q.set('code', params.code);
+    if (params?.name) q.set('name', params.name);
+    if (params?.country) q.set('country', params.country);
     if (params?.countryCode) q.set('countryCode', params.countryCode);
     if (params?.isActive !== undefined) q.set('isActive', String(params.isActive));
     if (params?.page) q.set('page', String(params.page));

@@ -48,6 +48,11 @@ public class PortsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetPorts(
         [FromQuery] string? search,
+        // Lọc riêng từng cột cho hàng lọc trong bảng. Giữ luôn `search` gộp
+        // để không phá các nơi đang gọi theo kiểu cũ (combobox chọn cảng).
+        [FromQuery] string? code,
+        [FromQuery] string? name,
+        [FromQuery] string? country,
         [FromQuery] string? countryCode,
         [FromQuery] bool? isActive,
         [FromQuery] int page = 1,
@@ -70,6 +75,25 @@ public class PortsController : ControllerBase
                     p.PortCode.ToLower().Contains(s) ||
                     p.PortName.ToLower().Contains(s) ||
                     (p.Country != null && p.Country.ToLower().Contains(s)));
+            }
+
+            if (!string.IsNullOrWhiteSpace(code))
+            {
+                var s = code.ToLower();
+                q = q.Where(p => p.PortCode.ToLower().Contains(s));
+            }
+
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                var s = name.ToLower();
+                q = q.Where(p => p.PortName.ToLower().Contains(s));
+            }
+
+            if (!string.IsNullOrWhiteSpace(country))
+            {
+                var s = country.ToLower();
+                q = q.Where(p => (p.Country != null && p.Country.ToLower().Contains(s))
+                              || (p.CountryCode != null && p.CountryCode.ToLower().Contains(s)));
             }
 
             if (page < 1) page = 1;

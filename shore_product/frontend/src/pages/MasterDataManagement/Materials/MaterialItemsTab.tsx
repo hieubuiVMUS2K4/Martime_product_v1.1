@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, Pencil, Trash2, Loader2, Package, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, Package, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { materialCatalogService, materialService, type MaterialCatalogItem, type MaterialCatalogPayload } from '../../../services/materialService';
 import { useToast } from '../../../components/common/Toast';
 import { useConfirmDialog } from '../../../components/common/ConfirmDialog';
@@ -54,12 +54,20 @@ export const MaterialItemsTab: React.FC = () => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  const [page, setPage] = useState(1);
+
   const filtered = useMemo(() => items.filter(i => {
     if (filterCategory && i.categoryId !== filterCategory) return false;
     if (searchCode && !i.itemCode.toLowerCase().includes(searchCode.toLowerCase())) return false;
     if (searchName && !i.name.toLowerCase().includes(searchName.toLowerCase())) return false;
     return true;
   }), [items, filterCategory, searchCode, searchName]);
+
+  /* ── phân trang phía client, cùng cỡ trang với CrewListPage ── */
+  const PAGE_SIZE = 15;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
 
   /* ── context menu ── */
   const handleContextMenu = useCallback((e: React.MouseEvent, item: MaterialCatalogItem) => {
@@ -131,7 +139,7 @@ export const MaterialItemsTab: React.FC = () => {
 
       {/* Table */}
       <div className="cl-table-card">
-        <table className="cl-table" style={{ tableLayout: 'auto' }}>
+        <table className="cl-table">
           <thead>
             <tr className="cl-tr-labels">
               <th style={{ width: 44, textAlign: 'center' }}>STT</th>
@@ -160,7 +168,7 @@ export const MaterialItemsTab: React.FC = () => {
                 <Package size={24} />
                 <p>{items.length === 0 ? 'Chưa có vật tư nào trong danh mục' : 'Không tìm thấy vật tư phù hợp'}</p>
               </td></tr>
-            ) : filtered.map((i, idx) => (
+            ) : paged.map((i, idx) => (
               <tr key={i.id}
                 className={`cl-tr${idx % 2 === 1 ? ' cl-tr--alt' : ''}${selectedRowId === i.id ? ' cl-tr--selected' : ''}`}
                 onContextMenu={e => handleContextMenu(e, i)}
@@ -177,6 +185,27 @@ export const MaterialItemsTab: React.FC = () => {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Chân trang — cùng khuôn với CrewListPage */}
+      <div className="cl-footer">
+        <span className="cl-footer-info">
+          Hiển thị {paged.length} / {filtered.length} vật tư
+        </span>
+        {totalPages > 1 && (
+          <div className="cl-pagi-btns">
+            <button className="cl-pagi-btn" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}><ChevronLeft size={14} /></button>
+            {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+              let p: number;
+              if (totalPages <= 7) p = i + 1;
+              else if (page <= 4) p = i + 1;
+              else if (page >= totalPages - 3) p = totalPages - 6 + i;
+              else p = page - 3 + i;
+              return <button key={p} className={`cl-pagi-btn${p === page ? ' cl-pagi-btn--cur' : ''}`} onClick={() => setPage(p)}>{p}</button>;
+            })}
+            <button className="cl-pagi-btn" disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}><ChevronRight size={14} /></button>
+          </div>
+        )}
       </div>
 
       {/* Context Menu */}

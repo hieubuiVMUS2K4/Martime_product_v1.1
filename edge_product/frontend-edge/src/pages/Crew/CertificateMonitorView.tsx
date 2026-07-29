@@ -2,7 +2,9 @@ import { useEffect, useState, useRef, useMemo } from 'react'
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslationSafe } from '@/contexts/I18nContext'
-import { Users, FileText, Award, User, Search, Plus, Download, Shield, ChevronsUpDown, ExternalLink, FileSpreadsheet, Pencil, Copy, XCircle, CheckCircle, Trash2, RefreshCw } from 'lucide-react'
+// Pencil, Copy, XCircle, CheckCircle, Trash2 đã bỏ cùng các mục Sửa / Nhân bản /
+// Vô hiệu hoá / Xoá trong menu chuột phải của tab Loại chứng chỉ. Bật lại thì import lại.
+import { Users, FileText, Award, User, Search, Plus, Download, Shield, ChevronsUpDown, ExternalLink, FileSpreadsheet, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
@@ -1262,15 +1264,8 @@ export function CrewCertificatePage() {
               </button>
             </>
           )}
-          {activeTab === 'certTypes' && (
-            <button
-              onClick={() => setShowCertificateModal(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-              title={t('crew.monitor.addCertificate')}
-            >
-              <Plus className="w-3.5 h-3.5" /> {t('crew.monitor.addCertShort')}
-            </button>
-          )}
+          {/* Đã bỏ nút "Thêm CC": loại chứng chỉ là danh mục của bờ, tàu chỉ được xem.
+              Tạo dưới tàu sẽ lệch với danh mục gốc và bị ghi đè ở lần đồng bộ sau. */}
           <button
             onClick={handleReloadCertificates}
             className="p-1.5 border border-gray-300 rounded text-gray-500 hover:bg-gray-50"
@@ -1889,21 +1884,9 @@ export function CrewCertificatePage() {
           <button onClick={() => { window.open(`/crew/certificates/${contextMenu.cert.id}`, '_blank'); closeContextMenu() }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2">
             <ExternalLink className="w-4 h-4 text-gray-500" /> {t('crew.monitor.openInNewTab')}
           </button>
-          <div className="border-t border-gray-200 my-1"></div>
-          <button onClick={() => { setEditingCertificate(contextMenu.cert); setShowCertificateModal(true); closeContextMenu() }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2">
-            <Pencil className="w-4 h-4 text-gray-500" /> {t('crew.monitor.editCertificate')}
-          </button>
-          <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2">
-            <Copy className="w-4 h-4 text-gray-500" /> {t('crew.monitor.duplicate')}
-          </button>
-          <div className="border-t border-gray-200 my-1"></div>
-          <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2">
-            {contextMenu.cert.isActive ? <XCircle className="w-4 h-4 text-gray-500" /> : <CheckCircle className="w-4 h-4 text-green-500" />} {contextMenu.cert.isActive ? t('crew.monitor.deactivate') : t('crew.monitor.activate')}
-          </button>
-          <div className="border-t border-gray-200 my-1"></div>
-          <button className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2">
-            <Trash2 className="w-4 h-4" /> {t('crew.monitor.delete')}
-          </button>
+          {/* Loại chứng chỉ là DANH MỤC của bờ, tàu chỉ được xem. Đã bỏ Sửa, Nhân bản,
+              Vô hiệu hoá và Xoá — sửa dưới tàu sẽ lệch với danh mục gốc trên bờ và bị
+              ghi đè ở lần đồng bộ sau. */}
         </div>
       )}
 
