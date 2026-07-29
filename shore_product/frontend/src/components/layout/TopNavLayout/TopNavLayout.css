@@ -12,10 +12,12 @@
 }
 
 /* === Top Navigation === */
+/* Leaflet xep lop toi 1000 (.leaflet-control). Thanh dieu huong va cac bang tha xuong
+   phai cao hon muc do, khong thi ban do trang Tracking de len va che mat noi dung. */
 .topnav {
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 1100;
   background: #fff;
   border-bottom: 1px solid #E2E8F0;
   box-shadow: 0 1px 4px rgba(13, 115, 119, 0.08);
@@ -172,7 +174,7 @@
   border: 1px solid #e5e7eb;
   border-radius: 10px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.10);
-  z-index: 200;
+  z-index: 1200;
   overflow: hidden;
   padding: 4px 0;
 }
@@ -277,7 +279,7 @@
   border-radius: 8px;
   box-shadow: 0 6px 20px rgba(13, 115, 119, 0.13);
   min-width: 190px;
-  z-index: 300;
+  z-index: 1200;
   padding: 6px 0;
 }
 
@@ -446,7 +448,7 @@
   border: 1px solid #E2E8F0;
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  z-index: 200;
+  z-index: 1200;
   animation: vesselDropIn 0.12s ease-out;
 }
 

@@ -144,7 +144,11 @@ export const VesselMap: React.FC<VesselMapProps> = ({
     .map(p => [p.latitude, p.longitude]);
 
   return (
-    <div className={`rounded-xl overflow-hidden shadow-lg border border-gray-200 dark:border-gray-700 ${className}`}>
+    // isolate: Leaflet tự đặt z-index tới 1000 cho các lớp và nút điều khiển của nó. Không
+    // nhốt lại thì chúng cạnh tranh với cả trang, xuyên qua lớp phủ của hộp thoại và các
+    // bảng thả xuống. `isolation: isolate` tạo một ngữ cảnh xếp lớp riêng, mọi thứ bên trong
+    // bản đồ chỉ so nhau chứ không leo ra ngoài thẻ.
+    <div className={`isolate rounded-xl overflow-hidden shadow-lg border border-gray-200 dark:border-gray-700 ${className}`}>
       <MapContainer
         center={defaultCenter}
         zoom={13}

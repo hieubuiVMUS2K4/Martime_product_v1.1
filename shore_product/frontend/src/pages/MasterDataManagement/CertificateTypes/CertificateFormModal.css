@@ -13,11 +13,22 @@
   box-shadow: var(--shadow-xl);
   width: 100%;
   max-width: 720px;
-  height: 85vh;
+  /* max-height chứ KHÔNG phải height: cùng lớp này dùng cho cả modal chức danh, quốc gia,
+     nhóm vật tư — những modal chỉ có vài ô. Ép cứng 85vh khiến chúng thừa ra một mảng trống
+     lớn phía dưới. Đặt max thì modal co theo nội dung, dài quá mới cuộn. */
+  max-height: 85vh;
   display: flex;
   flex-direction: column;
   z-index: var(--z-modal);
   animation: modalIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* .cfm-body dùng chung với CrewFormModal.css, ở đó đặt min-height: 320px cho form thuyền
+   viên vốn nhiều ô. Với các modal danh mục chỉ vài ô thì 320px lại là mảng trống thừa.
+   Chỉ gỡ trong phạm vi .cert-form-modal — modal thuyền viên dùng .crew-form-modal nên
+   không bị ảnh hưởng. */
+.cert-form-modal .cfm-body {
+  min-height: 0;
 }
 
 /* ── Scrollable Selection List ── */
@@ -208,7 +219,7 @@
 /* Responsive */
 @media (max-width: 640px) {
   .cert-form-modal {
-    height: 95vh;
+    max-height: 95vh;
     border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   }
 

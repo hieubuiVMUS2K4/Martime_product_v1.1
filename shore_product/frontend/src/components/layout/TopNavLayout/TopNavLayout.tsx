@@ -277,7 +277,9 @@ export const TopNavLayout: React.FC = () => {
                   position: 'absolute', right: 0, top: 'calc(100% + 8px)',
                   width: 370, background: '#fff',
                   border: '1px solid #e5e7eb', borderRadius: 10,
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 200,
+                  // Leaflet xếp lớp tới 1000 (.leaflet-control), nên bảng thông báo phải cao
+                  // hơn mức đó, không thì bản đồ trang Tracking đè lên và che mất nội dung.
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 1200,
                   overflow: 'hidden',
                 }}>
                   <div style={{
