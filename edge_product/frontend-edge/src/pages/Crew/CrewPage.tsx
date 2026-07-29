@@ -979,24 +979,7 @@ function SectionedCrewView({
           >
             <ArrowDownCircle className="w-4 h-4 text-gray-500" /> {t('crew.page.moveToSignedOff')}
           </button>
-          {/* Ba nút dưới đây đang tắt. Bật lại thì phải import lại ArrowRightCircle và Trash2
-              từ lucide-react — đã bỏ khỏi dòng import vì `tsc -b` báo lỗi import thừa,
-              làm hỏng bước dựng frontend trên CI. */}
-          {/* <button
-            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
-          >
-            <ArrowRightCircle className="w-4 h-4 text-gray-500" /> {t('crew.page.moveToPassengers')}
-          </button> */}
-          {/* <button
-            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
-          >
-            <ArrowRightCircle className="w-4 h-4 text-gray-500" /> {t('crew.page.moveToOthers')}
-          </button> */}
-          {/* <button
-            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-          >
-            <Trash2 className="w-4 h-4" /> {t('crew.page.delete')}
-          </button> */}
+
         </div>
       )}
     </div>

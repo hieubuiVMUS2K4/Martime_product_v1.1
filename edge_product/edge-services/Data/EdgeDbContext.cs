@@ -2914,15 +2914,50 @@ public class EdgeDbContext : DbContext
     public override int SaveChanges()
     {
         NormalizeDateTimesToUtc();
-        ProcessSyncQueue();
-        return base.SaveChanges();
+        var deferred = ProcessSyncQueue();
+        var result = base.SaveChanges();
+
+        // Bản ghi mới có khoá số nguyên do CSDL cấp: giờ mới có Id thật, xếp hàng lần hai.
+        // base.SaveChanges() không gọi lại ProcessSyncQueue nên không có đệ quy.
+        // Việc ghi sổ đồng bộ KHÔNG được phép làm đổ thao tác nghiệp vụ. Dữ liệu đã lưu xong
+        // ở dòng trên; nếu xếp hàng lỗi thì ghi nhật ký rồi đi tiếp, người dùng vẫn tạo được
+        // phiếu. (Đây đúng là kiểu hỏng đã làm đổ chức năng tạo phiếu ngày 29/07.)
+        if (deferred.Count > 0)
+        {
+            try
+            {
+                EnqueueDeferredCreates(deferred);
+                base.SaveChanges();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[EDGE-SYNC] Khong xep hang duoc ban ghi vua tao: {ex.Message}");
+            }
+        }
+
+        return result;
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         NormalizeDateTimesToUtc();
-        ProcessSyncQueue();
-        return await base.SaveChangesAsync(cancellationToken);
+        var deferred = ProcessSyncQueue();
+        var result = await base.SaveChangesAsync(cancellationToken);
+
+        if (deferred.Count > 0)
+        {
+            try
+            {
+                EnqueueDeferredCreates(deferred);
+                await base.SaveChangesAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[EDGE-SYNC] Khong xep hang duoc ban ghi vua tao: {ex.Message}");
+            }
+        }
+
+        return result;
     }
 
     /// <summary>
@@ -2961,8 +2996,14 @@ public class EdgeDbContext : DbContext
         }
     }
 
-    private void ProcessSyncQueue()
+    /// <summary>
+    /// Xếp hàng đồng bộ cho các thay đổi trong lần lưu này.
+    /// Trả về những entity phải hoãn tới sau khi lưu vì chưa có khoá chính thật.
+    /// </summary>
+    private List<object> ProcessSyncQueue()
     {
+        var deferred = new List<object>();
+
         // Detect changes
         var modifiedEntries = ChangeTracker.Entries()
             .Where(e => e.State == EntityState.Added || 
@@ -3000,6 +3041,20 @@ public class EdgeDbContext : DbContext
             // 3. Get Primary Key
             // Assumption: All our models use "Id" as Key (Guid or Long)
             var keyProperty = entry.Properties.FirstOrDefault(p => p.Metadata.IsPrimaryKey());
+
+            // Bản ghi MỚI có khoá chính do CSDL cấp (kiểu số nguyên tự tăng) thì lúc này
+            // CHƯA CÓ id thật — EF mới gán khoá tạm (0 hoặc số âm quanh int.MinValue). Xếp
+            // hàng ngay sẽ gửi lên bờ một id vô nghĩa, kéo theo mọi khoá ngoại trong cùng bộ
+            // dữ liệu trỏ sai. Hoãn lại, xếp hàng sau khi base.SaveChanges() cấp số thật.
+            //
+            // Bảng khoá uuid không dính vì ứng dụng tự sinh Guid trước khi lưu — đó là lý do
+            // material_item_ship và equipment_assets chưa bao giờ hỏng.
+            if (entry.State == EntityState.Added && IsStoreGeneratedKeyPending(keyProperty))
+            {
+                deferred.Add(entry.Entity);
+                continue;
+            }
+
             var recordKey = keyProperty?.CurrentValue?.ToString();
 
             if (entry.Entity is CrewCertificate crewCertificateEntity &&
@@ -3100,6 +3155,59 @@ public class EdgeDbContext : DbContext
 
             // 5. Add to SyncQueue
             SyncQueue.Add(syncItem);
+        }
+
+        return deferred;
+    }
+
+    /// <summary>
+    /// Khoá chính do CSDL cấp và hiện chưa có giá trị thật hay không.
+    /// Chỉ đúng với khoá số nguyên tự tăng; khoá Guid do ứng dụng sinh nên luôn có sẵn.
+    /// </summary>
+    private static bool IsStoreGeneratedKeyPending(Microsoft.EntityFrameworkCore.ChangeTracking.PropertyEntry? keyProperty)
+    {
+        if (keyProperty == null) return false;
+        if (keyProperty.Metadata.ValueGenerated == Microsoft.EntityFrameworkCore.Metadata.ValueGenerated.Never)
+            return false;
+
+        return keyProperty.CurrentValue switch
+        {
+            int i => i <= 0,
+            long l => l <= 0,
+            short s => s <= 0,
+            _ => false
+        };
+    }
+
+    /// <summary>
+    /// Xếp hàng cho những bản ghi vừa được CSDL cấp khoá chính. Gọi SAU base.SaveChanges()
+    /// nên Id, và mọi khoá ngoại trỏ tới nó, đều đã là số thật.
+    /// </summary>
+    private void EnqueueDeferredCreates(List<object> entities)
+    {
+        foreach (var entity in entities)
+        {
+            var entityType = entity.GetType();
+            var entry = Entry(entity);
+            var keyProperty = entry.Properties.FirstOrDefault(p => p.Metadata.IsPrimaryKey());
+            var recordKey = keyProperty?.CurrentValue?.ToString();
+            if (string.IsNullOrEmpty(recordKey)) continue;
+
+            var tableName = ToSnakeCase(entityType.Name);
+
+            SyncQueue.Add(new SyncQueue
+            {
+                TableName = tableName,
+                RecordKey = recordKey,
+                ActionType = SyncActionType.CREATE,
+                Payload = SerializeSyncPayload(entity),
+                CreatedAt = DateTime.UtcNow,
+                Priority = GetPriorityForEntity(entityType),
+                RetryCount = 0,
+                MaxRetries = 5
+            });
+
+            Console.WriteLine($"[EDGE-SYNC] Queued CREATE (sau khi luu): {tableName}/{recordKey}");
         }
     }
 
