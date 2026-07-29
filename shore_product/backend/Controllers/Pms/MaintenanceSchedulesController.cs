@@ -14,15 +14,15 @@ public class MaintenanceSchedulesController : ControllerBase
     public MaintenanceSchedulesController(AppDbContext context) => _context = context;
 
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll([FromQuery] Guid? vesselId = null)
     {
-        var list = await _context.MaintenanceSchedules
+        var query = _context.MaintenanceSchedules
             .Include(s => s.SpareParts)
             .Include(s => s.ChecklistTemplates)
             .Where(s => s.IsActive)
-            .AsNoTracking()
-            .OrderBy(s => s.ScheduleCode)
-            .ToListAsync();
+            .AsNoTracking();
+        if (vesselId.HasValue) query = query.Where(s => s.VesselId == vesselId.Value);
+        var list = await query.OrderBy(s => s.ScheduleCode).ToListAsync();
         return Ok(list);
     }
 

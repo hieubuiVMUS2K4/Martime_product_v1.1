@@ -3093,6 +3093,10 @@ public class EdgeDbContext : DbContext
                     EnrichCrewCertificatePayload(changedProps, modifiedCertificate);
                 }
 
+                // Dòng phiếu: delta có thể chỉ chứa vài cột, nhưng bờ luôn cần mã phiếu cha
+                // (để nối khoá ngoại) và mã vật tư + tên (để nhận ra đúng dòng nào trong phiếu).
+                EnrichLineItemPayload(changedProps, entry.Entity);
+
                 syncItem.Payload = System.Text.Json.JsonSerializer.Serialize(changedProps);
                 
                 // Log CrewMember updates with FullName specifically
@@ -3110,6 +3114,12 @@ public class EdgeDbContext : DbContext
             SyncQueue.Add(syncItem);
         }
     }
+
+    /// <summary>
+    /// Dùng cho bộ đối soát: dựng payload y hệt đường đồng bộ tự động, kể cả phần làm giàu
+    /// neo định danh cho dòng phiếu. Tách ra để không có hai chỗ dựng payload lệch nhau.
+    /// </summary>
+    public string BuildSyncPayload(object entity) => SerializeSyncPayload(entity);
 
     private string SerializeSyncPayload(object entity)
     {
@@ -3140,12 +3150,60 @@ public class EdgeDbContext : DbContext
             return System.Text.Json.JsonSerializer.Serialize(payload);
         }
 
+        // Dòng phiếu chỉ mang RequestId/ReceiptId là số nguyên của TÀU, mà bờ đánh số độc lập
+        // nên số đó vô nghĩa bên kia. Gửi kèm mã phiếu cha để bờ nối lại đúng phiếu.
+        if (entity is MaterialRequestItem or StockReceiptItem)
+        {
+            var payload = ToPayloadDictionary(entity);
+            EnrichLineItemPayload(payload, entity);
+            return System.Text.Json.JsonSerializer.Serialize(payload);
+        }
+
         return System.Text.Json.JsonSerializer.Serialize(entity, new System.Text.Json.JsonSerializerOptions
         {
             WriteIndented = false,
             DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
             ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
         });
+    }
+
+    /// <summary>
+    /// Gắn neo định danh cho dòng phiếu. Id nguyên của tàu vô nghĩa trên bờ, nên bờ nhận
+    /// ra dòng nào bằng bộ ba: mã phiếu cha + vật tư + tên vật tư.
+    /// </summary>
+    private void EnrichLineItemPayload(Dictionary<string, object?> payload, object entity)
+    {
+        if (entity is MaterialRequestItem reqItem)
+        {
+            payload["RequestCode"] = MaterialRequests.AsNoTracking()
+                .Where(r => r.Id == reqItem.RequestId)
+                .Select(r => r.RequestCode)
+                .FirstOrDefault();
+            payload["MaterialItemId"] = reqItem.MaterialItemId;
+            payload["ItemName"] = reqItem.ItemName;
+        }
+        else if (entity is StockReceiptItem recItem)
+        {
+            payload["ReceiptCode"] = StockReceipts.AsNoTracking()
+                .Where(r => r.Id == recItem.ReceiptId)
+                .Select(r => r.ReceiptCode)
+                .FirstOrDefault();
+            payload["MaterialItemId"] = recItem.MaterialItemId;
+            payload["ItemName"] = recItem.ItemName;
+        }
+    }
+
+    /// <summary>Chuyển entity thành từ điển để chèn thêm trường làm giàu trước khi tuần tự hoá.</summary>
+    private static Dictionary<string, object?> ToPayloadDictionary(object entity)
+    {
+        var json = System.Text.Json.JsonSerializer.Serialize(entity, new System.Text.Json.JsonSerializerOptions
+        {
+            WriteIndented = false,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+            ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
+        });
+        return System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object?>>(json)
+               ?? new Dictionary<string, object?>();
     }
 
     private void EnrichCrewCertificatePayload(Dictionary<string, object?> payload, CrewCertificate crewCertificate)

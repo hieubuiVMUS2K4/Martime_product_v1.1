@@ -19,14 +19,14 @@ import { vi } from 'date-fns/locale';
 import { maritimeService } from '@/services/maritime.service';
 import { equipmentAssetService } from '@/services/equipment-asset.service';
 import { maintenanceScheduleService } from '@/services/maintenance-schedule.service';
-import { materialService } from '@/services/materialService';
+import { materialService, type MaterialCatalogItem } from '@/services/materialService';
 import { inventoryService } from '@/services/inventory.service';
 import { KanbanBoard } from '@/components/maintenance/KanbanBoard';
 import { AddScheduleModal } from '@/components/pms/AddScheduleModal';
 
 import { useTranslationSafe } from '@/contexts/I18nContext';
 import { toast } from 'sonner';
-import type { MaintenanceTask, CrewMember, MaterialItem } from '@/types/maritime.types';
+import type { MaintenanceTask, CrewMember } from '@/types/maritime.types';
 import { parseTaskScheduleInfo } from '@/types/maritime.types';
 import type { EquipmentAsset, MaintenanceSchedule, CreateMaintenanceScheduleDto, CreateScheduleSparePartDto, ChecklistItemTemplateDto } from '@/types/pms.types';
 
@@ -279,8 +279,10 @@ export default function WorkPlanningPage() {
 
   // === Config inline form state ===
   const [cfgEditingId, setCfgEditingId] = useState<string | null>(null);
-  const [cfgMaterials, setCfgMaterials] = useState<MaterialItem[]>([]);
-  const [cfgInventoryStockByMaterialId, setCfgInventoryStockByMaterialId] = useState<Record<string, number>>({});
+  // Cấu hình bảo trì là bản chuẩn gắn với thiết bị nên chọn từ DANH MỤC vật tư (material_items),
+  // cùng hệ id với liên kết thiết bị–vật tư. Tồn kho tàu tra kèm theo mã để hiển thị ROB.
+  const [cfgMaterials, setCfgMaterials] = useState<MaterialCatalogItem[]>([]);
+  const [cfgStockByItemCode, setCfgStockByItemCode] = useState<Record<string, { qty: number; unit?: string; minStock?: number | null }>>({});
   const [cfgSaving, setCfgSaving] = useState(false);
   const [cfgListSearch, setCfgListSearch] = useState('');
   const [cfgTreeSelectedIds, setCfgTreeSelectedIds] = useState<Set<string>>(new Set());
@@ -662,16 +664,26 @@ export default function WorkPlanningPage() {
   useEffect(() => {
     if (activeTab === 'config') {
       Promise.all([
+        materialService.getCatalog(),
         materialService.getItems(),
         inventoryService.getAll({ page: 1, pageSize: 100000 }),
       ])
-        .then(([materials, inventory]) => {
-          const nextStockByMaterialId: Record<string, number> = {};
+        .then(([catalog, shipItems, inventory]) => {
+          // inventory_stocks khoá theo id kho tàu → quy về mã vật tư để khớp với danh mục.
+          const qtyByShipId: Record<string, number> = {};
           inventory.items.forEach(row => {
-            nextStockByMaterialId[row.materialItemId] = (nextStockByMaterialId[row.materialItemId] || 0) + Number(row.quantity || 0);
+            qtyByShipId[row.materialItemId] = (qtyByShipId[row.materialItemId] || 0) + Number(row.quantity || 0);
           });
-          setCfgMaterials(materials);
-          setCfgInventoryStockByMaterialId(nextStockByMaterialId);
+          const nextStock: Record<string, { qty: number; unit?: string; minStock?: number | null }> = {};
+          shipItems.forEach(s => {
+            nextStock[s.itemCode] = {
+              qty: qtyByShipId[s.id] ?? Number(s.onHandQuantity || 0),
+              unit: s.unit,
+              minStock: s.minStock,
+            };
+          });
+          setCfgMaterials(catalog);
+          setCfgStockByItemCode(nextStock);
         })
         .catch(console.error);
     }
@@ -2341,10 +2353,12 @@ export default function WorkPlanningPage() {
                               </td></tr>
                             ) : cfgForm.requiredSpareParts.map((part, i) => {
                               const mat = cfgMaterials.find(m => m.id.toString() === part.materialItemId);
-                              const rob = part.materialItemId ? cfgInventoryStockByMaterialId[part.materialItemId] : undefined;
+                              const stock = mat ? cfgStockByItemCode[mat.itemCode] : undefined;
+                              const rob = stock?.qty;
                               const hasStock = rob !== undefined;
-                              const needsMore = mat && hasStock && part.quantityRequired > rob;
-                              const isLow = mat && hasStock && rob <= (mat.minStock || 0);
+                              // Tàu chưa có mã này coi như tồn 0 — vẫn phải cảnh báo thiếu.
+                              const needsMore = mat && part.quantityRequired > (rob ?? 0);
+                              const isLow = mat && hasStock && rob <= (stock?.minStock || 0);
                               const isLinked = part.materialItemId ? cfgLinkedMaterialIds.has(part.materialItemId) : false;
                               return (
                                 <tr key={i} className={`border-b ${needsMore ? 'bg-red-50/50' : ''}`}>
@@ -2355,15 +2369,16 @@ export default function WorkPlanningPage() {
                                       {cfgMaterials.map(m => <option key={m.id} value={m.id}>{m.itemCode} - {m.name}</option>)}
                                     </select>
                                   </td>
-                                  <td className={`px-1.5 py-1 text-right text-xs ${isLow ? 'text-orange-600 font-medium' : 'text-gray-500'}`}>
-                                    {mat && hasStock ? rob : '-'}
+                                  <td className={`px-1.5 py-1 text-right text-xs ${isLow ? 'text-orange-600 font-medium' : mat && !hasStock ? 'text-amber-600' : 'text-gray-500'}`}
+                                      title={mat && !hasStock ? t('pms.workPlanning.config.notOnBoard') : undefined}>
+                                    {mat && hasStock ? rob : mat ? '0' : '-'}
                                   </td>
                                   <td className="px-1.5 py-1">
                                     <input type="number" value={part.quantityRequired} onChange={e => cfgUpdateSparePart(i, 'quantityRequired', parseFloat(e.target.value) || 1)} min={0.001} step={0.001} className={`w-full border px-1 py-0.5 text-xs text-right ${needsMore ? 'border-red-300 bg-red-50' : 'border-gray-300'}`} />
                                   </td>
                                   <td className="px-0.5 py-1 text-center">
                                     {needsMore ? (
-                                      <span className="text-red-600" title={t('pms.workPlanning.config.shortage', { amount: (part.quantityRequired - (rob ?? 0)).toFixed(1), unit: mat?.unit || '' })}><AlertTriangle size={13} /></span>
+                                      <span className="text-red-600" title={t('pms.workPlanning.config.shortage', { amount: (part.quantityRequired - (rob ?? 0)).toFixed(1), unit: stock?.unit || '' })}><AlertTriangle size={13} /></span>
                                     ) : mat && isLow ? (
                                       <span className="text-orange-500" title={t('pms.workPlanning.config.lowStock')}><AlertTriangle size={13} /></span>
                                     ) : mat && hasStock ? (

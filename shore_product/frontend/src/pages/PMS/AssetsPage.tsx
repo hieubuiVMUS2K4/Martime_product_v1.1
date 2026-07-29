@@ -40,10 +40,11 @@ function getDescendantIds(node: EquipmentAsset): Set<string> {
   return ids;
 }
 
-export default function AssetsPage() {
+/** Nhúng trong màn chi tiết tàu: vesselId lọc theo tàu, readOnly để bờ chỉ xem. */
+export default function AssetsPage({ vesselId: vesselIdProp, readOnly = false }: { vesselId?: string; readOnly?: boolean } = {}) {
   const { t } = useTranslationSafe();
   const [searchParams] = useSearchParams();
-  const vesselId = searchParams.get('vesselId') ?? undefined;
+  const vesselId = vesselIdProp ?? (searchParams.get('vesselId') ?? undefined);
 
   const statusOptions = useMemo(() => STATUS_VALUES.map(v => ({
     value: v,
@@ -173,6 +174,7 @@ export default function AssetsPage() {
   };
 
   const handleDelete = async (asset: EquipmentAsset) => {
+    if (readOnly) return;
     if (!confirm(t('pms.assets.confirmDelete', { name: asset.assetName }))) return;
     try {
       await equipmentAssetService.delete(asset.id);

@@ -14,10 +14,11 @@ public class StoreLocationsController : ControllerBase
     public StoreLocationsController(AppDbContext context) => _context = context;
 
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll([FromQuery] Guid? vesselId = null)
     {
-        var list = await _context.StoreLocations.Where(s => s.IsActive)
-            .AsNoTracking().OrderBy(s => s.LocationCode).ToListAsync();
+        var query = _context.StoreLocations.Where(s => s.IsActive).AsNoTracking();
+        if (vesselId.HasValue) query = query.Where(s => s.VesselId == vesselId.Value);
+        var list = await query.OrderBy(s => s.LocationCode).ToListAsync();
         return Ok(list);
     }
 

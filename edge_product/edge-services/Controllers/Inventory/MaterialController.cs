@@ -993,18 +993,52 @@ public class MaterialController : ControllerBase
     }
 
     /// <summary>
-    /// Get equipment link counts for all material items (bulk)
+    /// Get equipment link counts for all material items (bulk).
+    /// Thiết bị gắn với DANH MỤC vật tư (material_items), nên phải nối thêm một bước
+    /// qua ItemCode mới ra được vật tư của tàu (material_item_ship) — đó là khóa mà
+    /// trang "Vật tư của tàu" dùng để tra.
     /// </summary>
     [HttpGet("items/equipment-counts")]
     public async Task<IActionResult> GetEquipmentCounts()
     {
         try
         {
-            var counts = await _context.MaterialItemEquipments
+            var catalogCounts = await _context.MaterialItemEquipments
                 .AsNoTracking()
                 .GroupBy(x => x.MaterialItemId)
-                .Select(g => new { materialItemId = g.Key, count = g.Count() })
+                .Select(g => new { CatalogItemId = g.Key, Count = g.Count() })
                 .ToListAsync();
+
+            if (catalogCounts.Count == 0) return Ok(Array.Empty<object>());
+
+            var catalogIds = catalogCounts.Select(c => c.CatalogItemId).ToList();
+            var catalogCodes = await _context.MaterialCatalogItems
+                .AsNoTracking()
+                .Where(c => catalogIds.Contains(c.Id))
+                .Select(c => new { c.Id, c.ItemCode })
+                .ToListAsync();
+
+            var codeById = catalogCodes.ToDictionary(c => c.Id, c => c.ItemCode);
+            var codes = codeById.Values.ToList();
+
+            var shipItems = await _context.MaterialItems
+                .AsNoTracking()
+                .Where(m => codes.Contains(m.ItemCode))
+                .Select(m => new { m.Id, m.ItemCode })
+                .ToListAsync();
+
+            // Một mã có thể ứng với nhiều dòng kho tàu — cộng dồn theo từng dòng kho.
+            var countByCode = new Dictionary<string, int>();
+            foreach (var c in catalogCounts)
+            {
+                if (!codeById.TryGetValue(c.CatalogItemId, out var code)) continue;
+                countByCode[code] = countByCode.GetValueOrDefault(code) + c.Count;
+            }
+
+            var counts = shipItems
+                .Where(m => countByCode.ContainsKey(m.ItemCode))
+                .Select(m => new { materialItemId = m.Id, count = countByCode[m.ItemCode] })
+                .ToList();
 
             return Ok(counts);
         }
@@ -1023,12 +1057,14 @@ public class MaterialController : ControllerBase
     {
         try
         {
-            var item = await _context.MaterialItems.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id && x.IsActive);
-            if (item is null) return NotFound(new { error = "Item not found" });
+            // id có thể là vật tư của tàu (material_item_ship) → quy về DANH MỤC vì
+            // liên kết thiết bị gắn trên material_items.
+            var catId = await ResolveCatalogItemIdAsync(id);
+            if (catId == null) return NotFound(new { error = "Item not found" });
 
             var links = await _context.MaterialItemEquipments
                 .AsNoTracking()
-                .Where(x => x.MaterialItemId == id)
+                .Where(x => x.MaterialItemId == catId.Value)
                 .ToListAsync();
 
             var eqIds = links.Select(x => x.EquipmentAssetId).ToList();
@@ -1162,8 +1198,9 @@ public class MaterialController : ControllerBase
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
+            var catId = await ResolveCatalogItemIdAsync(materialItemId) ?? materialItemId;
             var link = await _context.MaterialItemEquipments
-                .FirstOrDefaultAsync(x => x.MaterialItemId == materialItemId && x.EquipmentAssetId == equipmentAssetId);
+                .FirstOrDefaultAsync(x => x.MaterialItemId == catId && x.EquipmentAssetId == equipmentAssetId);
 
             if (link is null) return NotFound(new { error = "Link not found" });
 

@@ -12,10 +12,11 @@ import type { MaterialItem, MaterialCategory } from '@/types/maritime.types';
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50];
 
-export function MaterialPage() {
+/** Nhúng trong màn chi tiết tàu: vesselId lọc theo tàu, readOnly để bờ chỉ xem. */
+export function MaterialPage({ vesselId: vesselIdProp, readOnly = false }: { vesselId?: string; readOnly?: boolean } = {}) {
   const { t } = useTranslationSafe();
   const [searchParams] = useSearchParams();
-  const vesselId = searchParams.get('vesselId') ?? undefined;
+  const vesselId = vesselIdProp ?? (searchParams.get('vesselId') ?? undefined);
 
   const [items, setItems] = useState<MaterialItem[]>([]);
   const [categories, setCategories] = useState<MaterialCategory[]>([]);
@@ -67,11 +68,13 @@ export function MaterialPage() {
 
   // ---------- Handlers ----------
   const handleCreateItem = async (data: CreateMaterialItemDto) => {
+    if (readOnly) return;
     await materialService.createItem(data);
     await loadData();
   };
 
   const handleUpdateItem = async (data: UpdateMaterialItemDto) => {
+    if (readOnly) return;
     if (!editingItem) return;
     await materialService.updateItem(editingItem.id, data);
     setEditingItem(null);
@@ -79,6 +82,7 @@ export function MaterialPage() {
   };
 
   const handleDeleteItem = async (item: MaterialItem) => {
+    if (readOnly) return;
     if (!confirm(t('materials.page.confirmDelete', { name: item.name }))) return;
     try {
       await materialService.deleteItem(item.id);

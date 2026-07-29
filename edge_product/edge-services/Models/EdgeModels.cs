@@ -5272,8 +5272,11 @@ public class ScheduleSparePart
     /// </summary>
     [MaxLength(500)]
     public string? Notes { get; set; }
-    
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>Cờ đồng bộ — bộ chặn SaveChanges chỉ xếp hàng entity có thuộc tính này.</summary>
+    public bool IsSynced { get; set; } = false;
 }
 
 /// <summary>
@@ -5356,6 +5359,9 @@ public class ScheduleChecklistTemplate
     
     // Navigation property
     [System.Text.Json.Serialization.JsonIgnore]
+    /// <summary>Cờ đồng bộ — bộ chặn SaveChanges chỉ xếp hàng entity có thuộc tính này.</summary>
+    public bool IsSynced { get; set; } = false;
+
     public virtual MaintenanceSchedule? Schedule { get; set; }
 }
 
@@ -5523,9 +5529,12 @@ public class EquipmentGroupMember
     /// Sequence order in group (for checklist display)
     /// </summary>
     public int SequenceOrder { get; set; } = 0;
-    
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    
+
+    /// <summary>Cờ đồng bộ — bộ chặn SaveChanges chỉ xếp hàng entity có thuộc tính này.</summary>
+    public bool IsSynced { get; set; } = false;
+
     // Navigation properties
     public virtual EquipmentAsset Asset { get; set; } = null!;
     public virtual EquipmentGroup Group { get; set; } = null!;
@@ -6101,6 +6110,9 @@ public class MaterialRequest
     [MaxLength(50)]
     public string OriginNode { get; set; } = "SHIP_01";
 
+    /// <summary>Cờ đồng bộ — bộ chặn SaveChanges chỉ xếp hàng entity có thuộc tính này.</summary>
+    public bool IsSynced { get; set; } = false;
+
     public virtual ICollection<MaterialRequestItem> Items { get; set; } = new List<MaterialRequestItem>();
 }
 
@@ -6140,6 +6152,9 @@ public class MaterialRequestItem
     public string? Note { get; set; }
 
     // Navigation
+    /// <summary>Cờ đồng bộ — bộ chặn SaveChanges chỉ xếp hàng entity có thuộc tính này.</summary>
+    public bool IsSynced { get; set; } = false;
+
     public virtual MaterialRequest Request { get; set; } = null!;
 }
 
@@ -6207,6 +6222,9 @@ public class StockReceipt
 
     // Navigation
     public virtual MaterialRequest? MaterialRequest { get; set; }
+    /// <summary>Cờ đồng bộ — bộ chặn SaveChanges chỉ xếp hàng entity có thuộc tính này.</summary>
+    public bool IsSynced { get; set; } = false;
+
     public virtual ICollection<StockReceiptItem> Items { get; set; } = new List<StockReceiptItem>();
 }
 
@@ -6255,6 +6273,9 @@ public class StockReceiptItem
     public string? Note { get; set; }
 
     // Navigation
+    /// <summary>Cờ đồng bộ — bộ chặn SaveChanges chỉ xếp hàng entity có thuộc tính này.</summary>
+    public bool IsSynced { get; set; } = false;
+
     public virtual StockReceipt Receipt { get; set; } = null!;
 }
 
@@ -6288,4 +6309,7 @@ public class InventoryStock
 
     [MaxLength(50)]
     public string OriginNode { get; set; } = "SHIP_01";
+
+    /// <summary>Cờ đồng bộ — bộ chặn SaveChanges chỉ xếp hàng entity có thuộc tính này.</summary>
+    public bool IsSynced { get; set; } = false;
 }

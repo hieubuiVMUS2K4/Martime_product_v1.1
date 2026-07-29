@@ -529,23 +529,24 @@ export const VesselDetailPage: React.FC = () => {
       case 'crew':
         return <VesselCrewTab vesselId={id!} vesselName={vessel.name || 'Vessel'} />;
 
+      // Bờ chỉ xem hoạt động dưới tàu — lọc theo tàu đang mở, không cho sửa.
       case 'pms-assets':
-        return <AssetsPage />;
+        return <AssetsPage vesselId={id!} readOnly />;
 
       case 'pms-work-planning':
-        return <WorkPlanningPage />;
+        return <WorkPlanningPage vesselId={id!} readOnly />;
 
       case 'materials-list':
-        return <MaterialPage />;
+        return <MaterialPage vesselId={id!} readOnly />;
 
       case 'materials-requests':
-        return <MaterialRequestPage />;
+        return <MaterialRequestPage vesselId={id!} readOnly />;
 
       case 'materials-receipts':
-        return <StockReceiptPage />;
+        return <StockReceiptPage vesselId={id!} readOnly />;
 
       case 'materials-inventory':
-        return <InventoryPage />;
+        return <InventoryPage vesselId={id!} readOnly />;
 
       default:
         return null;

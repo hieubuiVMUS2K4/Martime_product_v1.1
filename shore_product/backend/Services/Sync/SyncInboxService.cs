@@ -95,7 +95,26 @@ public class SyncInboxService : ISyncInboxService
     /// System.Text.Json's PropertyNameCaseInsensitive can match them to
     /// PascalCase C# properties (e.g. "full_name" → "fullName" → FullName).
     /// </summary>
-    private static string NormalizePayloadToCamelCase(string json)
+    /// <summary>
+    /// Vài trường được đặt tên khác nhau ở hai bên. Tàu gọi mã vật tư trên tàu là ItemCode
+    /// (bảng material_item_ship), bờ đổi tên thành ShipItemCode khi tách danh mục ra riêng.
+    /// Không đổi tên khi nhận thì trường rơi vào khoảng trống: cột để rỗng, và vì bờ có ràng
+    /// buộc duy nhất (VesselId, ShipItemCode) nên vật tư thứ hai của cùng một tàu sẽ đâm
+    /// 23505 vào vật tư đầu tiên — chỉ đồng bộ được đúng 1 dòng rồi tắc.
+    /// </summary>
+    /// CHỈ áp cho MaterialItemShip. Danh mục vật tư và dòng phiếu nhập kho cũng có ItemCode
+    /// nhưng bên bờ vẫn giữ nguyên tên, đổi tràn lan sẽ làm rỗng cột của chúng.
+    /// So khớp KHÔNG phân biệt hoa thường: tàu gửi khoá PascalCase ("ItemCode"), còn bộ
+    /// chuẩn hoá chỉ đổi snake_case sang camelCase chứ không hạ chữ cái đầu.
+    private static string RenameDivergentField(string key, Type? entityType)
+    {
+        if (entityType == typeof(ProductApi.Models.MaterialItemShip)
+            && string.Equals(key, "itemCode", StringComparison.OrdinalIgnoreCase))
+            return "shipItemCode";
+        return key;
+    }
+
+    private static string NormalizePayloadToCamelCase(string json, Type? entityType = null)
     {
         try
         {
@@ -118,6 +137,7 @@ public class SyncInboxService : ISyncInboxService
             {
                 var camelKey = System.Text.RegularExpressions.Regex.Replace(
                     prop.Name, "_([a-z])", m => m.Groups[1].Value.ToUpperInvariant());
+                camelKey = RenameDivergentField(camelKey, entityType);
                 if (!first) sb.Append(',');
                 sb.Append(JsonSerializer.Serialize(camelKey));
                 sb.Append(':');
@@ -212,6 +232,8 @@ public class SyncInboxService : ISyncInboxService
         ["maintenance_task"]       = typeof(ProductApi.Models.MaintenanceTask),
         ["maintenance_history"]    = typeof(ProductApi.Models.MaintenanceHistory),
         ["maintenance_schedule"]   = typeof(ProductApi.Models.MaintenanceSchedule),
+        ["schedule_spare_part"]    = typeof(ProductApi.Models.ScheduleSparePart),
+        ["schedule_checklist_template"] = typeof(ProductApi.Models.ScheduleChecklistTemplate),
 
         // Telemetry — additional sensor data from Edge
         ["ais_data"]               = typeof(ProductApi.Models.AisData),
@@ -323,6 +345,13 @@ public class SyncInboxService : ISyncInboxService
         "maintenance_task",
         "inventory_stock",
         "material_item_equipment",
+        // Nghiệp vụ vật tư/PMS dưới tàu — mỗi tàu một bộ, id nguyên có thể trùng nhau
+        // giữa các tàu nên phải tách theo VesselId thay vì coi là cùng một bản ghi.
+        "material_request",
+        "stock_receipt",
+        "store_location",
+        "equipment_group",
+        "maintenance_schedule",
     };
 
     // Reference tables managed by Shore — applying natural-key dedup to avoid 23505/23503 errors
@@ -1141,7 +1170,7 @@ public class SyncInboxService : ISyncInboxService
         // Edge serializes full entity graphs (including Rank, Certificates, Documents nav props)
         // which cannot be deserialized into the shore's EF entity types directly.
         // Also normalize snake_case keys to camelCase so PropertyNameCaseInsensitive can match PascalCase properties.
-        var cleanPayload = NormalizePayloadToCamelCase(StripNavigationProperties(item.Payload));
+        var cleanPayload = NormalizePayloadToCamelCase(StripNavigationProperties(item.Payload), entityType);
         var entity = JsonSerializer.Deserialize(cleanPayload, entityType, _jsonOptions);
         if (entity == null) throw new InvalidOperationException("Failed to deserialize CREATE payload");
 
@@ -1277,7 +1306,7 @@ public class SyncInboxService : ISyncInboxService
         object? incomingEntity = null;
         try
         {
-            var cleanPayload2 = NormalizePayloadToCamelCase(StripNavigationProperties(item.Payload));
+            var cleanPayload2 = NormalizePayloadToCamelCase(StripNavigationProperties(item.Payload), entityType);
             incomingEntity = JsonSerializer.Deserialize(cleanPayload2, entityType, _jsonOptions);
         }
         catch (JsonException)
@@ -1460,13 +1489,17 @@ public class SyncInboxService : ISyncInboxService
                 kvp.Key.Equals("edge_changes", StringComparison.OrdinalIgnoreCase) ||
                 kvp.Key.Equals("edge_changes_viewed", StringComparison.OrdinalIgnoreCase)) continue;
 
+            // Tên trường lệch giữa hai bên (ItemCode ↔ ShipItemCode) phải quy đổi trước khi
+            // dò, nếu không cột sẽ im lặng không được vá.
+            var patchKey = RenameDivergentField(kvp.Key, existing.GetType());
+
             // Try EF metadata lookup (PascalCase), then try case-insensitive CLR property search
-            var property = entry.Metadata.FindProperty(kvp.Key)
+            var property = entry.Metadata.FindProperty(patchKey)
                         ?? entry.Metadata.GetProperties()
-                               .FirstOrDefault(p => string.Equals(p.Name, kvp.Key, StringComparison.OrdinalIgnoreCase)
+                               .FirstOrDefault(p => string.Equals(p.Name, patchKey, StringComparison.OrdinalIgnoreCase)
                                                    || string.Equals(
                                                            System.Text.RegularExpressions.Regex.Replace(p.Name, "([A-Z])", "_$1").TrimStart('_').ToLower(),
-                                                           kvp.Key, StringComparison.OrdinalIgnoreCase));
+                                                           patchKey, StringComparison.OrdinalIgnoreCase));
             if (property == null || property.IsKey()) continue;
 
             try
@@ -1717,6 +1750,60 @@ public class SyncInboxService : ISyncInboxService
                 .FirstOrDefaultAsync(p => p.PortCode == code.Trim().ToUpper());
         }
 
+        // Phiếu yêu cầu vật tư / phiếu nhập kho: Id là số nguyên tự tăng ĐỘC LẬP ở hai cơ sở
+        // dữ liệu, nên phiếu số 5 của tàu không phải phiếu số 5 của bờ. Khớp bằng mã phiếu —
+        // mã do tàu sinh theo YC-yyyyMMdd-NNN / NK-... nên không đụng nhau giữa các tàu.
+        if (entityType == typeof(ProductApi.Models.MaterialRequest))
+        {
+            var code = ExtractStringFromPayload(rawPayload, "requestCode", "RequestCode", "request_code");
+            if (string.IsNullOrWhiteSpace(code)) return null;
+            return await _context.MaterialRequests.AsTracking()
+                .FirstOrDefaultAsync(r => r.RequestCode == code.Trim());
+        }
+
+        if (entityType == typeof(ProductApi.Models.StockReceipt))
+        {
+            var code = ExtractStringFromPayload(rawPayload, "receiptCode", "ReceiptCode", "receipt_code");
+            if (string.IsNullOrWhiteSpace(code)) return null;
+            return await _context.StockReceipts.AsTracking()
+                .FirstOrDefaultAsync(r => r.ReceiptCode == code.Trim());
+        }
+
+        // Dòng phiếu: KHÔNG tra theo Id. Id nguyên của tàu trùng Id dòng phiếu của tàu khác
+        // trên bờ là chuyện chắc chắn xảy ra, tra theo Id sẽ sửa nhầm phiếu của tàu khác.
+        // Nhận diện bằng: phiếu cha (theo mã) + vật tư + tên vật tư.
+        if (entityType == typeof(ProductApi.Models.MaterialRequestItem))
+        {
+            var code = ExtractStringFromPayload(rawPayload, "requestCode", "RequestCode", "request_code");
+            if (string.IsNullOrWhiteSpace(code)) return null;
+            var parent = await _context.MaterialRequests.AsNoTracking()
+                .FirstOrDefaultAsync(r => r.RequestCode == code.Trim());
+            if (parent == null) return null;
+
+            var matId = ExtractGuidFromPayload(rawPayload, "materialItemId", "MaterialItemId", "material_item_id");
+            var name = ExtractStringFromPayload(rawPayload, "itemName", "ItemName", "item_name");
+            return await _context.MaterialRequestItems.AsTracking()
+                .FirstOrDefaultAsync(i => i.RequestId == parent.Id
+                    && i.MaterialItemId == matId
+                    && i.ItemName == name);
+        }
+
+        if (entityType == typeof(ProductApi.Models.StockReceiptItem))
+        {
+            var code = ExtractStringFromPayload(rawPayload, "receiptCode", "ReceiptCode", "receipt_code");
+            if (string.IsNullOrWhiteSpace(code)) return null;
+            var parent = await _context.StockReceipts.AsNoTracking()
+                .FirstOrDefaultAsync(r => r.ReceiptCode == code.Trim());
+            if (parent == null) return null;
+
+            var matId = ExtractGuidFromPayload(rawPayload, "materialItemId", "MaterialItemId", "material_item_id");
+            var name = ExtractStringFromPayload(rawPayload, "itemName", "ItemName", "item_name");
+            return await _context.StockReceiptItems.AsTracking()
+                .FirstOrDefaultAsync(i => i.ReceiptId == parent.Id
+                    && i.MaterialItemId == matId
+                    && i.ItemName == name);
+        }
+
         // crew_certificate: edge sends int Id as recordKey, but some older paths
         // may send CertificateNumber. Try Id first, then fall back to CertificateNumber.
         if (entityType == typeof(CrewCertificate))
@@ -1932,6 +2019,19 @@ public class SyncInboxService : ISyncInboxService
             if (entity is ProductApi.Models.Port p) p.Id = 0;
             return;
         }
+
+        // Phiếu và dòng phiếu của tàu: Id nguyên tự tăng độc lập hai bên. Giữ Id của tàu sẽ
+        // đâm vào phiếu của tàu khác đã chiếm số đó trên bờ. Định danh thật là mã phiếu
+        // (với dòng phiếu là cặp phiếu-cha + vật tư, ghép lại ở ResolveOrphanedForeignKeysAsync).
+        switch (entity)
+        {
+            case ProductApi.Models.MaterialRequest mr: mr.Id = 0; return;
+            case ProductApi.Models.MaterialRequestItem mri: mri.Id = 0; return;
+            case ProductApi.Models.StockReceipt sr: sr.Id = 0; return;
+            case ProductApi.Models.StockReceiptItem sri: sri.Id = 0; return;
+            case ProductApi.Models.InventoryStock inv: inv.Id = 0; return;
+        }
+
         var entry = _context.Entry(entity);
         var keyProp = entry.Metadata.FindPrimaryKey()?.Properties.FirstOrDefault();
         if (keyProp?.PropertyInfo == null) return;
@@ -2048,6 +2148,33 @@ public class SyncInboxService : ISyncInboxService
                 vessel = await _context.Vessels.AsNoTracking().FirstOrDefaultAsync(v => v.IMO == originNode);
                 task.VesselId = vessel?.Id;
                 break;
+
+            // Nghiệp vụ vật tư/PMS dưới tàu — bờ chỉ xem, nhưng phải biết của tàu nào
+            // thì mới tách được theo từng tàu trong màn chi tiết tàu.
+            case ProductApi.Models.MaterialRequest req:
+                vessel = await _context.Vessels.AsNoTracking().FirstOrDefaultAsync(v => v.IMO == originNode);
+                req.VesselId = vessel?.Id;
+                break;
+            case ProductApi.Models.StockReceipt receipt:
+                vessel = await _context.Vessels.AsNoTracking().FirstOrDefaultAsync(v => v.IMO == originNode);
+                receipt.VesselId = vessel?.Id;
+                break;
+            case ProductApi.Models.InventoryStock stock:
+                vessel = await _context.Vessels.AsNoTracking().FirstOrDefaultAsync(v => v.IMO == originNode);
+                stock.VesselId = vessel?.Id;
+                break;
+            case ProductApi.Models.StoreLocation loc:
+                vessel = await _context.Vessels.AsNoTracking().FirstOrDefaultAsync(v => v.IMO == originNode);
+                loc.VesselId = vessel?.Id;
+                break;
+            case ProductApi.Models.EquipmentGroup grp:
+                vessel = await _context.Vessels.AsNoTracking().FirstOrDefaultAsync(v => v.IMO == originNode);
+                grp.VesselId = vessel?.Id;
+                break;
+            case ProductApi.Models.MaintenanceSchedule sched:
+                vessel = await _context.Vessels.AsNoTracking().FirstOrDefaultAsync(v => v.IMO == originNode);
+                sched.VesselId = vessel?.Id;
+                break;
         }
     }
 
@@ -2093,6 +2220,37 @@ public class SyncInboxService : ISyncInboxService
     /// </summary>
     private async Task ResolveOrphanedForeignKeysAsync(Type entityType, object entity, string? rawPayload = null)
     {
+        // Dòng phiếu trỏ tới phiếu cha bằng Id nguyên của TÀU. Trên bờ phiếu cha đã được
+        // cấp Id khác, nên phải tra lại theo mã phiếu có sẵn trong payload rồi nối lại.
+        // Không nối được thì bỏ qua dòng đó — chèn vào sẽ vi phạm khoá ngoại.
+        if (entity is ProductApi.Models.MaterialRequestItem reqItem)
+        {
+            var code = ExtractStringFromPayload(rawPayload, "requestCode", "RequestCode", "request_code");
+            var parent = string.IsNullOrWhiteSpace(code)
+                ? null
+                : await _context.MaterialRequests.AsNoTracking()
+                    .FirstOrDefaultAsync(r => r.RequestCode == code.Trim());
+            if (parent == null)
+                throw new InvalidOperationException(
+                    $"Không tìm thấy phiếu yêu cầu vật tư '{code}' trên bờ để nối dòng chi tiết.");
+            reqItem.RequestId = parent.Id;
+            return;
+        }
+
+        if (entity is ProductApi.Models.StockReceiptItem recItem)
+        {
+            var code = ExtractStringFromPayload(rawPayload, "receiptCode", "ReceiptCode", "receipt_code");
+            var parent = string.IsNullOrWhiteSpace(code)
+                ? null
+                : await _context.StockReceipts.AsNoTracking()
+                    .FirstOrDefaultAsync(r => r.ReceiptCode == code.Trim());
+            if (parent == null)
+                throw new InvalidOperationException(
+                    $"Không tìm thấy phiếu nhập kho '{code}' trên bờ để nối dòng chi tiết.");
+            recItem.ReceiptId = parent.Id;
+            return;
+        }
+
         if (entityType == typeof(CrewMember))
         {
             var crew = (CrewMember)entity;

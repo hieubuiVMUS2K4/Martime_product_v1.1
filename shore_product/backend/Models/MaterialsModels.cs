@@ -202,6 +202,10 @@ public class StoreLocation
     [System.Text.Json.Serialization.JsonIgnore]
     public virtual StoreLocation? Parent { get; set; }
 
+
+    /// <summary>Tàu sở hữu bản ghi — suy ra từ IMO của node gửi khi nhận đồng bộ.</summary>
+    public Guid? VesselId { get; set; }
+
     public virtual ICollection<StoreLocation> Children { get; set; } = new List<StoreLocation>();
 }
 
@@ -246,6 +250,10 @@ public class MaterialRequest
 
     [MaxLength(50)]
     public string OriginNode { get; set; } = "SHORE";
+
+
+    /// <summary>Tàu sở hữu bản ghi — suy ra từ IMO của node gửi khi nhận đồng bộ.</summary>
+    public Guid? VesselId { get; set; }
 
     public virtual ICollection<MaterialRequestItem> Items { get; set; } = new List<MaterialRequestItem>();
 }
@@ -331,6 +339,10 @@ public class StockReceipt
     [MaxLength(50)]
     public string OriginNode { get; set; } = "SHORE";
 
+
+    /// <summary>Tàu sở hữu bản ghi — suy ra từ IMO của node gửi khi nhận đồng bộ.</summary>
+    public Guid? VesselId { get; set; }
+
     public virtual MaterialRequest? MaterialRequest { get; set; }
     public virtual ICollection<StockReceiptItem> Items { get; set; } = new List<StockReceiptItem>();
 }
@@ -401,4 +413,7 @@ public class InventoryStock
 
     [MaxLength(50)]
     public string OriginNode { get; set; } = "SHORE";
+
+    /// <summary>Tàu sở hữu bản ghi — suy ra từ IMO của node gửi khi nhận đồng bộ.</summary>
+    public Guid? VesselId { get; set; }
 }

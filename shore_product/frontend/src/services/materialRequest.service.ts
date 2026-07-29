@@ -4,7 +4,7 @@ import type { MaterialRequest, CreateMaterialRequestDto } from '@/types/pms.type
 const API = '/api/material-requests';
 
 export const materialRequestService = {
-  async getAll(params?: { page?: number; pageSize?: number; status?: string; q?: string }) {
+  async getAll(params?: { page?: number; pageSize?: number; status?: string; q?: string; vesselId?: string }) {
     const response = await axios.get(API, { params });
     return response.data as { items: MaterialRequest[]; total: number; page: number; pageSize: number };
   },

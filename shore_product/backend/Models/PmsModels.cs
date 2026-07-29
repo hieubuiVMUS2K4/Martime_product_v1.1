@@ -109,6 +109,10 @@ public class EquipmentGroup
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+
+    /// <summary>Tàu sở hữu bản ghi — suy ra từ IMO của node gửi khi nhận đồng bộ.</summary>
+    public Guid? VesselId { get; set; }
+
     public virtual ICollection<EquipmentGroupMember> Members { get; set; } = new List<EquipmentGroupMember>();
 }
 
@@ -192,6 +196,10 @@ public class MaintenanceSchedule
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+
+    /// <summary>Tàu sở hữu bản ghi — suy ra từ IMO của node gửi khi nhận đồng bộ.</summary>
+    public Guid? VesselId { get; set; }
 
     public virtual ICollection<ScheduleSparePart> SpareParts { get; set; } = new List<ScheduleSparePart>();
     public virtual ICollection<ScheduleChecklistTemplate> ChecklistTemplates { get; set; } = new List<ScheduleChecklistTemplate>();

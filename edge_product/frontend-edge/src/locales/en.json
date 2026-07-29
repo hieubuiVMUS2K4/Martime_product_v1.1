@@ -2878,6 +2878,7 @@
         "noMaterials": "No materials",
         "selectOption": "-- Select --",
         "lowStock": "Low stock",
+        "notOnBoard": "Not stocked on board",
         "assignedToEquipment": "Assigned to equipment",
         "assignMaterialToEquipment": "Assign material to equipment",
         "addRow": "Add row",

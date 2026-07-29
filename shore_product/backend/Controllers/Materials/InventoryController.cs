@@ -16,12 +16,14 @@ public class InventoryController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 50,
-        [FromQuery] string? storeLocationId = null, [FromQuery] string? q = null)
+        [FromQuery] string? storeLocationId = null, [FromQuery] string? q = null,
+        [FromQuery] Guid? vesselId = null)
     {
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 100);
 
         var stockQuery = _context.InventoryStocks.AsNoTracking();
+        if (vesselId.HasValue) stockQuery = stockQuery.Where(s => s.VesselId == vesselId.Value);
         if (!string.IsNullOrEmpty(storeLocationId) && Guid.TryParse(storeLocationId, out var locId))
             stockQuery = stockQuery.Where(s => s.StoreLocationId == locId);
 
