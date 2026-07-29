@@ -73,7 +73,9 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
-package-lock.json
+# KHÔNG loại trừ package-lock.json: workflow CI dùng `npm ci`, lệnh này bắt buộc phải có
+# lockfile trong repo. Lockfile cũng là thứ ghim đúng phiên bản từng gói, thiếu nó thì bản
+# dựng trên CI không còn giống bản chạy dưới máy.
 yarn.lock
 pnpm-lock.yaml
 
@@ -186,6 +188,9 @@ npm
 # Files config đặt sai vị trí
 /vite.config.ts
 /package-lock.json
+# Thư mục edge-services/ ở gốc là tàn dư bố cục cũ: chỉ còn bin, obj, node_modules và
+# một lockfile mồ côi (không có package.json đi kèm), git không theo dõi gì trong đó.
+/edge-services/package-lock.json
 
 # SQL files cũ/trùng lặp (giữ insert-sample-data-fixed.sql)
 edge-services/insert-sample-data.sql
