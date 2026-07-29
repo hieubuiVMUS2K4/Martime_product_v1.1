@@ -156,6 +156,9 @@ public class SyncService : ISyncService
                 return;
             }
 
+            // Đối soát danh mục trước khi lấy hàng đợi — xem ReconcileUnqueuedMasterDataAsync
+            await ReconcileUnqueuedMasterDataAsync(context, cancellationToken);
+
             // Fetch pending items based on priority and retry count
             var batchSize = GetAdaptiveBatchSize(networkType);
             var pendingItems = await context.SyncQueue
@@ -204,6 +207,79 @@ public class SyncService : ISyncService
     /// <summary>
     /// Pull updates from Shore → Edge (master data, certificate renewals, crew assignments)
     /// </summary>
+    /// <summary>
+    /// Đưa các bản ghi danh mục còn IsSynced = false vào hàng đợi đồng bộ.
+    ///
+    /// Hàng đợi chỉ được nạp bởi interceptor của EdgeDbContext khi có SaveChanges. Dữ liệu
+    /// seed thẳng vào cơ sở dữ liệu (script SQL, dump khởi tạo) không đi qua đường đó, nên nằm
+    /// lại vĩnh viễn với IsSynced = false mà không bao giờ được đẩy đi — 80 cảng của tàu này
+    /// đã kẹt như vậy, khiến bờ trống danh mục cảng.
+    ///
+    /// Chạy mỗi chu kỳ đồng bộ, chỉ xếp thêm những gì CHƯA có trong hàng đợi nên không nhân đôi.
+    /// Dùng SNAPSHOT (upsert) để lặp lại bao nhiêu lần vẫn ra một bản ghi bên nhận.
+    /// </summary>
+    private async Task ReconcileUnqueuedMasterDataAsync(EdgeDbContext context, CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Lấy MỌI khoá đã từng xuất hiện trong hàng đợi, không chỉ những cái đang chờ.
+            // Sau khi đẩy xong, cột IsSynced của bản ghi gốc vẫn là false (chỉ dòng hàng đợi
+            // được đánh dấu SyncedAt), nên nếu chỉ lọc theo "đang chờ" thì chu kỳ sau sẽ xếp
+            // lại đúng những cảng vừa đẩy — thành vòng lặp không bao giờ dứt.
+            var queuedKeys = await context.SyncQueue
+                .AsNoTracking()
+                .Where(q => q.TableName == "port")
+                .Select(q => q.RecordKey)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            var pendingSet = queuedKeys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var unsynced = await context.Ports
+                .AsNoTracking()
+                .Where(p => !p.IsSynced)
+                .OrderBy(p => p.Id)
+                .Take(200) // giới hạn mỗi chu kỳ để không dựng một mẻ khổng lồ trên đường truyền yếu
+                .ToListAsync(cancellationToken);
+
+            var opts = new System.Text.Json.JsonSerializerOptions
+            {
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
+            };
+
+            var added = 0;
+            foreach (var port in unsynced)
+            {
+                if (pendingSet.Contains(port.Id.ToString())) continue;
+
+                context.SyncQueue.Add(new SyncQueue
+                {
+                    TableName = "port",
+                    RecordKey = port.Id.ToString(),
+                    ActionType = SyncActionType.SNAPSHOT,
+                    Payload = System.Text.Json.JsonSerializer.Serialize(port, opts),
+                    Priority = SyncPriority.Low,
+                    CreatedAt = DateTime.UtcNow,
+                    RetryCount = 0,
+                    MaxRetries = 5
+                });
+                added++;
+            }
+
+            if (added > 0)
+            {
+                await context.SaveChangesAsync(cancellationToken);
+                _logger.LogInformation("Đối soát danh mục: xếp thêm {Count} cảng chưa từng được đồng bộ", added);
+            }
+        }
+        catch (Exception ex)
+        {
+            // Không để việc đối soát làm hỏng cả chu kỳ đồng bộ
+            _logger.LogWarning(ex, "Đối soát danh mục thất bại, bỏ qua chu kỳ này");
+        }
+    }
+
     public async Task PullFromShoreAsync(CancellationToken cancellationToken)
     {
         var baseUrl = _configuration["ShoreAPI:BaseUrl"];

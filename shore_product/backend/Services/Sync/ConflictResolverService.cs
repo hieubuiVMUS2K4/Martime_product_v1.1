@@ -79,7 +79,10 @@ public class ConflictResolverService : IConflictResolverService
     {
         "certificate", "country", "rank",
         "rank_certificate", "country_certificate",
-        "report_type"
+        "report_type",
+        // Danh mục cảng — bờ làm chủ, phát xuống mọi tàu. Trước đây bị xếp nhầm vào nhóm
+        // bảng chuyến đi nên mọi cú dội ngược từ tàu đều báo CONFLICT.
+        "port"
     };
 
     // Tables where Edge always wins
@@ -146,7 +149,6 @@ public class ConflictResolverService : IConflictResolverService
         "voyage_disbursement",
         "voyage_actual_revenue",
         "voyage_settlement",
-        "port"
     };
 
     public ConflictResolverService(ILogger<ConflictResolverService> logger)

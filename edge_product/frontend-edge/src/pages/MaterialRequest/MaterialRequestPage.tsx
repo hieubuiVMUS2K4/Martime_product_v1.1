@@ -3,14 +3,13 @@ import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { Plus, Edit2, Trash2, Send, Eye, Search, X, Paperclip, Info, ChevronsUpDown, CheckCircle, XCircle } from 'lucide-react';
 import { materialRequestService } from '@/services/materialRequest.service';
-import { materialService } from '@/services/materialService';
-import { inventoryService } from '@/services/inventory.service';
+import { materialService, type MaterialCatalogItem } from '@/services/materialService';
 import { maritimeService } from '@/services/maritime.service';
 import { equipmentAssetService } from '@/services/equipment-asset.service';
 import { VESSEL_CONFIG } from '@/config/app.config';
 import { useTranslationSafe } from '@/contexts/I18nContext';
 import type { MaterialRequest, MaterialRequestItem } from '@/types/pms.types';
-import type { MaterialItem, VoyageRecord } from '@/types/maritime.types';
+import type { VoyageRecord } from '@/types/maritime.types';
 import type { EquipmentAsset } from '@/types/pms.types';
 
 type ViewMode = 'list' | 'detail';
@@ -203,8 +202,12 @@ export default function MaterialRequestPage() {
     requestCode: '', // for display in edit mode
   });
   const [formItems, setFormItems] = useState<MaterialRequestItem[]>([]);
-  const [materialOptions, setMaterialOptions] = useState<MaterialItem[]>([]);
-  const [inventoryStockByMaterialId, setInventoryStockByMaterialId] = useState<Record<string, number>>({});
+  // Chọn từ DANH MỤC vật tư công ty (material_items, chuẩn IMPA), không phải tồn kho tàu.
+  // Yêu cầu vật tư chính là để bổ sung thứ tàu ĐANG THIẾU, nên không được giới hạn
+  // danh sách theo những gì tàu đã có.
+  const [materialOptions, setMaterialOptions] = useState<MaterialCatalogItem[]>([]);
+  // Tồn kho tra theo MÃ vật tư — danh mục và kho tàu là hai bảng khác nhau, id không trùng.
+  const [inventoryStockByItemCode, setInventoryStockByItemCode] = useState<Record<string, { qty: number; unit?: string }>>({});
   const [voyageOptions, setVoyageOptions] = useState<VoyageRecord[]>([]);
   const [assetOptions, setAssetOptions] = useState<EquipmentAsset[]>([]);
   const [materialIdsByEquipment, setMaterialIdsByEquipment] = useState<Record<string, string[]>>({});
@@ -235,18 +238,19 @@ export default function MaterialRequestPage() {
   useEffect(() => { loadList(); }, [loadList]);
 
   const loadFormOptions = async () => {
-    const [mats, inventory, voyages, assets] = await Promise.all([
-      materialService.getItems({ onlyActive: true }),
-      inventoryService.getAll({ page: 1, pageSize: 100000 }).catch(() => ({ items: [] })),
+    const [mats, shipItems, voyages, assets] = await Promise.all([
+      materialService.getCatalog(),
+      materialService.getItems({ onlyActive: true }).catch(() => []),
       maritimeService.voyage.getAll({ pageSize: 100 }).then(r => r).catch(() => []),
       equipmentAssetService.getAll().catch(() => []),
     ]);
-    const nextStockByMaterialId: Record<string, number> = {};
-    inventory.items.forEach(row => {
-      nextStockByMaterialId[row.materialItemId] = (nextStockByMaterialId[row.materialItemId] || 0) + Number(row.quantity || 0);
+    const nextStockByItemCode: Record<string, { qty: number; unit?: string }> = {};
+    shipItems.forEach(row => {
+      if (!row.itemCode) return;
+      nextStockByItemCode[row.itemCode] = { qty: Number(row.onHandQuantity || 0), unit: row.unit ?? undefined };
     });
     setMaterialOptions(mats);
-    setInventoryStockByMaterialId(nextStockByMaterialId);
+    setInventoryStockByItemCode(nextStockByItemCode);
     setVoyageOptions(Array.isArray(voyages) ? voyages : []);
     setAssetOptions(Array.isArray(assets) ? assets : []);
   };
@@ -275,11 +279,20 @@ export default function MaterialRequestPage() {
     return materialOptions.filter(material => linkedIds.includes(material.id));
   };
 
+  /** Số còn trên tàu — tra theo mã vật tư của danh mục. Null = tàu chưa có vật tư này. */
   const getInventoryQuantity = (materialItemId?: string | null) => {
     if (!materialItemId) return null;
-    return Object.prototype.hasOwnProperty.call(inventoryStockByMaterialId, materialItemId)
-      ? inventoryStockByMaterialId[materialItemId]
-      : null;
+    const item = materialOptions.find(m => m.id === materialItemId);
+    if (!item?.itemCode) return null;
+    return inventoryStockByItemCode[item.itemCode]?.qty ?? null;
+  };
+
+  /** Đơn vị tính lấy theo tồn kho tàu — danh mục không giữ đơn vị. */
+  const getInventoryUnit = (materialItemId?: string | null) => {
+    if (!materialItemId) return undefined;
+    const item = materialOptions.find(m => m.id === materialItemId);
+    if (!item?.itemCode) return undefined;
+    return inventoryStockByItemCode[item.itemCode]?.unit;
   };
 
   const getEquipmentLabel = (equipmentAssetId: string | null | undefined) => {
@@ -379,8 +392,10 @@ export default function MaterialRequestPage() {
       }
       setShowFormModal(false);
       loadList();
-    } catch (e) {
+    } catch (e: any) {
       console.error('Save failed', e);
+      const reason = e?.response?.data?.message || e?.response?.data || e?.message;
+      toast.error(typeof reason === 'string' && reason ? reason : 'Lưu yêu cầu vật tư thất bại.');
     } finally {
       setSaving(false);
     }
@@ -454,7 +469,7 @@ export default function MaterialRequestPage() {
       ...item,
       materialItemId: materialId,
       itemName: mat.name,
-      unit: mat.unit || 'PCS',
+      unit: getInventoryUnit(materialId) || 'PCS',
       quantityOnHand: getInventoryQuantity(materialId) ?? 0,
     } : item));
   };
@@ -609,7 +624,9 @@ export default function MaterialRequestPage() {
                         options={getMaterialOptions(item).map(m => ({
                           value: m.id,
                           label: `${m.itemCode} - ${m.name}`,
-                          subLabel: `Tồn: ${getInventoryQuantity(m.id) ?? '-'} ${getInventoryQuantity(m.id) == null ? '' : (m.unit || '')}`,
+                          subLabel: getInventoryQuantity(m.id) == null
+                            ? 'Chưa có trên tàu'
+                            : `Tồn: ${getInventoryQuantity(m.id)} ${getInventoryUnit(m.id) || ''}`.trim(),
                         }))}
                         onChange={value => {
                           if (value) selectMaterial(idx, value);

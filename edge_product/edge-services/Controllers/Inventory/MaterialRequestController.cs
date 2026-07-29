@@ -256,8 +256,10 @@ public class MaterialRequestController : ControllerBase
         if (requestItems.Any(item => !item.MaterialItemId.HasValue))
             return BadRequest("Each material request item must select a catalog material.");
 
+        // material_request_items.material_item_id trỏ tới danh mục vật tư công ty (material_items),
+        // không phải tồn kho của tàu (material_item_ship) — yêu cầu vật tư chính là để xin thứ tàu chưa có.
         var materialIds = requestItems.Select(item => item.MaterialItemId!.Value).Distinct().ToList();
-        var validMaterialCount = await _context.MaterialItems
+        var validMaterialCount = await _context.MaterialCatalogItems
             .CountAsync(item => materialIds.Contains(item.Id) && item.IsActive);
 
         if (validMaterialCount != materialIds.Count)

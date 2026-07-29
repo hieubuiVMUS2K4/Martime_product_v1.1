@@ -15,6 +15,27 @@ public class AssignVesselRequest
 }
 
 /// <summary>
+/// Cho thuyền viên xuống tàu từ bờ. Bờ có thẩm quyền quyết định ngay, không cần phê duyệt.
+/// </summary>
+public class SignOffRequest
+{
+    /// <summary>Bỏ trống = lấy thời điểm hiện tại.</summary>
+    public DateTime? SignOffDate { get; set; }
+
+    public string? PortCode { get; set; }
+    public string? PortName { get; set; }
+
+    /// <summary>Lý do rời tàu: hết hợp đồng, bệnh, kỷ luật, việc gia đình...</summary>
+    public string? Reason { get; set; }
+
+    public string? SignedOffBy { get; set; }
+    public string? Remarks { get; set; }
+
+    /// <summary>Hạnh kiểm ghi cho kỳ phục vụ này.</summary>
+    public string? Conduct { get; set; }
+}
+
+/// <summary>
 /// Shore Crew Management Controller.
 /// Multi-ship crew overview with full CRUD.
 /// </summary>
@@ -280,6 +301,39 @@ public class CrewController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error unassigning crew {Id} from vessel", id);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// POST /api/crew/{id}/sign-off — Cho thuyền viên xuống tàu.
+    /// Đóng kỳ phục vụ trong sổ thuyền viên và trả người về danh bạ chung.
+    /// </summary>
+    [HttpPost("{id:guid}/sign-off")]
+    public async Task<IActionResult> SignOffFromVessel(Guid id, [FromBody] SignOffRequest request)
+    {
+        try
+        {
+            var crew = await _crewService.SignOffFromVesselAsync(
+                id,
+                request.SignOffDate,
+                request.PortCode,
+                request.PortName,
+                request.Reason,
+                request.SignedOffBy,
+                request.Conduct,
+                request.Remarks);
+
+            if (crew == null) return NotFound(new { error = "Crew member not found" });
+            return Ok(crew);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error signing off crew {Id}", id);
             return StatusCode(500, new { error = "Internal server error" });
         }
     }

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { Plus, Edit2, Trash2, Eye, Search, X, CheckCircle, Paperclip, Info, ChevronsUpDown } from 'lucide-react';
 import { stockReceiptService } from '@/services/stockReceipt.service';
-import { materialService } from '@/services/materialService';
+import { materialService, type MaterialCatalogItem } from '@/services/materialService';
 import { storeLocationService } from '@/services/store-location.service';
 import { materialRequestService } from '@/services/materialRequest.service';
 import { maritimeService } from '@/services/maritime.service';
@@ -189,7 +189,9 @@ export default function StockReceiptPage() {
     receiptCode: '', // display in edit mode
   });
   const [formItems, setFormItems] = useState<StockReceiptItem[]>([]);
-  const [materialOptions, setMaterialOptions] = useState<MaterialItem[]>([]);
+  const [materialOptions, setMaterialOptions] = useState<MaterialCatalogItem[]>([]);
+  // Tồn kho tàu tra theo mã vật tư — danh mục và kho tàu là 2 bảng khác nhau, id không trùng.
+  const [shipStockByItemCode, setShipStockByItemCode] = useState<Record<string, MaterialItem>>({});
   const [locationOptions, setLocationOptions] = useState<StoreLocation[]>([]);
   const [requestOptions, setRequestOptions] = useState<MaterialRequest[]>([]);
   const [voyageOptions, setVoyageOptions] = useState<VoyageRecord[]>([]);
@@ -215,13 +217,17 @@ export default function StockReceiptPage() {
   useEffect(() => { loadList(); }, [loadList]);
 
   const loadFormOptions = async () => {
-    const [mats, locs, reqs, voyages] = await Promise.all([
+    const [mats, shipItems, locs, reqs, voyages] = await Promise.all([
+      materialService.getCatalog(),
       materialService.getItems({ onlyActive: true }),
       storeLocationService.getAll(),
       materialRequestService.getApproved(),
       maritimeService.voyage.getAll({ pageSize: 100 }).then(r => r).catch(() => []),
     ]);
     setMaterialOptions(mats);
+    const stockMap: Record<string, MaterialItem> = {};
+    (Array.isArray(shipItems) ? shipItems : []).forEach(row => { stockMap[row.itemCode] = row; });
+    setShipStockByItemCode(stockMap);
     setLocationOptions(locs);
     setRequestOptions(reqs);
     setVoyageOptions(Array.isArray(voyages) ? voyages : []);
@@ -355,14 +361,17 @@ export default function StockReceiptPage() {
   const selectMaterial = (idx: number, materialId: string) => {
     const mat = materialOptions.find(m => m.id === materialId);
     if (!mat) return;
+    // Đơn giá lấy theo danh mục (giá chuẩn công ty); tàu chưa có giá danh mục thì
+    // dùng giá nhập gần nhất trên tàu. Danh mục không giữ đơn vị/tiền tệ nên lấy từ kho tàu.
+    const stock = shipStockByItemCode[mat.itemCode];
     setFormItems(prev => prev.map((item, i) => i === idx ? {
       ...item,
       materialItemId: materialId,
       itemCode: mat.itemCode,
       itemName: mat.name,
-      unit: mat.unit || 'PCS',
-      unitCost: mat.unitCost ?? undefined,
-      currency: mat.currency || 'USD',
+      unit: stock?.unit || 'PCS',
+      unitCost: mat.unitPrice ?? stock?.unitCost ?? undefined,
+      currency: stock?.currency || 'USD',
     } : item));
   };
 
@@ -380,16 +389,23 @@ export default function StockReceiptPage() {
       const detail = await materialRequestService.getById(req.id);
       setFormData(p => ({ ...p, materialRequestId: req.id }));
       if (detail.items && detail.items.length > 0) {
-        const mapped: StockReceiptItem[] = detail.items.map(item => ({
-          materialItemId: item.materialItemId || null,
-          itemCode: materialOptions.find(material => material.id === item.materialItemId)?.itemCode || null,
-          itemName: item.itemName,
-          description: item.description || null,
-          unit: item.unit,
-          quantityRequested: item.quantityRequested,
-          quantityReceived: 0,
-          note: item.note || null,
-        }));
+        const mapped: StockReceiptItem[] = detail.items.map(item => {
+          // Yêu cầu vật tư tham chiếu danh mục, nên tra thẳng trong danh mục để ra mã + đơn giá.
+          const mat = materialOptions.find(material => material.id === item.materialItemId);
+          const stock = mat ? shipStockByItemCode[mat.itemCode] : undefined;
+          return {
+            materialItemId: item.materialItemId || null,
+            itemCode: mat?.itemCode || null,
+            itemName: item.itemName,
+            description: item.description || null,
+            unit: item.unit || stock?.unit || 'PCS',
+            quantityRequested: item.quantityRequested,
+            quantityReceived: 0,
+            unitCost: mat?.unitPrice ?? stock?.unitCost ?? undefined,
+            currency: stock?.currency || 'USD',
+            note: item.note || null,
+          };
+        });
         setFormItems(mapped);
       }
       setShowRequestPicker(false);
@@ -814,11 +830,16 @@ export default function StockReceiptPage() {
                             value={item.materialItemId || null}
                             placeholder="-- Vật tư --"
                             emptyText="Không tìm thấy vật tư"
-                            options={materialOptions.map(m => ({
-                              value: m.id,
-                              label: m.name,
-                              subLabel: `${m.itemCode} · ${m.unit || ''}`,
-                            }))}
+                            options={materialOptions.map(m => {
+                              const stock = shipStockByItemCode[m.itemCode];
+                              return {
+                                value: m.id,
+                                label: m.name,
+                                subLabel: stock
+                                  ? `${m.itemCode} · tồn ${stock.onHandQuantity ?? 0} ${stock.unit || ''}`
+                                  : `${m.itemCode} · chưa có trên tàu`,
+                              };
+                            })}
                             onChange={value => {
                               if (value) {
                                 selectMaterial(idx, value);

@@ -279,11 +279,17 @@ public class StockReceiptController : ControllerBase
         // Update inventory_stock for each item
         foreach (var item in receipt.Items)
         {
-            if (item.MaterialItemId == null || item.StoreLocationId == null) continue;
+            if (item.StoreLocationId == null) continue;
+
+            // Dòng phiếu tham chiếu DANH MỤC vật tư (material_items), còn tồn kho nằm ở
+            // material_item_ship. Quy đổi qua ItemCode; tàu chưa có mã này thì tạo mới —
+            // đó chính là nghiệp vụ nhập kho lần đầu.
+            var shipItemId = await ResolveShipStockItemIdAsync(item);
+            if (shipItemId == null) continue;
 
             var stock = await _context.InventoryStocks
                 .FirstOrDefaultAsync(s =>
-                    s.MaterialItemId == item.MaterialItemId.Value &&
+                    s.MaterialItemId == shipItemId.Value &&
                     s.StoreLocationId == item.StoreLocationId.Value);
 
             if (stock != null)
@@ -297,7 +303,7 @@ public class StockReceiptController : ControllerBase
             {
                 _context.InventoryStocks.Add(new InventoryStock
                 {
-                    MaterialItemId = item.MaterialItemId.Value,
+                    MaterialItemId = shipItemId.Value,
                     StoreLocationId = item.StoreLocationId.Value,
                     Quantity = item.QuantityReceived,
                     UnitCost = item.UnitCost ?? 0,
@@ -306,10 +312,11 @@ public class StockReceiptController : ControllerBase
             }
 
             // Also update MaterialItem.OnHandQuantity
-            var materialItem = await _context.MaterialItems.FindAsync(item.MaterialItemId.Value);
+            var materialItem = await _context.MaterialItems.FindAsync(shipItemId.Value);
             if (materialItem != null)
             {
                 materialItem.OnHandQuantity += (double)item.QuantityReceived;
+                if (item.UnitCost.HasValue) materialItem.UnitCost = item.UnitCost.Value;
                 materialItem.UpdatedAt = DateTime.UtcNow;
             }
         }
@@ -330,6 +337,49 @@ public class StockReceiptController : ControllerBase
 
         await _context.SaveChangesAsync();
         return Ok(new { receipt.Id, receipt.Status });
+    }
+
+    /// <summary>
+    /// Quy đổi dòng phiếu nhập sang dòng tồn kho của tàu (material_item_ship).
+    /// Dòng phiếu tham chiếu danh mục công ty (material_items) nên phải khớp qua ItemCode.
+    /// Tàu chưa có mã này thì tạo dòng kho mới với số lượng 0 — vòng lặp gọi hàm sẽ cộng vào sau.
+    /// </summary>
+    private async Task<Guid?> ResolveShipStockItemIdAsync(StockReceiptItem item)
+    {
+        // Phiếu cũ lưu thẳng id kho tàu — giữ nguyên để không phá dữ liệu đã có.
+        if (item.MaterialItemId.HasValue &&
+            await _context.MaterialItems.AnyAsync(m => m.Id == item.MaterialItemId.Value))
+            return item.MaterialItemId.Value;
+
+        var catalogItem = item.MaterialItemId.HasValue
+            ? await _context.MaterialCatalogItems.FirstOrDefaultAsync(c => c.Id == item.MaterialItemId.Value)
+            : null;
+
+        var itemCode = !string.IsNullOrWhiteSpace(item.ItemCode) ? item.ItemCode!.Trim() : catalogItem?.ItemCode;
+        if (string.IsNullOrWhiteSpace(itemCode)) return null;
+
+        var shipItem = await _context.MaterialItems.FirstOrDefaultAsync(m => m.ItemCode == itemCode);
+        if (shipItem != null) return shipItem.Id;
+
+        shipItem = new MaterialItem
+        {
+            ItemCode = itemCode,
+            MaterialItemCode = catalogItem?.ItemCode ?? itemCode,
+            Name = !string.IsNullOrWhiteSpace(item.ItemName) ? item.ItemName : (catalogItem?.Name ?? itemCode),
+            CategoryId = catalogItem?.CategoryId ?? 1,
+            Unit = !string.IsNullOrWhiteSpace(item.Unit) ? item.Unit : "PCS",
+            OnHandQuantity = 0,
+            UnitCost = item.UnitCost ?? catalogItem?.UnitPrice,
+            Currency = item.Currency ?? "USD",
+            Specification = item.Description,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        _context.MaterialItems.Add(shipItem);
+        await _context.SaveChangesAsync();
+        return shipItem.Id;
     }
 
     /// <summary>DELETE soft-delete</summary>

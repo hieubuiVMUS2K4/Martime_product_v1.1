@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { TopNavLayout } from '../components/layout';
 import { CategoryManagementPage, CrewListPage, CrewDetailPage, CertificateMonitorPage, MasterSchedulePage, VesselsPage, ReportPage, VesselReportDetailPage, ReportDetailPage, VoyageListPage, VoyageDetailPage, VoyageFormPage } from '../pages';
 import { VesselDetailPage, VesselTrackingPage } from '../pages/VesselManagement';
+import { PendingSignOffsPage } from '../pages/CrewManagement';
 import { SyncDashboardPage } from '../pages/SyncManagement';
 import { WorkAssignmentPage } from '../pages/WorkAssignment';
 import { OnboardingDashboardPage, OnboardingDetailPage } from '../pages/OnboardingManagement';
@@ -71,6 +72,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="/crew" element={<CrewListPage />} />
         <Route path="/crew/:id" element={<CrewDetailPage />} />
         <Route path="/certificates" element={<CertificateMonitorPage />} />
+        <Route path="/sign-off-requests" element={<PendingSignOffsPage />} />
         <Route path="/sync" element={<SyncDashboardPage />} />
         <Route path="/work-assignments" element={<WorkAssignmentPage />} />
         <Route path="/vessels" element={<VesselsPage />} />

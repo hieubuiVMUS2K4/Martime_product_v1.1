@@ -452,8 +452,15 @@ public class CrewService : ICrewService
                 // Sync crew member to the specific vessel
                 await _syncOutbox.EnqueueAsync(targetNode, "crew_member", crew.Id.ToString(), SyncActionType.UPDATE, crew);
 
-                // Kỳ phục vụ vừa mở — để tàu thấy ngay mục sổ đang mở của người này
-                await _syncOutbox.EnqueueAsync(targetNode, "crew_logbook_entry", logbookEntry.Id.ToString(), SyncActionType.SNAPSHOT, logbookEntry);
+                // TOÀN BỘ sổ thuyền viên, không chỉ kỳ vừa mở.
+                // Chỉ đẩy mỗi mục mới thì tàu mất sạch lịch sử đi biển trước đó của người này —
+                // nhất là khi họ từng phục vụ rồi rời tàu, nay quay lại. Sổ là giấy tờ pháp lý,
+                // dưới tàu phải xem được đầy đủ. Làm giống cách đã đẩy chứng chỉ và giấy tờ.
+                var logbookEntries = await _context.CrewLogbookEntries.AsNoTracking()
+                    .Where(e => e.CrewMemberId == crewId)
+                    .ToListAsync();
+                foreach (var e in logbookEntries)
+                    await _syncOutbox.EnqueueAsync(targetNode, "crew_logbook_entry", e.Id.ToString(), SyncActionType.SNAPSHOT, e);
 
                 // Also sync all certificates for this crew member
                 var crewCerts = await _context.CrewCertificates.AsNoTracking()
@@ -599,6 +606,111 @@ public class CrewService : ICrewService
         }
 
         _logger.LogInformation("Unassigned crew {CrewId} from vessel", crew.CrewId);
+        return MapToDto(crew);
+    }
+
+    /// <summary>
+    /// Cho thuyền viên xuống tàu từ bờ.
+    ///
+    /// Khác với Unassign (chỉ gỡ khỏi tàu), việc này ĐÓNG kỳ phục vụ trong sổ thuyền viên:
+    /// điền ngày + cảng rời tàu, lý do, hạnh kiểm. Kỳ đã đóng là một mục lý lịch đi biển
+    /// hoàn chỉnh, không bao giờ được mở lại — lần lên tàu sau mở một kỳ MỚI.
+    ///
+    /// Bờ quyết định có hiệu lực ngay, không qua phê duyệt (đường từ tàu thì phải chờ, GĐ 5).
+    /// </summary>
+    public async Task<CrewMemberDto?> SignOffFromVesselAsync(
+        Guid crewId,
+        DateTime? signOffDate,
+        string? portCode,
+        string? portName,
+        string? reason,
+        string? signedOffBy,
+        string? conduct,
+        string? remarks)
+    {
+        var crew = await _context.CrewMembers
+            .AsTracking()
+            .Include(c => c.Rank)
+            .Include(c => c.Country)
+            .FirstOrDefaultAsync(c => c.Id == crewId);
+        if (crew == null) return null;
+
+        if (!crew.VesselId.HasValue)
+            throw new InvalidOperationException("Thuyền viên hiện không thuộc tàu nào.");
+
+        var vesselId = crew.VesselId.Value;
+        var vessel = await _context.Vessels.AsNoTracking().FirstOrDefaultAsync(v => v.Id == vesselId);
+        var targetNode = vessel?.IMO;
+
+        var effectiveDate = signOffDate ?? DateTime.UtcNow;
+        if (effectiveDate.Kind != DateTimeKind.Utc)
+            effectiveDate = DateTime.SpecifyKind(effectiveDate, DateTimeKind.Utc);
+
+        // ── Đóng kỳ phục vụ đang mở ─────────────────────────────
+        var entry = await _context.CrewLogbookEntries
+            .AsTracking()
+            .Where(e => e.CrewMemberId == crewId
+                     && e.VesselId == vesselId
+                     && e.EntryType == "SEA_SERVICE"
+                     && e.RecordStatus != "CLOSED")
+            .OrderByDescending(e => e.SignOnDate ?? e.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        if (entry != null)
+        {
+            if (entry.SignOnDate.HasValue && effectiveDate < entry.SignOnDate.Value)
+                throw new InvalidOperationException("Ngày rời tàu không thể trước ngày lên tàu.");
+
+            entry.SignOffDate = effectiveDate;
+            entry.SignOffPortCode = portCode;
+            entry.SignOffPortName = portName;
+            entry.SignOffReason = reason;
+            entry.SignOffBy = signedOffBy;
+            if (!string.IsNullOrWhiteSpace(conduct)) entry.Conduct = conduct;
+            if (!string.IsNullOrWhiteSpace(remarks)) entry.Notes = remarks;
+            entry.RecordStatus = "CLOSED";
+            entry.Status = "Approved";
+            entry.UpdatedAt = DateTime.UtcNow;
+            entry.IsSynced = false;
+        }
+        else
+        {
+            // Không có kỳ đang mở — vẫn cho xuống tàu, nhưng ghi log để truy được.
+            // Thường gặp với dữ liệu cũ tạo trước khi có sổ thuyền viên.
+            _logger.LogWarning(
+                "Cho {CrewId} xuống tàu nhưng không tìm thấy kỳ phục vụ đang mở trên tàu {VesselId}",
+                crew.CrewId, vesselId);
+        }
+
+        // ── Trả thuyền viên về danh bạ chung ────────────────────
+        crew.VesselId = null;
+        crew.IsOnboard = false;
+        crew.DisembarkDate = effectiveDate;
+        crew.PoolStatus = "Available";
+        crew.OnboardStatus = null;
+        crew.UpdatedAt = DateTime.UtcNow;
+        crew.IsSynced = false;
+
+        await _context.SaveChangesAsync();
+
+        if (_syncOutbox != null && !string.IsNullOrEmpty(targetNode))
+        {
+            try
+            {
+                await _syncOutbox.EnqueueAsync(targetNode, "crew_member", crew.Id.ToString(), SyncActionType.UPDATE, crew);
+                if (entry != null)
+                    await _syncOutbox.EnqueueAsync(targetNode, "crew_logbook_entry", entry.Id.ToString(), SyncActionType.SNAPSHOT, entry);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Không đẩy được lệnh xuống tàu của {CrewId} tới tàu {IMO}", crew.CrewId, targetNode);
+            }
+        }
+
+        _logger.LogInformation(
+            "Cho {CrewId} xuống tàu {Vessel} ngày {Date}, lý do: {Reason}",
+            crew.CrewId, vessel?.Name, effectiveDate, reason ?? "(không ghi)");
+
         return MapToDto(crew);
     }
 

@@ -11,6 +11,49 @@ import type {
 const BASE = ENV.API_BASE_URL;
 
 // ============================================================
+// Xuống tàu / phê duyệt
+// ============================================================
+
+/** Bờ cho xuống tàu — có hiệu lực ngay, không qua duyệt. */
+export interface SignOffPayload {
+  /** Bỏ trống = thời điểm hiện tại */
+  signOffDate?: string;
+  portCode?: string;
+  portName?: string;
+  /** Hết hợp đồng, bệnh, kỷ luật, việc gia đình... */
+  reason?: string;
+  signedOffBy?: string;
+  conduct?: string;
+  remarks?: string;
+}
+
+/** Một đề nghị cho xuống tàu do tàu gửi lên, đang chờ bờ quyết định. */
+export interface PendingSignOff {
+  id: string;
+  crewMemberId: string;
+  crewId: string;
+  fullName: string;
+  vesselName?: string | null;
+  imoNumber?: string | null;
+  rankAtTime?: string | null;
+  signOnDate?: string | null;
+  signOffDate?: string | null;
+  signOffPortName?: string | null;
+  signOffRequestReason?: string | null;
+  signOffRequestedBy?: string | null;
+  signOffRequestedAt?: string | null;
+}
+
+export interface ApproveSignOffPayload {
+  /** Bờ được chốt lại ngày/cảng khác với đề nghị của tàu */
+  signOffDate?: string;
+  portCode?: string;
+  portName?: string;
+  approvedBy?: string;
+  note?: string;
+}
+
+// ============================================================
 // Generic fetch helper with error handling
 // ============================================================
 
@@ -103,6 +146,31 @@ export const crewApi = {
   /** Remove crew member from vessel (back to pool) */
   unassignFromVessel: (crewId: string): Promise<CrewMember> =>
     request(`${BASE}/crew/${crewId}/unassign`, { method: 'POST' }),
+
+  /**
+   * Cho thuyền viên xuống tàu — ĐÓNG kỳ phục vụ trong sổ thuyền viên.
+   * Khác unassign (chỉ gỡ khỏi tàu, không ghi gì vào sổ).
+   */
+  signOffFromVessel: (crewId: string, payload: SignOffPayload): Promise<CrewMember> =>
+    request(`${BASE}/crew/${crewId}/sign-off`, {
+      method: 'POST', body: JSON.stringify(payload),
+    }),
+
+  /** Hàng chờ duyệt: các đề nghị cho xuống tàu do tàu gửi lên */
+  getPendingSignOffs: (): Promise<PendingSignOff[]> =>
+    request(`${BASE}/crew/pending-sign-offs`),
+
+  /** Bờ duyệt đề nghị cho xuống tàu */
+  approveSignOff: (crewId: string, entryId: string, payload: ApproveSignOffPayload): Promise<unknown> =>
+    request(`${BASE}/crew/${crewId}/logbook/${entryId}/approve-sign-off`, {
+      method: 'POST', body: JSON.stringify(payload),
+    }),
+
+  /** Bờ từ chối — lý do là bắt buộc, tàu cần biết phải sửa gì */
+  rejectSignOff: (crewId: string, entryId: string, reason: string, rejectedBy?: string): Promise<unknown> =>
+    request(`${BASE}/crew/${crewId}/logbook/${entryId}/reject-sign-off`, {
+      method: 'POST', body: JSON.stringify({ reason, rejectedBy }),
+    }),
 
   /** Get crew member by ID */
   getById: (id: string): Promise<CrewMember> =>
@@ -358,6 +426,58 @@ export const countryApi = {
     request(`${BASE}/countries/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   remove: (id: number): Promise<void> =>
     request(`${BASE}/countries/${id}`, { method: 'DELETE' }),
+};
+
+// ============================================================
+// PORTS API — danh mục cảng, bờ làm chủ, dùng chung cho mọi tàu
+// ============================================================
+
+export interface Port {
+  id: number;
+  portCode: string;   // UN/LOCODE, 5 ký tự — VD: VNSGN
+  portName: string;
+  country?: string | null;
+  countryCode?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  timeZone?: string | null;
+  isActive: boolean;
+}
+
+export interface PortPayload {
+  portCode: string;
+  portName: string;
+  country?: string;
+  countryCode?: string;
+  latitude?: number;
+  longitude?: number;
+  timeZone?: string;
+  isActive: boolean;
+}
+
+export interface PortListResponse {
+  data: Port[];
+  pagination: { currentPage: number; pageSize: number; totalCount: number; totalPages: number };
+}
+
+export const portApi = {
+  search: (params?: { search?: string; countryCode?: string; isActive?: boolean; page?: number; pageSize?: number }): Promise<PortListResponse> => {
+    const q = new URLSearchParams();
+    if (params?.search) q.set('search', params.search);
+    if (params?.countryCode) q.set('countryCode', params.countryCode);
+    if (params?.isActive !== undefined) q.set('isActive', String(params.isActive));
+    if (params?.page) q.set('page', String(params.page));
+    if (params?.pageSize) q.set('pageSize', String(params.pageSize));
+    const qs = q.toString();
+    return request(`${BASE}/ports${qs ? `?${qs}` : ''}`);
+  },
+  create: (data: PortPayload): Promise<Port> =>
+    request(`${BASE}/ports`, { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: number, data: PortPayload): Promise<Port> =>
+    request(`${BASE}/ports/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  /** Ngừng sử dụng — không xoá cứng vì chuyến đi và sổ thuyền viên còn tham chiếu tới */
+  deactivate: (id: number): Promise<void> =>
+    request(`${BASE}/ports/${id}`, { method: 'DELETE' }),
 };
 
 // ============================================================

@@ -4,6 +4,7 @@ import { Loader2, Ship } from 'lucide-react';
 import { ENV } from '../../config/env';
 import { crewApi } from '../../services/crew.service';
 import { AssignCrewToVesselModal } from './AssignCrewToVesselModal';
+import { SignOffCrewModal } from './SignOffCrewModal';
 import '../../pages/MasterDataManagement/Crew/CrewListPage.css';
 
 interface VesselCrewTabProps {
@@ -48,6 +49,8 @@ export function VesselCrewTab({ vesselId, vesselName }: VesselCrewTabProps) {
 
   // Modal gán thuyền viên lên tàu (chuyển từ tab Danh mục → Thuyền viên sang đây)
   const [assignOpen, setAssignOpen] = useState(false);
+  /** Thuyền viên đang được chọn để cho xuống tàu (null = modal đóng) */
+  const [signOffTarget, setSignOffTarget] = useState<CrewMember | null>(null);
   
   // Sorting state
   const [sortType, setSortType] = useState<{ col: string; dir: 'asc' | 'desc' } | null>({ col: 'crewId', dir: 'asc' });
@@ -419,6 +422,17 @@ export function VesselCrewTab({ vesselId, vesselName }: VesselCrewTabProps) {
             onClick={() => {
               const target = contextMenu.crew;
               setContextMenu(null);
+              setSignOffTarget(target);
+            }}
+            className="block w-full text-left px-4 py-2 text-sm text-rose-600 hover:bg-rose-50"
+          >
+            Cho xuống tàu
+          </button>
+          <div className="border-t border-gray-100" />
+          <button
+            onClick={() => {
+              const target = contextMenu.crew;
+              setContextMenu(null);
               setSelectedCrew(null);
               handleDelete(target);
             }}
@@ -436,6 +450,16 @@ export function VesselCrewTab({ vesselId, vesselName }: VesselCrewTabProps) {
           vesselName={vesselName}
           onClose={() => setAssignOpen(false)}
           onAssigned={loadCrew}
+        />
+      )}
+
+      {/* Modal cho xuống tàu — đóng kỳ phục vụ trong sổ thuyền viên */}
+      {signOffTarget && (
+        <SignOffCrewModal
+          crew={signOffTarget}
+          vesselName={vesselName}
+          onClose={() => setSignOffTarget(null)}
+          onDone={loadCrew}
         />
       )}
     </div>

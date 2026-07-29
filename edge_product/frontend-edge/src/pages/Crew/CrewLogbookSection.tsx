@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { maritimeService } from '../../services/maritime.service';
 import { shipDataService } from '../../services/ship-data.service';
+import { PortCombobox } from '../../components/common/PortCombobox';
 import type { CrewLogbookEntry } from '@/types/maritime.types';
 import type { ShipData } from '@/types/ship-data.types';
 import { toast } from 'sonner';
@@ -103,6 +104,17 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
   // Sea Service List
   const [seaServices, setSeaServices] = useState<Array<{ entry: CrewLogbookEntry; details: SeaServiceDetails }>>([]);
   const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
+
+  // ── Đề nghị cho xuống tàu (chờ bờ duyệt) ──────────────────
+  const [signOffTarget, setSignOffTarget] = useState<CrewLogbookEntry | null>(null);
+  const [signOffForm, setSignOffForm] = useState({
+    signOffDate: new Date().toISOString().split('T')[0],
+    portName: '',
+    portCode: '',
+    reason: '',
+    requestedBy: '',
+  });
+  const [submittingSignOff, setSubmittingSignOff] = useState(false);
   const [editingService, setEditingService] = useState<CrewLogbookEntry | null>(null);
   const [submittingService, setSubmittingService] = useState(false);
 
@@ -360,6 +372,53 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
       description: record.entry.notes || ''
     });
     setIsServiceModalOpen(true);
+  };
+
+  const handleSubmitSignOffRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!signOffTarget) return;
+    if (!signOffForm.reason.trim()) {
+      toast.error('Phải ghi lý do cho xuống tàu');
+      return;
+    }
+    try {
+      setSubmittingSignOff(true);
+      const isResubmit = signOffTarget.recordStatus === 'REJECTED';
+      const payload = {
+        signOffDate: new Date(signOffForm.signOffDate).toISOString(),
+        portCode: signOffForm.portCode || undefined,
+        portName: signOffForm.portName || undefined,
+        reason: signOffForm.reason.trim(),
+        requestedBy: signOffForm.requestedBy || undefined,
+      };
+      if (isResubmit) {
+        await maritimeService.logbook.signOffFollowUp(crewMemberId, signOffTarget.id, {
+          resubmit: true, ...payload,
+        });
+        toast.success('Đã gửi lại đề nghị lên bờ');
+      } else {
+        await maritimeService.logbook.requestSignOff(crewMemberId, signOffTarget.id, payload);
+        toast.success('Đã gửi đề nghị lên bờ, chờ duyệt');
+      }
+      setSignOffTarget(null);
+      loadData();
+    } catch (err: any) {
+      toast.error(err.message || 'Gửi đề nghị thất bại');
+    } finally {
+      setSubmittingSignOff(false);
+    }
+  };
+
+  /** Bờ đã từ chối và tàu chấp nhận bỏ ý định — kỳ quay lại đang phục vụ bình thường. */
+  const handleCancelSignOff = async (entry: CrewLogbookEntry) => {
+    if (!window.confirm('Huỷ hẳn việc cho xuống tàu? Thuyền viên tiếp tục phục vụ bình thường.')) return;
+    try {
+      await maritimeService.logbook.signOffFollowUp(crewMemberId, entry.id, { resubmit: false });
+      toast.success('Đã huỷ đề nghị xuống tàu');
+      loadData();
+    } catch (err: any) {
+      toast.error(err.message || 'Huỷ thất bại');
+    }
   };
 
   const handleSaveService = async (e: React.FormEvent) => {
@@ -802,9 +861,23 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                             Đã phân công / Assigned
                           </span>
                         ) : entry.recordStatus === 'PENDING_APPROVAL' ? (
-                          <span className="inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold bg-orange-50 text-orange-700 border border-orange-100">
-                            Chờ bờ duyệt / Pending
-                          </span>
+                          <div>
+                            <span className="inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold bg-orange-50 text-orange-700 border border-orange-100">
+                              Chờ bờ duyệt / Pending
+                            </span>
+                            <div className="text-[10px] text-slate-500 mt-0.5">
+                              Đề nghị {details.signOffDate ? new Date(details.signOffDate).toLocaleDateString('vi-VN') : ''}
+                            </div>
+                          </div>
+                        ) : entry.recordStatus === 'REJECTED' ? (
+                          <div>
+                            <span className="inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold bg-red-50 text-red-700 border border-red-200">
+                              Bờ từ chối / Rejected
+                            </span>
+                            <div className="text-[10px] text-red-600 mt-0.5 max-w-[180px]" title={entry.rejectionReason ?? ''}>
+                              {entry.rejectionReason}
+                            </div>
+                          </div>
                         ) : (
                           <span className="inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
                             Đang đi tàu / Onboard
@@ -817,6 +890,52 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                       </td>
                       <td className="px-4 py-3.5 text-right whitespace-nowrap">
                         <div className="inline-flex gap-1.5">
+                          {/* Đề nghị cho xuống tàu — chỉ khi kỳ còn mở và chưa gửi đề nghị nào */}
+                          {(entry.recordStatus === 'OPEN' || entry.recordStatus === 'DRAFT') && !details.signOffDate && (
+                            <button
+                              onClick={() => {
+                                setSignOffTarget(entry);
+                                setSignOffForm({
+                                  signOffDate: new Date().toISOString().split('T')[0],
+                                  portName: '', portCode: '', reason: '', requestedBy: '',
+                                });
+                              }}
+                              className="px-2 py-1 rounded-lg bg-white hover:bg-orange-50 hover:text-orange-700 border border-slate-200 shadow-sm transition-colors text-[10px] font-semibold"
+                              title="Đề nghị bờ cho thuyền viên này xuống tàu"
+                            >
+                              Đề nghị xuống tàu
+                            </button>
+                          )}
+                          {/* Bờ đã từ chối — sửa gửi lại, hoặc bỏ hẳn ý định */}
+                          {entry.recordStatus === 'REJECTED' && (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setSignOffTarget(entry);
+                                  setSignOffForm({
+                                    signOffDate: entry.signOffDate
+                                      ? new Date(entry.signOffDate).toISOString().split('T')[0]
+                                      : new Date().toISOString().split('T')[0],
+                                    portName: entry.signOffPortName ?? '',
+                                    portCode: entry.signOffPortCode ?? '',
+                                    reason: entry.signOffRequestReason ?? '',
+                                    requestedBy: entry.signOffRequestedBy ?? '',
+                                  });
+                                }}
+                                className="px-2 py-1 rounded-lg bg-white hover:bg-orange-50 hover:text-orange-700 border border-orange-200 shadow-sm text-[10px] font-semibold"
+                                title="Sửa theo góp ý của bờ rồi gửi lại"
+                              >
+                                Gửi lại
+                              </button>
+                              <button
+                                onClick={() => handleCancelSignOff(entry)}
+                                className="px-2 py-1 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 shadow-sm text-[10px] font-semibold text-slate-600"
+                                title="Đồng ý huỷ việc cho xuống tàu"
+                              >
+                                Huỷ
+                              </button>
+                            </>
+                          )}
                           <button
                             onClick={() => handleOpenEditService({ entry, details })}
                             className="p-1.5 rounded-lg bg-white hover:bg-blue-50 hover:text-blue-600 border border-slate-200 shadow-sm transition-colors"
@@ -1274,14 +1393,12 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Cảng Sign-on / Sign-on Port *</label>
-                    <input
-                      type="text"
-                      placeholder="VD: Hải Phòng, Việt Nam"
-                      value={serviceFormData.signOnPort}
-                      onChange={(e) => setServiceFormData({ ...serviceFormData, signOnPort: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                    <PortCombobox
+                      label="Cảng Sign-on / Sign-on Port"
                       required
+                      portName={serviceFormData.signOnPort ?? ''}
+                      portCode=""
+                      onChange={(name) => setServiceFormData({ ...serviceFormData, signOnPort: name })}
                     />
                   </div>
                 </div>
@@ -1300,13 +1417,11 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Cảng Sign-off / Sign-off Port</label>
-                    <input
-                      type="text"
-                      placeholder="VD: Rotterdam, Hà Lan"
-                      value={serviceFormData.signOffPort}
-                      onChange={(e) => setServiceFormData({ ...serviceFormData, signOffPort: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                    <PortCombobox
+                      label="Cảng Sign-off / Sign-off Port"
+                      portName={serviceFormData.signOffPort ?? ''}
+                      portCode=""
+                      onChange={(name) => setServiceFormData({ ...serviceFormData, signOffPort: name })}
                     />
                   </div>
                 </div>
@@ -1358,6 +1473,86 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                 </button>
               </div>
 
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Đề nghị cho xuống tàu — gửi lên bờ chờ duyệt */}
+      {signOffTarget && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+          onClick={() => setSignOffTarget(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200">
+              <h2 className="font-bold text-slate-800">
+                {signOffTarget.recordStatus === 'REJECTED' ? 'Gửi lại đề nghị xuống tàu' : 'Đề nghị cho xuống tàu'}
+              </h2>
+              <button onClick={() => setSignOffTarget(null)} className="p-1 rounded hover:bg-slate-100">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="px-5 py-3 bg-slate-50 border-b border-slate-200 text-sm">
+              <div className="font-semibold text-slate-800">{signOffTarget.vesselName ?? signOffTarget.title}</div>
+              <div className="text-xs text-slate-500 mt-0.5">
+                Lên tàu {signOffTarget.signOnDate ? new Date(signOffTarget.signOnDate).toLocaleDateString('vi-VN') : '—'}
+                {signOffTarget.rankAtTime && ` · ${signOffTarget.rankAtTime}`}
+              </div>
+            </div>
+
+            {signOffTarget.recordStatus === 'REJECTED' && signOffTarget.rejectionReason && (
+              <div className="mx-5 mt-3 rounded bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+                <div className="font-semibold text-xs mb-0.5">Bờ đã từ chối vì:</div>
+                {signOffTarget.rejectionReason}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmitSignOffRequest} className="px-5 py-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-600">Ngày rời tàu <span className="text-red-500">*</span></span>
+                  <input type="date" required value={signOffForm.signOffDate}
+                    onChange={e => setSignOffForm({ ...signOffForm, signOffDate: e.target.value })}
+                    className="mt-1 w-full border border-slate-300 rounded px-2.5 py-1.5 text-sm" />
+                </label>
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-600">Người đề nghị</span>
+                  <input value={signOffForm.requestedBy}
+                    onChange={e => setSignOffForm({ ...signOffForm, requestedBy: e.target.value })}
+                    placeholder="Thuyền trưởng"
+                    className="mt-1 w-full border border-slate-300 rounded px-2.5 py-1.5 text-sm" />
+                </label>
+              </div>
+
+              <PortCombobox
+                label="Cảng rời tàu"
+                portName={signOffForm.portName}
+                portCode={signOffForm.portCode}
+                onChange={(name, code) => setSignOffForm({ ...signOffForm, portName: name, portCode: code })}
+              />
+
+              <label className="block">
+                <span className="text-xs font-semibold text-slate-600">Lý do <span className="text-red-500">*</span></span>
+                <textarea required rows={3} value={signOffForm.reason}
+                  onChange={e => setSignOffForm({ ...signOffForm, reason: e.target.value })}
+                  placeholder="Bờ cần biết vì sao để quyết định — VD: hết hợp đồng, lý do sức khoẻ..."
+                  className="mt-1 w-full border border-slate-300 rounded px-2.5 py-1.5 text-sm" />
+              </label>
+
+              <div className="rounded bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-800">
+                Đề nghị sẽ được gửi lên bờ chờ duyệt. Trong lúc chờ, thuyền viên
+                <strong> vẫn đang phục vụ bình thường</strong> — chỉ khi bờ duyệt thì kỳ phục vụ mới đóng lại.
+              </div>
+
+              <div className="flex justify-end gap-2 pt-1">
+                <button type="button" onClick={() => setSignOffTarget(null)}
+                  className="px-3.5 py-1.5 text-sm rounded border border-slate-300 hover:bg-slate-50">Hủy</button>
+                <button type="submit" disabled={submittingSignOff || !signOffForm.reason.trim()}
+                  className="px-3.5 py-1.5 text-sm rounded bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-50 inline-flex items-center gap-1.5">
+                  {submittingSignOff && <RefreshCw className="w-3 h-3 animate-spin" />}
+                  {signOffTarget.recordStatus === 'REJECTED' ? 'Gửi lại' : 'Gửi đề nghị lên bờ'}
+                </button>
+              </div>
             </form>
           </div>
         </div>

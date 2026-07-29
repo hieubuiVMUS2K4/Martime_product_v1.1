@@ -2,11 +2,9 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Plus, Upload, Download, Search, Package, Trash2, ChevronDown, ChevronRight, FolderOpen, Save, ChevronsUpDown, X, Pencil } from 'lucide-react';
 import { equipmentAssetService } from '@/services/equipment-asset.service';
 import { ImportAssetsModal } from '@/components/pms/ImportAssetsModal';
-import { materialService, type EquipmentMaterialLink } from '@/services/materialService';
-import { inventoryService } from '@/services/inventory.service';
+import { materialService, type EquipmentMaterialLink, type MaterialCatalogItem } from '@/services/materialService';
 import { useTranslationSafe } from '@/contexts/I18nContext';
 import { toast } from 'sonner';
-import type { MaterialItem } from '@/types/maritime.types';
 import type { CreateEquipmentAssetDto, EquipmentAsset } from '@/types/pms.types';
 
 const STATUS_VALUES = ['', 'ACTIVE', 'STANDBY', 'UNDER_MAINTENANCE', 'DECOMMISSIONED', 'IN_STORAGE'] as const;
@@ -1601,8 +1599,12 @@ function AssignEquipmentMaterialModal({
   onClose: () => void;
   onAssigned: () => Promise<void> | void;
 }) {
-  const [items, setItems] = useState<MaterialItem[]>([]);
-  const [stockByMaterialId, setStockByMaterialId] = useState<Record<string, number>>({});
+  // Chọn từ DANH MỤC vật tư của công ty (material_items, chuẩn IMPA), KHÔNG phải tồn kho tàu.
+  // Thiết bị yêu cầu vật tư tiêu hao theo chuẩn — độc lập với việc con tàu hiện có hay không.
+  // Thiếu thì làm phiếu yêu cầu nhập vật tư, không phải lý do để không khai báo yêu cầu.
+  const [items, setItems] = useState<MaterialCatalogItem[]>([]);
+  // Tồn kho tra theo MÃ vật tư: danh mục và kho tàu là hai bảng khác nhau, id không trùng.
+  const [stockByItemCode, setStockByItemCode] = useState<Record<string, { qty: number; unit?: string }>>({});
   const [search, setSearch] = useState('');
   const [selectedMaterialId, setSelectedMaterialId] = useState('');
   const [quantityRequired, setQuantityRequired] = useState('1');
@@ -1614,22 +1616,26 @@ function AssignEquipmentMaterialModal({
     if (!isOpen) return;
     try {
       setLoading(true);
-      const [data, inventory] = await Promise.all([
-        materialService.getItems({ q: search.trim() || undefined, onlyActive: true }),
-        inventoryService.getAll({ page: 1, pageSize: 100000 }),
+      const [data, shipItems] = await Promise.all([
+        materialService.getCatalog({ q: search.trim() || undefined }),
+        materialService.getItems({ onlyActive: true }),
       ]);
-      const nextStockByMaterialId: Record<string, number> = {};
-      inventory.items.forEach(row => {
-        nextStockByMaterialId[row.materialItemId] = (nextStockByMaterialId[row.materialItemId] || 0) + Number(row.quantity || 0);
+      const nextStock: Record<string, { qty: number; unit?: string }> = {};
+      shipItems.forEach(row => {
+        if (!row.itemCode) return;
+        nextStock[row.itemCode] = {
+          qty: Number(row.onHandQuantity || 0),
+          unit: row.unit ?? undefined,
+        };
       });
       setItems(data);
-      setStockByMaterialId(nextStockByMaterialId);
+      setStockByItemCode(nextStock);
       setSelectedMaterialId(prev => {
         if (prev && data.some(item => item.id === prev)) return prev;
         return data[0]?.id || '';
       });
     } catch (error: any) {
-      toast.error(error?.response?.data?.error || 'Không thể tải danh sách vật tư');
+      toast.error(error?.response?.data?.error || 'Không thể tải danh mục vật tư');
     } finally {
       setLoading(false);
     }
@@ -1650,7 +1656,7 @@ function AssignEquipmentMaterialModal({
   if (!isOpen || !asset) return null;
 
   const selectedItem = items.find(item => item.id === selectedMaterialId) || null;
-  const selectedStock = selectedItem ? stockByMaterialId[selectedItem.id] : undefined;
+  const selectedStock = selectedItem ? stockByItemCode[selectedItem.itemCode] : undefined;
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -1718,7 +1724,7 @@ function AssignEquipmentMaterialModal({
                 {!loading && items.length === 0 ? <option value="">Không có vật tư phù hợp</option> : null}
                 {items.map(item => (
                   <option key={item.id} value={item.id}>
-                    {item.itemCode} - {item.name} ({stockByMaterialId[item.id] === undefined ? '-' : `${formatQuantity(stockByMaterialId[item.id])} ${item.unit}`})
+                    {item.itemCode} - {item.name}
                   </option>
                 ))}
               </select>
@@ -1735,9 +1741,13 @@ function AssignEquipmentMaterialModal({
                   className="h-9 w-full rounded border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 />
               </Field>
-              <Field label="Tồn kho hiện có">
+              {/* Chỉ để tham khảo — không ràng buộc việc khai báo yêu cầu.
+                  Thiếu thì làm phiếu yêu cầu nhập vật tư. */}
+              <Field label="Tồn kho hiện có trên tàu">
                 <div className="flex h-9 items-center rounded border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700">
-                  {selectedItem && selectedStock !== undefined ? `${formatQuantity(selectedStock)} ${selectedItem.unit}` : '-'}
+                  {selectedStock
+                    ? `${formatQuantity(selectedStock.qty)}${selectedStock.unit ? ' ' + selectedStock.unit : ''}`
+                    : <span className="text-amber-600">Chưa có trên tàu</span>}
                 </div>
               </Field>
             </div>
