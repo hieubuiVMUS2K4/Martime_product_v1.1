@@ -22,7 +22,7 @@
 }
 .assignment-stats .stat-value { font-size: 1.6rem; font-weight: 700; }
 .assignment-stats .stat-label { font-size: 0.75rem; color: #64748b; }
-.assignment-stats .total .stat-value { color: #14b8a6; }
+.assignment-stats .total .stat-value { color: var(--color-primary); }
 .assignment-stats .active .stat-value { color: #10b981; }
 .assignment-stats .pending .stat-value { color: #f59e0b; }
 .assignment-stats .blockers .stat-value { color: #ef4444; }
@@ -79,9 +79,9 @@
 .btn-primary {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 8px 16px; border-radius: 8px; border: none;
-  background: #14b8a6; color: #fff; font-size: 0.82rem; font-weight: 500; cursor: pointer;
+  background: var(--color-primary); color: #fff; font-size: 0.82rem; font-weight: 500; cursor: pointer;
 }
-.btn-primary:hover { background: #0d9488; }
+.btn-primary:hover { background: var(--color-primary-hover); }
 .btn-secondary {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 8px 16px; border-radius: 8px; border: 1px solid #e2e8f0;
@@ -94,7 +94,7 @@
   background: #fff; color: #475569; font-size: 0.8rem; cursor: pointer;
 }
 .btn-icon-sm { background: none; border: none; cursor: pointer; color: #64748b; padding: 4px; }
-.btn-icon-sm:hover { color: #14b8a6; }
+.btn-icon-sm:hover { color: var(--color-primary); }
 
 /* Empty & loading */
 .empty-state {

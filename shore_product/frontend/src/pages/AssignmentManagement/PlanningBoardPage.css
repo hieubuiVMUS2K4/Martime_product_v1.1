@@ -2,7 +2,7 @@
 
 .back-btn {
   display: inline-flex; align-items: center; gap: 6px;
-  background: none; border: none; cursor: pointer; color: #14b8a6;
+  background: none; border: none; cursor: pointer; color: var(--color-primary);
   font-size: 0.84rem; font-weight: 500; margin-bottom: 16px; padding: 0;
 }
 .back-btn:hover { text-decoration: underline; }
@@ -19,7 +19,7 @@
 .vessel-meta { font-size: 0.84rem; color: #64748b; margin-top: 2px; }
 .vessel-stats { display: flex; align-items: center; gap: 16px; }
 .vstat { text-align: center; }
-.vstat-value { font-size: 1.4rem; font-weight: 700; color: #14b8a6; }
+.vstat-value { font-size: 1.4rem; font-weight: 700; color: var(--color-primary); }
 .vstat.shortage .vstat-value { color: #ef4444; }
 .vstat-label { font-size: 0.72rem; color: #64748b; }
 
@@ -123,9 +123,9 @@
 .btn-primary {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 8px 16px; border-radius: 8px; border: none;
-  background: #14b8a6; color: #fff; font-size: 0.82rem; font-weight: 500; cursor: pointer;
+  background: var(--color-primary); color: #fff; font-size: 0.82rem; font-weight: 500; cursor: pointer;
 }
-.btn-primary:hover { background: #0d9488; }
+.btn-primary:hover { background: var(--color-primary-hover); }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-secondary {
   display: inline-flex; align-items: center; gap: 5px;

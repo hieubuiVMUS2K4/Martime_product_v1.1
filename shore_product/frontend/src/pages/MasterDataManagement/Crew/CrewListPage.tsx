@@ -19,11 +19,6 @@ import ProtectedImage from '../../../components/common/ProtectedImage';
 import type { CrewMember, CreateCrewRequest, CrewCertificate } from '../../../types/crew.types';
 import './CrewListPage.css';
 
-const AVATAR_COLORS = ['#0a7068','#7c3aed','#059669','#d97706','#dc2626','#0891b2','#4f46e5','#15803d','#b45309','#9333ea'];
-function hashColor(id: string) {
-  let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
-  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
-}
 function getInitials(name: string) {
   const p = name.split(' ').filter(Boolean);
   return p.length >= 2 ? (p[0][0] + p[p.length - 1][0]).toUpperCase() : name.substring(0, 2).toUpperCase();
@@ -87,14 +82,7 @@ export const CrewListPage: React.FC = () => {
   }), [crewStats, totalCount, expiringCerts]);
 
   // Selection
-  const toggleOne = useCallback((id: string) => {
-    setSelectedIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
-  }, []);
-  const toggleAll = useCallback(() => {
-    setSelectedIds(prev => prev.size === crew.length ? new Set() : new Set(crew.map(c => c.id)));
-  }, [crew]);
   const clearSel = useCallback(() => setSelectedIds(new Set()), []);
-  const selectedCrew = useMemo(() => crew.filter(c => selectedIds.has(c.id)), [crew, selectedIds]);
 
   // Search/filter
   const handleStatusFilter = useCallback((status: boolean | null) => {
@@ -170,19 +158,11 @@ export const CrewListPage: React.FC = () => {
   }, [clearSel, refetch, refetchStats, toast]);
 
   // Lưu ý: chức năng "Gán lên tàu" đã chuyển sang trang chi tiết tàu → tab Thuyền viên.
-  // Ở đây chỉ còn "Rút về bờ".
-  const openBatchUnassign = useCallback(() => {
-    const onboard = selectedCrew.filter(c => c.isOnboard);
-    if (!onboard.length) { toast.error('Không có thuyền viên nào trên tàu trong danh sách'); return; }
-    setAssignList(onboard); setAssignMode('unassign');
-  }, [selectedCrew, toast]);
 
   const openSingleUnassign = useCallback((m: CrewMember) => {
     setAssignList([m]); setAssignMode('unassign');
   }, []);
 
-  const allChecked = crew.length > 0 && selectedIds.size === crew.length;
-  const someChecked = selectedIds.size > 0 && selectedIds.size < crew.length;
 
   // Vessel name lookup map
   const vesselMap = useMemo(() => {
@@ -328,30 +308,23 @@ export const CrewListPage: React.FC = () => {
       <div className="cl-table-card" style={{ position: 'relative' }}>
         {loading && (
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(255,255,255,0.5)', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Loader2 size={24} className="spin" style={{ color: '#0a7068' }} />
+            <Loader2 size={24} className="spin" style={{ color: 'var(--moc-blue)' }} />
           </div>
         )}
         <table className="cl-table">
           <thead>
             {/* Label row */}
             <tr className="cl-tr-labels">
-              <th className="cl-th-ck">
-                <label className="cl-ck">
-                  <input type="checkbox" checked={allChecked} ref={el => { if (el) el.indeterminate = someChecked; }} onChange={toggleAll} />
-                  <span className="cl-ck-box"><Check size={10} /></span>
-                </label>
-              </th>
-              <th>Thuyền viên</th>
-              <th>Chức danh</th>
-              <th>Bộ phận</th>
-              <th>Tên Tàu</th>
-              <th>Trạng thái</th>
-              <th>Lên tàu</th>
-              <th>Hợp đồng</th>
+              <th style={{ width: '20%' }}>Thuyền viên</th>
+              <th style={{ width: '14%' }}>Chức danh</th>
+              <th style={{ width: '11%' }}>Bộ phận</th>
+              <th style={{ width: '17%' }}>Tên Tàu</th>
+              <th style={{ width: '12%' }}>Trạng thái</th>
+              <th style={{ width: '11%' }}>Lên tàu</th>
+              <th style={{ width: '11%', borderRight: 'none' }}>Hợp đồng</th>
             </tr>
             {/* Filter row */}
             <tr className="cl-tr-filters">
-              <th></th>
               <th><div className="cl-search-wrap"><input className="cl-cf" placeholder="Tìm kiếm" value={filters.search} onChange={e => handleColFilter('search', e.target.value)} /></div></th>
               <th><div className="cl-search-wrap"><input className="cl-cf" placeholder="Tìm kiếm" value={filters.rankName ?? ''} onChange={e => handleColFilter('rankName', e.target.value)} /></div></th>
               <th><div className="cl-search-wrap"><input className="cl-cf" placeholder="Tìm kiếm" value={filters.department ?? ''} onChange={e => handleColFilter('department', e.target.value)} /></div></th>
@@ -370,22 +343,15 @@ export const CrewListPage: React.FC = () => {
                   <button className="cl-btn cl-btn--primary" onClick={openNew}><Plus size={13} /> Thêm thuyền viên</button>}
               </td></tr>
             ) : crew.map((m, idx) => {
-              const sel = selectedIds.has(m.id);
               return (
                 <tr
                   key={m.id}
-                  className={`cl-tr${idx % 2 === 1 ? ' cl-tr--alt' : ''}${sel ? ' cl-tr--sel' : ''}${selectedRowId === m.id ? ' cl-tr--selected' : ''}`}
+                  className={`cl-tr${idx % 2 === 1 ? ' cl-tr--alt' : ''}${selectedRowId === m.id ? ' cl-tr--selected' : ''}`}
                   onContextMenu={e => handleContextMenu(e, m)}
                 >
-                  <td className="cl-td-ck" onClick={e => e.stopPropagation()}>
-                    <label className="cl-ck">
-                      <input type="checkbox" checked={sel} onChange={() => toggleOne(m.id)} />
-                      <span className="cl-ck-box"><Check size={10} /></span>
-                    </label>
-                  </td>
-                  <td>
+                  <td >
                     <button className="cl-name-link" onClick={() => navigate(`/crew/${m.id}`)}>
-                      <span className="cl-av" style={{ background: hashColor(m.id) }}>
+                      <span className="cl-av">
                         {m.avatarUrl ? <ProtectedImage src={m.avatarUrl} alt="" /> : getInitials(m.fullName)}
                       </span>
                       <div>
@@ -394,14 +360,14 @@ export const CrewListPage: React.FC = () => {
                       </div>
                     </button>
                   </td>
-                  <td>{m.rankName || '\u2014'}</td>
-                  <td>{m.department || '\u2014'}</td>
-                  <td>
+                  <td >{m.rankName || '\u2014'}</td>
+                  <td >{m.department || '\u2014'}</td>
+                  <td >
                     {m.vesselName
                       ? <span className="cl-vessel-tag"><Ship size={11} /> {m.vesselName}</span>
                       : <span className="cl-muted">Pool</span>}
                   </td>
-                  <td className="cl-cell-status">
+                  <td className="cl-cell-status" >
                     <span className={`cl-status-badge ${m.isOnboard ? 'cl-status-badge--on' : m.onboardStatus === 'PendingReview' ? 'cl-status-badge--pending' : m.onboardStatus === 'OnHold' ? 'cl-status-badge--hold' : m.onboardStatus === 'Rejected' ? 'cl-status-badge--rejected' : 'cl-status-badge--off'}`}>
                       <span className="cl-status-badge__dot" />
                       {m.isOnboard ? 'Onboard' : m.onboardStatus === 'PendingReview' ? 'Đang duyệt' : m.onboardStatus === 'OnHold' ? 'Tạm giữ' : m.onboardStatus === 'Rejected' ? 'Từ chối' : 'Pool'}
@@ -410,8 +376,8 @@ export const CrewListPage: React.FC = () => {
                       try { const c = JSON.parse(m.edgeChanges!); return c.length > 0 ? <span className="cl-changes-badge" title={`${c.length} thay đổi từ tàu`}>{c.length}</span> : null } catch { return null }
                     })()}
                   </td>
-                  <td className="cl-muted">{fmtDate(m.embarkDate)}</td>
-                  <td className="cl-muted">{fmtDate(m.contractEnd)}</td>
+                  <td className="cl-muted" >{fmtDate(m.embarkDate)}</td>
+                  <td className="cl-muted" style={{ borderRight: 'none' }}>{fmtDate(m.contractEnd)}</td>
                 </tr>
               );
             })}
@@ -466,19 +432,6 @@ export const CrewListPage: React.FC = () => {
         </div>
       )}
 
-      {/* Selection Bar */}
-      {selectedIds.size > 0 && (
-        <div className="cl-selbar">
-          <span className="cl-selbar-count">{selectedIds.size} đã chọn</span>
-          <div className="cl-selbar-actions">
-            {/* "Gán lên tàu" đã chuyển sang trang chi tiết tàu → tab Thuyền viên */}
-            <button className="cl-selbar-btn cl-selbar-btn--unassign" onClick={openBatchUnassign}>
-              <Anchor size={13} /> Rút về bờ
-            </button>
-          </div>
-          <button className="cl-selbar-x" onClick={clearSel}><X size={14} /></button>
-        </div>
-      )}
         </>
       )}
 

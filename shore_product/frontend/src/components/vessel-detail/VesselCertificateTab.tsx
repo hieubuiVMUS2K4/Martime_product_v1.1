@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Trash2, Loader2, ShieldCheck, Search, X, Check, Users, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
 import { ENV } from '../../config/env';
 import '../../pages/VesselManagement/VesselsPage.css';
+// Dung chung he lop cl-* voi VesselCrewTab de hai tab trong chi tiet tau cung mot khuon.
+import '../../pages/MasterDataManagement/Crew/CrewListPage.css';
 
 const BASE = ENV.API_BASE_URL;
 
@@ -76,6 +78,12 @@ export function VesselCertificateTab({ vesselId, vesselName }: VesselCertificate
   const [filterName, setFilterName] = useState('');
   const [crewCertSearch, setCrewCertSearch] = useState('');
   const [crewCertCat, setCrewCertCat] = useState('');
+  const [assignPage, setAssignPage] = useState(1);
+  const [crewPage, setCrewPage] = useState(1);
+  const [filterCode, setFilterCode] = useState('');
+  const [filterMandatory, setFilterMandatory] = useState('');
+  const [filterCrewName, setFilterCrewName] = useState('');
+  const [filterCertCode, setFilterCertCode] = useState('');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -150,7 +158,9 @@ export function VesselCertificateTab({ vesselId, vesselName }: VesselCertificate
   // Filter assignments
   const filteredAssignments = assignments.filter(a =>
     (!filterCat || a.category === filterCat) &&
-    (!filterName || a.certificateName.toLowerCase().includes(filterName.toLowerCase()) || a.certificateCode.toLowerCase().includes(filterName.toLowerCase()))
+    (!filterCode || a.certificateCode.toLowerCase().includes(filterCode.toLowerCase())) &&
+    (!filterName || a.certificateName.toLowerCase().includes(filterName.toLowerCase())) &&
+    (!filterMandatory || (filterMandatory === 'yes' ? a.isMandatory : !a.isMandatory))
   );
 
   // Filter picker
@@ -161,10 +171,22 @@ export function VesselCertificateTab({ vesselId, vesselName }: VesselCertificate
   // Filter crew certs
   const filteredCrewCerts = crewCerts.filter(c =>
     (!crewCertCat || c.category === crewCertCat) &&
-    (!crewCertSearch || c.certificateName.toLowerCase().includes(crewCertSearch.toLowerCase())
-      || c.certificateCode.toLowerCase().includes(crewCertSearch.toLowerCase())
-      || c.crewMemberName.toLowerCase().includes(crewCertSearch.toLowerCase()))
+    (!filterCrewName || c.crewMemberName.toLowerCase().includes(filterCrewName.toLowerCase())) &&
+    (!filterCertCode || c.certificateCode.toLowerCase().includes(filterCertCode.toLowerCase())) &&
+    (!crewCertSearch || c.certificateName.toLowerCase().includes(crewCertSearch.toLowerCase()))
   );
+
+  // Phân trang phía client — dữ liệu đã tải hết sẵn nên không cần gọi lại API.
+  const PAGE_SIZE = 15;
+  const assignTotalPages = Math.max(1, Math.ceil(filteredAssignments.length / PAGE_SIZE));
+  const crewTotalPages = Math.max(1, Math.ceil(filteredCrewCerts.length / PAGE_SIZE));
+  const pagedAssignments = filteredAssignments.slice((assignPage - 1) * PAGE_SIZE, assignPage * PAGE_SIZE);
+  const pagedCrewCerts = filteredCrewCerts.slice((crewPage - 1) * PAGE_SIZE, crewPage * PAGE_SIZE);
+
+  // Lọc xong mà đang đứng ở trang không còn tồn tại thì kéo về trang cuối hợp lệ,
+  // nếu không bảng sẽ trống trơn dù vẫn có kết quả.
+  useEffect(() => { if (assignPage > assignTotalPages) setAssignPage(assignTotalPages); }, [assignPage, assignTotalPages]);
+  useEffect(() => { if (crewPage > crewTotalPages) setCrewPage(crewTotalPages); }, [crewPage, crewTotalPages]);
 
   const getCertStatusStyle = (status: string) => {
     if (status === 'EXPIRED') return { bg: '#fef2f2', color: '#dc2626', label: 'Hết hạn' };
@@ -184,7 +206,7 @@ export function VesselCertificateTab({ vesselId, vesselName }: VesselCertificate
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+    <div className="cl-page relative">
 
       {/* Tab switcher */}
       <div style={{ display: 'flex', borderBottom: '2px solid #e2eaf2', gap: '0' }}>
@@ -221,57 +243,79 @@ export function VesselCertificateTab({ vesselId, vesselName }: VesselCertificate
       {/* ── TAB 1: Loại chứng chỉ yêu cầu ── */}
       {activeTab === 'assignments' && (
         <>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', flex: 1 }}>
-              <div className="vp-search-wrap" style={{ flex: 1, maxWidth: '280px' }}>
-                <input className="vp-cf" placeholder="Tìm theo tên / mã chứng chỉ" value={filterName} onChange={e => setFilterName(e.target.value)} style={{ paddingLeft: '24px' }} />
-              </div>
-              <select className="vp-cf" value={filterCat} onChange={e => setFilterCat(e.target.value)}
-                style={{ width: '160px', padding: '4px 8px', border: '1px solid #b5e3da', borderRadius: '4px', fontSize: '11.5px', background: '#fff' }}>
-                <option value="">Tất cả loại</option>
-                {Object.entries(CATEGORY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
+          <div className="cl-header">
+            <div className="cl-header-left">
+              <h1 className="cl-title">Loại chứng chỉ yêu cầu</h1>
+              <span className="cl-count-badge">{filteredAssignments.length}</span>
             </div>
-            <button className="vp-btn vp-btn--primary" onClick={() => setShowPicker(true)}>
-              <Plus size={13} /> Gán chứng chỉ
-            </button>
+            <div className="cl-header-right">
+              <button className="cl-btn cl-btn--primary" onClick={() => setShowPicker(true)}>
+                <Plus size={13} /> Gán chứng chỉ
+              </button>
+            </div>
           </div>
 
-          <div className="vp-table-card">
-            <table className="vp-table">
+          <div className="cl-table-card">
+            <table className="cl-table">
               <thead>
-                <tr className="vp-tr-labels">
-                  <th style={{ width: '50px' }}>#</th>
-                  <th>Mã</th>
-                  <th>Tên chứng chỉ</th>
-                  <th>Loại</th>
-                  <th>Bắt buộc</th>
-                  <th>Ngày gán</th>
-                  <th style={{ width: '60px' }}></th>
+                <tr className="cl-tr-labels">
+                  <th style={{ width: '17%' }}>Mã</th>
+                  <th style={{ width: '36%' }}>Tên chứng chỉ</th>
+                  <th style={{ width: '12%' }}>Loại</th>
+                  <th style={{ width: '12%' }}>Bắt buộc</th>
+                  <th style={{ width: '15%' }}>Ngày gán</th>
+                  <th style={{ width: '6%', borderRight: 'none' }}></th>
+                </tr>
+                {/* Hàng lọc theo từng cột — cùng khuôn với VesselCrewTab */}
+                <tr className="cl-tr-filters">
+                  <th>
+                    <div className="cl-search-wrap">
+                      <input className="cl-cf" placeholder="Tìm kiếm" value={filterCode} onChange={e => { setFilterCode(e.target.value); setAssignPage(1); }} />
+                    </div>
+                  </th>
+                  <th>
+                    <div className="cl-search-wrap">
+                      <input className="cl-cf" placeholder="Tìm kiếm" value={filterName} onChange={e => { setFilterName(e.target.value); setAssignPage(1); }} />
+                    </div>
+                  </th>
+                  <th>
+                    <select className="cl-cf" value={filterCat} onChange={e => { setFilterCat(e.target.value); setAssignPage(1); }}>
+                      <option value="">Tất cả</option>
+                      {Object.entries(CATEGORY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    </select>
+                  </th>
+                  <th>
+                    <select className="cl-cf" value={filterMandatory} onChange={e => { setFilterMandatory(e.target.value); setAssignPage(1); }}>
+                      <option value="">Tất cả</option>
+                      <option value="yes">Bắt buộc</option>
+                      <option value="no">Tùy chọn</option>
+                    </select>
+                  </th>
+                  <th></th>
+                  <th style={{ borderRight: 'none' }}></th>
                 </tr>
               </thead>
               <tbody>
                 {filteredAssignments.length === 0 ? (
-                  <tr><td colSpan={7} className="vp-empty">
+                  <tr><td colSpan={6} className="cl-empty">
                     <ShieldCheck size={24} />
                     <p>{assignments.length === 0 ? 'Chưa có chứng chỉ nào được gán cho tàu này' : 'Không tìm thấy'}</p>
-                    {assignments.length === 0 && <button className="vp-btn vp-btn--primary" onClick={() => setShowPicker(true)}><Plus size={13} /> Gán chứng chỉ</button>}
+                    {assignments.length === 0 && <button className="cl-btn cl-btn--primary" onClick={() => setShowPicker(true)}><Plus size={13} /> Gán chứng chỉ</button>}
                   </td></tr>
-                ) : filteredAssignments.map((a, idx) => {
+                ) : pagedAssignments.map((a, idx) => {
                   const catCol = CATEGORY_COLORS[a.category || ''] || { bg: '#f1f5f9', color: '#475569' };
                   return (
-                    <tr key={a.id} className={`vp-tr${idx % 2 === 1 ? ' vp-tr--alt' : ''}`}>
-                      <td style={{ color: '#6b7c8f', fontSize: '11.5px' }}>{idx + 1}</td>
-                      <td style={{ fontWeight: 600, fontSize: '12px', fontFamily: 'monospace' }}>{a.certificateCode}</td>
+                    <tr key={a.id} className={`cl-tr${idx % 2 === 1 ? ' cl-tr--alt' : ''}`}>
+                        <td style={{ fontWeight: 600, fontSize: '12px', fontFamily: 'monospace' }}>{a.certificateCode}</td>
                       <td style={{ fontWeight: 500 }}>{a.certificateName}</td>
-                      <td>
+                      <td >
                         <span style={{ display: 'inline-block', padding: '1px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 500, background: catCol.bg, color: catCol.color }}>
                           {CATEGORY_LABELS[a.category || ''] || a.category || '—'}
                         </span>
                       </td>
-                      <td>{a.isMandatory ? <span style={{ color: '#dc2626', fontWeight: 600, fontSize: '11.5px' }}>Bắt buộc</span> : <span style={{ color: '#6b7c8f', fontSize: '11.5px' }}>Tùy chọn</span>}</td>
+                      <td >{a.isMandatory ? <span style={{ color: '#dc2626', fontWeight: 600, fontSize: '11.5px' }}>Bắt buộc</span> : <span style={{ color: '#6b7c8f', fontSize: '11.5px' }}>Tùy chọn</span>}</td>
                       <td style={{ color: '#6b7c8f', fontSize: '12px' }}>{new Date(a.assignedAt).toLocaleDateString('vi-VN')}</td>
-                      <td>
+                      <td style={{ borderRight: 'none' }}>
                         <button className="vp-icon-btn" title="Gỡ chứng chỉ" onClick={() => handleRemove(a.id)}
                           style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7c8f', padding: '4px', borderRadius: '4px' }}
                           onMouseEnter={e => { e.currentTarget.style.color = '#dc2626'; e.currentTarget.style.background = '#fef2f2'; }}
@@ -285,27 +329,36 @@ export function VesselCertificateTab({ vesselId, vesselName }: VesselCertificate
               </tbody>
             </table>
           </div>
-          <div style={{ fontSize: '12px', color: '#6b7c8f' }}>Hiển thị {filteredAssignments.length} / {assignments.length} chứng chỉ</div>
+          {assignTotalPages > 1 && (
+            <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200">
+              <div className="text-sm text-gray-600">
+                Hiển thị {pagedAssignments.length} / {assignments.length} chứng chỉ
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setAssignPage(Math.max(1, assignPage - 1))} disabled={assignPage === 1}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed">← Trước</button>
+                <span className="text-sm text-gray-600">Trang {assignPage} / {assignTotalPages}</span>
+                <button onClick={() => setAssignPage(Math.min(assignTotalPages, assignPage + 1))} disabled={assignPage === assignTotalPages}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed">Tiếp →</button>
+              </div>
+            </div>
+          )}
         </>
       )}
 
       {/* ── TAB 2: Chứng chỉ thuyền viên từ snapshot ── */}
       {activeTab === 'crew' && (
         <>
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <div style={{ position: 'relative', flex: 1, maxWidth: '300px' }}>
-              <Search size={13} style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', color: '#99aab8', pointerEvents: 'none' }} />
-              <input placeholder="Tìm thuyền viên, tên / mã chứng chỉ..." value={crewCertSearch} onChange={e => setCrewCertSearch(e.target.value)}
-                style={{ width: '100%', padding: '5px 8px 5px 28px', border: '1px solid #b5e3da', borderRadius: '4px', fontSize: '12px', outline: 'none' }} />
+          <div className="cl-header">
+            <div className="cl-header-left">
+              <h1 className="cl-title">Chứng chỉ thuyền viên</h1>
+              <span className="cl-count-badge">{filteredCrewCerts.length}</span>
             </div>
-            <select value={crewCertCat} onChange={e => setCrewCertCat(e.target.value)}
-              style={{ padding: '5px 8px', border: '1px solid #b5e3da', borderRadius: '4px', fontSize: '12px', background: '#fff' }}>
-              <option value="">Tất cả loại</option>
-              {Object.entries(CATEGORY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
-            <button className="vp-btn vp-btn--ghost" onClick={fetchCrewCerts} title="Làm mới" style={{ marginLeft: 'auto' }}>
-              <Loader2 size={13} className={crewCertsLoading ? 'spin' : ''} />
-            </button>
+            <div className="cl-header-right">
+              <button className="cl-btn cl-btn--ghost" onClick={fetchCrewCerts} title="Làm mới">
+                <Loader2 size={13} className={crewCertsLoading ? 'spin' : ''} />
+              </button>
+            </div>
           </div>
 
           {crewCertsLoading ? (
@@ -313,37 +366,63 @@ export function VesselCertificateTab({ vesselId, vesselName }: VesselCertificate
               <Loader2 size={20} className="spin" /><span>Đang tải chứng chỉ thuyền viên...</span>
             </div>
           ) : (
-            <div className="vp-table-card">
-              <table className="vp-table">
+            <div className="cl-table-card">
+              <table className="cl-table">
                 <thead>
-                  <tr className="vp-tr-labels">
-                    <th style={{ width: '40px' }}>#</th>
-                    <th>Thuyền viên</th>
-                    <th>Mã CC</th>
-                    <th>Tên chứng chỉ</th>
-                    <th>Loại</th>
-                    <th>Số CC</th>
-                    <th>Ngày hết hạn</th>
-                    <th>Còn lại</th>
-                    <th>Trạng thái</th>
+                  <tr className="cl-tr-labels">
+                    <th style={{ width: '16%' }}>Thuyền viên</th>
+                    <th style={{ width: '12%' }}>Mã CC</th>
+                    <th style={{ width: '24%' }}>Tên chứng chỉ</th>
+                    <th style={{ width: '9%' }}>Loại</th>
+                    <th style={{ width: '14%' }}>Số CC</th>
+                    <th style={{ width: '10%' }}>Ngày hết hạn</th>
+                    <th style={{ width: '7%' }}>Còn lại</th>
+                    <th style={{ width: '7%', borderRight: 'none' }}>Trạng thái</th>
+                  </tr>
+                  {/* Hàng lọc theo từng cột — cùng khuôn với VesselCrewTab */}
+                  <tr className="cl-tr-filters">
+                    <th>
+                      <div className="cl-search-wrap">
+                        <input className="cl-cf" placeholder="Tìm kiếm" value={filterCrewName} onChange={e => { setFilterCrewName(e.target.value); setCrewPage(1); }} />
+                      </div>
+                    </th>
+                    <th>
+                      <div className="cl-search-wrap">
+                        <input className="cl-cf" placeholder="Tìm kiếm" value={filterCertCode} onChange={e => { setFilterCertCode(e.target.value); setCrewPage(1); }} />
+                      </div>
+                    </th>
+                    <th>
+                      <div className="cl-search-wrap">
+                        <input className="cl-cf" placeholder="Tìm kiếm" value={crewCertSearch} onChange={e => { setCrewCertSearch(e.target.value); setCrewPage(1); }} />
+                      </div>
+                    </th>
+                    <th>
+                      <select className="cl-cf" value={crewCertCat} onChange={e => { setCrewCertCat(e.target.value); setCrewPage(1); }}>
+                        <option value="">Tất cả</option>
+                        {Object.entries(CATEGORY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                      </select>
+                    </th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th style={{ borderRight: 'none' }}></th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredCrewCerts.length === 0 ? (
-                    <tr><td colSpan={9} className="vp-empty">
+                    <tr><td colSpan={8} className="cl-empty">
                       <Users size={24} />
                       <p>{crewCerts.length === 0 ? 'Chưa có dữ liệu chứng chỉ từ snapshot — hãy thực hiện sync từ tàu' : 'Không tìm thấy'}</p>
                     </td></tr>
-                  ) : filteredCrewCerts.map((c, idx) => {
+                  ) : pagedCrewCerts.map((c, idx) => {
                     const st = getCertStatusStyle(c.status);
                     const catCol = CATEGORY_COLORS[c.category || ''] || { bg: '#f1f5f9', color: '#475569' };
                     return (
-                      <tr key={c.id} className={`vp-tr${idx % 2 === 1 ? ' vp-tr--alt' : ''}`}>
-                        <td style={{ color: '#6b7c8f', fontSize: '11.5px' }}>{idx + 1}</td>
+                      <tr key={c.id} className={`cl-tr${idx % 2 === 1 ? ' cl-tr--alt' : ''}`}>
                         <td style={{ fontWeight: 500, fontSize: '12px' }}>{c.crewMemberName}</td>
                         <td style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '11.5px' }}>{c.certificateCode}</td>
                         <td style={{ fontSize: '12.5px' }}>{c.certificateName}</td>
-                        <td>
+                        <td >
                           <span style={{ display: 'inline-block', padding: '1px 7px', borderRadius: '999px', fontSize: '10.5px', fontWeight: 500, background: catCol.bg, color: catCol.color }}>
                             {CATEGORY_LABELS[c.category || ''] || c.category || '—'}
                           </span>
@@ -357,7 +436,7 @@ export function VesselCertificateTab({ vesselId, vesselName }: VesselCertificate
                             </span>
                           ) : '—'}
                         </td>
-                        <td>
+                        <td style={{ borderRight: 'none' }}>
                           <span style={{ display: 'inline-block', padding: '1px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 600, background: st.bg, color: st.color }}>
                             {st.label}
                           </span>
@@ -369,9 +448,20 @@ export function VesselCertificateTab({ vesselId, vesselName }: VesselCertificate
               </table>
             </div>
           )}
-          <div style={{ fontSize: '12px', color: '#6b7c8f' }}>
-            Hiển thị {filteredCrewCerts.length} / {crewCerts.length} chứng chỉ thuyền viên
-          </div>
+          {crewTotalPages > 1 && (
+            <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200">
+              <div className="text-sm text-gray-600">
+                Hiển thị {pagedCrewCerts.length} / {crewCerts.length} chứng chỉ thuyền viên
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setCrewPage(Math.max(1, crewPage - 1))} disabled={crewPage === 1}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed">← Trước</button>
+                <span className="text-sm text-gray-600">Trang {crewPage} / {crewTotalPages}</span>
+                <button onClick={() => setCrewPage(Math.min(crewTotalPages, crewPage + 1))} disabled={crewPage === crewTotalPages}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed">Tiếp →</button>
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -396,9 +486,9 @@ export function VesselCertificateTab({ vesselId, vesselName }: VesselCertificate
                   {available.length === 0 ? 'Tất cả chứng chỉ đã được gán cho tàu này' : 'Không tìm thấy'}
                 </p>
               ) : (
-                <table className="vp-table" style={{ fontSize: '12px' }}>
+                <table className="cl-table" style={{ fontSize: '12px' }}>
                   <thead>
-                    <tr className="vp-tr-labels">
+                    <tr className="cl-tr-labels">
                       <th style={{ width: '36px', textAlign: 'center' }}>
                         <input type="checkbox" checked={filteredAvailable.length > 0 && filteredAvailable.every(c => selectedToAdd.has(c.id))}
                           onChange={() => selectAll(filteredAvailable.map(c => c.id))} style={{ cursor: 'pointer' }} />
@@ -437,7 +527,7 @@ export function VesselCertificateTab({ vesselId, vesselName }: VesselCertificate
               </span>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button className="vp-btn" onClick={() => { setShowPicker(false); setSelectedToAdd(new Set()); }}>Hủy</button>
-                <button className="vp-btn vp-btn--primary" disabled={selectedToAdd.size === 0 || saving} onClick={handleAdd}>
+                <button className="cl-btn cl-btn--primary" disabled={selectedToAdd.size === 0 || saving} onClick={handleAdd}>
                   {saving && <Loader2 size={12} className="spin" />}
                   {saving ? 'Đang gán...' : <><Check size={13} /> Gán {selectedToAdd.size > 0 ? `(${selectedToAdd.size})` : ''}</>}
                 </button>

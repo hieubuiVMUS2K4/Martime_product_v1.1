@@ -3,18 +3,26 @@
    Matching VesselsPage design language
    ============================================================ */
 
-/* --- MOC Design Tokens --- */
+/* --- MOC Design Tokens ---
+   Nền và chữ để TRUNG TÍNH, chỉ đỏ/hổ phách/xanh lá mới mang nghĩa trạng thái.
+   Bảng cũ nhuộm xanh ngọc từ nền, viền, cho tới cả màu chữ (#132d2b ngả xanh lá),
+   nên viên "Còn hiệu lực" xanh nằm trên nền xanh không còn nổi lên được nữa —
+   trong khi việc chính của màn này là bắt người dùng thấy thứ sắp hết hạn.
+   Navy là màu khung: khác hẳn nền trắng của phân hệ tàu nên nhìn một giây là
+   phân biệt được hai bên, mà vẫn đúng chất hàng hải. */
 .cl-page {
-  --moc-blue: #0d7377;
-  --moc-head-bg: #c5f0ea;
-  --moc-filter-bg: #c5f0ea;
-  --moc-border: #b5e3da;
-  --moc-text: #132d2b;
-  --moc-muted: #4f847a;
-  --moc-row-alt: #f5fefc;
-  --moc-row-hover: #e0faf5;
-  --moc-row-sel: #d1faf1;
-  --moc-accent: #0d7377;
+  --moc-blue: #0b2545;
+  --moc-blue-soft: #1b4c7e;
+  --moc-head-bg: #eef2f7;
+  --moc-filter-bg: #f5f8fc;
+  --moc-border: #d6dee8;
+  --moc-text: #14202e;
+  --moc-muted: #64748b;
+  /* Đủ nhận ra khi dò ngang bảng 8 cột, nhưng không đủ đậm để thành sọc rối mắt */
+  --moc-row-alt: #f1f5f9;
+  --moc-row-hover: #eaf1fa;
+  --moc-row-sel: #dce9f8;
+  --moc-accent: #0b2545;
   --moc-danger: #c0392b;
   --moc-success: #10b981;
   --moc-warn: #f59e0b;
@@ -25,7 +33,7 @@
 .cl-page {
   display: flex; flex-direction: column; gap: 6px;
   padding: 8px 10px; min-height: 100%;
-  background: #e5f3ee; font-size: 12.5px; color: var(--moc-text);
+  background: #f5f7fa; font-size: 12.5px; color: var(--moc-text);
 }
 
 /* --- Spin animation --- */
@@ -67,12 +75,12 @@
   cursor: pointer; transition: all .12s; white-space: nowrap;
   line-height: 1.4;
 }
-.cl-btn:hover { background: #effaf5; border-color: #88c5b8; }
+.cl-btn:hover { background: #eef2f7; border-color: #a9b8cc; }
 .cl-btn--primary { background: var(--moc-blue); color: #fff; border-color: var(--moc-blue); }
-.cl-btn--primary:hover { background: #0a5e5e; border-color: #0a5e5e; }
+.cl-btn--primary:hover { background: #16375f; border-color: #16375f; }
 .cl-btn--outline { background: transparent; }
 .cl-btn--ghost { border-color: transparent; background: transparent; padding: 5px 8px; }
-.cl-btn--ghost:hover { background: #e0f0ea; }
+.cl-btn--ghost:hover { background: #eaf1fa; }
 .cl-link-btn {
   background: none; border: none; color: var(--moc-blue);
   font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: underline;
@@ -90,7 +98,7 @@
   font-size: 12px; cursor: pointer; transition: all .12s;
   color: var(--moc-muted);
 }
-.cl-stat:hover { background: #effaf5; }
+.cl-stat:hover { background: #eef2f7; }
 .cl-stat--active {
   background: var(--moc-head-bg); border-color: var(--moc-blue);
   color: var(--moc-blue); font-weight: 600;
@@ -100,7 +108,7 @@
 .cl-stat-lbl { font-size: 11.5px; }
 
 .cl-stat--onboard svg { color: var(--moc-success); }
-.cl-stat--pool svg { color: #0d9488; }
+.cl-stat--pool svg { color: #64748b; }
 .cl-stat--pending svg { color: var(--moc-warn); }
 .cl-stat--warn svg { color: #d97706; }
 
@@ -152,7 +160,7 @@
   font-size: 11.5px; outline: none; transition: border .12s;
 }
 .cl-cf:focus { border-color: var(--moc-blue); }
-.cl-cf::placeholder { color: #7db5a8; }
+.cl-cf::placeholder { color: #94a3b8; }
 /* Search icon via CSS */
 .cl-search-wrap::before {
   content: '\1F50D'; font-size: 10px;
@@ -162,7 +170,7 @@
 
 /* Data rows */
 .cl-tr {
-  border-bottom: 1px solid #e0f0ea;
+  border-bottom: 1px solid #e6ebf2;
   transition: background .08s;
 }
 .cl-tr:last-child { border-bottom: none; }
@@ -170,12 +178,23 @@
 .cl-tr--alt { background: var(--moc-row-alt); }
 .cl-tr--alt:hover { background: var(--moc-row-hover); }
 .cl-tr--sel { background: var(--moc-row-sel) !important; }
-.cl-tr--selected { background: #c8f5ee !important; }
+.cl-tr--selected { background: #dbe9fb !important; }
 
 .cl-table tbody td {
   padding: 5px 10px; vertical-align: middle;
   color: var(--moc-text); font-size: 12.5px;
 }
+
+/* Kẻ dọc giữa các cột. Đặt ở đây một lần cho MỌI bảng dùng .cl-table thay vì gắn
+   borderRight vào từng ô trong từng trang — bảng 7-8 cột trên màn rộng mà chỉ có
+   kẻ ngang thì mắt rất dễ trượt hàng khi dò từ trái sang phải. */
+.cl-table tbody td,
+.cl-tr-labels th,
+.cl-tr-filters th { border-right: 1px solid #edf2f8; }
+
+.cl-table tbody td:last-child,
+.cl-tr-labels th:last-child,
+.cl-tr-filters th:last-child { border-right: none; }
 .cl-td-ck { width: 36px; text-align: center; }
 
 /* Checkbox */
@@ -202,7 +221,11 @@
   text-align: left; padding: 0; font: inherit; color: inherit;
 }
 .cl-name-link:hover .cl-name { color: var(--moc-blue); text-decoration: underline; }
+/* Một tông navy duy nhất. Trước đây màu sinh ngẫu nhiên theo id nên mỗi hàng một
+   màu — đỏ, vàng, tím rải khắp bảng, tranh chú ý với màu cảnh báo mà bản thân
+   lại không mang nghĩa gì. Phân biệt người đã có tên và mã rồi. */
 .cl-av {
+  background: #1b4c7e;
   width: 30px; height: 30px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   color: #fff; font-size: 10.5px; font-weight: 700; flex-shrink: 0;
@@ -232,8 +255,11 @@
 }
 .cl-status-badge--on { background: #d1fae5; color: #065f46; }
 .cl-status-badge--on .cl-status-badge__dot { background: #10b981; }
-.cl-status-badge--off { background: #ccfbf1; color: #096b5e; }
-.cl-status-badge--off .cl-status-badge__dot { background: #0d9488; }
+/* Ở bờ, chưa gán tàu — đây là trạng thái TRUNG TÍNH, không phải tin cần làm nổi.
+   Trước đây để xanh ngọc nên đứng cạnh "Onboard" xanh lá là hai viên xanh na ná
+   nhau, người đọc phải dừng lại phân biệt. Xám để nó lùi lại phía sau. */
+.cl-status-badge--off { background: #eef2f7; color: #475569; }
+.cl-status-badge--off .cl-status-badge__dot { background: #94a3b8; }
 .cl-status-badge--pending { background: #fef3c7; color: #92400e; }
 .cl-status-badge--pending .cl-status-badge__dot { background: #f59e0b; }
 .cl-status-badge--rejected { background: #fee2e2; color: #991b1b; }
@@ -308,7 +334,7 @@
   color: var(--moc-text); font-size: 12.5px;
   cursor: pointer; text-align: left; transition: background .08s;
 }
-.cl-ctx-item:hover { background: #effaf5; }
+.cl-ctx-item:hover { background: var(--moc-row-hover); }
 .cl-ctx-item--danger { color: var(--moc-danger); }
 .cl-ctx-item--danger:hover { background: #fef2f2; }
 .cl-ctx-divider { height: 1px; background: var(--moc-border); margin: 3px 0; }
@@ -337,7 +363,7 @@
   font-size: 12px; font-weight: 500; cursor: pointer;
   transition: all .12s; color: #fff;
 }
-.cl-selbar-btn--assign { background: #0d9488; }
+.cl-selbar-btn--assign { background: #1b4c7e; }
 .cl-selbar-btn--assign:hover { background: #0b8578; }
 .cl-selbar-btn--unassign { background: var(--moc-danger); }
 .cl-selbar-btn--unassign:hover { background: #a93226; }
@@ -485,3 +511,20 @@
 .cl-cert-comp--red .cl-cert-comp-val { color: var(--moc-danger); }
 
 
+
+/* Nút biểu tượng trong ô Thao tác — dùng ở danh mục cảng */
+.cl-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; margin: 0 2px;
+  border: 1px solid var(--moc-border); border-radius: 4px;
+  background: #fff; color: var(--moc-muted);
+  cursor: pointer; transition: all .12s;
+}
+.cl-icon-btn:hover { border-color: var(--moc-blue); color: var(--moc-blue); background: var(--moc-row-hover); }
+
+/* Ô tick đặt cạnh nút trên thanh tiêu đề */
+.cl-inline-check {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--moc-muted); white-space: nowrap;
+  margin-right: 4px; cursor: pointer;
+}

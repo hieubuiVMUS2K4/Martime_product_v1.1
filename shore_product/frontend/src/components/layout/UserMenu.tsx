@@ -66,32 +66,34 @@ export function UserMenu() {
         style={{
           display: 'flex', alignItems: 'center', gap: 10,
           padding: '6px 12px', borderRadius: 8,
-          border: 'none', background: isOpen ? '#e6f5f3' : 'transparent',
+          // Nut nam tren thanh navy nen hover phai la trang mo, khong phai nen sang:
+          // nen sang se nuot mat chu trang ben trong.
+          border: 'none', background: isOpen ? 'rgba(255,255,255,0.12)' : 'transparent',
           cursor: 'pointer', transition: 'background 0.15s',
         }}
-        onMouseEnter={(e) => e.currentTarget.style.background = '#e6f5f3'}
-        onMouseLeave={(e) => e.currentTarget.style.background = isOpen ? '#e6f5f3' : 'transparent'}
+        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.12)'}
+        onMouseLeave={(e) => e.currentTarget.style.background = isOpen ? 'rgba(255,255,255,0.12)' : 'transparent'}
       >
         <div style={{
           width: 32, height: 32, borderRadius: '50%',
-          background: '#0d7377', color: '#fff',
+          background: '#1b4c7e', color: '#fff',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 13, fontWeight: 700,
         }}>
           {displayName.charAt(0).toUpperCase()}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#334155', lineHeight: 1.2 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#ffffff', lineHeight: 1.2 }}>
             {displayName}
           </span>
           {roleLabel && (
-            <span style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1.2 }}>
+            <span style={{ fontSize: 10, color: '#a8bcd4', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1.2 }}>
               {roleLabel}
             </span>
           )}
         </div>
         <ChevronDown size={14} style={{
-          color: '#94a3b8', transition: 'transform 0.2s',
+          color: '#a8bcd4', transition: 'transform 0.2s',
           transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
         }} />
       </button>
