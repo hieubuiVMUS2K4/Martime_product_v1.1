@@ -4,7 +4,7 @@ import type { StockReceipt, CreateStockReceiptDto } from '@/types/pms.types';
 const API = '/api/stock-receipts';
 
 export const stockReceiptService = {
-  async getAll(params?: { page?: number; pageSize?: number; status?: string; q?: string }) {
+  async getAll(params?: { page?: number; pageSize?: number; status?: string; q?: string; vesselId?: string }) {
     const response = await axios.get(API, { params });
     return response.data as { items: StockReceipt[]; total: number; page: number; pageSize: number };
   },

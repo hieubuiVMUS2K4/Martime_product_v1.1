@@ -155,11 +155,12 @@ const PRIORITY_LABELS: Record<string, { label: string; bg: string; text: string 
   LOW: { label: 'Thấp', bg: 'bg-teal-100', text: 'text-teal-700' },
 };
 
-export default function WorkPlanningPage() {
+/** Nhúng trong màn chi tiết tàu: vesselId lọc theo tàu, readOnly để bờ chỉ xem. */
+export default function WorkPlanningPage({ vesselId: vesselIdProp, readOnly = false }: { vesselId?: string; readOnly?: boolean } = {}) {
   const navigate = useNavigate();
   const { t } = useTranslationSafe();
   const [searchParams] = useSearchParams();
-  const vesselId = searchParams.get('vesselId') ?? undefined;
+  const vesselId = vesselIdProp ?? (searchParams.get('vesselId') ?? undefined);
 
   // === Translated label helpers ===
   const STATUS_KEY_MAP: Record<string, string> = {
@@ -413,6 +414,7 @@ export default function WorkPlanningPage() {
   };
 
   const cfgSubmit = async () => {
+    if (readOnly) return;
     if (!cfgForm.scheduleCode || !cfgForm.scheduleName) { toast.error(t('pms.workPlanning.toast.fillCodeAndName')); return; }
     if (cfgTreeSelectedIds.size === 0) { toast.error(t('pms.workPlanning.toast.selectEquipment')); return; }
     if (cfgForm.maintenanceCategory !== 'AD_HOC') {

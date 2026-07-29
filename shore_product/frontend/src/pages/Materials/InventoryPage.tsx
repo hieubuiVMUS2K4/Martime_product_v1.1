@@ -9,7 +9,8 @@ import type { MaterialItem } from '@/types/maritime.types';
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50];
 
-export default function InventoryPage() {
+/** vesselId: xem tồn kho của MỘT tàu trong màn chi tiết tàu. readOnly: bờ chỉ xem, không sửa. */
+export default function InventoryPage({ vesselId, readOnly = false }: { vesselId?: string; readOnly?: boolean } = {}) {
   const { t } = useTranslationSafe();
   const [items, setItems] = useState<InventoryStockItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -43,20 +44,21 @@ export default function InventoryPage() {
       const res = await inventoryService.getAll({
         page: currentPage, pageSize,
         q: searchQ || undefined,
+        vesselId,
       });
       setItems(res.items);
       setTotal(res.total);
       setTotalValue(res.totalValue);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
-  }, [currentPage, pageSize, searchQ]);
+  }, [currentPage, pageSize, searchQ, vesselId]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
   useEffect(() => {
     const loadMeta = async () => {
       const [locs, sum] = await Promise.all([
-        storeLocationService.getAll(),
+        storeLocationService.getAll({ vesselId }),
         inventoryService.getSummary(),
       ]);
       setLocations(locs);
@@ -289,12 +291,14 @@ export default function InventoryPage() {
                     <td className="px-3 py-2 text-xs border-r border-gray-100">{row.unit}</td>
                     <td className="px-3 py-2 text-gray-400 text-xs border-r border-gray-100">{row.updatedAt?.slice(0, 10)}</td>
                     <td className="px-2 py-2 text-center">
+                      {!readOnly && (
                       <button
                         onClick={() => openAdjust(row)}
                         className="p-1 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded" title="Điều chỉnh tồn kho"
                       >
                         <SlidersHorizontal className="w-3.5 h-3.5" />
                       </button>
+                      )}
                     </td>
                   </tr>
                 ))}

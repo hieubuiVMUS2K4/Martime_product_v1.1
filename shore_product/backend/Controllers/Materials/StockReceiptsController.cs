@@ -16,9 +16,11 @@ public class StockReceiptsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
-        [FromQuery] string? status = null, [FromQuery] string? q = null)
+        [FromQuery] string? status = null, [FromQuery] string? q = null,
+        [FromQuery] Guid? vesselId = null)
     {
         var query = _context.StockReceipts.Where(r => r.IsActive).AsNoTracking();
+        if (vesselId.HasValue) query = query.Where(r => r.VesselId == vesselId.Value);
         if (!string.IsNullOrEmpty(status)) query = query.Where(r => r.Status == status);
         if (!string.IsNullOrEmpty(q))
             query = query.Where(r => r.ReceiptCode.Contains(q) || (r.SupplierName != null && r.SupplierName.Contains(q)));

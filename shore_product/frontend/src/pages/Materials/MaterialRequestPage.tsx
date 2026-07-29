@@ -36,7 +36,8 @@ const STATUS_LABELS: Record<string, string> = {
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50];
 
-export default function MaterialRequestPage() {
+/** Nhúng trong màn chi tiết tàu: vesselId lọc theo tàu, readOnly để bờ chỉ xem. */
+export default function MaterialRequestPage({ vesselId, readOnly = false }: { vesselId?: string; readOnly?: boolean } = {}) {
   const { t } = useTranslationSafe();
   const [view, setView] = useState<ViewMode>('list');
   const [requests, setRequests] = useState<MaterialRequest[]>([]);
@@ -89,6 +90,7 @@ export default function MaterialRequestPage() {
         pageSize,
         status: filterStatus || undefined,
         q: searchQ || undefined,
+        vesselId,
       });
       setRequests(res.items);
       setTotal(res.total);
@@ -97,7 +99,7 @@ export default function MaterialRequestPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, pageSize, filterStatus, searchQ]);
+  }, [currentPage, pageSize, filterStatus, searchQ, vesselId]);
 
   useEffect(() => { loadList(); }, [loadList]);
 
@@ -113,6 +115,8 @@ export default function MaterialRequestPage() {
   };
 
   const openCreate = async () => {
+    if (readOnly) return;
+
     setFormData({
       vesselName: VESSEL_CONFIG.VESSEL_NAME,
       voyageId: '',
@@ -132,6 +136,8 @@ export default function MaterialRequestPage() {
   };
 
   const openEdit = async (id: number) => {
+    if (readOnly) return;
+
     try {
       const data = await materialRequestService.getById(id);
       setFormData({
@@ -194,6 +200,8 @@ export default function MaterialRequestPage() {
   };
 
   const handleDelete = async (id: number) => {
+    if (readOnly) return;
+
     if (!confirm('Xác nhận xóa yêu cầu này?')) return;
     await materialRequestService.delete(id);
     loadList();
@@ -368,8 +376,8 @@ export default function MaterialRequestPage() {
                       <button onClick={() => openDetail(r.id)} className="p-1 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded" title="Xem"><Eye size={15} /></button>
                       {r.status === 'Draft' && (
                         <>
-                          <button onClick={() => openEdit(r.id)} className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded" title="Sửa"><Edit2 size={15} /></button>
-                          <button onClick={() => handleDelete(r.id)} className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded" title="Xóa"><Trash2 size={15} /></button>
+                          {!readOnly && <button onClick={() => openEdit(r.id)} className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded" title="Sửa"><Edit2 size={15} /></button>}
+                          {!readOnly && <button onClick={() => handleDelete(r.id)} className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded" title="Xóa"><Trash2 size={15} /></button>}
                         </>
                       )}
                     </div>
@@ -432,7 +440,7 @@ export default function MaterialRequestPage() {
           <div className="flex items-center gap-2">
             {detailData.status === 'Draft' && (
               <>
-                <button onClick={() => openEdit(detailData.id)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50"><Edit2 className="w-3.5 h-3.5" /> Sửa</button>
+                {!readOnly && <button onClick={() => openEdit(detailData.id)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50"><Edit2 className="w-3.5 h-3.5" /> Sửa</button>}
                 <button
                   onClick={async () => {
                     await materialRequestService.submit(detailData.id);

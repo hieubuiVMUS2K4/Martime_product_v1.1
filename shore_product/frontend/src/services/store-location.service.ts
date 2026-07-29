@@ -4,8 +4,8 @@ import type { StoreLocation, CreateStoreLocationDto } from '@/types/pms.types';
 const API_BASE_URL = '/api';
 
 export const storeLocationService = {
-  async getAll(): Promise<StoreLocation[]> {
-    const response = await axios.get(`${API_BASE_URL}/store-locations`);
+  async getAll(params?: { vesselId?: string }): Promise<StoreLocation[]> {
+    const response = await axios.get(`${API_BASE_URL}/store-locations`, { params });
     return response.data;
   },
 

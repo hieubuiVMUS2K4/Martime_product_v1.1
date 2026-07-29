@@ -2878,6 +2878,7 @@
         "noMaterials": "Chưa có vật tư",
         "selectOption": "-- Chọn --",
         "lowStock": "Tồn kho thấp",
+        "notOnBoard": "Tàu chưa có vật tư này",
         "assignedToEquipment": "Đã gán vào thiết bị",
         "assignMaterialToEquipment": "Gán vật tư vào thiết bị",
         "addRow": "Thêm dòng",

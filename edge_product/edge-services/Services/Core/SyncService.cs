@@ -222,55 +222,54 @@ public class SyncService : ISyncService
     {
         try
         {
-            // Lấy MỌI khoá đã từng xuất hiện trong hàng đợi, không chỉ những cái đang chờ.
-            // Sau khi đẩy xong, cột IsSynced của bản ghi gốc vẫn là false (chỉ dòng hàng đợi
-            // được đánh dấu SyncedAt), nên nếu chỉ lọc theo "đang chờ" thì chu kỳ sau sẽ xếp
-            // lại đúng những cảng vừa đẩy — thành vòng lặp không bao giờ dứt.
-            var queuedKeys = await context.SyncQueue
-                .AsNoTracking()
-                .Where(q => q.TableName == "port")
-                .Select(q => q.RecordKey)
-                .Distinct()
-                .ToListAsync(cancellationToken);
-
-            var pendingSet = queuedKeys.ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-            var unsynced = await context.Ports
-                .AsNoTracking()
-                .Where(p => !p.IsSynced)
-                .OrderBy(p => p.Id)
-                .Take(200) // giới hạn mỗi chu kỳ để không dựng một mẻ khổng lồ trên đường truyền yếu
-                .ToListAsync(cancellationToken);
-
-            var opts = new System.Text.Json.JsonSerializerOptions
-            {
-                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
-                ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
-            };
-
+            // Bộ chặn SaveChanges chỉ bắt được thay đổi đi qua EF. Dữ liệu nạp sẵn hoặc chèn
+            // bằng SQL trực tiếp không bao giờ vào hàng đợi, nên bờ vĩnh viễn không thấy.
+            // Vòng đối soát này quét những bản ghi chưa từng được xếp hàng và bù lại.
+            //
+            // Thứ tự quan trọng: phiếu cha phải lên trước dòng chi tiết, vì bờ nối khoá ngoại
+            // của dòng chi tiết bằng cách tra mã phiếu cha.
             var added = 0;
-            foreach (var port in unsynced)
-            {
-                if (pendingSet.Contains(port.Id.ToString())) continue;
+            added += await ReconcileTableAsync(context, "port",
+                context.Ports.Where(x => !x.IsSynced).OrderBy(x => x.Id), x => x.Id.ToString(), cancellationToken);
 
-                context.SyncQueue.Add(new SyncQueue
-                {
-                    TableName = "port",
-                    RecordKey = port.Id.ToString(),
-                    ActionType = SyncActionType.SNAPSHOT,
-                    Payload = System.Text.Json.JsonSerializer.Serialize(port, opts),
-                    Priority = SyncPriority.Low,
-                    CreatedAt = DateTime.UtcNow,
-                    RetryCount = 0,
-                    MaxRetries = 5
-                });
-                added++;
-            }
+            added += await ReconcileTableAsync(context, "material_category",
+                context.MaterialCategories.Where(x => !x.IsSynced).OrderBy(x => x.Id), x => x.Id.ToString(), cancellationToken);
+            added += await ReconcileTableAsync(context, "material_item",
+                context.MaterialItems.Where(x => !x.IsSynced).OrderBy(x => x.Id), x => x.Id.ToString(), cancellationToken);
+            added += await ReconcileTableAsync(context, "store_location",
+                context.StoreLocations.Where(x => !x.IsSynced).OrderBy(x => x.Id), x => x.Id.ToString(), cancellationToken);
+
+            added += await ReconcileTableAsync(context, "equipment_asset",
+                context.EquipmentAssets.Where(x => !x.IsSynced).OrderBy(x => x.Id), x => x.Id.ToString(), cancellationToken);
+            added += await ReconcileTableAsync(context, "equipment_group",
+                context.EquipmentGroups.Where(x => !x.IsSynced).OrderBy(x => x.Id), x => x.Id.ToString(), cancellationToken);
+            added += await ReconcileTableAsync(context, "equipment_group_member",
+                context.EquipmentGroupMembers.Where(x => !x.IsSynced).OrderBy(x => x.Id), x => x.Id.ToString(), cancellationToken);
+
+            added += await ReconcileTableAsync(context, "maintenance_schedule",
+                context.MaintenanceSchedules.Where(x => !x.IsSynced).OrderBy(x => x.Id), x => x.Id.ToString(), cancellationToken);
+            added += await ReconcileTableAsync(context, "schedule_spare_part",
+                context.ScheduleSpareParts.Where(x => !x.IsSynced).OrderBy(x => x.Id), x => x.Id.ToString(), cancellationToken);
+            added += await ReconcileTableAsync(context, "schedule_checklist_template",
+                context.ScheduleChecklistTemplates.Where(x => !x.IsSynced).OrderBy(x => x.Id), x => x.Id.ToString(), cancellationToken);
+            added += await ReconcileTableAsync(context, "maintenance_task",
+                context.MaintenanceTasks.Where(x => !x.IsSynced).OrderBy(x => x.Id), x => x.Id.ToString(), cancellationToken);
+
+            added += await ReconcileTableAsync(context, "material_request",
+                context.MaterialRequests.Where(x => !x.IsSynced).OrderBy(x => x.Id), x => x.Id.ToString(), cancellationToken);
+            added += await ReconcileTableAsync(context, "material_request_item",
+                context.MaterialRequestItems.Where(x => !x.IsSynced).OrderBy(x => x.Id), x => x.Id.ToString(), cancellationToken);
+            added += await ReconcileTableAsync(context, "stock_receipt",
+                context.StockReceipts.Where(x => !x.IsSynced).OrderBy(x => x.Id), x => x.Id.ToString(), cancellationToken);
+            added += await ReconcileTableAsync(context, "stock_receipt_item",
+                context.StockReceiptItems.Where(x => !x.IsSynced).OrderBy(x => x.Id), x => x.Id.ToString(), cancellationToken);
+            added += await ReconcileTableAsync(context, "inventory_stock",
+                context.InventoryStocks.Where(x => !x.IsSynced).OrderBy(x => x.Id), x => x.Id.ToString(), cancellationToken);
 
             if (added > 0)
             {
                 await context.SaveChangesAsync(cancellationToken);
-                _logger.LogInformation("Đối soát danh mục: xếp thêm {Count} cảng chưa từng được đồng bộ", added);
+                _logger.LogInformation("Đối soát: xếp thêm {Count} bản ghi chưa từng được đồng bộ", added);
             }
         }
         catch (Exception ex)
@@ -278,6 +277,73 @@ public class SyncService : ISyncService
             // Không để việc đối soát làm hỏng cả chu kỳ đồng bộ
             _logger.LogWarning(ex, "Đối soát danh mục thất bại, bỏ qua chu kỳ này");
         }
+    }
+
+    /// <summary>
+    /// Xếp hàng những bản ghi của một bảng chưa từng xuất hiện trong sync_queue.
+    /// Lọc theo MỌI khoá đã từng xếp hàng, không chỉ khoá đang chờ: sau khi đẩy xong,
+    /// IsSynced của bản ghi gốc vẫn là false (chỉ dòng hàng đợi được đánh dấu SyncedAt),
+    /// nên lọc theo "đang chờ" sẽ xếp lại đúng những gì vừa đẩy — vòng lặp không dứt.
+    /// </summary>
+    private async Task<int> ReconcileTableAsync<T>(
+        EdgeDbContext context,
+        string tableName,
+        IQueryable<T> unsyncedQuery,
+        Func<T, string> keySelector,
+        CancellationToken cancellationToken) where T : class
+    {
+        var entries = await context.SyncQueue
+            .AsNoTracking()
+            .Where(q => q.TableName == tableName)
+            .Select(q => new { q.RecordKey, Done = q.SyncedAt != null, q.RetryCount, q.MaxRetries, Action = q.ActionType })
+            .ToListAsync(cancellationToken);
+
+        // "Đã gửi" của một dòng UPDATE KHÔNG có nghĩa là bờ đã lưu: bờ bỏ qua bản cập nhật
+        // của bản ghi nó chưa có (payload chỉ có cột thay đổi, dựng mới sẽ ra bản ghi rỗng)
+        // rồi vẫn báo thành công. Chỉ coi là đã phủ khi có một dòng CREATE hoặc SNAPSHOT
+        // gửi trót lọt — hai loại này mang payload đầy đủ.
+        var alreadyQueued = entries
+            .Where(e => (e.Done && (e.Action == SyncActionType.CREATE || e.Action == SyncActionType.SNAPSHOT))
+                        || (!e.Done && e.RetryCount < e.MaxRetries))
+            .Select(e => e.RecordKey)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        // Khoá đã cạn lượt thử mà chưa đẩy được thì xếp lại — nếu không, một lỗi tạm thời
+        // (bờ thiếu cột, sai tên trường) sẽ khoá chết bản ghi đó vĩnh viễn. Chặn ở 3 lần
+        // để bản ghi hỏng thật không phình hàng đợi vô hạn.
+        var exhaustedCount = entries
+            .Where(e => !e.Done && e.RetryCount >= e.MaxRetries)
+            .GroupBy(e => e.RecordKey, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
+
+        foreach (var kv in exhaustedCount.Where(kv => kv.Value >= 3))
+            alreadyQueued.Add(kv.Key);
+
+        // Giới hạn mỗi bảng mỗi chu kỳ để không dựng một mẻ khổng lồ trên đường truyền yếu.
+        var rows = await unsyncedQuery.AsNoTracking().Take(200).ToListAsync(cancellationToken);
+
+        var added = 0;
+        foreach (var row in rows)
+        {
+            var key = keySelector(row);
+            if (alreadyQueued.Contains(key)) continue;
+
+            context.SyncQueue.Add(new SyncQueue
+            {
+                TableName = tableName,
+                RecordKey = key,
+                ActionType = SyncActionType.SNAPSHOT,
+                // Dựng qua DbContext để dòng phiếu được gắn neo mã phiếu cha như đường tự động.
+                Payload = context.BuildSyncPayload(row),
+                Priority = SyncPriority.Low,
+                CreatedAt = DateTime.UtcNow,
+                RetryCount = 0,
+                MaxRetries = 5
+            });
+            added++;
+        }
+
+        return added;
     }
 
     public async Task PullFromShoreAsync(CancellationToken cancellationToken)

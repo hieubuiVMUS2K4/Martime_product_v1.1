@@ -4,7 +4,7 @@ import type { InventoryStockItem, InventorySummary } from '@/types/pms.types';
 const API = '/api/inventory';
 
 export const inventoryService = {
-  async getAll(params?: { page?: number; pageSize?: number; storeLocationId?: string; q?: string }) {
+  async getAll(params?: { page?: number; pageSize?: number; storeLocationId?: string; q?: string; vesselId?: string }) {
     const response = await axios.get(API, { params });
     return response.data as { items: InventoryStockItem[]; total: number; totalValue: number; page: number; pageSize: number };
   },

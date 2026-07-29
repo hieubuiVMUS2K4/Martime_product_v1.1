@@ -25,7 +25,8 @@ const STATUS_LABELS: Record<string, string> = {
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50];
 
-export default function StockReceiptPage() {
+/** Nhúng trong màn chi tiết tàu: vesselId lọc theo tàu, readOnly để bờ chỉ xem. */
+export default function StockReceiptPage({ vesselId, readOnly = false }: { vesselId?: string; readOnly?: boolean } = {}) {
   const { t } = useTranslationSafe();
   const [view, setView] = useState<ViewMode>('list');
   const [receipts, setReceipts] = useState<StockReceipt[]>([]);
@@ -82,12 +83,13 @@ export default function StockReceiptPage() {
         page: currentPage, pageSize,
         status: filterStatus || undefined,
         q: searchQ || undefined,
+        vesselId,
       });
       setReceipts(res.items);
       setTotal(res.total);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
-  }, [currentPage, pageSize, filterStatus, searchQ]);
+  }, [currentPage, pageSize, filterStatus, searchQ, vesselId]);
 
   useEffect(() => { loadList(); }, [loadList]);
 
@@ -105,6 +107,8 @@ export default function StockReceiptPage() {
   };
 
   const openCreate = async () => {
+    if (readOnly) return;
+
     setFormData({
       vesselName: VESSEL_CONFIG.VESSEL_NAME,
       voyageId: '',
@@ -127,6 +131,8 @@ export default function StockReceiptPage() {
   };
 
   const openEdit = async (id: number) => {
+    if (readOnly) return;
+
     try {
       const data = await stockReceiptService.getById(id);
       setFormData({
@@ -192,6 +198,8 @@ export default function StockReceiptPage() {
   };
 
   const handleComplete = async (id: number) => {
+    if (readOnly) return;
+
     if (!confirm('Xác nhận hoàn thành nhập kho? Tồn kho sẽ được cập nhật.')) return;
     await stockReceiptService.complete(id);
     setView('list');
@@ -199,6 +207,8 @@ export default function StockReceiptPage() {
   };
 
   const handleDelete = async (id: number) => {
+    if (readOnly) return;
+
     if (!confirm('Xác nhận xóa phiếu này?')) return;
     await stockReceiptService.delete(id);
     loadList();
@@ -382,8 +392,8 @@ export default function StockReceiptPage() {
                       <button onClick={() => openDetail(r.id)} className="p-1 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded"><Eye size={15} /></button>
                       {r.status === 'Draft' && (
                         <>
-                          <button onClick={() => openEdit(r.id)} className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded"><Edit2 size={15} /></button>
-                          <button onClick={() => handleDelete(r.id)} className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 size={15} /></button>
+                          {!readOnly && <button onClick={() => openEdit(r.id)} className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded"><Edit2 size={15} /></button>}
+                          {!readOnly && <button onClick={() => handleDelete(r.id)} className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 size={15} /></button>}
                         </>
                       )}
                       {r.status === 'Approved' && (
@@ -446,7 +456,7 @@ export default function StockReceiptPage() {
             <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[detailData.status]}`}>{STATUS_LABELS[detailData.status]}</span>
           </div>
           <div className="flex items-center gap-2">
-            {detailData.status === 'Draft' && <button onClick={() => openEdit(detailData.id)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50"><Edit2 className="w-3.5 h-3.5" /> Sửa</button>}
+            {!readOnly && detailData.status === 'Draft' && <button onClick={() => openEdit(detailData.id)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50"><Edit2 className="w-3.5 h-3.5" /> Sửa</button>}
             {(detailData.status === 'Draft' || detailData.status === 'Approved') && (
               <button onClick={() => handleComplete(detailData.id)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700">
                 <CheckCircle className="w-3.5 h-3.5" /> Hoàn thành nhập kho
