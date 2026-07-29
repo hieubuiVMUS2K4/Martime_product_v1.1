@@ -46,7 +46,8 @@ $RECYCLE.BIN/
 node_modules/
 npm-debug.log*
 yarn-debug.log*
-package-lock.json
+# KHÔNG loại trừ package-lock.json: CI chạy `npm ci`, lệnh này bắt buộc phải có lockfile
+# trong repo, và lockfile là thứ ghim đúng phiên bản từng gói.
 
 # ====================
 # .NET / C#

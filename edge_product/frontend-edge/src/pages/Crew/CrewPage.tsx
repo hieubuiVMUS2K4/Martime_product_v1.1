@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslationSafe } from '@/contexts/I18nContext'
-import { Users, FileText, ExternalLink, ArrowDownCircle, ArrowRightCircle, Trash2, User, Search, Plus, Download, FileSpreadsheet, Clock, UserCheck, ChevronsUpDown } from 'lucide-react'
+import { Users, FileText, ExternalLink, ArrowDownCircle, User, Search, Plus, Download, FileSpreadsheet, Clock, UserCheck, ChevronsUpDown } from 'lucide-react'
 import { toast } from 'sonner'
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
@@ -979,6 +979,9 @@ function SectionedCrewView({
           >
             <ArrowDownCircle className="w-4 h-4 text-gray-500" /> {t('crew.page.moveToSignedOff')}
           </button>
+          {/* Ba nút dưới đây đang tắt. Bật lại thì phải import lại ArrowRightCircle và Trash2
+              từ lucide-react — đã bỏ khỏi dòng import vì `tsc -b` báo lỗi import thừa,
+              làm hỏng bước dựng frontend trên CI. */}
           {/* <button
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-2"
           >
