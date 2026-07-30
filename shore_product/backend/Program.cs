@@ -513,7 +513,8 @@ app.UseRouting();
 app.UseRateLimiter();
 app.UseWhen(
     context => ProductApi.Security.SyncRequestVerificationMiddleware.IsProtectedSyncRequest(context.Request) ||
-               context.Request.Path.StartsWithSegments("/api/sync", StringComparison.OrdinalIgnoreCase),
+               (context.Request.Method.Equals(HttpMethods.Post, StringComparison.OrdinalIgnoreCase) &&
+                context.Request.Path.Equals("/api/sync/handshake", StringComparison.OrdinalIgnoreCase)),
     branch => branch.UseMiddleware<ProductApi.Security.NodeApiTokenMiddleware>());
 app.UseWhen(
     context => ProductApi.Security.SyncRequestVerificationMiddleware.IsProtectedSyncRequest(context.Request),

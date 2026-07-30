@@ -193,7 +193,7 @@ namespace ProductApi.Services
                     signingKey,
                     keyVersion = node.KeyVersion,
                     protocolVersion = "2",
-                    securityEnabled = false
+                    securityEnabled = true
                 },
                 syncPolicy = new
                 {
@@ -342,12 +342,12 @@ namespace ProductApi.Services
             sb.AppendLine($"EDGE_SYNC_NODE_ID={node.NodeId}");
             sb.AppendLine($"EDGE_SYNC_SIGNING_KEY={signingKey}");
             sb.AppendLine($"EDGE_SYNC_KEY_VERSION={node.KeyVersion}");
-            sb.AppendLine("EDGE_SYNC_SECURITY_ENABLED=false");
+            sb.AppendLine("EDGE_SYNC_SECURITY_ENABLED=true");
             sb.AppendLine("EDGE_SYNC_PROTOCOL_VERSION=2");
             sb.AppendLine($"SyncSecurity__NodeId={node.NodeId}");
             sb.AppendLine($"SyncSecurity__SigningKey={signingKey}");
             sb.AppendLine($"SyncSecurity__KeyVersion={node.KeyVersion}");
-            sb.AppendLine("SyncSecurity__Enabled=false");
+            sb.AppendLine("SyncSecurity__Enabled=true");
             sb.AppendLine("SyncSecurity__ProtocolVersion=2");
             return sb.ToString();
         }
