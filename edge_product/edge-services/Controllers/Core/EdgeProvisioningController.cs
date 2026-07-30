@@ -116,30 +116,53 @@ public class EdgeProvisioningController : ControllerBase
             if (validationError != null)
                 return BadRequest(new { error = validationError });
 
-            var profile = new EdgeProvisioningProfile
+            EdgeProvisioningProfile profile;
+            try
             {
-                IsActive = false,
-                NodeId = parsed.NodeId,
-                VesselImo = parsed.VesselImo,
-                VesselName = parsed.VesselName,
-                VesselId = parsed.VesselId,
-                ShoreBaseUrl = parsed.ShoreBaseUrl,
-                NodeApiToken = _encryption.Encrypt(parsed.NodeApiToken),
-                SigningKey = _encryption.Encrypt(parsed.SigningKey),
-                KeyVersion = parsed.KeyVersion,
-                ProtocolVersion = parsed.ProtocolVersion,
-                SecurityEnabled = parsed.SecurityEnabled,
-                BatchSize = parsed.BatchSize,
-                SyncIntervalSec = parsed.SyncIntervalSec,
-                NetworkType = parsed.NetworkType,
-                SchemaVersion = parsed.SchemaVersion,
-                ImportedAt = DateTime.UtcNow,
-                ImportedFrom = file.FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ? "zip_upload" : "json_upload",
-                HandshakeStatus = "never"
-            };
+                profile = new EdgeProvisioningProfile
+                {
+                    IsActive = false,
+                    NodeId = parsed.NodeId,
+                    VesselImo = parsed.VesselImo,
+                    VesselName = parsed.VesselName,
+                    VesselId = parsed.VesselId,
+                    ShoreBaseUrl = parsed.ShoreBaseUrl,
+                    NodeApiToken = _encryption.Encrypt(parsed.NodeApiToken),
+                    SigningKey = _encryption.Encrypt(parsed.SigningKey),
+                    KeyVersion = parsed.KeyVersion,
+                    ProtocolVersion = parsed.ProtocolVersion,
+                    SecurityEnabled = parsed.SecurityEnabled,
+                    BatchSize = parsed.BatchSize,
+                    SyncIntervalSec = parsed.SyncIntervalSec,
+                    NetworkType = parsed.NetworkType,
+                    SchemaVersion = parsed.SchemaVersion,
+                    ImportedAt = DateTime.UtcNow,
+                    ImportedFrom = file.FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ? "zip_upload" : "json_upload",
+                    HandshakeStatus = "never"
+                };
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogError(ex, "Failed to encrypt EdgeProvisioningProfile credentials during import.");
+                return BadRequest(new
+                {
+                    error = "EDGE_DATA_PROTECTION_KEY / DataProtection:EncryptionKey chưa được cấu hình trên Edge backend."
+                });
+            }
 
-            _context.EdgeProvisioningProfiles.Add(profile);
-            await _context.SaveChangesAsync();
+            try
+            {
+                _context.EdgeProvisioningProfiles.Add(profile);
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to save EdgeProvisioningProfile during import.");
+                return StatusCode(500, new
+                {
+                    error = "Không lưu được EdgeProvisioningProfile. Kiểm tra migration/table edge_provisioning_profile trong Edge DB."
+                });
+            }
 
             _logger.LogInformation(
                 "Imported EdgeProvisioningProfile #{ProfileId} (NodeId={NodeId}, Source={Source})",
@@ -375,8 +398,8 @@ public class EdgeProvisioningController : ControllerBase
             return "Thiếu object 'shoreConnection'.";
 
         var baseUrl = shoreConnection.TryGetProperty("baseUrl", out var bu) ? bu.GetString() : null;
-        if (string.IsNullOrWhiteSpace(baseUrl) || !baseUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-            return "shoreConnection.baseUrl phải bắt đầu bằng 'https://'.";
+        if (!IsAllowedShoreBaseUrl(baseUrl))
+            return "shoreConnection.baseUrl phải bắt đầu bằng 'https://' (hoặc http://localhost cho test local).";
         parsed.ShoreBaseUrl = baseUrl;
 
         if (!root.TryGetProperty("nodeCredentials", out var creds))
@@ -419,4 +442,26 @@ public class EdgeProvisioningController : ControllerBase
 
     private static string Truncate(string value, int maxLength) =>
         value.Length <= maxLength ? value : value[..maxLength];
+
+    private static bool IsAllowedShoreBaseUrl(string? baseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(baseUrl) || !Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        if (uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+            || uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase)
+            || uri.Host.Equals("::1", StringComparison.OrdinalIgnoreCase);
+    }
 }

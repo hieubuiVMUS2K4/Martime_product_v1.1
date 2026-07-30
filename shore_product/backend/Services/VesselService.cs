@@ -116,7 +116,7 @@ namespace ProductApi.Services
                 VesselType = vesselDto.VesselType,
                 GrossTonnage = vesselDto.GrossTonnage,
                 DeadWeight = vesselDto.DeadWeight,
-                BuildDate = vesselDto.BuildDate,
+                BuildDate = NormalizeUtc(vesselDto.BuildDate),
                 Flag = vesselDto.Flag,
                 IsActive = true
             };

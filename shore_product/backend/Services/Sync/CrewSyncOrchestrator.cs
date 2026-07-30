@@ -261,6 +261,7 @@ public class CrewSyncOrchestrator : ICrewSyncOrchestrator
         node.ConsecutiveFailures = 0;
         node.LastError = null;
         node.LastErrorAt = null;
+        MarkProvisioningActiveIfReady(node);
         node.UpdatedAt = DateTime.UtcNow;
 
         if (maxVersion > node.LastReceivedVersion)
@@ -277,6 +278,7 @@ public class CrewSyncOrchestrator : ICrewSyncOrchestrator
         node.TotalDeliveredCount += deliveredCount;
         node.IsOnline = true;
         node.ConsecutiveFailures = 0;
+        MarkProvisioningActiveIfReady(node);
         node.UpdatedAt = DateTime.UtcNow;
 
         // Update pending outbox count
@@ -318,6 +320,14 @@ public class CrewSyncOrchestrator : ICrewSyncOrchestrator
         }
 
         return node;
+    }
+
+    private static void MarkProvisioningActiveIfReady(SyncNodeTracker node)
+    {
+        if (node.ProvisioningStatus == "PendingFirstContact")
+        {
+            node.ProvisioningStatus = "Active";
+        }
     }
 
     public async Task<int> ReconcileUnsyncedDataAsync()

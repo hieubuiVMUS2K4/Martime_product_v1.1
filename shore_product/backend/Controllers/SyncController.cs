@@ -215,6 +215,8 @@ public class SyncController : ControllerBase
             node.IsOnline = true;
             node.CurrentNetworkType = heartbeat.NetworkType;
             node.ConsecutiveFailures = 0;
+            if (node.ProvisioningStatus == "PendingFirstContact")
+                node.ProvisioningStatus = "Active";
             node.UpdatedAt = receivedAt;
 
             await _context.SaveChangesAsync();

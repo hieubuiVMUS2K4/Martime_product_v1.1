@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, AlertTriangle, Loader2, Download, Key, ShieldCheck, RefreshCw } from 'lucide-react';
 import { ENV } from '../../config/env';
+import { buildAuthHeaders } from '../../services/api.client';
 
 const BASE = ENV.API_BASE_URL;
 
@@ -26,7 +27,7 @@ export const ProvisioningModal: React.FC<ProvisioningModalProps> = ({ vesselId, 
     try {
       const res = await fetch(`${BASE}/vessels/${vesselId}/provision`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: buildAuthHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({}),
       });
       if (!res.ok) throw new Error(await res.text());
@@ -48,7 +49,10 @@ export const ProvisioningModal: React.FC<ProvisioningModalProps> = ({ vesselId, 
     if (!confirmed) return;
     setRotateState('loading'); setMessage(null);
     try {
-      const res = await fetch(`${BASE}/vessels/${vesselId}/provision/rotate`, { method: 'POST' });
+      const res = await fetch(`${BASE}/vessels/${vesselId}/provision/rotate`, {
+        method: 'POST',
+        headers: buildAuthHeaders(),
+      });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       setLastNodeId(data.nodeId);
@@ -64,7 +68,9 @@ export const ProvisioningModal: React.FC<ProvisioningModalProps> = ({ vesselId, 
   const handleDownload = async () => {
     setDownloadState('loading'); setMessage(null);
     try {
-      const res = await fetch(`${BASE}/vessels/${vesselId}/provisioning-package`);
+      const res = await fetch(`${BASE}/vessels/${vesselId}/provisioning-package`, {
+        headers: buildAuthHeaders(),
+      });
       if (!res.ok) throw new Error(await res.text());
       const blob = await res.blob();
       const disposition = res.headers.get('Content-Disposition') ?? '';

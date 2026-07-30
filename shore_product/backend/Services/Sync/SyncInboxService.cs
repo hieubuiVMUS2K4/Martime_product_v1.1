@@ -363,14 +363,19 @@ public class SyncInboxService : ISyncInboxService
         var noonReportIdsForEvaluation = new HashSet<Guid>();
 
         // Auto-register any vessel whose IMO is not yet in the Vessels table.
-        // This happens the first time a new ship pushes data to shore.
+        // In Managed Mode, OriginNode is a node id (for example edge-1234567-main),
+        // so resolve it through SyncNodeTracker before deciding whether to create a vessel.
         var distinctOrigins = items
             .Where(i => !string.IsNullOrWhiteSpace(i.OriginNode))
             .Select(i => i.OriginNode)
-            .Distinct(StringComparer.OrdinalIgnoreCase);
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
-        foreach (var imo in distinctOrigins)
+        var originToImo = await ResolveOriginNodesToImosAsync(distinctOrigins);
+
+        foreach (var origin in distinctOrigins)
         {
+            var imo = originToImo.GetValueOrDefault(origin, origin);
             await AutoRegisterVesselAsync(imo);
         }
 
@@ -2602,6 +2607,24 @@ public class SyncInboxService : ISyncInboxService
 
         _logger.LogInformation(
             "Auto-registered new vessel IMO={IMO} (placeholder — will be updated by ship_data sync)", imo);
+    }
+
+    private async Task<Dictionary<string, string>> ResolveOriginNodesToImosAsync(IEnumerable<string> originNodes)
+    {
+        var nodes = originNodes
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (nodes.Count == 0)
+        {
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        return await _context.SyncNodeTrackers
+            .AsNoTracking()
+            .Where(n => nodes.Contains(n.NodeId) && n.ImoNumber != null && n.ImoNumber != "")
+            .ToDictionaryAsync(n => n.NodeId, n => n.ImoNumber!, StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>
