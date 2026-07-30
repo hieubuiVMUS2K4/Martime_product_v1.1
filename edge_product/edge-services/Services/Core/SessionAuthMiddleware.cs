@@ -47,6 +47,7 @@ public class SessionAuthMiddleware
     private static readonly string[] OptionalAuthPaths = new[]
     {
         "/api/sync",   // Protected by InternalAccess policy; also accessible by authenticated users
+        "/api/edge/provisioning", // Protected by InternalAccess policy; also accessible by authenticated users
     };
 
     public SessionAuthMiddleware(RequestDelegate next, ILogger<SessionAuthMiddleware> logger)

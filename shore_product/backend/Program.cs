@@ -423,7 +423,7 @@ if (autoMigrateDatabase)
                     'a0000000-0000-0000-0000-000000000001',
                     'admin',
                     'Admin@123',
-                    'admin'
+                    'Admin'
                 )
                 ON CONFLICT (""Username"") DO NOTHING;
             ");
