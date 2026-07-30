@@ -91,33 +91,25 @@ public class EdgeRuntimeConfigService : IEdgeRuntimeConfigService
 
         if (activeProfile != null)
         {
-            // A profile exists — this vessel HAS migrated to Managed Mode. From this point on,
-            // Fail-Closed applies unconditionally: if the profile is corrupted/undecryptable, we
-            // must NOT silently fall back to legacy .env (that risks syncing under the wrong
-            // vessel identity). BuildFromProfile() throws ConfigInvalidException in that case.
+            // A profile exists, so Managed Mode owns sync config. If it is corrupted, fail closed.
             return BuildFromProfile(activeProfile);
         }
 
         var configMode = _configuration["Sync:ConfigMode"]
                           ?? Environment.GetEnvironmentVariable("EDGE_SYNC_CONFIG_MODE");
 
-        if (string.Equals(configMode, "Managed", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(configMode, "Legacy", StringComparison.OrdinalIgnoreCase))
         {
-            // Explicit opt-in to strict Managed Mode even though no profile has been imported yet
-            // (e.g. to test the Fail-Closed path). Stop sync rather than fall back.
-            throw new ProvisioningRequiredException(
-                "EDGE_SYNC_CONFIG_MODE=Managed nhưng chưa có Vessel Provisioning Profile nào được " +
-                "kích hoạt. Vui lòng import & activate provisioning package qua Settings → Shore Connection.");
+            // Explicit legacy opt-in for old deployments only. Fresh-start provisioning must not
+            // sync with old appsettings/.env identity before import/activate.
+            return BuildFromLegacyConfig();
         }
 
-        // No profile has EVER been imported on this node — this vessel has not migrated to
-        // Vessel Provisioning v3 yet. This is NOT the dangerous "silent fallback after DB
-        // corruption" case the Fail-Closed rule guards against; it is simply pre-v3 status quo,
-        // so Legacy (.env / appsettings.json) is used automatically without requiring an explicit
-        // flag. Once an admin imports+activates a profile, Managed Mode takes over automatically.
-        return BuildFromLegacyConfig();
+        throw new ProvisioningRequiredException(
+            "No active Vessel Provisioning Profile. Sync is paused until a provisioning package " +
+            "has been imported and activated. Set EDGE_SYNC_CONFIG_MODE=Legacy only for old " +
+            "deployments that explicitly need legacy fallback.");
     }
-
     private EdgeSyncConfig BuildFromProfile(Models.EdgeProvisioningProfile profile)
     {
         if (string.IsNullOrWhiteSpace(profile.NodeId) ||

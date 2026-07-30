@@ -481,7 +481,7 @@ public class SyncService : ISyncService
         var syncConfig = await ResolveSyncConfigAsync();
         var enabled = _configuration.GetValue("ShoreAPI:Enabled", true);
 
-        if (!enabled || syncConfig == null || string.IsNullOrEmpty(syncConfig.ShoreBaseUrl))
+        if (!enabled)
         {
             _logger.LogDebug("Shore API disabled. Marking items as simulated sync.");
             // In dev mode without Shore: mark as synced for testing
@@ -492,6 +492,12 @@ public class SyncService : ISyncService
                 await MarkOriginalRecordSyncedAsync(context, item.TableName, item.RecordKey);
             }
             await context.SaveChangesAsync(cancellationToken);
+            return;
+        }
+
+        if (syncConfig == null || string.IsNullOrEmpty(syncConfig.ShoreBaseUrl))
+        {
+            _logger.LogInformation("Sync not provisioned yet. Leaving {Count} item(s) pending.", items.Count);
             return;
         }
         var baseUrl = syncConfig.ShoreBaseUrl;

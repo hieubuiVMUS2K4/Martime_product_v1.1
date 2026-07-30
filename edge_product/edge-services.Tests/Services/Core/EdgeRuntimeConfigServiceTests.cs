@@ -11,12 +11,9 @@ using Xunit;
 namespace MaritimeEdge.Tests.Services.Core;
 
 /// <summary>
-/// Vessel Provisioning v3 — Runtime Config Precedence &amp; Fail-Closed Test (mandatory, see
-/// temp/implementation_plan.md "Verification Plan"). Covers the 5 required test cases confirming:
-/// DB active profile wins unconditionally in Managed Mode; Fail-Closed on missing/corrupted profile;
-/// explicit EDGE_SYNC_CONFIG_MODE=Managed enforces strict Fail-Closed even with no profile; and
-/// automatic Legacy fallback when no profile has ever been imported (the corrected, non-flag-gated
-/// behavior implemented this session — see Source = "legacy_config" assertions).
+/// Vessel Provisioning v3 runtime config precedence and fail-closed tests.
+/// DB active profile wins unconditionally; missing/corrupted managed config fails closed;
+/// legacy fallback is available only when Sync:ConfigMode/EDGE_SYNC_CONFIG_MODE is explicitly Legacy.
 /// </summary>
 public class EdgeRuntimeConfigServiceTests
 {
@@ -86,16 +83,34 @@ public class EdgeRuntimeConfigServiceTests
     }
 
     [Fact]
-    public async Task GetSyncConfigAsync_NoProfile_NoExplicitMode_AutoFallsBackToLegacyConfig()
+    public async Task GetSyncConfigAsync_NoProfile_NoExplicitMode_ThrowsProvisioningRequired()
     {
-        // Test case 2 (corrected design) — khi CHƯA từng import profile nào (pre-v3 status quo),
-        // tự động fallback về Legacy config mà KHÔNG cần EDGE_SYNC_CONFIG_MODE=Legacy — an toàn vì
-        // đây không phải trường hợp "đã cấu hình rồi mà giờ bị lỗi" (Fail-Closed chỉ áp dụng cho case đó).
+        // Test case 2 - fresh-start Edge must not sync using legacy identity before provisioning.
         using var db = CreateInMemoryContext();
         // No profile rows at all.
 
         var config = CreateConfiguration(new Dictionary<string, string?>
         {
+            ["SyncSecurity:NodeId"] = "legacy-node-999",
+            ["ShoreAPI:BaseUrl"] = "https://shore.example",
+            ["NodeApiToken"] = "legacy-token"
+        });
+
+        var service = new EdgeRuntimeConfigService(
+            db, CreatePassthroughEncryptionMock().Object, config,
+            NullLogger<EdgeRuntimeConfigService>.Instance);
+
+        await Assert.ThrowsAsync<ProvisioningRequiredException>(() => service.GetSyncConfigAsync());
+    }
+    [Fact]
+    public async Task GetSyncConfigAsync_NoProfile_ExplicitLegacyMode_UsesLegacyConfig()
+    {
+        // Test case 3 - Legacy fallback is still available, but only as an explicit opt-in.
+        using var db = CreateInMemoryContext();
+
+        var config = CreateConfiguration(new Dictionary<string, string?>
+        {
+            ["Sync:ConfigMode"] = "Legacy",
             ["SyncSecurity:NodeId"] = "legacy-node-999",
             ["ShoreAPI:BaseUrl"] = "https://shore.example",
             ["NodeApiToken"] = "legacy-token"
@@ -111,27 +126,6 @@ public class EdgeRuntimeConfigServiceTests
         Assert.Equal("https://shore.example", result.ShoreBaseUrl);
         Assert.Equal("legacy_config", result.Source);
     }
-
-    [Fact]
-    public async Task GetSyncConfigAsync_NoProfile_ExplicitManagedMode_ThrowsProvisioningRequired()
-    {
-        // Test case 3 — EDGE_SYNC_CONFIG_MODE=Managed ép buộc Fail-Closed dù chưa từng import profile.
-        using var db = CreateInMemoryContext();
-
-        var config = CreateConfiguration(new Dictionary<string, string?>
-        {
-            ["Sync:ConfigMode"] = "Managed",
-            ["SyncSecurity:NodeId"] = "legacy-node-999",
-            ["ShoreAPI:BaseUrl"] = "https://shore.example"
-        });
-
-        var service = new EdgeRuntimeConfigService(
-            db, CreatePassthroughEncryptionMock().Object, config,
-            NullLogger<EdgeRuntimeConfigService>.Instance);
-
-        await Assert.ThrowsAsync<ProvisioningRequiredException>(() => service.GetSyncConfigAsync());
-    }
-
     [Fact]
     public async Task GetSyncConfigAsync_ActiveProfileMissingRequiredField_ThrowsConfigInvalid()
     {
