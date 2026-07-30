@@ -180,6 +180,7 @@ namespace ProductApi.Services
                     name = vessel.Name,
                     callSign = vessel.CallSign,
                     vesselType = vessel.VesselType,
+                    flag = vessel.Flag,
                     grossTonnage = vessel.GrossTonnage,
                     deadWeight = vessel.DeadWeight,
                     shoreVesselId = vessel.Id

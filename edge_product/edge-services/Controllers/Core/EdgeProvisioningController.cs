@@ -153,6 +153,7 @@ public class EdgeProvisioningController : ControllerBase
             try
             {
                 _context.EdgeProvisioningProfiles.Add(profile);
+                await UpsertShipDataFromProvisioningAsync(parsed);
                 await _context.SaveChangesAsync();
             }
             catch (Exception ex)
@@ -358,6 +359,11 @@ public class EdgeProvisioningController : ControllerBase
         public string? NodeId;
         public string? VesselImo;
         public string? VesselName;
+        public string? VesselCallSign;
+        public string? VesselType;
+        public string? VesselFlag;
+        public double? GrossTonnage;
+        public double? DeadWeight;
         public Guid? VesselId;
         public string? ShoreBaseUrl;
         public string? NodeApiToken;
@@ -388,6 +394,15 @@ public class EdgeProvisioningController : ControllerBase
 
         parsed.VesselImo = vessel.TryGetProperty("imo", out var imo) ? imo.GetString() : null;
         parsed.VesselName = vessel.TryGetProperty("name", out var name) ? name.GetString() : null;
+        parsed.VesselCallSign = vessel.TryGetProperty("callSign", out var callSign) ? callSign.GetString() : null;
+        parsed.VesselType = vessel.TryGetProperty("vesselType", out var vesselType) ? vesselType.GetString() : null;
+        parsed.VesselFlag = vessel.TryGetProperty("flag", out var flag) ? flag.GetString() : null;
+        parsed.GrossTonnage = vessel.TryGetProperty("grossTonnage", out var gt) && gt.TryGetDouble(out var gtValue)
+            ? gtValue
+            : null;
+        parsed.DeadWeight = vessel.TryGetProperty("deadWeight", out var dwt) && dwt.TryGetDouble(out var dwtValue)
+            ? dwtValue
+            : null;
 
         var vesselIdStr = vessel.TryGetProperty("shoreVesselId", out var vid) ? vid.GetString() : null;
         if (string.IsNullOrWhiteSpace(vesselIdStr) || !Guid.TryParse(vesselIdStr, out var vesselIdParsed))
@@ -442,6 +457,37 @@ public class EdgeProvisioningController : ControllerBase
 
     private static string Truncate(string value, int maxLength) =>
         value.Length <= maxLength ? value : value[..maxLength];
+
+    private async Task UpsertShipDataFromProvisioningAsync(ParsedProvisioningJson parsed)
+    {
+        if (string.IsNullOrWhiteSpace(parsed.VesselImo) || string.IsNullOrWhiteSpace(parsed.VesselName))
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        var shipData = await _context.ShipData.AsTracking().FirstOrDefaultAsync();
+        if (shipData == null)
+        {
+            shipData = new ShipData
+            {
+                Id = Guid.NewGuid(),
+                CreatedAt = now
+            };
+            _context.ShipData.Add(shipData);
+        }
+
+        shipData.ImoNumber = parsed.VesselImo.Trim();
+        shipData.ShipName = parsed.VesselName.Trim();
+        shipData.CallSign = parsed.VesselCallSign?.Trim() ?? shipData.CallSign ?? string.Empty;
+        shipData.TypeOfVessel = parsed.VesselType?.Trim() ?? shipData.TypeOfVessel;
+        shipData.Flag = parsed.VesselFlag?.Trim() ?? shipData.Flag ?? string.Empty;
+        shipData.PortOfRegistry ??= string.Empty;
+        shipData.GrossTonnageInternational = parsed.GrossTonnage ?? shipData.GrossTonnageInternational;
+        shipData.OriginNode = parsed.NodeId?.Trim() ?? shipData.OriginNode;
+        shipData.IsSynced = false;
+        shipData.UpdatedAt = now;
+    }
 
     private static bool IsAllowedShoreBaseUrl(string? baseUrl)
     {

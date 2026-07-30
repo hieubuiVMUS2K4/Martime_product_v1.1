@@ -37,13 +37,6 @@ interface Vessel {
   provisioningStatus?: string;
 }
 
-interface SyncNode {
-  nodeId: string;
-  shipName: string;
-  imoNumber?: string;
-  isOnline: boolean;
-}
-
 interface VesselSummary {
   vesselId: string;
   imo: string;
@@ -140,7 +133,6 @@ async function apiRequest<T>(url: string, options?: RequestInit): Promise<T> {
 export const VesselsPage: React.FC = () => {
   const navigate = useNavigate();
   const [vessels, setVessels] = useState<Vessel[]>([]);
-  const [syncNodes, setSyncNodes] = useState<SyncNode[]>([]);
   const [, setSummaries] = useState<Record<string, VesselSummary>>({})
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -187,14 +179,12 @@ export const VesselsPage: React.FC = () => {
     setLoading(true);
     try {
       setError(null);
-      const [vesselsData, syncData, summaryData] = await Promise.allSettled([
+      const [vesselsData, summaryData] = await Promise.allSettled([
         apiRequest<Vessel[]>(`${BASE}/vessels`),
-        apiRequest<{ nodes: SyncNode[] }>(`${BASE}/sync/status`),
         apiRequest<VesselSummary[]>(`${BASE}/vessels/fleet-summary`),
       ]);
       if (vesselsData.status === 'fulfilled') setVessels(vesselsData.value ?? []);
       else throw new Error(vesselsData.reason?.message ?? 'Không thể tải danh sách tàu');
-      if (syncData.status === 'fulfilled') setSyncNodes(syncData.value?.nodes ?? []);
       if (summaryData.status === 'fulfilled') {
         const m: Record<string, VesselSummary> = {};
         for (const s of summaryData.value ?? []) m[s.imo] = s;
@@ -208,15 +198,6 @@ export const VesselsPage: React.FC = () => {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
-
-  const syncNodesByImo = useMemo(() => {
-    const m: Record<string, SyncNode> = {};
-    for (const n of syncNodes) {
-      if (n.nodeId) m[n.nodeId] = n;
-      if (n.imoNumber) m[n.imoNumber] = n;
-    }
-    return m;
-  }, [syncNodes]);
 
   const filtered = useMemo(() => vessels.filter(v =>
     (!colF.name || v.name.toLowerCase().includes(colF.name.toLowerCase())) &&
@@ -319,10 +300,7 @@ export const VesselsPage: React.FC = () => {
             <Ship size={32} />
             <p>Không tìm thấy tàu nào</p>
           </div>
-        ) : filtered.map((v) => {
-          const node = syncNodesByImo[v.imo];
-          const isOnline = node?.isOnline ?? false;
-          return (
+        ) : filtered.map((v) => (
             <div
               key={v.id}
               className="vp-card"
@@ -344,11 +322,6 @@ export const VesselsPage: React.FC = () => {
                   <span className={`vp-provision-badge ${getProvisioningBadgeClass(v.provisioningStatus)}`}>
                     {PROVISIONING_LABELS[v.provisioningStatus ?? 'Unknown'] ?? v.provisioningStatus}
                   </span>
-                  {isOnline ? (
-                    <span className="vp-card-status vp-card-status--online">Online</span>
-                  ) : (
-                    <span className="vp-card-status vp-card-status--offline">Offline</span>
-                  )}
                 </div>
               </div>
 
@@ -408,8 +381,7 @@ export const VesselsPage: React.FC = () => {
                 </button>
               </div>
             </div>
-          );
-        })}
+        ))}
       </div>
 
       {/* Footer */}

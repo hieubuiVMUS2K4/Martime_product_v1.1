@@ -673,6 +673,8 @@ public class SyncController : ControllerBase
                 {
                     n.NodeId,
                     n.ShipName,
+                    n.ImoNumber,
+                    n.ProvisioningStatus,
                     n.IsOnline,
                     n.LastPushAt,
                     n.LastPullAt,

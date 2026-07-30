@@ -234,41 +234,6 @@
   font-family: monospace;
 }
 
-/* Status Badge */
-.vp-card-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 10px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1;
-}
-.vp-card-status--online {
-  background: #dcfce7;
-  color: #166534;
-}
-.vp-card-status--online::before {
-  content: '';
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #16a34a;
-  box-shadow: 0 0 0 2px #dcfce7;
-}
-.vp-card-status--offline {
-  background: #f3f4f6;
-  color: #6b7280;
-}
-.vp-card-status--offline::before {
-  content: '';
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #9ca3af;
-}
-
 .vp-provision-badge {
   display: inline-flex;
   align-items: center;
