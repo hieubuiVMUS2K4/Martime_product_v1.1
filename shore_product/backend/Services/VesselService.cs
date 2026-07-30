@@ -55,10 +55,28 @@ namespace ProductApi.Services
                 .Select(g => new { OriginNode = g.Key, Count = g.Count() })
                 .ToDictionaryAsync(x => x.OriginNode, x => x.Count);
 
+            var provisioningNodes = await _context.SyncNodeTrackers
+                .AsNoTracking()
+                .Where(n => n.ImoNumber != null && imos.Contains(n.ImoNumber))
+                .Select(n => new
+                {
+                    n.ImoNumber,
+                    n.ProvisioningStatus,
+                    SortAt = n.LastHandshakeAt ?? n.LastConfigDownloadedAt ?? n.ProvisionedAt ?? n.UpdatedAt
+                })
+                .ToListAsync();
+
+            var provisioningStatuses = provisioningNodes
+                .GroupBy(n => n.ImoNumber!)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.OrderByDescending(n => n.SortAt).Select(n => n.ProvisioningStatus).FirstOrDefault());
+
             return vessels.Select(v =>
             {
                 var dto = MapToDto(v);
                 dto.UnacknowledgedAlerts = criticalAlertCounts.TryGetValue(v.IMO, out var count) ? count : 0;
+                dto.ProvisioningStatus = provisioningStatuses.TryGetValue(v.IMO, out var status) ? status : "Unknown";
                 return dto;
             });
         }
@@ -474,6 +492,7 @@ namespace ProductApi.Services
                         Source = vessel.Positions.First().Source
                     } : null,
                 UnacknowledgedAlerts = vessel.Alerts?.Count(a => !a.IsAcknowledged) ?? 0,
+                ProvisioningStatus = "Unknown",
 
                 // Extended Basic Data
                 OfficialNumber = vessel.OfficialNumber,

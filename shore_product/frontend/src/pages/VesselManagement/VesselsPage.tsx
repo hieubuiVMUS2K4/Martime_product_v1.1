@@ -34,6 +34,7 @@ interface Vessel {
   isActive: boolean;
   lastPosition?: VesselPosition;
   unacknowledgedAlerts: number;
+  provisioningStatus?: string;
 }
 
 interface SyncNode {
@@ -85,6 +86,35 @@ const FLAGS = [
   'Vietnam', 'Panama', 'Liberia', 'Marshall Islands', 'Bahamas',
   'Singapore', 'Malta', 'Cyprus', 'Hong Kong', 'Other'
 ];
+
+const PROVISIONING_LABELS: Record<string, string> = {
+  Unknown: 'Unknown',
+  Provisioned: 'Provisioned',
+  Downloaded: 'Needs Re-import',
+  PendingFirstContact: 'Pending Contact',
+  Registered: 'Registered',
+  Active: 'Active',
+  Revoked: 'Revoked',
+  Disabled: 'Disabled',
+};
+
+const getProvisioningBadgeClass = (status?: string) => {
+  switch (status) {
+    case 'Active':
+    case 'Registered':
+      return 'vp-provision-badge--ok';
+    case 'Provisioned':
+    case 'PendingFirstContact':
+      return 'vp-provision-badge--pending';
+    case 'Downloaded':
+      return 'vp-provision-badge--needs-import';
+    case 'Revoked':
+    case 'Disabled':
+      return 'vp-provision-badge--blocked';
+    default:
+      return 'vp-provision-badge--unknown';
+  }
+};
 
 // ============================================================
 // API helpers
@@ -311,6 +341,9 @@ export const VesselsPage: React.FC = () => {
                   </div>
                 </div>
                 <div className="vp-card-head-right">
+                  <span className={`vp-provision-badge ${getProvisioningBadgeClass(v.provisioningStatus)}`}>
+                    {PROVISIONING_LABELS[v.provisioningStatus ?? 'Unknown'] ?? v.provisioningStatus}
+                  </span>
                   {isOnline ? (
                     <span className="vp-card-status vp-card-status--online">Online</span>
                   ) : (

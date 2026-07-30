@@ -19,6 +19,7 @@ namespace ProductApi.DTOs
         public int UnacknowledgedAlerts { get; set; }
         public string? VesselName { get; set; }
         public string? VesselIMO { get; set; }
+        public string? ProvisioningStatus { get; set; }
 
         // Extended Basic Data (Edge Master)
         public string? OfficialNumber { get; set; }

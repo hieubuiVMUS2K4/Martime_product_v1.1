@@ -202,6 +202,9 @@
   min-width: 0;
 }
 .vp-card-head-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   flex-shrink: 0;
 }
 .vp-card-avatar {
@@ -264,6 +267,38 @@
   height: 5px;
   border-radius: 50%;
   background: #9ca3af;
+}
+
+.vp-provision-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+.vp-provision-badge--ok {
+  background: #e0f2fe;
+  color: #075985;
+}
+.vp-provision-badge--pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+.vp-provision-badge--needs-import {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+.vp-provision-badge--blocked {
+  background: #f3f4f6;
+  color: #374151;
+}
+.vp-provision-badge--unknown {
+  background: #f8fafc;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
 }
 
 /* Card Body */
