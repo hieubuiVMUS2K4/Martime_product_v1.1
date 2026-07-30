@@ -136,7 +136,20 @@ public class SyncController : ControllerBase
                 .CountAsync(cts.Token);
 
             // Run enough batches to clear all ready items
-            var batchSize = _configuration.GetValue("Sync:BatchSize", 100);
+            int batchSize;
+            try
+            {
+                var syncConfig = await _runtimeConfigService.GetSyncConfigAsync();
+                batchSize = syncConfig.BatchSize;
+            }
+            catch (ProvisioningRequiredException)
+            {
+                batchSize = _configuration.GetValue("Sync:BatchSize", 100);
+            }
+            catch (ConfigInvalidException)
+            {
+                batchSize = _configuration.GetValue("Sync:BatchSize", 100);
+            }
             var maxBatches = (int)Math.Ceiling((double)readyToSync / Math.Max(batchSize, 1)) + 1;
             var triggerInterBatchDelayMs = Math.Max(0, _configuration.GetValue("Sync:TriggerInterBatchDelayMs", 150));
             var previousPending = initialPending;

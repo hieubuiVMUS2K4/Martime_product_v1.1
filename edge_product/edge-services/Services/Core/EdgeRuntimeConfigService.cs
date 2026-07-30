@@ -20,6 +20,9 @@ public class EdgeSyncConfig
     public Guid? ShoreVesselId { get; set; }
     public string? VesselImo { get; set; }
     public string? VesselName { get; set; }
+    public int BatchSize { get; set; } = 100;
+    public int SyncIntervalSec { get; set; } = 30;
+    public string NetworkType { get; set; } = "Shore_WiFi";
     public string Source { get; set; } = "db"; // "db" | "legacy_config"
 }
 
@@ -158,6 +161,9 @@ public class EdgeRuntimeConfigService : IEdgeRuntimeConfigService
             ShoreVesselId = profile.VesselId,
             VesselImo = profile.VesselImo,
             VesselName = profile.VesselName,
+            BatchSize = profile.BatchSize > 0 ? profile.BatchSize : 100,
+            SyncIntervalSec = profile.SyncIntervalSec > 0 ? profile.SyncIntervalSec : 30,
+            NetworkType = string.IsNullOrWhiteSpace(profile.NetworkType) ? "Shore_WiFi" : profile.NetworkType,
             Source = "db"
         };
     }
@@ -193,6 +199,9 @@ public class EdgeRuntimeConfigService : IEdgeRuntimeConfigService
             ShoreVesselId = shoreVesselId,
             VesselImo = _configuration["Vessel:IMO"],
             VesselName = _configuration["Vessel:Name"],
+            BatchSize = _configuration.GetValue("Sync:BatchSize", 100),
+            SyncIntervalSec = _configuration.GetValue("Sync:SyncIntervalSec", _configuration.GetValue("Sync:HighPriorityInterval", 30)),
+            NetworkType = _configuration["Sync:NetworkType"] ?? "Shore_WiFi",
             Source = "legacy_config"
         };
     }

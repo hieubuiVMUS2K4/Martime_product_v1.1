@@ -17,12 +17,14 @@ public class FuelAnalyticsService
     private readonly EdgeDbContext _context;
     private readonly ILogger<FuelAnalyticsService> _logger;
     private readonly IConfiguration _configuration;
-    
-    // Vessel specifications (from configuration)
-    private readonly double _vesselDeadweightTonnage;
-    private readonly int _vesselBuiltYear;
-    private readonly string _vesselType;
-    
+
+    // Vessel specifications — loaded lazily from the ShipData DB table (single source of truth).
+    // Fallback defaults below are used only if no ShipData row exists yet (e.g. brand-new install).
+    private double _vesselDeadweightTonnage = 50000;
+    private int _vesselBuiltYear = 2018;
+    private string _vesselType = "Container Ship";
+    private bool _vesselSpecsLoaded;
+
     public FuelAnalyticsService(
         EdgeDbContext context,
         ILogger<FuelAnalyticsService> logger,
@@ -31,11 +33,39 @@ public class FuelAnalyticsService
         _context = context;
         _logger = logger;
         _configuration = configuration;
-        
-        // Load vessel specs from config (fallback to defaults for testing)
-        _vesselDeadweightTonnage = configuration.GetValue<double>("Vessel:DeadweightTonnage", 50000);
-        _vesselBuiltYear = configuration.GetValue<int>("Vessel:BuiltYear", 2018);
-        _vesselType = configuration.GetValue<string>("Vessel:VesselType", "Container Ship") ?? "Container Ship";
+    }
+
+    /// <summary>
+    /// Loads vessel specs (DWT, built year, vessel type) from the ShipData DB table once per
+    /// service instance. Vessel identity/specs live in DB (ship_data), NOT in appsettings.json —
+    /// see Vessel Provisioning v3 plan ("Vessel section chuyển vào DB").
+    /// </summary>
+    private async Task EnsureVesselSpecsLoadedAsync()
+    {
+        if (_vesselSpecsLoaded) return;
+
+        var ship = await _context.ShipData.AsNoTracking().FirstOrDefaultAsync();
+        if (ship != null)
+        {
+            // Deadweight isn't a direct ShipData column — it's recorded per Load Line type.
+            // Summer load line is the standard reference DWT used industry-wide. The UI stores the
+            // full label (e.g. "Summer (S)") while some legacy seed data uses the short code ("S") —
+            // match both so this works regardless of which source populated the row.
+            var summerLoadLine = await _context.ShipLoadLines
+                .AsNoTracking()
+                .Where(l => l.ShipDataId == ship.Id &&
+                    (l.LoadLineType == "S" || (l.LoadLineType != null && l.LoadLineType.Contains("Summer"))))
+                .FirstOrDefaultAsync();
+            if (summerLoadLine?.DeadweightMt is > 0)
+                _vesselDeadweightTonnage = summerLoadLine.DeadweightMt.Value;
+
+            if (ship.YearBuilt.HasValue && ship.YearBuilt.Value > 0)
+                _vesselBuiltYear = ship.YearBuilt.Value;
+            if (!string.IsNullOrWhiteSpace(ship.TypeOfVessel))
+                _vesselType = ship.TypeOfVessel;
+        }
+
+        _vesselSpecsLoaded = true;
     }
     
     /// <summary>
@@ -49,6 +79,8 @@ public class FuelAnalyticsService
     {
         try
         {
+            await EnsureVesselSpecsLoadedAsync();
+
             _logger.LogInformation(
                 "Calculating fuel efficiency from {Start} to {End}, period: {Period}",
                 startDate, endDate, periodType);

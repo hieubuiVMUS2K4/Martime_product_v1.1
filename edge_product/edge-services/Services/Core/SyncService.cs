@@ -79,9 +79,11 @@ public class SyncService : ISyncService
         public DateTime LastRefillUtc { get; set; }
     }
 
-    // Network type: read from config (Sync:NetworkType). In production this would be detected from router API.
+    // Network type: resolved lazily (once per scope) from IEdgeRuntimeConfigService (DB profile
+    // NetworkType field), falling back to Sync:NetworkType config in Legacy Mode. In production
+    // this would be detected from router API.
     // Supported values: None, Satellite_Iridium, Satellite_VSAT, Cellular_4G, Shore_WiFi
-    private NetworkType _currentNetwork;
+    private NetworkType? _currentNetwork;
 
     private static readonly JsonSerializerOptions _jsonOptions = new()
     {
@@ -109,18 +111,29 @@ public class SyncService : ISyncService
         _syncRequestSigningService = syncRequestSigningService;
         _syncFileStorageService = syncFileStorageService;
         _syncFilePreparationService = syncFilePreparationService;
-
-        // Read network type from config, default to Shore_WiFi (allows all priorities)
-        var networkTypeName = configuration.GetValue("Sync:NetworkType", "Shore_WiFi");
-        _currentNetwork = Enum.TryParse<NetworkType>(networkTypeName, out var parsed)
-            ? parsed
-            : NetworkType.Shore_WiFi;
     }
 
     public async Task<NetworkType> GetCurrentNetworkStatusAsync()
     {
         // TODO: Implement actual network detection logic (ping, SNMP to router, etc.)
-        return await Task.FromResult(_currentNetwork);
+        if (_currentNetwork.HasValue)
+            return _currentNetwork.Value;
+
+        string? networkTypeName;
+        try
+        {
+            var syncConfig = await _runtimeConfigService.GetSyncConfigAsync();
+            networkTypeName = syncConfig.NetworkType;
+        }
+        catch (Exception ex) when (ex is ProvisioningRequiredException or ConfigInvalidException)
+        {
+            networkTypeName = _configuration.GetValue("Sync:NetworkType", "Shore_WiFi");
+        }
+
+        _currentNetwork = Enum.TryParse<NetworkType>(networkTypeName, out var parsed)
+            ? parsed
+            : NetworkType.Shore_WiFi;
+        return _currentNetwork.Value;
     }
 
     public async Task ExecuteSyncAsync(CancellationToken cancellationToken)
@@ -161,7 +174,7 @@ public class SyncService : ISyncService
             }
 
             // Fetch pending items based on priority and retry count
-            var batchSize = GetAdaptiveBatchSize(networkType);
+            var batchSize = await GetAdaptiveBatchSizeAsync(networkType);
             var pendingItems = await context.SyncQueue
                 .Where(q => q.SyncedAt == null)
                 .Where(q => allowedPriorities.Contains(q.Priority))
@@ -807,9 +820,18 @@ public class SyncService : ISyncService
         return await _pushGate.WaitAsync(0);
     }
 
-    private int GetAdaptiveBatchSize(NetworkType networkType)
+    private async Task<int> GetAdaptiveBatchSizeAsync(NetworkType networkType)
     {
-        var defaultBatchSize = Math.Max(1, _configuration.GetValue("Sync:BatchSize", 100));
+        int defaultBatchSize;
+        try
+        {
+            var syncConfig = await _runtimeConfigService.GetSyncConfigAsync();
+            defaultBatchSize = Math.Max(1, syncConfig.BatchSize);
+        }
+        catch (Exception ex) when (ex is ProvisioningRequiredException or ConfigInvalidException)
+        {
+            defaultBatchSize = Math.Max(1, _configuration.GetValue("Sync:BatchSize", 100));
+        }
         var configured = _configuration.GetValue<int?>($"Sync:AdaptiveProfiles:{networkType}:BatchSize");
         return configured.HasValue ? Math.Max(1, configured.Value) : defaultBatchSize;
     }

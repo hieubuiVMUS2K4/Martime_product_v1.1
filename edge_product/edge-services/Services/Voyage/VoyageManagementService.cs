@@ -40,16 +40,13 @@ public interface IVoyageManagementService
 public class VoyageManagementService : IVoyageManagementService
 {
     private readonly EdgeDbContext _context;
-    private readonly IConfiguration _configuration;
     private readonly ILogger<VoyageManagementService> _logger;
 
     public VoyageManagementService(
-        EdgeDbContext context, 
-        IConfiguration configuration,
+        EdgeDbContext context,
         ILogger<VoyageManagementService> logger)
     {
         _context = context;
-        _configuration = configuration;
         _logger = logger;
     }
 
@@ -93,17 +90,19 @@ public class VoyageManagementService : IVoyageManagementService
 
     public async Task<VoyageRecord> CreateVoyageAsync(CreateVoyageDto dto)
     {
-        var vesselConfig = _configuration.GetSection("Vessel");
+        // Vessel identity comes from the ShipData DB table (single source of truth), NOT from
+        // appsettings.json "Vessel" section — see Vessel Provisioning v3 plan.
+        var ship = await _context.ShipData.AsNoTracking().FirstOrDefaultAsync();
         var initialStatus = NormalizeVoyageStatus(dto.VoyageStatus ?? VoyageStatus.PLANNING);
         var charterType = NormalizeCharterType(dto.CharterType);
 
         var voyage = new VoyageRecord
         {
             VoyageNumber = dto.VoyageNumber,
-            VesselIMO = vesselConfig["IMO"],
-            VesselName = vesselConfig["Name"],
-            VesselFlag = vesselConfig["Flag"],
-            CallSign = vesselConfig["CallSign"],
+            VesselIMO = ship?.ImoNumber,
+            VesselName = ship?.ShipName,
+            VesselFlag = ship?.Flag,
+            CallSign = ship?.CallSign,
             DeparturePort = dto.DeparturePort,
             DeparturePortCode = dto.DeparturePortCode,
             DepartureTime = dto.DepartureTime,
@@ -123,10 +122,10 @@ public class VoyageManagementService : IVoyageManagementService
             VoyageStatus = initialStatus
         };
 
-        // Auto-fill vessel info from config
-        voyage.VesselIMO = vesselConfig["IMO"];
-        voyage.VesselName = vesselConfig["Name"];
-        voyage.CallSign = vesselConfig["CallSign"];
+        // Auto-fill vessel info from DB (ShipData)
+        voyage.VesselIMO = ship?.ImoNumber;
+        voyage.VesselName = ship?.ShipName;
+        voyage.CallSign = ship?.CallSign;
 
         ApplyLifecycleMilestones(voyage, initialStatus);
         ApplyPlanLegs(voyage, dto.PlanLegs);

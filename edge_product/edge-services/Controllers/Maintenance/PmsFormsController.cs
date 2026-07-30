@@ -20,14 +20,12 @@ public class PmsFormsController : ControllerBase
 {
     private readonly EdgeDbContext _context;
     private readonly ILogger<PmsFormsController> _logger;
-    private readonly IConfiguration _config;
     private readonly PmsPdfService _pdfService;
 
-    public PmsFormsController(EdgeDbContext context, ILogger<PmsFormsController> logger, IConfiguration config, PmsPdfService pdfService)
+    public PmsFormsController(EdgeDbContext context, ILogger<PmsFormsController> logger, PmsPdfService pdfService)
     {
         _context = context;
         _logger = logger;
-        _config = config;
         _pdfService = pdfService;
     }
 
@@ -160,7 +158,9 @@ public class PmsFormsController : ControllerBase
         var form = await _context.TaskRiskAssessments.FirstOrDefaultAsync(r => r.TaskId == resolvedTaskId);
         if (form == null) return NotFound(new { error = "Risk assessment not filled yet" });
 
-        var vesselName = _config["Vessel:Name"] ?? "Vessel";
+        // Vessel identity comes from the ShipData DB table, NOT appsettings.json "Vessel" section.
+        var ship = await _context.ShipData.AsNoTracking().FirstOrDefaultAsync();
+        var vesselName = ship?.ShipName ?? "Vessel";
         var pdfBytes = _pdfService.GenerateRiskAssessmentPdf(form, vesselName);
         var fileName = $"DGRR-{resolvedTaskId}.pdf";
         return File(pdfBytes, "application/pdf", fileName);
@@ -203,7 +203,9 @@ public class PmsFormsController : ControllerBase
                 notes = ""
             }).ToList();
 
-            var vesselName = _config["Vessel:Name"] ?? "";
+            // Vessel identity comes from the ShipData DB table, NOT appsettings.json "Vessel" section.
+            var ship = await _context.ShipData.AsNoTracking().FirstOrDefaultAsync();
+            var vesselName = ship?.ShipName ?? "";
             return Ok(new
             {
                 taskId = resolvedTaskId2,
@@ -284,7 +286,9 @@ public class PmsFormsController : ControllerBase
         var form = await _context.TaskInspectionReports.FirstOrDefaultAsync(r => r.TaskId == resolvedTaskId);
         if (form == null) return NotFound(new { error = "Inspection report not filled yet" });
 
-        var vesselName = _config["Vessel:Name"] ?? "Vessel";
+        // Vessel identity comes from the ShipData DB table, NOT appsettings.json "Vessel" section.
+        var ship = await _context.ShipData.AsNoTracking().FirstOrDefaultAsync();
+        var vesselName = ship?.ShipName ?? "Vessel";
         var pdfBytes = _pdfService.GenerateInspectionReportPdf(form, vesselName);
         var fileName = $"BBKT-{resolvedTaskId}.pdf";
         return File(pdfBytes, "application/pdf", fileName);

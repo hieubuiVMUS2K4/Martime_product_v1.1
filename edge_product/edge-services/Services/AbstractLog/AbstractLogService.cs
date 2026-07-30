@@ -32,13 +32,11 @@ public interface IAbstractLogService
 public class AbstractLogService : IAbstractLogService
 {
     private readonly EdgeDbContext _context;
-    private readonly IConfiguration _configuration;
     private readonly ILogger<AbstractLogService> _logger;
 
-    public AbstractLogService(EdgeDbContext context, IConfiguration configuration, ILogger<AbstractLogService> logger)
+    public AbstractLogService(EdgeDbContext context, ILogger<AbstractLogService> logger)
     {
         _context = context;
-        _configuration = configuration;
         _logger = logger;
     }
 
@@ -102,7 +100,9 @@ public class AbstractLogService : IAbstractLogService
         if (voyage == null)
             throw new InvalidOperationException("Voyage not found");
 
-        var vesselConfig = _configuration.GetSection("Vessel");
+        // Vessel identity comes from the ShipData DB table (single source of truth), NOT from
+        // appsettings.json "Vessel" section — see Vessel Provisioning v3 plan.
+        var ship = await _context.ShipData.AsNoTracking().FirstOrDefaultAsync();
 
         // Auto-fill Master & Chief Engineer from crew assignments
         var masterName = await _context.VoyageCrewAssignments
@@ -125,8 +125,8 @@ public class AbstractLogService : IAbstractLogService
         {
             VoyageId = dto.VoyageId,
             VoyageNumber = voyage.VoyageNumber ?? "",
-            ShipName = voyage.VesselName ?? vesselConfig["Name"] ?? "",
-            IMONumber = voyage.VesselIMO ?? vesselConfig["IMO"],
+            ShipName = voyage.VesselName ?? ship?.ShipName ?? "",
+            IMONumber = voyage.VesselIMO ?? ship?.ImoNumber,
             MasterName = masterName,
             ChiefEngineerName = ceName,
             ReportDate = DateTime.UtcNow,

@@ -27,7 +27,8 @@ public class SyncBackgroundWorker : BackgroundService
 
         var pullInterval = TimeSpan.FromSeconds(_configuration.GetValue("Sync:SyncInterval", 300));
         var heartbeatInterval = TimeSpan.FromSeconds(_configuration.GetValue("Sync:HeartbeatInterval", 60));
-        var defaultPushInterval = TimeSpan.FromSeconds(_configuration.GetValue("Sync:HighPriorityInterval", 60));
+        var configDefaultPushInterval = TimeSpan.FromSeconds(_configuration.GetValue("Sync:HighPriorityInterval", 60));
+        var defaultPushInterval = configDefaultPushInterval;
         var lastPull = DateTime.MinValue;
         var lastHeartbeat = DateTime.MinValue;
 
@@ -39,6 +40,18 @@ public class SyncBackgroundWorker : BackgroundService
                 using (var scope = _serviceProvider.CreateScope())
                 {
                     var syncService = scope.ServiceProvider.GetRequiredService<ISyncService>();
+                    var runtimeConfigService = scope.ServiceProvider.GetRequiredService<IEdgeRuntimeConfigService>();
+
+                    try
+                    {
+                        var syncConfig = await runtimeConfigService.GetSyncConfigAsync();
+                        defaultPushInterval = TimeSpan.FromSeconds(Math.Max(1, syncConfig.SyncIntervalSec));
+                    }
+                    catch (Exception ex) when (ex is ProvisioningRequiredException or ConfigInvalidException)
+                    {
+                        defaultPushInterval = configDefaultPushInterval;
+                    }
+
                     var network = await syncService.GetCurrentNetworkStatusAsync();
                     var networkPushIntervalSeconds = _configuration.GetValue<double?>(
                         $"Sync:NetworkPushIntervalsSeconds:{network}");
