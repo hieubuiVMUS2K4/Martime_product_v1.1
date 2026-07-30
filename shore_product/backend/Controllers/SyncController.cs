@@ -52,7 +52,7 @@ public class SyncController : ControllerBase
     /// POST /api/sync/handshake — Vessel Provisioning v3 (Component 3).
     /// Edge calls this right after importing a provisioning package, using the raw NodeApiToken
     /// (header X-Node-Api-Token) to prove which node it is. On success, Shore records
-    /// FirstHandshakeAt/LastHandshakeAt and advances ProvisioningStatus to PendingFirstContact.
+    /// FirstHandshakeAt/LastHandshakeAt and registers the node for enforced sync.
     /// </summary>
     [HttpPost("handshake")]
     public async Task<IActionResult> Handshake([FromBody] SyncHandshakeDto handshake)
@@ -82,10 +82,11 @@ public class SyncController : ControllerBase
         trackedNode.LastHandshakeAt = now;
         trackedNode.LastHeartbeatAt = now;
         trackedNode.IsOnline = true;
+        trackedNode.IsRegistered = true;
         if (!string.IsNullOrWhiteSpace(handshake.NetworkType))
             trackedNode.CurrentNetworkType = handshake.NetworkType;
-        if (trackedNode.ProvisioningStatus is "Provisioned" or "Downloaded")
-            trackedNode.ProvisioningStatus = "PendingFirstContact";
+        if (trackedNode.ProvisioningStatus is "Provisioned" or "Downloaded" or "PendingFirstContact")
+            trackedNode.ProvisioningStatus = "Active";
         trackedNode.UpdatedAt = now;
 
         await _context.SaveChangesAsync();
@@ -213,6 +214,7 @@ public class SyncController : ControllerBase
             var receivedAt = DateTime.UtcNow;
             node.LastHeartbeatAt = receivedAt;
             node.IsOnline = true;
+            node.IsRegistered = true;
             node.CurrentNetworkType = heartbeat.NetworkType;
             node.ConsecutiveFailures = 0;
             if (node.ProvisioningStatus == "PendingFirstContact")

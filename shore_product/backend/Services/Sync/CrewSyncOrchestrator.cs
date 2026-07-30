@@ -324,6 +324,8 @@ public class CrewSyncOrchestrator : ICrewSyncOrchestrator
 
     private static void MarkProvisioningActiveIfReady(SyncNodeTracker node)
     {
+        node.IsRegistered = true;
+
         if (node.ProvisioningStatus == "PendingFirstContact")
         {
             node.ProvisioningStatus = "Active";
