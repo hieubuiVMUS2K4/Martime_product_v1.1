@@ -30,8 +30,8 @@ const EdgeSyncBadge: React.FC<{ lastSync?: string | Date | null }> = ({ lastSync
         padding: '8px 12px',
         fontSize: '13px',
         fontWeight: 500,
-        color: isRecent ? '#065f46' : '#6b7280',
-        backgroundColor: isRecent ? '#d1fae5' : '#f3f4f6',
+        color: isRecent ? '#16375f' : '#6b7280',
+        backgroundColor: isRecent ? '#dce9f8' : '#f3f4f6',
         borderRadius: '6px',
         width: 'fit-content',
         marginBottom: '12px'

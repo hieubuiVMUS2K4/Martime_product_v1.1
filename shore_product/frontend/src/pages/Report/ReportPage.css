@@ -9,7 +9,7 @@
   padding: 8px 10px;
   min-height: 100%;
   background: #f5f7fa;
-  color: #132d2b;
+  color: #14202e;
   font-size: 13px;
   font-family: inherit;
 }
@@ -30,23 +30,23 @@
   gap: 8px;
 }
 
-.rp-header-icon { color: #0d7377; }
+.rp-header-icon { color: #1b4c7e; }
 
 .rp-title {
   font-size: 16px;
   font-weight: 700;
-  color: #132d2b;
+  color: #14202e;
   margin: 0;
 }
 
 .rp-subtitle {
   font-size: 11.5px;
-  color: #4f847a;
+  color: #4c6a8f;
   margin: 0 0 0 4px;
 }
 
 .rp-count-badge {
-  background: #0d7377;
+  background: #1b4c7e;
   color: #fff;
   font-size: 11px;
   font-weight: 700;
@@ -64,17 +64,17 @@
 .rp-search {
   height: 28px;
   padding: 0 10px 0 28px;
-  border: 1px solid #b5e3da;
+  border: 1px solid #d6dee8;
   border-radius: 5px;
   background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%236b7c8f' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 8px center;
   font-size: 12px;
-  color: #132d2b;
+  color: #14202e;
   outline: none;
   width: 200px;
 }
 
-.rp-search::placeholder { color: #86c2b5; }
-.rp-search:focus { border-color: #0d7377; box-shadow: 0 0 0 2px rgba(13, 115, 119,0.1); }
+.rp-search::placeholder { color: #a9bdd6; }
+.rp-search:focus { border-color: #1b4c7e; box-shadow: 0 0 0 2px rgba(27, 76, 126,0.1); }
 
 .rp-btn {
   display: inline-flex;
@@ -82,16 +82,16 @@
   gap: 5px;
   padding: 5px 12px;
   border-radius: 5px;
-  border: 1px solid #b5e3da;
+  border: 1px solid #d6dee8;
   background: #fff;
-  color: #132d2b;
+  color: #14202e;
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
   height: 28px;
 }
-.rp-btn:hover { background: #e6f5f3; color: #0d7377; border-color: #0d7377; }
+.rp-btn:hover { background: #eef2f7; color: #1b4c7e; border-color: #1b4c7e; }
 .rp-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* === Cards grid === */
@@ -104,8 +104,8 @@
 /* === Vessel card === */
 .rp-card {
   position: relative;
-  background: linear-gradient(180deg, #ffffff 0%, #f5fefc 100%);
-  border: 1px solid #b8e6dd;
+  background: linear-gradient(180deg, #ffffff 0%, #f7f9fc 100%);
+  border: 1px solid #d6dee8;
   border-radius: 14px;
   cursor: pointer;
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
@@ -118,12 +118,12 @@
   position: absolute;
   inset: 0 0 auto 0;
   height: 3px;
-  background: linear-gradient(90deg, #0d7377 0%, #14b8a6 55%, #5eead4 100%);
+  background: linear-gradient(90deg, #0b2545 0%, #1b4c7e 55%, #a9bdd6 100%);
 }
 
 .rp-card:hover {
-  border-color: #0d7377;
-  box-shadow: 0 18px 36px rgba(13, 115, 119, 0.16);
+  border-color: #1b4c7e;
+  box-shadow: 0 18px 36px rgba(11, 37, 69, 0.16);
   transform: translateY(-2px);
 }
 
@@ -132,9 +132,9 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  background: linear-gradient(135deg, #ccfbf1 0%, #effefa 100%);
+  background: linear-gradient(135deg, #dce9f8 0%, #f7f9fc 100%);
   padding: 16px 16px 14px;
-  border-bottom: 1px solid #c5ede6;
+  border-bottom: 1px solid #dce9f8;
 }
 
 .rp-card__ship-badge {
@@ -145,12 +145,12 @@
   height: 40px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.82);
-  border: 1px solid rgba(13, 115, 119, 0.12);
+  border: 1px solid rgba(11, 37, 69, 0.12);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
 .rp-card__ship-icon {
-  color: #0d7377;
+  color: #1b4c7e;
   flex-shrink: 0;
 }
 
@@ -162,7 +162,7 @@
 .rp-card__name {
   font-size: 13.5px;
   font-weight: 700;
-  color: #133d38;
+  color: #0b2545;
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -171,7 +171,7 @@
 
 .rp-card__meta {
   font-size: 11.5px;
-  color: #2d6b5e;
+  color: #16375f;
   margin: 3px 0 0 0;
 }
 
@@ -194,16 +194,16 @@
   justify-content: space-between;
   gap: 12px;
   padding: 16px;
-  border-bottom: 1px solid #e0f5f0;
+  border-bottom: 1px solid #eef2f7;
 }
 
 .rp-card__stat {
   flex: 0 0 118px;
   padding: 14px 14px 12px;
   text-align: left;
-  border: 1px solid #ccf0ea;
+  border: 1px solid #dce9f8;
   border-radius: 12px;
-  background: linear-gradient(180deg, #f5fefc 0%, #e0faf5 100%);
+  background: linear-gradient(180deg, #f7f9fc 0%, #eef2f7 100%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
@@ -218,14 +218,14 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #437d6f;
+  color: #4c6a8f;
   margin-bottom: 8px;
 }
 
 .rp-card__stat-val {
   font-size: 28px;
   font-weight: 700;
-  color: #0a544d;
+  color: #16375f;
   line-height: 1;
 }
 
@@ -234,7 +234,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #4f847a;
+  color: #4c6a8f;
   margin-top: 6px;
 }
 
@@ -253,16 +253,16 @@
   min-height: 32px;
   padding: 7px 12px;
   border-radius: 999px;
-  background: #e0faf5;
-  border: 1px solid #c5ede6;
-  color: #154540;
+  background: #eef2f7;
+  border: 1px solid #dce9f8;
+  color: #0b2545;
   font-size: 11.5px;
   font-weight: 600;
 }
 
 .rp-card__tag--muted {
-  background: #f5fefc;
-  color: #3e7a6d;
+  background: #f7f9fc;
+  color: #4c6a8f;
 }
 
 /* Footer */
@@ -286,12 +286,12 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #5c9488;
+  color: #6b7c8f;
 }
 
 .rp-card__last {
   font-size: 12px;
-  color: #1f4f4a;
+  color: #16375f;
   font-weight: 600;
 }
 
@@ -302,9 +302,9 @@
   width: 30px;
   height: 30px;
   border-radius: 10px;
-  background: linear-gradient(180deg, #e6faf6 0%, #d1faf1 100%);
-  color: #0d7377;
-  border: 1px solid #c5ede6;
+  background: linear-gradient(180deg, #eef2f7 0%, #dce9f8 100%);
+  color: #1b4c7e;
+  border: 1px solid #dce9f8;
 }
 
 /* === States === */
@@ -314,14 +314,14 @@
   justify-content: center;
   min-height: 200px;
   gap: 8px;
-  color: #4f847a;
+  color: #4c6a8f;
   font-size: 13px;
 }
 
 .rp-empty {
   text-align: center;
   padding: 48px 24px;
-  color: #86c2b5;
+  color: #a9bdd6;
   font-size: 13px;
 }
 

@@ -116,8 +116,8 @@
   justify-content: center;
   flex-shrink: 0;
 }
-.sd-kpi--primary { background: rgba(19, 78, 74, 0.1); color: var(--color-primary); }
-.sd-kpi--blue { background: rgba(14, 165, 233, 0.1); color: var(--color-accent); }
+.sd-kpi--primary { background: rgba(11, 37, 69, 0.1); color: var(--color-primary); }
+.sd-kpi--blue { background: rgba(27, 76, 126, 0.1); color: var(--color-accent); }
 .sd-kpi--orange { background: rgba(245, 158, 11, 0.1); color: var(--color-warning); }
 .sd-kpi--green { background: rgba(16, 185, 129, 0.1); color: var(--color-success); }
 
@@ -283,7 +283,7 @@
   border-radius: 4px;
 }
 .action-create { background: rgba(16, 185, 129, 0.1); color: #059669; }
-.action-update { background: rgba(14, 165, 233, 0.1); color: #0d9488; }
+.action-update { background: rgba(27, 76, 126, 0.1); color: #1b4c7e; }
 .action-delete { background: rgba(239, 68, 68, 0.1); color: #dc2626; }
 .sd-log-key {
   font-family: 'Fira Code', 'Consolas', monospace;

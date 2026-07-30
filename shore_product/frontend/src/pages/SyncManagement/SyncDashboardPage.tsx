@@ -105,7 +105,7 @@ function ShoreConfirmModal({
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-4 overflow-hidden">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-teal-600 to-teal-700">
+        <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-[#0b2545] to-[#16375f]">
           <div className="flex items-center gap-3 text-white">
             <Send className="w-5 h-5" />
             <span className="font-semibold text-lg">Xác nhận đồng bộ Shore → Tàu</span>
@@ -134,8 +134,8 @@ function ShoreConfirmModal({
           {/* LEFT — Shore outbox */}
           <div className="flex-1 px-6 py-5 border-r border-gray-100">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-7 h-7 rounded-lg bg-teal-100 flex items-center justify-center">
-                <Server className="w-4 h-4 text-teal-600" />
+              <div className="w-7 h-7 rounded-lg bg-[#dce9f8] flex items-center justify-center">
+                <Server className="w-4 h-4 text-[#0b2545]" />
               </div>
               <div>
                 <div className="text-xs font-bold text-gray-700 tracking-wide">BỜC (SHORE)</div>
@@ -165,7 +165,7 @@ function ShoreConfirmModal({
                     <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all duration-700 ${
-                          syncing ? 'bg-teal-400 animate-pulse' : g.errors > 0 ? 'bg-amber-400' : 'bg-teal-500'
+                          syncing ? 'bg-[#4c6a8f] animate-pulse' : g.errors > 0 ? 'bg-amber-400' : 'bg-[#1b4c7e]'
                         }`}
                         style={{ width: `${Math.max(4, Math.round((g.total / Math.max(1, groupTotal)) * 100))}%` }}
                       />
@@ -174,7 +174,7 @@ function ShoreConfirmModal({
                 ))}
                 <div className="border-t border-gray-100 pt-3 flex items-center justify-between">
                   <span className="text-xs text-gray-400">Tổng cộng</span>
-                  <span className="text-sm font-bold text-teal-700">{totalPending} bản ghi</span>
+                  <span className="text-sm font-bold text-[#16375f]">{totalPending} bản ghi</span>
                 </div>
               </div>
             )}
@@ -183,7 +183,7 @@ function ShoreConfirmModal({
           {/* MIDDLE — arrow */}
           <div className="flex flex-col items-center justify-center px-3 py-5 bg-gray-50/50 gap-2">
             <div className={`w-9 h-9 rounded-full flex items-center justify-center shadow ${
-              syncing ? 'bg-teal-500' : targetOnline ? 'bg-emerald-500' : 'bg-gray-400'
+              syncing ? 'bg-[#1b4c7e]' : targetOnline ? 'bg-emerald-500' : 'bg-gray-400'
             }`}>
               {syncing
                 ? <Loader2 className="w-4 h-4 text-white animate-spin" />
@@ -193,7 +193,7 @@ function ShoreConfirmModal({
             {[0,1,2].map(i => (
               <div key={i}
                 className={`w-0.5 h-3 rounded-full ${
-                  syncing ? 'bg-teal-300 animate-pulse' : targetOnline ? 'bg-emerald-200' : 'bg-gray-200'
+                  syncing ? 'bg-[#a9bdd6] animate-pulse' : targetOnline ? 'bg-emerald-200' : 'bg-gray-200'
                 }`}
                 style={{ opacity: 1 - i * 0.3 }}
               />
@@ -203,8 +203,8 @@ function ShoreConfirmModal({
           {/* RIGHT — Ship selector */}
           <div className="flex-1 px-5 py-5 flex flex-col">
             <div className="flex items-center gap-2 mb-3">
-              <div className="w-7 h-7 rounded-lg bg-teal-100 flex items-center justify-center">
-                <Ship className="w-4 h-4 text-teal-600" />
+              <div className="w-7 h-7 rounded-lg bg-[#dce9f8] flex items-center justify-center">
+                <Ship className="w-4 h-4 text-[#0b2545]" />
               </div>
               <div>
                 <div className="text-xs font-bold text-gray-700 tracking-wide">CHỌN TÀU NHẬN</div>
@@ -217,18 +217,18 @@ function ShoreConfirmModal({
               onClick={() => !syncing && setSelected('ALL')}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition-all mb-2 ${
                 selected === 'ALL'
-                  ? 'border-teal-400 bg-teal-50 shadow-sm'
-                  : 'border-gray-200 hover:border-teal-200 hover:bg-gray-50'
+                  ? 'border-[#1b4c7e] bg-[#eef2f7] shadow-sm'
+                  : 'border-gray-200 hover:border-[#d6dee8] hover:bg-gray-50'
               }`}
             >
-              <div className="w-6 h-6 rounded-full bg-teal-100 flex items-center justify-center flex-shrink-0">
+              <div className="w-6 h-6 rounded-full bg-[#dce9f8] flex items-center justify-center flex-shrink-0">
                 <span className="text-xs">📡</span>
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-semibold text-gray-800">Tất cả tàu</div>
                 <div className="text-xs text-gray-400">{onlineNodes.length} online / {allNodes.length} tổng</div>
               </div>
-              {selected === 'ALL' && <CheckCircle2 className="w-4 h-4 text-teal-500 flex-shrink-0" />}
+              {selected === 'ALL' && <CheckCircle2 className="w-4 h-4 text-[#1b4c7e] flex-shrink-0" />}
             </div>
 
             {/* Individual ship cards */}
@@ -241,8 +241,8 @@ function ShoreConfirmModal({
                   onClick={() => !syncing && setSelected(node.nodeId)}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition-all ${
                     selected === node.nodeId
-                      ? 'border-teal-400 bg-teal-50 shadow-sm'
-                      : 'border-gray-200 hover:border-teal-200 hover:bg-gray-50'
+                      ? 'border-[#1b4c7e] bg-[#eef2f7] shadow-sm'
+                      : 'border-gray-200 hover:border-[#d6dee8] hover:bg-gray-50'
                   }`}
                 >
                   <div className="relative flex-shrink-0">
@@ -260,7 +260,7 @@ function ShoreConfirmModal({
                       {node.pendingOutboxCount > 0 ? ` • ${node.pendingOutboxCount} chờ` : ''}
                     </div>
                   </div>
-                  {selected === node.nodeId && <CheckCircle2 className="w-4 h-4 text-teal-500 flex-shrink-0" />}
+                  {selected === node.nodeId && <CheckCircle2 className="w-4 h-4 text-[#1b4c7e] flex-shrink-0" />}
                 </div>
               ))}
             </div>
@@ -276,7 +276,7 @@ function ShoreConfirmModal({
           <button
             onClick={() => onConfirm(selected)}
             disabled={syncing}
-            className="flex items-center gap-2 px-5 py-2 bg-teal-600 text-white rounded-lg text-sm font-medium hover:bg-teal-700 disabled:bg-teal-300 disabled:cursor-not-allowed transition-colors shadow-sm"
+            className="flex items-center gap-2 px-5 py-2 bg-[#0b2545] text-white rounded-lg text-sm font-medium hover:bg-[#16375f] disabled:bg-[#a9bdd6] disabled:cursor-not-allowed transition-colors shadow-sm"
           >
             {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             {confirmLabel}
@@ -384,7 +384,7 @@ export const SyncDashboardPage: React.FC = () => {
 
   const getActionIcon = (dir: string) =>
     dir === 'Incoming' || dir === 'EdgeToShore'
-      ? <ArrowDownLeft size={14} className="text-teal-500" />
+      ? <ArrowDownLeft size={14} className="text-[#1b4c7e]" />
       : <ArrowUpRight size={14} className="text-green-500" />;
 
   const getStatusBadge = (status: string) => {
@@ -415,7 +415,7 @@ export const SyncDashboardPage: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center" style={{ height: 'calc(100vh - 48px)' }}>
-        <Loader2 className="w-6 h-6 animate-spin text-teal-500" />
+        <Loader2 className="w-6 h-6 animate-spin text-[#1b4c7e]" />
         <span className="ml-3 text-slate-500">Đang tải...</span>
       </div>
     );
@@ -427,7 +427,7 @@ export const SyncDashboardPage: React.FC = () => {
       {/* ══ TOOLBAR ══ */}
       <div className="flex-none flex items-center gap-3 px-5 py-2 bg-white border-b border-slate-200 shadow-sm">
         <div className="flex items-center gap-2 flex-shrink-0">
-          <Database className="w-4 h-4 text-teal-600" />
+          <Database className="w-4 h-4 text-[#0b2545]" />
           <span className="text-sm font-bold text-slate-800 tracking-tight">Shore Sync</span>
         </div>
         <div className="w-px h-5 bg-slate-200 flex-shrink-0" />
@@ -440,7 +440,7 @@ export const SyncDashboardPage: React.FC = () => {
           </div>
           <div className="w-px h-4 bg-slate-200 flex-shrink-0" />
           <div className="flex items-center gap-1.5 flex-shrink-0">
-            <Ship className="w-3.5 h-3.5 text-teal-400" />
+            <Ship className="w-3.5 h-3.5 text-[#1b4c7e]" />
             <span className="text-xs text-slate-500">
               <span className="font-semibold text-slate-800">{nodeCount}</span> tàu online
             </span>
@@ -469,7 +469,7 @@ export const SyncDashboardPage: React.FC = () => {
         {/* Actions */}
         <div className="flex items-center gap-2 flex-shrink-0">
           <label className="flex items-center gap-1.5 cursor-pointer select-none">
-            <input type="checkbox" checked={autoRefresh} onChange={e => setAutoRefresh(e.target.checked)} className="w-3.5 h-3.5 accent-teal-600 rounded" />
+            <input type="checkbox" checked={autoRefresh} onChange={e => setAutoRefresh(e.target.checked)} className="w-3.5 h-3.5 accent-[#0b2545] rounded" />
             <span className="text-xs text-slate-500">Auto</span>
           </label>
           <button onClick={fetchData} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
@@ -477,7 +477,7 @@ export const SyncDashboardPage: React.FC = () => {
             <span className="hidden sm:inline">Làm mới</span>
           </button>
           <button onClick={() => setShowSyncModal(true)} disabled={syncing}
-            className="flex items-center gap-1.5 px-4 py-1.5 bg-teal-600 text-white rounded-lg text-xs font-semibold hover:bg-teal-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors shadow-sm">
+            className="flex items-center gap-1.5 px-4 py-1.5 bg-[#0b2545] text-white rounded-lg text-xs font-semibold hover:bg-[#16375f] disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors shadow-sm">
             {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
             {syncing ? 'Đang gửi...' : 'Đồng bộ ngay'}
           </button>
@@ -544,7 +544,7 @@ export const SyncDashboardPage: React.FC = () => {
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {pagedLogs.map((log, i) => (
-                      <tr key={i} className="hover:bg-teal-50/40 transition-colors">
+                      <tr key={i} className="hover:bg-[#eef2f7]/40 transition-colors">
                         <td className="px-3 py-1.5">{getActionIcon(log.direction)}</td>
                         <td className="px-3 py-1.5 text-slate-400 font-mono">{log.originNode || '—'}</td>
                         <td className="px-3 py-1.5 font-medium text-slate-700 whitespace-nowrap">{getVietLabel(log.tableName)}</td>
@@ -565,7 +565,7 @@ export const SyncDashboardPage: React.FC = () => {
                 </span>
                 <div className="flex items-center gap-0.5">
                   <button onClick={() => setLogPage(p => Math.max(0, p - 1))} disabled={logPage === 0}
-                    className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-teal-600 hover:bg-teal-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                    className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-[#0b2545] hover:bg-[#eef2f7] disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
                     <ChevronLeft className="w-3.5 h-3.5" />
                   </button>
                   {Array.from({ length: Math.min(totalLogPages, 5) }, (_, i) => {
@@ -574,14 +574,14 @@ export const SyncDashboardPage: React.FC = () => {
                     return (
                       <button key={page} onClick={() => setLogPage(page)}
                         className={`w-6 h-6 flex items-center justify-center rounded text-xs font-medium transition-colors ${
-                          page === logPage ? 'bg-teal-600 text-white' : 'text-slate-500 hover:bg-teal-50 hover:text-teal-600'
+                          page === logPage ? 'bg-[#0b2545] text-white' : 'text-slate-500 hover:bg-[#eef2f7] hover:text-[#0b2545]'
                         }`}>
                         {page + 1}
                       </button>
                     );
                   })}
                   <button onClick={() => setLogPage(p => Math.min(totalLogPages - 1, p + 1))} disabled={logPage >= totalLogPages - 1}
-                    className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-teal-600 hover:bg-teal-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                    className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-[#0b2545] hover:bg-[#eef2f7] disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -597,7 +597,7 @@ export const SyncDashboardPage: React.FC = () => {
           <div className="flex-1 flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden min-h-0">
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 flex-shrink-0">
               <div className="flex items-center gap-2">
-                <Ship className="w-3.5 h-3.5 text-teal-500" />
+                <Ship className="w-3.5 h-3.5 text-[#1b4c7e]" />
                 <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Đội tàu</span>
               </div>
               <span className="text-xs text-slate-400">{data?.nodes?.length ?? 0} tàu</span>
@@ -641,7 +641,7 @@ export const SyncDashboardPage: React.FC = () => {
           <div className="flex-1 flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden min-h-0">
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 flex-shrink-0">
               <div className="flex items-center gap-2">
-                <Inbox className="w-3.5 h-3.5 text-teal-500" />
+                <Inbox className="w-3.5 h-3.5 text-[#1b4c7e]" />
                 <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Hàng đợi Shore</span>
               </div>
               <span className={`text-xs font-bold ${totalPending > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
@@ -662,7 +662,7 @@ export const SyncDashboardPage: React.FC = () => {
                       <span className="text-xs font-bold text-slate-700 tabular-nums ml-1">{stat.pending}</span>
                     </div>
                     <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-teal-400 rounded-full transition-all duration-500"
+                      <div className="h-full bg-[#1b4c7e] rounded-full transition-all duration-500"
                         style={{ width: `${Math.max(5, Math.round((stat.pending / Math.max(1, totalPending)) * 100))}%` }} />
                     </div>
                   </div>
@@ -684,7 +684,7 @@ export const SyncDashboardPage: React.FC = () => {
                   <div className="text-xs text-slate-400">Polling theo interval</div>
                 </div>
                 <button onClick={() => setAutoRefresh(v => !v)}
-                  className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 ${autoRefresh ? 'bg-teal-500' : 'bg-slate-200'}`}>
+                  className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 ${autoRefresh ? 'bg-[#1b4c7e]' : 'bg-slate-200'}`}>
                   <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${autoRefresh ? 'translate-x-4' : 'translate-x-0.5'}`} />
                 </button>
               </div>
@@ -694,7 +694,7 @@ export const SyncDashboardPage: React.FC = () => {
                   <div className="text-xs text-slate-400">Giây / lần</div>
                 </div>
                 <select value={syncInterval} onChange={e => setSyncInterval(Number(e.target.value))} disabled={!autoRefresh}
-                  className="text-xs border border-slate-200 rounded-lg px-2 py-1 text-slate-700 bg-white disabled:opacity-40 focus:outline-none focus:ring-1 focus:ring-teal-300 cursor-pointer">
+                  className="text-xs border border-slate-200 rounded-lg px-2 py-1 text-slate-700 bg-white disabled:opacity-40 focus:outline-none focus:ring-1 focus:ring-[#a9bdd6] cursor-pointer">
                   <option value={10}>10s</option>
                   <option value={15}>15s</option>
                   <option value={30}>30s</option>

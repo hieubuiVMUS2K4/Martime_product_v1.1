@@ -13,7 +13,7 @@ interface CategoryFormModalProps {
   title: string
 }
 
-const inp = 'w-full px-2 py-1.5 border border-gray-300 text-sm focus:ring-1 focus:ring-teal-500 focus:border-teal-500 outline-none bg-white'
+const inp = 'w-full px-2 py-1.5 border border-gray-300 text-sm focus:ring-1 focus:ring-[#1b4c7e] focus:border-[#1b4c7e] outline-none bg-white'
 const lbl = 'text-sm text-gray-600 whitespace-nowrap text-right pr-3'
 
 export function CategoryFormModal({
@@ -135,7 +135,7 @@ export function CategoryFormModal({
                 <div className="bg-slate-700 text-white text-sm font-semibold px-3 py-1.5 rounded-t">Tùy chọn</div>
                 <div className="border border-t-0 border-gray-200 rounded-b p-4">
                   <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked={formData.isActive} onChange={e => setFormData({ ...formData, isActive: e.target.checked })} className="w-4 h-4 text-teal-600 rounded" />
+                    <input type="checkbox" checked={formData.isActive} onChange={e => setFormData({ ...formData, isActive: e.target.checked })} className="w-4 h-4 text-[#0b2545] rounded" />
                     Đang hoạt động
                   </label>
                 </div>

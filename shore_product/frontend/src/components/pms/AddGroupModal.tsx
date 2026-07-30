@@ -155,7 +155,7 @@ export function AddGroupModal({ isOpen, onClose, onSuccess, embedded = false }: 
           type="text"
           value={formData.groupCode}
           onChange={(e) => setFormData({ ...formData, groupCode: e.target.value.toUpperCase() })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e] focus:border-transparent text-sm"
           placeholder="e.g., ENG-ME, DECK-CARGO"
           required
         />
@@ -170,7 +170,7 @@ export function AddGroupModal({ isOpen, onClose, onSuccess, embedded = false }: 
           type="text"
           value={formData.groupName}
           onChange={(e) => setFormData({ ...formData, groupName: e.target.value })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e] focus:border-transparent text-sm"
           placeholder="e.g., Main Engine, All Generators"
           required
         />
@@ -184,7 +184,7 @@ export function AddGroupModal({ isOpen, onClose, onSuccess, embedded = false }: 
         <select
           value={formData.category}
           onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e] focus:border-transparent text-sm"
         >
           <option value="">Select category...</option>
           {CATEGORIES.map(cat => (
@@ -201,7 +201,7 @@ export function AddGroupModal({ isOpen, onClose, onSuccess, embedded = false }: 
         <select
           value={formData.department}
           onChange={(e) => setFormData({ ...formData, department: e.target.value, picRole: '', picCrewId: '' })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e] focus:border-transparent text-sm"
         >
           <option value="">Select department...</option>
           {DEPARTMENTS.map(dept => (
@@ -218,7 +218,7 @@ export function AddGroupModal({ isOpen, onClose, onSuccess, embedded = false }: 
         <select
           value={formData.picRole}
           onChange={(e) => setFormData({ ...formData, picRole: e.target.value })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e] focus:border-transparent text-sm"
           disabled={!formData.department}
         >
           <option value="">Select PIC role...</option>
@@ -241,7 +241,7 @@ export function AddGroupModal({ isOpen, onClose, onSuccess, embedded = false }: 
         <select
           value={formData.picCrewId}
           onChange={(e) => setFormData({ ...formData, picCrewId: e.target.value })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e] focus:border-transparent text-sm"
           disabled={!formData.department}
         >
           <option value="">Select crew member...</option>
@@ -266,7 +266,7 @@ export function AddGroupModal({ isOpen, onClose, onSuccess, embedded = false }: 
         <textarea
           value={formData.description}
           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e] focus:border-transparent text-sm"
           rows={2}
           placeholder="Optional description..."
         />
@@ -279,7 +279,7 @@ export function AddGroupModal({ isOpen, onClose, onSuccess, embedded = false }: 
           id="isActive"
           checked={formData.isActive}
           onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-          className="w-4 h-4 text-teal-600 rounded focus:ring-2 focus:ring-teal-500"
+          className="w-4 h-4 text-[#0b2545] rounded focus:ring-2 focus:ring-[#1b4c7e]"
         />
         <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
           Active
@@ -298,7 +298,7 @@ export function AddGroupModal({ isOpen, onClose, onSuccess, embedded = false }: 
         <button
           type="submit"
           disabled={loading}
-          className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 text-sm"
+          className="px-4 py-2 bg-[#0b2545] text-white rounded-lg hover:bg-[#16375f] transition-colors disabled:opacity-50 text-sm"
         >
           {loading ? 'Creating...' : 'Create Group'}
         </button>

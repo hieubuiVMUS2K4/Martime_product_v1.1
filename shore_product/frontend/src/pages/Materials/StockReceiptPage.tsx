@@ -286,7 +286,7 @@ export default function StockReceiptPage({ vesselId, readOnly = false }: { vesse
               <span className="text-sm font-semibold text-gray-700">
                 ≡ {t('stockReceipts.title')}
               </span>
-              <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-semibold">{total}</span>
+              <span className="text-xs bg-[#dce9f8] text-[#16375f] px-2 py-0.5 rounded-full font-semibold">{total}</span>
             </div>
             <div className="flex items-center gap-2">
             </div>
@@ -298,7 +298,7 @@ export default function StockReceiptPage({ vesselId, readOnly = false }: { vesse
           <table className="min-w-full text-sm border-collapse table-fixed">
             <thead className="sticky top-0 z-10">
               {/* Row 1: Column headers + sort icons */}
-              <tr className="bg-teal-50">
+              <tr className="bg-[#eef2f7]">
                 <th className="w-10 px-2 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">TT</th>
                 <th className="w-[180px] px-3 py-2 text-left border-b border-r border-gray-200">
                   <div className="flex items-center justify-between gap-1">
@@ -374,10 +374,10 @@ export default function StockReceiptPage({ vesselId, readOnly = false }: { vesse
               ) : receipts.length === 0 ? (
                 <tr><td colSpan={9} className="text-center py-8 text-gray-400">Không có dữ liệu</td></tr>
               ) : receipts.map((r, idx) => (
-                <tr key={r.id} className={`hover:bg-teal-50 ${idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'}`}>
+                <tr key={r.id} className={`hover:bg-[#eef2f7] ${idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'}`}>
                   <td className="px-2 py-2 text-center text-xs text-gray-500 border-r border-gray-100">{(currentPage - 1) * pageSize + idx + 1}</td>
                   <td className="px-3 py-2 text-xs border-r border-gray-100">
-                    <button onClick={() => openDetail(r.id)} className="text-teal-600 hover:underline font-medium text-xs">{r.receiptCode}</button>
+                    <button onClick={() => openDetail(r.id)} className="text-[#0b2545] hover:underline font-medium text-xs">{r.receiptCode}</button>
                   </td>
                   <td className="px-3 py-2 text-xs text-gray-600 border-r border-gray-100">{r.supplierName || r.supplierCode || '—'}</td>
                   <td className="px-3 py-2 text-xs text-gray-600 border-r border-gray-100">{r.receivedDate?.slice(0, 10)}</td>
@@ -389,7 +389,7 @@ export default function StockReceiptPage({ vesselId, readOnly = false }: { vesse
                   <td className="px-3 py-2 text-xs text-right font-medium border-r border-gray-100">{fmt(r.totalValue)} USD</td>
                   <td className="px-3 py-2 text-center">
                     <div className="flex items-center justify-center gap-1">
-                      <button onClick={() => openDetail(r.id)} className="p-1 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded"><Eye size={15} /></button>
+                      <button onClick={() => openDetail(r.id)} className="p-1 text-gray-400 hover:text-[#0b2545] hover:bg-[#eef2f7] rounded"><Eye size={15} /></button>
                       {r.status === 'Draft' && (
                         <>
                           {!readOnly && <button onClick={() => openEdit(r.id)} className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded"><Edit2 size={15} /></button>}
@@ -424,7 +424,7 @@ export default function StockReceiptPage({ vesselId, readOnly = false }: { vesse
               else if (currentPage >= totalPages - 2) page = totalPages - 4 + i;
               else page = currentPage - 2 + i;
               return (
-                <button key={page} onClick={() => setCurrentPage(page)} className={`w-7 h-7 flex items-center justify-center border rounded text-xs ${currentPage === page ? 'bg-teal-600 text-white border-blue-600' : 'border-gray-300 hover:bg-gray-50'}`}>
+                <button key={page} onClick={() => setCurrentPage(page)} className={`w-7 h-7 flex items-center justify-center border rounded text-xs ${currentPage === page ? 'bg-[#0b2545] text-white border-blue-600' : 'border-gray-300 hover:bg-gray-50'}`}>
                   {page}
                 </button>
               );
@@ -448,9 +448,9 @@ export default function StockReceiptPage({ vesselId, readOnly = false }: { vesse
         <div className="flex flex-shrink-0 items-center justify-between border-b border-gray-200 px-4 py-2.5">
           <div className="flex items-center gap-1.5 text-sm text-gray-500">
             <button onClick={() => setView('list')} className="text-gray-500 hover:text-gray-700"><ArrowLeft size={18} /></button>
-            <button onClick={() => setView('list')} className="text-teal-600 hover:underline">Vật tư</button>
+            <button onClick={() => setView('list')} className="text-[#0b2545] hover:underline">Vật tư</button>
             <ChevronRightIcon size={14} className="text-gray-300" />
-            <button onClick={() => setView('list')} className="text-teal-600 hover:underline">{t('stockReceipts.title')}</button>
+            <button onClick={() => setView('list')} className="text-[#0b2545] hover:underline">{t('stockReceipts.title')}</button>
             <ChevronRightIcon size={14} className="text-gray-300" />
             <span className="text-gray-700 font-medium">{detailData.receiptCode}</span>
             <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[detailData.status]}`}>{STATUS_LABELS[detailData.status]}</span>
@@ -523,7 +523,7 @@ export default function StockReceiptPage({ vesselId, readOnly = false }: { vesse
               {detailData.requestCode && (
                 <div className="flex items-center">
                   <span className="text-sm font-medium text-gray-700 text-right pr-3 shrink-0 whitespace-nowrap" style={{ width: 140 }}>Yêu cầu liên kết</span>
-                  <div className="flex-1 border border-gray-300 px-3 py-1.5 bg-gray-50 text-sm text-teal-600">{detailData.requestCode}</div>
+                  <div className="flex-1 border border-gray-300 px-3 py-1.5 bg-gray-50 text-sm text-[#0b2545]">{detailData.requestCode}</div>
                 </div>
               )}
               <div className={`flex items-center ${detailData.requestCode ? 'col-span-2' : 'col-span-3'}`}>
@@ -536,7 +536,7 @@ export default function StockReceiptPage({ vesselId, readOnly = false }: { vesse
                 <div className="flex items-center">
                   <span className="text-sm font-medium text-gray-700 text-right pr-3 shrink-0 whitespace-nowrap" style={{ width: 140 }}>Đính kèm tệp tin</span>
                   <div className="flex-1 border border-gray-300 px-3 py-1.5 bg-gray-50 text-sm">
-                    <div className="flex items-center gap-1 text-teal-600">
+                    <div className="flex items-center gap-1 text-[#0b2545]">
                       <Paperclip size={13} /> {detailData.attachments}
                     </div>
                   </div>
@@ -550,7 +550,7 @@ export default function StockReceiptPage({ vesselId, readOnly = false }: { vesse
             <button
               onClick={() => setActiveTab('materials')}
               className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'materials' ? 'border-blue-600 text-teal-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                activeTab === 'materials' ? 'border-blue-600 text-[#0b2545]' : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
               <Package size={14} /> Vật tư
@@ -558,7 +558,7 @@ export default function StockReceiptPage({ vesselId, readOnly = false }: { vesse
             <button
               onClick={() => setActiveTab('shipping')}
               className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'shipping' ? 'border-blue-600 text-teal-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                activeTab === 'shipping' ? 'border-blue-600 text-[#0b2545]' : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
               <Truck size={14} /> Vận chuyển
@@ -567,7 +567,7 @@ export default function StockReceiptPage({ vesselId, readOnly = false }: { vesse
 
           {activeTab === 'materials' ? (
             <table className="w-full text-sm">
-              <thead className="bg-teal-50">
+              <thead className="bg-[#eef2f7]">
                 <tr>
                   <th className="px-3 py-2 text-left w-10">TT</th>
                   <th className="px-3 py-2 text-left">Vị trí kho</th>
@@ -585,7 +585,7 @@ export default function StockReceiptPage({ vesselId, readOnly = false }: { vesse
                 {(detailData.items || []).length === 0 ? (
                   <tr><td colSpan={10} className="text-center py-8 text-gray-400">Không có dữ liệu</td></tr>
                 ) : (detailData.items || []).map((item, idx) => (
-                  <tr key={idx} className="border-b hover:bg-teal-50">
+                  <tr key={idx} className="border-b hover:bg-[#eef2f7]">
                     <td className="px-3 py-2 text-gray-500">{idx + 1}</td>
                     <td className="px-3 py-2 text-gray-600">{locationOptions.find(l => l.id === item.storeLocationId)?.name || '—'}</td>
                     <td className="px-3 py-2 font-medium">{item.itemCode}</td>
@@ -617,15 +617,15 @@ export default function StockReceiptPage({ vesselId, readOnly = false }: { vesse
       <div className="flex flex-shrink-0 items-center justify-between border-b border-gray-200 px-4 py-2.5">
         <div className="flex items-center gap-1.5 text-sm text-gray-500">
           <button onClick={() => setView('list')} className="text-gray-500 hover:text-gray-700"><ArrowLeft size={18} /></button>
-          <button onClick={() => setView('list')} className="text-teal-600 hover:underline">Vật tư</button>
+          <button onClick={() => setView('list')} className="text-[#0b2545] hover:underline">Vật tư</button>
           <ChevronRightIcon size={14} className="text-gray-300" />
-          <button onClick={() => setView('list')} className="text-teal-600 hover:underline">{t('stockReceipts.title')}</button>
+          <button onClick={() => setView('list')} className="text-[#0b2545] hover:underline">{t('stockReceipts.title')}</button>
           <ChevronRightIcon size={14} className="text-gray-300" />
           <span className="text-gray-700 font-medium">{editingId ? 'Chỉnh sửa phiếu nhập kho' : 'Thêm mới phiếu nhập kho'}</span>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setView('list')} className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-50"><X className="w-3.5 h-3.5" /> Hủy bỏ</button>
-          <button disabled={saving} onClick={() => handleSave(false)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-teal-600 text-white rounded hover:bg-teal-700 disabled:opacity-50">Lưu nháp</button>
+          <button disabled={saving} onClick={() => handleSave(false)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[#0b2545] text-white rounded hover:bg-[#16375f] disabled:opacity-50">Lưu nháp</button>
           <button disabled={saving} onClick={() => handleSave(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50">
             <CheckCircle className="w-3.5 h-3.5" /> Lưu và duyệt
           </button>
@@ -756,7 +756,7 @@ export default function StockReceiptPage({ vesselId, readOnly = false }: { vesse
             <div className="flex items-center col-span-3">
               <label className="text-sm font-medium text-gray-700 text-right pr-3 shrink-0 whitespace-nowrap" style={{ width: 140 }}>Đính kèm tệp tin</label>
               <div className="flex-1">
-                <label className="flex items-center gap-1.5 text-teal-600 text-sm cursor-pointer hover:text-blue-800">
+                <label className="flex items-center gap-1.5 text-[#0b2545] text-sm cursor-pointer hover:text-blue-800">
                   <Paperclip size={14} /> Đính kèm tệp tin
                   <input
                     type="file"
@@ -780,7 +780,7 @@ export default function StockReceiptPage({ vesselId, readOnly = false }: { vesse
           <button
             onClick={() => setActiveTab('materials')}
             className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === 'materials' ? 'border-blue-600 text-teal-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+              activeTab === 'materials' ? 'border-blue-600 text-[#0b2545]' : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
             <Package size={14} /> Vật tư
@@ -788,7 +788,7 @@ export default function StockReceiptPage({ vesselId, readOnly = false }: { vesse
           <button
             onClick={() => setActiveTab('shipping')}
             className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === 'shipping' ? 'border-blue-600 text-teal-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+              activeTab === 'shipping' ? 'border-blue-600 text-[#0b2545]' : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
             <Truck size={14} /> Vận chuyển
@@ -799,7 +799,7 @@ export default function StockReceiptPage({ vesselId, readOnly = false }: { vesse
           <>
             <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[1100px]">
-                <thead className="bg-teal-50">
+                <thead className="bg-[#eef2f7]">
                   <tr>
                     <th className="px-2 py-2 text-left w-10">TT</th>
                     <th className="px-2 py-2 text-left w-40">Vị trí kho <span className="text-red-500">*</span></th>
@@ -873,12 +873,12 @@ export default function StockReceiptPage({ vesselId, readOnly = false }: { vesse
               </table>
             </div>
             <div className="px-4 py-2 border-t border-gray-200 flex items-center justify-between">
-              <button onClick={addFormItem} className="flex items-center gap-1 text-teal-600 text-sm hover:text-blue-800">
+              <button onClick={addFormItem} className="flex items-center gap-1 text-[#0b2545] text-sm hover:text-blue-800">
                 <Plus size={14} /> Thêm dòng
               </button>
               <button
                 onClick={() => setShowRequestPicker(true)}
-                className="flex items-center gap-1 text-teal-600 text-sm hover:text-blue-800"
+                className="flex items-center gap-1 text-[#0b2545] text-sm hover:text-blue-800"
               >
                 <Plus size={14} /> Chọn yêu cầu nhập kho
               </button>
@@ -904,7 +904,7 @@ export default function StockReceiptPage({ vesselId, readOnly = false }: { vesse
                 <div className="p-8 text-center text-gray-400">Không có yêu cầu nào đã duyệt</div>
               ) : (
                 <table className="w-full text-sm">
-                  <thead className="bg-teal-50 sticky top-0">
+                  <thead className="bg-[#eef2f7] sticky top-0">
                     <tr>
                       <th className="px-3 py-2 text-left">Mã yêu cầu</th>
                       <th className="px-3 py-2 text-left">Người yêu cầu</th>
@@ -916,14 +916,14 @@ export default function StockReceiptPage({ vesselId, readOnly = false }: { vesse
                   <tbody>
                     {requestOptions.map(req => (
                       <tr key={req.id} className="border-b hover:bg-gray-50">
-                        <td className="px-3 py-2 font-medium text-teal-600">{req.requestCode}</td>
+                        <td className="px-3 py-2 font-medium text-[#0b2545]">{req.requestCode}</td>
                         <td className="px-3 py-2 text-gray-600">{req.requestedBy || '—'}</td>
                         <td className="px-3 py-2 text-gray-600">{req.requestDate?.slice(0, 10)}</td>
                         <td className="px-3 py-2 text-right">{req.itemCount || 0}</td>
                         <td className="px-3 py-2 text-center">
                           <button
                             onClick={() => selectRequest(req)}
-                            className="bg-teal-600 text-white px-3 py-1 rounded text-xs hover:bg-teal-700"
+                            className="bg-[#0b2545] text-white px-3 py-1 rounded text-xs hover:bg-[#16375f]"
                           >Chọn</button>
                         </td>
                       </tr>

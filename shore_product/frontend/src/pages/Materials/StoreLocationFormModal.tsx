@@ -12,7 +12,7 @@ interface Props {
   editItem?: StoreLocation | null;
 }
 
-const inp = 'w-full px-2 py-1.5 border border-gray-300 text-sm focus:ring-1 focus:ring-teal-500 focus:border-teal-500 outline-none bg-white';
+const inp = 'w-full px-2 py-1.5 border border-gray-300 text-sm focus:ring-1 focus:ring-[#1b4c7e] focus:border-[#1b4c7e] outline-none bg-white';
 const lbl = 'text-sm text-gray-600 whitespace-nowrap text-right pr-3';
 
 export function StoreLocationFormModal({ isOpen, onClose, onSuccess, locations, editItem }: Props) {

@@ -200,7 +200,7 @@ export function MaterialPage({ vesselId: vesselIdProp, readOnly = false }: { ves
           <span className="text-sm font-semibold text-gray-700">
             ≡ {t('materials.page.materialList')}
           </span>
-          <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-semibold">
+          <span className="text-xs bg-[#dce9f8] text-[#16375f] px-2 py-0.5 rounded-full font-semibold">
             {filteredItems.length}
           </span>
         </div>
@@ -241,14 +241,14 @@ export function MaterialPage({ vesselId: vesselIdProp, readOnly = false }: { ves
           <thead className="sticky top-0 z-10">
 
             {/* Row 1: Column headers */}
-            <tr className="bg-teal-50">
+            <tr className="bg-[#eef2f7]">
               <th className="w-10 px-2 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">TT</th>
               <th className="w-10 px-2 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">
                 <input
                   type="checkbox"
                   checked={selectedRows.size === paginatedItems.length && paginatedItems.length > 0}
                   onChange={toggleAllRows}
-                  className="rounded text-teal-600"
+                  className="rounded text-[#0b2545]"
                 />
               </th>
               <th className="w-32 px-3 py-2 text-left border-b border-r border-gray-200">
@@ -371,8 +371,8 @@ export function MaterialPage({ vesselId: vesselIdProp, readOnly = false }: { ves
                 return (
                   <tr
                     key={item.id}
-                    className={`hover:bg-teal-50 ${
-                      selectedRows.has(item.id) ? 'bg-teal-50' : idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'
+                    className={`hover:bg-[#eef2f7] ${
+                      selectedRows.has(item.id) ? 'bg-[#eef2f7]' : idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'
                     }`}
                   >
                     {/* TT */}
@@ -385,7 +385,7 @@ export function MaterialPage({ vesselId: vesselIdProp, readOnly = false }: { ves
                         type="checkbox"
                         checked={selectedRows.has(item.id)}
                         onChange={() => toggleRow(item.id)}
-                        className="rounded text-teal-600"
+                        className="rounded text-[#0b2545]"
                       />
                     </td>
                     {/* Mã vật tư */}
@@ -396,7 +396,7 @@ export function MaterialPage({ vesselId: vesselIdProp, readOnly = false }: { ves
                     <td className="px-3 py-2 border-r border-gray-100">
                       <button
                         onClick={() => { setEditingItem(item); setItemModalOpen(true); }}
-                        className="text-teal-600 hover:underline font-medium text-xs text-left w-full"
+                        className="text-[#0b2545] hover:underline font-medium text-xs text-left w-full"
                       >
                         <span className="marquee-cell flex-1 min-w-0">
                           <span className="marquee-text">{item.name}</span>
@@ -408,7 +408,7 @@ export function MaterialPage({ vesselId: vesselIdProp, readOnly = false }: { ves
                     </td>
                     {/* Loại vật tư */}
                     <td className="px-3 py-2 text-xs border-r border-gray-100">
-                      <span className="px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 whitespace-nowrap">
+                      <span className="px-2 py-0.5 rounded-full bg-[#eef2f7] text-[#16375f] whitespace-nowrap">
                         {categoryMap.get(item.categoryId) || '—'}
                       </span>
                     </td>
@@ -451,14 +451,14 @@ export function MaterialPage({ vesselId: vesselIdProp, readOnly = false }: { ves
                       <div className="flex items-center justify-center gap-0.5">
                         <button
                           onClick={() => setViewingItem(item)}
-                          className="p-1 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded"
+                          className="p-1 text-gray-400 hover:text-[#0b2545] hover:bg-[#eef2f7] rounded"
                           title="Xem chi tiết"
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => { setEditingItem(item); setItemModalOpen(true); }}
-                          className="p-1 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded"
+                          className="p-1 text-gray-400 hover:text-[#0b2545] hover:bg-[#eef2f7] rounded"
                           title={t('materials.page.edit')}
                         >
                           <Edit2 className="w-3.5 h-3.5" />
@@ -517,7 +517,7 @@ export function MaterialPage({ vesselId: vesselIdProp, readOnly = false }: { ves
                 onClick={() => setCurrentPage(page)}
                 className={`w-7 h-7 flex items-center justify-center border rounded text-xs ${
                   currentPage === page
-                    ? 'bg-teal-600 text-white border-blue-600'
+                    ? 'bg-[#0b2545] text-white border-blue-600'
                     : 'border-gray-300 hover:bg-gray-50'
                 }`}
               >

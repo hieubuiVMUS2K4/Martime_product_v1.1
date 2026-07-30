@@ -176,7 +176,7 @@ export function AssignEquipmentModal({
       <div key={node.id}>
         <div
           className={`flex items-center gap-2 py-1.5 px-2 hover:bg-gray-50 cursor-pointer rounded ${
-            isSelected ? 'bg-teal-50' : ''
+            isSelected ? 'bg-[#eef2f7]' : ''
           }`}
           style={{ paddingLeft: depth * 20 + 8 }}
         >
@@ -199,8 +199,8 @@ export function AssignEquipmentModal({
             onClick={() => toggleSelect(node.id)}
             className={`w-5 h-5 flex items-center justify-center border rounded ${
               isSelected
-                ? 'bg-teal-600 border-blue-600 text-white'
-                : 'border-gray-300 hover:border-teal-400'
+                ? 'bg-[#0b2545] border-blue-600 text-white'
+                : 'border-gray-300 hover:border-[#a9bdd6]'
             }`}
           >
             {isSelected && <Check className="w-3 h-3" />}
@@ -247,13 +247,13 @@ export function AssignEquipmentModal({
             )}
 
             {/* Selected materials info */}
-            <div className="bg-teal-50 border border-teal-200 rounded-lg p-3">
+            <div className="bg-[#eef2f7] border border-[#d6dee8] rounded-lg p-3">
               <p className="text-sm font-medium text-blue-800 mb-1">
                 Vật tư đã chọn ({selectedMaterialIds.length}):
               </p>
               <div className="flex flex-wrap gap-1">
                 {selectedMaterialNames.map((name, i) => (
-                  <span key={i} className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded">
+                  <span key={i} className="text-xs bg-[#dce9f8] text-[#16375f] px-2 py-0.5 rounded">
                     {name}
                   </span>
                 ))}
@@ -268,7 +268,7 @@ export function AssignEquipmentModal({
                 placeholder="Tìm thiết bị theo mã, tên, loại..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1b4c7e] focus:border-transparent"
               />
             </div>
 
@@ -289,7 +289,7 @@ export function AssignEquipmentModal({
 
             {/* Selected count */}
             <p className="text-sm text-gray-500">
-              Đã chọn: <span className="font-semibold text-teal-600">{selectedEquipment.size}</span> thiết bị
+              Đã chọn: <span className="font-semibold text-[#0b2545]">{selectedEquipment.size}</span> thiết bị
             </p>
 
             {/* Notes */}
@@ -300,7 +300,7 @@ export function AssignEquipmentModal({
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
                 placeholder="Ghi chú (không bắt buộc)"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1b4c7e] focus:border-transparent"
                 maxLength={500}
               />
             </div>
@@ -319,7 +319,7 @@ export function AssignEquipmentModal({
               type="button"
               onClick={handleSubmit}
               disabled={saving || selectedEquipment.size === 0}
-              className="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-medium hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-[#0b2545] text-white rounded-lg text-sm font-medium hover:bg-[#16375f] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? 'Đang lưu...' : 'Gán thiết bị'}
             </button>
