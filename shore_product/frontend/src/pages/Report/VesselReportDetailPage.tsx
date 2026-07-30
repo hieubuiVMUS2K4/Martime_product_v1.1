@@ -267,7 +267,7 @@ export const VesselReportDetailPage: React.FC = () => {
       {/* ── Stats bar ── */}
       <div className="vessel-report__stats-bar">
         <div className="stat-chip">
-          <span className="stat-chip__dot" style={{ background: '#0d7377' }} />
+          <span className="stat-chip__dot" style={{ background: '#1b4c7e' }} />
           <span className="stat-chip__label">Tổng:</span>
           <span className="stat-chip__value">{total}</span>
         </div>

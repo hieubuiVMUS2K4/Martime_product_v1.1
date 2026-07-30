@@ -4,9 +4,12 @@
 
 /* === CSS Variables === */
 :root {
-  --vp-primary:       #0d7377;
-  --vp-primary-light: #e6f5f3;
-  --vp-primary-mid:   #a8ddd4;
+  /* Navy — cùng bảng màu với thanh điều hướng và các trang danh mục.
+     Giữ nguyên --vp-green / red / yellow vì đó là màu TRẠNG THÁI, đổi đi thì
+     mất tác dụng báo hiệu. */
+  --vp-primary:       #0b2545;
+  --vp-primary-light: #eef2f7;
+  --vp-primary-mid:   #a9bdd6;
   --vp-border:        #d1d9e6;
   --vp-border-light:  #e5eaef;
   --vp-bg:            #f0f2f5;
@@ -83,7 +86,7 @@
 .vp-btn--outline { border-color: var(--vp-primary); color: var(--vp-primary); background: #fff; }
 .vp-btn--outline:hover { background: var(--vp-primary-light); }
 .vp-btn--primary { background: var(--vp-primary); border-color: var(--vp-primary); color: #fff; }
-.vp-btn--primary:hover { background: #09554f; }
+.vp-btn--primary:hover { background: #16375f; }
 .vp-btn--danger { background: var(--vp-red); border-color: var(--vp-red); color: #fff; }
 .vp-btn--danger:hover { background: #b91c1c; }
 

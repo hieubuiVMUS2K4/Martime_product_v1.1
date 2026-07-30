@@ -30,8 +30,8 @@ const ShoreMasterBadge: React.FC = () => {
         padding: '8px 12px',
         fontSize: '13px',
         fontWeight: 500,
-        color: '#0b7a72',
-        backgroundColor: '#e0f2fe',
+        color: '#0b2545',
+        backgroundColor: '#dce9f8',
         borderRadius: '6px',
         width: 'fit-content',
         marginBottom: '12px'

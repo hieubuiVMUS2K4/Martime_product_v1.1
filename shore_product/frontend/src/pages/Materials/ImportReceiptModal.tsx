@@ -279,7 +279,7 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div className="flex items-center gap-3">
-            <FileSpreadsheet className="w-6 h-6 text-teal-600" />
+            <FileSpreadsheet className="w-6 h-6 text-[#0b2545]" />
             <div>
               <h2 className="text-xl font-bold text-gray-900">{t('materials.import.title')}</h2>
               <p className="text-sm text-gray-600">{t('materials.import.subtitle')}</p>
@@ -304,7 +304,7 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
                     type="date"
                     value={receiptDate}
                     onChange={(e) => setReceiptDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e] focus:border-transparent"
                   />
                 </div>
                 <div>
@@ -316,7 +316,7 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
                     value={createdBy}
                     onChange={(e) => setCreatedBy(e.target.value)}
                     placeholder={t('materials.import.createdByPlaceholder')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e] focus:border-transparent"
                   />
                 </div>
                 <div>
@@ -328,18 +328,18 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     placeholder={t('materials.import.notesPlaceholder')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e] focus:border-transparent"
                   />
                 </div>
               </div>
 
               {/* Instructions */}
-              <div className="bg-teal-50 border border-teal-200 rounded-lg p-4">
+              <div className="bg-[#eef2f7] border border-[#d6dee8] rounded-lg p-4">
                 <h3 className="font-semibold text-blue-900 mb-2">📋 {t('materials.import.instructions')}:</h3>
                 <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
                   <li>{t('materials.import.instruction1')}</li>
-                  <li className="ml-6"><code className="bg-teal-100 px-1 rounded">ItemCode, ItemName, Category, Quantity, Unit, UnitCost, Location</code></li>
-                  <li className="ml-6">{t('materials.import.instruction2')}: <code className="bg-teal-100 px-1 rounded">PartNumber, Barcode, Manufacturer, Specification, MinStock, MaxStock</code></li>
+                  <li className="ml-6"><code className="bg-[#dce9f8] px-1 rounded">ItemCode, ItemName, Category, Quantity, Unit, UnitCost, Location</code></li>
+                  <li className="ml-6">{t('materials.import.instruction2')}: <code className="bg-[#dce9f8] px-1 rounded">PartNumber, Barcode, Manufacturer, Specification, MinStock, MaxStock</code></li>
                   <li>{t('materials.import.instruction3')}</li>
                   <li>{t('materials.import.instruction4')}</li>
                 </ol>
@@ -350,7 +350,7 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   {t('materials.import.uploadFile')} <span className="text-red-500">*</span>
                 </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-teal-500 transition-colors">
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-[#1b4c7e] transition-colors">
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -424,8 +424,8 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
             <div className="space-y-6">
               {/* Summary */}
               <div className="grid grid-cols-5 gap-4">
-                <div className="bg-teal-50 rounded-lg p-4">
-                  <p className="text-xs text-teal-600 font-medium">{t('materials.import.totalItems')}</p>
+                <div className="bg-[#eef2f7] rounded-lg p-4">
+                  <p className="text-xs text-[#0b2545] font-medium">{t('materials.import.totalItems')}</p>
                   <p className="text-2xl font-bold text-blue-900">{preview.summary.totalItems}</p>
                 </div>
                 <div className="bg-green-50 rounded-lg p-4">
@@ -529,7 +529,7 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
 
           {step === 'importing' && (
             <div className="flex flex-col items-center justify-center py-12">
-              <Loader2 className="w-12 h-12 text-teal-600 animate-spin mb-4" />
+              <Loader2 className="w-12 h-12 text-[#0b2545] animate-spin mb-4" />
               <p className="text-lg font-medium text-gray-900">{t('materials.import.importing')}</p>
               <p className="text-sm text-gray-600">{t('materials.import.pleaseWait')}</p>
             </div>
@@ -555,7 +555,7 @@ export function ImportReceiptModal({ isOpen, onClose, onSuccess }: ImportReceipt
               <button
                 onClick={handlePreview}
                 disabled={!uploadedFile || parsedItems.length === 0 || loading}
-                className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-4 py-2 bg-[#0b2545] text-white rounded-lg hover:bg-[#16375f] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {loading ? (
                   <>

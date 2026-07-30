@@ -93,7 +93,7 @@ export function StockAdjustmentModal({
             )}
 
             {/* Item Info */}
-            <div className="bg-teal-50 border border-teal-200 rounded-lg p-4">
+            <div className="bg-[#eef2f7] border border-[#d6dee8] rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">{t('materials.stock.item')}</p>
@@ -102,7 +102,7 @@ export function StockAdjustmentModal({
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-gray-600">{t('materials.stock.currentStock')}</p>
-                  <p className="text-2xl font-bold text-teal-600">
+                  <p className="text-2xl font-bold text-[#0b2545]">
                     {item.onHandQuantity.toFixed(3)}
                   </p>
                   <p className="text-sm text-gray-500">{item.unit}</p>
@@ -145,7 +145,7 @@ export function StockAdjustmentModal({
                   onClick={() => setAdjustmentType('Set')}
                   className={`flex items-center justify-center gap-2 px-4 py-3 border rounded-lg transition-colors ${
                     adjustmentType === 'Set'
-                      ? 'bg-teal-600 text-white border-blue-600'
+                      ? 'bg-[#0b2545] text-white border-blue-600'
                       : 'bg-white text-gray-700 border-gray-300 hover:border-blue-600'
                   }`}
                 >
@@ -167,7 +167,7 @@ export function StockAdjustmentModal({
                 min="0"
                 value={quantity}
                 onChange={(e) => setQuantity(Number(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e] focus:border-transparent"
                 placeholder={t('materials.stock.enterQuantity')}
               />
               <p className="text-xs text-gray-500 mt-1">
@@ -204,7 +204,7 @@ export function StockAdjustmentModal({
                 maxLength={500}
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e] focus:border-transparent"
                 placeholder={t('materials.stock.reasonPlaceholder')}
               />
             </div>
@@ -222,7 +222,7 @@ export function StockAdjustmentModal({
               <button
                 type="submit"
                 disabled={loading || !isValid}
-                className="px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 text-sm font-medium text-white bg-[#0b2545] rounded-lg hover:bg-[#16375f] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? t('materials.stock.adjusting') : t('materials.stock.confirmAdjustment')}
               </button>

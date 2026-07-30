@@ -12,7 +12,7 @@ interface Props {
   onAssigned: () => void;
 }
 
-const COLORS = ['#0a7068','#7c3aed','#059669','#d97706','#dc2626','#0891b2','#4f46e5','#15803d','#b45309','#9333ea'];
+const COLORS = ['#1b4c7e','#7c3aed','#059669','#d97706','#dc2626','#0891b2','#4f46e5','#15803d','#b45309','#9333ea'];
 function hashColor(id: string) {
   let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
   return COLORS[Math.abs(h) % COLORS.length];
@@ -145,7 +145,7 @@ export const AssignCrewToVesselModal: React.FC<Props> = ({
                   onClick={toggleAll}
                   style={{
                     marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer',
-                    color: '#0a7068', fontSize: 12, fontWeight: 600,
+                    color: '#1b4c7e', fontSize: 12, fontWeight: 600,
                   }}
                 >
                   {selectedIds.size === filtered.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}

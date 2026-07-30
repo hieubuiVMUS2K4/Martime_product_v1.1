@@ -153,7 +153,7 @@ export function AddAssetModal({ isOpen, onClose, onSuccess }: AddAssetModalProps
                 type="text"
                 value={formData.assetCode}
                 onChange={(e) => setFormData({ ...formData, assetCode: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e] focus:border-transparent"
                 placeholder="ME-01"
                 required
               />
@@ -168,7 +168,7 @@ export function AddAssetModal({ isOpen, onClose, onSuccess }: AddAssetModalProps
                 type="text"
                 value={formData.assetName}
                 onChange={(e) => setFormData({ ...formData, assetName: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e] focus:border-transparent"
                 placeholder="Main Engine"
                 required
               />
@@ -182,7 +182,7 @@ export function AddAssetModal({ isOpen, onClose, onSuccess }: AddAssetModalProps
               <select
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e] focus:border-transparent"
                 required
               >
                 {CATEGORIES.map(cat => (
@@ -199,7 +199,7 @@ export function AddAssetModal({ isOpen, onClose, onSuccess }: AddAssetModalProps
               <select
                 value={formData.criticality}
                 onChange={(e) => setFormData({ ...formData, criticality: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e] focus:border-transparent"
               >
                 {CRITICALITY_LEVELS.map(level => (
                   <option key={level} value={level}>{level}</option>
@@ -216,7 +216,7 @@ export function AddAssetModal({ isOpen, onClose, onSuccess }: AddAssetModalProps
                 type="text"
                 value={formData.manufacturer}
                 onChange={(e) => setFormData({ ...formData, manufacturer: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e] focus:border-transparent"
                 placeholder="MAN B&W"
               />
             </div>
@@ -230,7 +230,7 @@ export function AddAssetModal({ isOpen, onClose, onSuccess }: AddAssetModalProps
                 type="text"
                 value={formData.model}
                 onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e] focus:border-transparent"
                 placeholder="6S50MC"
               />
             </div>
@@ -244,7 +244,7 @@ export function AddAssetModal({ isOpen, onClose, onSuccess }: AddAssetModalProps
                 type="text"
                 value={formData.serialNumber}
                 onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e] focus:border-transparent"
                 placeholder="ME-2024-001"
               />
             </div>
@@ -258,7 +258,7 @@ export function AddAssetModal({ isOpen, onClose, onSuccess }: AddAssetModalProps
                 type="text"
                 value={formData.location}
                 onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e] focus:border-transparent"
                 placeholder="Engine Room"
               />
             </div>
@@ -271,7 +271,7 @@ export function AddAssetModal({ isOpen, onClose, onSuccess }: AddAssetModalProps
               <select
                 value={formData.defaultExecutorRole}
                 onChange={(e) => setFormData({ ...formData, defaultExecutorRole: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e] focus:border-transparent"
               >
                 <option value="">None (Manual Assignment)</option>
                 {CREW_RANKS.map(rank => (
@@ -291,7 +291,7 @@ export function AddAssetModal({ isOpen, onClose, onSuccess }: AddAssetModalProps
               <select
                 value={formData.approverRole}
                 onChange={(e) => setFormData({ ...formData, approverRole: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e] focus:border-transparent"
               >
                 <option value="">None</option>
                 {CREW_RANKS.map(rank => (
@@ -313,7 +313,7 @@ export function AddAssetModal({ isOpen, onClose, onSuccess }: AddAssetModalProps
               <button
                 type="button"
                 onClick={() => setShowAddGroupModal(true)}
-                className="text-xs text-teal-600 hover:text-teal-700 flex items-center gap-1 px-2 py-1 rounded hover:bg-teal-50 transition-colors"
+                className="text-xs text-[#0b2545] hover:text-[#16375f] flex items-center gap-1 px-2 py-1 rounded hover:bg-[#eef2f7] transition-colors"
                 title="Create new equipment group"
               >
                 <Plus className="w-3 h-3" />
@@ -331,7 +331,7 @@ export function AddAssetModal({ isOpen, onClose, onSuccess }: AddAssetModalProps
                         type="checkbox"
                         checked={selectedGroupIds.includes(group.id)}
                         onChange={() => toggleGroup(group.id)}
-                        className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+                        className="w-4 h-4 text-[#0b2545] border-gray-300 rounded focus:ring-[#1b4c7e]"
                       />
                       <span className="text-sm text-gray-900">{group.groupName}</span>
                       <span className="text-xs text-gray-500">({group.groupCode})</span>
@@ -354,7 +354,7 @@ export function AddAssetModal({ isOpen, onClose, onSuccess }: AddAssetModalProps
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e] focus:border-transparent"
               placeholder="Additional information about this equipment..."
             />
           </div>
@@ -371,7 +371,7 @@ export function AddAssetModal({ isOpen, onClose, onSuccess }: AddAssetModalProps
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50"
+              className="px-4 py-2 bg-[#0b2545] text-white rounded-lg hover:bg-[#16375f] disabled:opacity-50"
               disabled={loading}
             >
               {loading ? 'Creating...' : 'Create Asset'}

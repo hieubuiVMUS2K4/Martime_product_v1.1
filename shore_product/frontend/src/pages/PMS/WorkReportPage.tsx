@@ -43,9 +43,9 @@ const STATUS_LABELS: Record<string, string> = {
 const STATUS_COLORS: Record<string, string> = {
   SCHEDULED: 'bg-gray-100 text-gray-700',
   UPCOMING: 'bg-yellow-100 text-yellow-700',
-  DUE: 'bg-teal-100 text-teal-700',
+  DUE: 'bg-[#dce9f8] text-[#16375f]',
   OVERDUE: 'bg-red-100 text-red-700',
-  IN_PROGRESS: 'bg-teal-100 text-teal-700',
+  IN_PROGRESS: 'bg-[#dce9f8] text-[#16375f]',
   PENDING_APPROVAL: 'bg-orange-100 text-orange-700',
   RECTIFY: 'bg-rose-100 text-rose-700',
   COMPLETED: 'bg-green-100 text-green-700',
@@ -62,7 +62,7 @@ const PRIORITY_LABELS: Record<string, string> = {
 const PRIORITY_COLORS: Record<string, string> = {
   CRITICAL: 'bg-red-100 text-red-700',
   HIGH: 'bg-orange-100 text-orange-700',
-  NORMAL: 'bg-teal-100 text-teal-700',
+  NORMAL: 'bg-[#dce9f8] text-[#16375f]',
   LOW: 'bg-gray-100 text-gray-600',
 };
 
@@ -185,7 +185,7 @@ export default function WorkReportPage() {
     return (
       <div className="h-full w-full flex items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center gap-3 text-gray-500">
-          <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-[#1b4c7e] border-t-transparent rounded-full animate-spin" />
           <span className="text-sm">Đang tải...</span>
         </div>
       </div>
@@ -200,7 +200,7 @@ export default function WorkReportPage() {
           <p className="text-gray-700 font-medium mb-4">{error ?? 'Không tìm thấy công việc.'}</p>
           <button
             onClick={() => navigate('/pms/work-planning')}
-            className="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm hover:bg-teal-700"
+            className="px-4 py-2 bg-[#0b2545] text-white rounded-lg text-sm hover:bg-[#16375f]"
           >
             Quay lại danh sách
           </button>

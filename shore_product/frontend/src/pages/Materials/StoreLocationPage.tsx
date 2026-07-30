@@ -218,13 +218,13 @@ export default function StoreLocationPage() {
           }}
           style={{ paddingLeft: `${12 + depth * 14}px` }}
           className={`w-full flex items-center gap-1.5 pr-3 py-1.5 text-xs ${
-            isSelected ? 'bg-teal-50 text-teal-700 font-semibold' : 'text-gray-700 hover:bg-gray-50'
+            isSelected ? 'bg-[#eef2f7] text-[#16375f] font-semibold' : 'text-gray-700 hover:bg-gray-50'
           }`}
         >
           {hasChildren ? (
             isExpanded
-              ? <ChevronDown className="w-3 h-3 flex-shrink-0 text-teal-500" />
-              : <ChevronRight className="w-3 h-3 flex-shrink-0 text-teal-500" />
+              ? <ChevronDown className="w-3 h-3 flex-shrink-0 text-[#1b4c7e]" />
+              : <ChevronRight className="w-3 h-3 flex-shrink-0 text-[#1b4c7e]" />
           ) : (
             <span className="w-3 flex-shrink-0" />
           )}
@@ -277,7 +277,7 @@ export default function StoreLocationPage() {
             <span className="text-sm font-semibold text-gray-700">
               ≡ {t('storeLocations.locationList')}{selectedNodeName ? ` - ${selectedNodeName}` : ''}
             </span>
-            <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-semibold">
+            <span className="text-xs bg-[#dce9f8] text-[#16375f] px-2 py-0.5 rounded-full font-semibold">
               {filteredLocations.length}
             </span>
           </div>
@@ -296,7 +296,7 @@ export default function StoreLocationPage() {
             </button>
             <button
               onClick={handleAdd}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-teal-600 text-white rounded hover:bg-teal-700"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[#0b2545] text-white rounded hover:bg-[#16375f]"
             >
               <Plus className="w-3.5 h-3.5" />
               {t('storeLocations.addNew')}
@@ -326,14 +326,14 @@ export default function StoreLocationPage() {
             <thead className="sticky top-0 z-10">
 
               {/* Row 1: Column headers */}
-              <tr className="bg-teal-50">
+              <tr className="bg-[#eef2f7]">
                 <th className="w-10 px-2 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">TT</th>
                 <th className="w-10 px-2 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">
                   <input
                     type="checkbox"
                     checked={selectedRows.size === paginatedLocations.length && paginatedLocations.length > 0}
                     onChange={toggleAllRows}
-                    className="rounded text-teal-600"
+                    className="rounded text-[#0b2545]"
                   />
                 </th>
                 {[
@@ -441,8 +441,8 @@ export default function StoreLocationPage() {
                 paginatedLocations.map((loc, idx) => (
                   <tr
                     key={loc.id}
-                    className={`hover:bg-teal-50 ${
-                      selectedRows.has(loc.id) ? 'bg-teal-50' : idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'
+                    className={`hover:bg-[#eef2f7] ${
+                      selectedRows.has(loc.id) ? 'bg-[#eef2f7]' : idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'
                     }`}
                   >
                     <td className="px-2 py-2 text-center text-xs text-gray-500 border-r border-gray-100">
@@ -453,7 +453,7 @@ export default function StoreLocationPage() {
                         type="checkbox"
                         checked={selectedRows.has(loc.id)}
                         onChange={() => toggleRow(loc.id)}
-                        className="rounded text-teal-600"
+                        className="rounded text-[#0b2545]"
                       />
                     </td>
 
@@ -461,7 +461,7 @@ export default function StoreLocationPage() {
                     <td className="px-3 py-2 border-r border-gray-100">
                       <button
                         onClick={() => handleEdit(loc)}
-                        className="flex items-center gap-1 text-teal-600 hover:underline font-medium text-xs text-left w-full"
+                        className="flex items-center gap-1 text-[#0b2545] hover:underline font-medium text-xs text-left w-full"
                       >
                         <FolderOpen className="w-3 h-3 flex-shrink-0 text-gray-400" />
                         <span className="marquee-cell flex-1 min-w-0">
@@ -576,7 +576,7 @@ export default function StoreLocationPage() {
                   onClick={() => setCurrentPage(page)}
                   className={`w-7 h-7 flex items-center justify-center border rounded text-xs ${
                     currentPage === page
-                      ? 'bg-teal-600 text-white border-blue-600'
+                      ? 'bg-[#0b2545] text-white border-blue-600'
                       : 'border-gray-300 hover:bg-gray-50'
                   }`}
                 >

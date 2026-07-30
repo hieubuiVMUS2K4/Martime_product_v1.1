@@ -20,7 +20,7 @@ const URGENCY_OPTIONS = [
 
 const STATUS_COLORS: Record<string, string> = {
   Draft: 'bg-gray-100 text-gray-700',
-  Submitted: 'bg-teal-100 text-teal-700',
+  Submitted: 'bg-[#dce9f8] text-[#16375f]',
   Approved: 'bg-green-100 text-green-700',
   Rejected: 'bg-red-100 text-red-700',
   Completed: 'bg-purple-100 text-purple-700',
@@ -262,7 +262,7 @@ export default function MaterialRequestPage({ vesselId, readOnly = false }: { ve
               <span className="text-sm font-semibold text-gray-700">
                 ≡ {t('materialRequests.title')}
               </span>
-              <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-semibold">{total}</span>
+              <span className="text-xs bg-[#dce9f8] text-[#16375f] px-2 py-0.5 rounded-full font-semibold">{total}</span>
             </div>
             <div className="flex items-center gap-2">
             </div>
@@ -274,7 +274,7 @@ export default function MaterialRequestPage({ vesselId, readOnly = false }: { ve
           <table className="min-w-full text-sm border-collapse table-fixed">
             <thead className="sticky top-0 z-10">
               {/* Row 1: Column headers + sort icons */}
-              <tr className="bg-teal-50">
+              <tr className="bg-[#eef2f7]">
                 <th className="w-10 px-2 py-2 text-center text-xs font-semibold text-gray-600 border-b border-r border-gray-200">TT</th>
                 <th className="w-[200px] px-3 py-2 text-left border-b border-r border-gray-200">
                   <div className="flex items-center justify-between gap-1">
@@ -350,10 +350,10 @@ export default function MaterialRequestPage({ vesselId, readOnly = false }: { ve
               ) : requests.length === 0 ? (
                 <tr><td colSpan={9} className="text-center py-8 text-gray-400">Không có dữ liệu</td></tr>
               ) : requests.map((r, idx) => (
-                <tr key={r.id} className={`hover:bg-teal-50 ${idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'}`}>
+                <tr key={r.id} className={`hover:bg-[#eef2f7] ${idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'}`}>
                   <td className="px-2 py-2 text-center text-xs text-gray-500 border-r border-gray-100">{(currentPage - 1) * pageSize + idx + 1}</td>
                   <td className="px-3 py-2 text-xs border-r border-gray-100">
-                    <button onClick={() => openDetail(r.id)} className="text-teal-600 hover:underline font-medium text-xs">
+                    <button onClick={() => openDetail(r.id)} className="text-[#0b2545] hover:underline font-medium text-xs">
                       {r.requestCode}
                     </button>
                   </td>
@@ -373,7 +373,7 @@ export default function MaterialRequestPage({ vesselId, readOnly = false }: { ve
                   <td className="px-3 py-2 text-xs text-gray-600 border-r border-gray-100">{r.itemCount}</td>
                   <td className="px-3 py-2 text-center">
                     <div className="flex items-center justify-center gap-1">
-                      <button onClick={() => openDetail(r.id)} className="p-1 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded" title="Xem"><Eye size={15} /></button>
+                      <button onClick={() => openDetail(r.id)} className="p-1 text-gray-400 hover:text-[#0b2545] hover:bg-[#eef2f7] rounded" title="Xem"><Eye size={15} /></button>
                       {r.status === 'Draft' && (
                         <>
                           {!readOnly && <button onClick={() => openEdit(r.id)} className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded" title="Sửa"><Edit2 size={15} /></button>}
@@ -405,7 +405,7 @@ export default function MaterialRequestPage({ vesselId, readOnly = false }: { ve
               else if (currentPage >= totalPages - 2) page = totalPages - 4 + i;
               else page = currentPage - 2 + i;
               return (
-                <button key={page} onClick={() => setCurrentPage(page)} className={`w-7 h-7 flex items-center justify-center border rounded text-xs ${currentPage === page ? 'bg-teal-600 text-white border-blue-600' : 'border-gray-300 hover:bg-gray-50'}`}>
+                <button key={page} onClick={() => setCurrentPage(page)} className={`w-7 h-7 flex items-center justify-center border rounded text-xs ${currentPage === page ? 'bg-[#0b2545] text-white border-blue-600' : 'border-gray-300 hover:bg-gray-50'}`}>
                   {page}
                 </button>
               );
@@ -428,9 +428,9 @@ export default function MaterialRequestPage({ vesselId, readOnly = false }: { ve
         <div className="flex flex-shrink-0 items-center justify-between border-b border-gray-200 px-4 py-2.5">
           <div className="flex items-center gap-1.5 text-sm text-gray-500">
             <button onClick={() => setView('list')} className="text-gray-500 hover:text-gray-700"><ArrowLeft size={18} /></button>
-            <button onClick={() => setView('list')} className="text-teal-600 hover:underline">Vật tư</button>
+            <button onClick={() => setView('list')} className="text-[#0b2545] hover:underline">Vật tư</button>
             <ChevronRight size={14} className="text-gray-300" />
-            <button onClick={() => setView('list')} className="text-teal-600 hover:underline">{t('materialRequests.title')}</button>
+            <button onClick={() => setView('list')} className="text-[#0b2545] hover:underline">{t('materialRequests.title')}</button>
             <ChevronRight size={14} className="text-gray-300" />
             <span className="text-gray-700 font-medium">{detailData.requestCode}</span>
             <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[detailData.status]}`}>
@@ -447,7 +447,7 @@ export default function MaterialRequestPage({ vesselId, readOnly = false }: { ve
                     setView('list');
                     loadList();
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-teal-600 text-white rounded hover:bg-teal-700"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[#0b2545] text-white rounded hover:bg-[#16375f]"
                 ><Send className="w-3.5 h-3.5" /> Gửi duyệt</button>
               </>
             )}
@@ -514,7 +514,7 @@ export default function MaterialRequestPage({ vesselId, readOnly = false }: { ve
                 <div className="flex items-center">
                   <span className="text-sm font-medium text-gray-700 text-right pr-3 shrink-0 whitespace-nowrap" style={{ width: 140 }}>Đính kèm tệp tin</span>
                   <div className="flex-1 border border-gray-300 px-3 py-1.5 bg-gray-50 text-sm">
-                    <div className="flex items-center gap-1 text-teal-600">
+                    <div className="flex items-center gap-1 text-[#0b2545]">
                       <Paperclip size={13} /> {detailData.attachments}
                     </div>
                   </div>
@@ -528,7 +528,7 @@ export default function MaterialRequestPage({ vesselId, readOnly = false }: { ve
             <span className="text-sm font-semibold text-gray-700">Danh sách vật tư</span>
           </div>
           <table className="w-full text-sm">
-            <thead className="bg-teal-50">
+            <thead className="bg-[#eef2f7]">
               <tr>
                 <th className="px-3 py-2 text-left w-12">TT</th>
                 <th className="px-3 py-2 text-left">Tên thiết bị</th>
@@ -548,7 +548,7 @@ export default function MaterialRequestPage({ vesselId, readOnly = false }: { ve
                   </td>
                 </tr>
               ) : (detailData.items || []).map((item, idx) => (
-                <tr key={idx} className="border-b hover:bg-teal-50">
+                <tr key={idx} className="border-b hover:bg-[#eef2f7]">
                   <td className="px-3 py-2 text-gray-500">{idx + 1}</td>
                   <td className="px-3 py-2 text-gray-600">
                     {item.equipmentAssetId ? (item.equipmentAssetId) : '—'}
@@ -575,9 +575,9 @@ export default function MaterialRequestPage({ vesselId, readOnly = false }: { ve
       <div className="flex flex-shrink-0 items-center justify-between border-b border-gray-200 px-4 py-2.5">
         <div className="flex items-center gap-1.5 text-sm text-gray-500">
           <button onClick={() => setView('list')} className="text-gray-500 hover:text-gray-700"><ArrowLeft size={18} /></button>
-          <button onClick={() => setView('list')} className="text-teal-600 hover:underline">Vật tư</button>
+          <button onClick={() => setView('list')} className="text-[#0b2545] hover:underline">Vật tư</button>
           <ChevronRight size={14} className="text-gray-300" />
-          <button onClick={() => setView('list')} className="text-teal-600 hover:underline">{t('materialRequests.title')}</button>
+          <button onClick={() => setView('list')} className="text-[#0b2545] hover:underline">{t('materialRequests.title')}</button>
           <ChevronRight size={14} className="text-gray-300" />
           <span className="text-gray-700 font-medium">{editingId ? 'Chỉnh sửa yêu cầu vật tư' : 'Thêm mới yêu cầu vật tư'}</span>
         </div>
@@ -588,7 +588,7 @@ export default function MaterialRequestPage({ vesselId, readOnly = false }: { ve
           <button
             disabled={saving}
             onClick={() => handleSave(false)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-teal-600 text-white rounded hover:bg-teal-700 disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[#0b2545] text-white rounded hover:bg-[#16375f] disabled:opacity-50"
           >
             Lưu nháp
           </button>
@@ -707,7 +707,7 @@ export default function MaterialRequestPage({ vesselId, readOnly = false }: { ve
             <div className="flex items-center col-span-3">
               <label className="text-sm font-medium text-gray-700 text-right pr-3 shrink-0 whitespace-nowrap" style={{ width: 140 }}>Đính kèm tệp tin</label>
               <div className="flex-1">
-                <label className="flex items-center gap-1.5 text-teal-600 text-sm cursor-pointer hover:text-blue-800">
+                <label className="flex items-center gap-1.5 text-[#0b2545] text-sm cursor-pointer hover:text-blue-800">
                   <Paperclip size={14} /> Đính kèm tệp tin
                   <input
                     type="file"
@@ -732,7 +732,7 @@ export default function MaterialRequestPage({ vesselId, readOnly = false }: { ve
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[1000px]">
-            <thead className="bg-teal-50">
+            <thead className="bg-[#eef2f7]">
               <tr>
                 <th className="px-2 py-2 text-left w-10">TT</th>
                 <th className="px-2 py-2 text-left w-44">Tên thiết bị</th>
@@ -821,7 +821,7 @@ export default function MaterialRequestPage({ vesselId, readOnly = false }: { ve
           </table>
         </div>
         <div className="px-4 py-2 border-t border-gray-200">
-          <button onClick={addFormItem} className="flex items-center gap-1 text-teal-600 text-sm hover:text-blue-800">
+          <button onClick={addFormItem} className="flex items-center gap-1 text-[#0b2545] text-sm hover:text-blue-800">
             <Plus size={14} /> Thêm dòng
           </button>
         </div>

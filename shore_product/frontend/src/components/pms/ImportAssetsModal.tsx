@@ -125,7 +125,7 @@ export function ImportAssetsModal({ isOpen, onClose, onSuccess }: ImportAssetsMo
 
         <div className="p-6 space-y-6">
           {/* Instructions */}
-          <div className="bg-teal-50 border border-teal-200 rounded-lg p-4">
+          <div className="bg-[#eef2f7] border border-[#d6dee8] rounded-lg p-4">
             <h3 className="text-sm font-semibold text-blue-900 mb-2">Import Instructions</h3>
             <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
               <li>Download the CSV template first</li>
@@ -169,7 +169,7 @@ export function ImportAssetsModal({ isOpen, onClose, onSuccess }: ImportAssetsMo
                   <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="text-teal-600 hover:text-blue-800 font-medium"
+                    className="text-[#0b2545] hover:text-blue-800 font-medium"
                   >
                     Click to select file
                   </button>
@@ -226,7 +226,7 @@ export function ImportAssetsModal({ isOpen, onClose, onSuccess }: ImportAssetsMo
             {!importResult && (
               <button
                 onClick={handleImport}
-                className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50"
+                className="px-4 py-2 bg-[#0b2545] text-white rounded-lg hover:bg-[#16375f] disabled:opacity-50"
                 disabled={loading || !file}
               >
                 {loading ? 'Importing...' : 'Import Assets'}

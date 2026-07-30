@@ -182,7 +182,7 @@ export function VesselCrewTab({ vesselId, vesselName }: VesselCrewTabProps) {
     return (
       <div className="absolute top-1/2 right-2 -translate-y-1/2 z-10">
         <button
-          className="text-gray-400 hover:text-teal-600 text-xs p-1 leading-none"
+          className="text-gray-400 hover:text-blue-900 text-xs p-1 leading-none"
           onClick={e => { e.stopPropagation(); setSortMenu(sortMenu === col ? null : col); }}
         >
           ▼
@@ -192,9 +192,9 @@ export function VesselCrewTab({ vesselId, vesselName }: VesselCrewTabProps) {
             {options.map(opt => (
               <button
                 key={opt.label}
-                className={`block w-full text-left px-3 py-2 text-sm hover:bg-teal-50 ${
+                className={`block w-full text-left px-3 py-2 text-sm hover:bg-slate-100 ${
                   sortType?.col === col && sortType?.dir === opt.dir 
-                    ? 'text-teal-600 font-bold' 
+                    ? 'text-blue-900 font-bold' 
                     : 'text-gray-700'
                 }`}
                 onClick={e => { 
@@ -413,7 +413,7 @@ export function VesselCrewTab({ vesselId, vesselName }: VesselCrewTabProps) {
               handleViewCrew(contextMenu.crew);
               setContextMenu(null);
             }}
-            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-teal-50"
+            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-slate-100"
           >
             Xem chi tiết
           </button>

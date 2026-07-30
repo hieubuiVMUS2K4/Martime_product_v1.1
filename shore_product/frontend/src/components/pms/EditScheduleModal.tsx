@@ -305,7 +305,7 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
                   type="text"
                   value={formData.scheduleCode}
                   onChange={(e) => setFormData({ ...formData, scheduleCode: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e]"
                   placeholder="SCH-ME-001"
                   required
                 />
@@ -317,7 +317,7 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
                 </label>
                 {/* Toggle Switch */}
                 <div className="flex items-center gap-3 mb-3 p-2 bg-gray-50 rounded-lg border border-gray-200">
-                  <span className={`text-sm font-medium ${!isAssetMode ? 'text-teal-700' : 'text-gray-400'}`}>Nhóm thiết bị</span>
+                  <span className={`text-sm font-medium ${!isAssetMode ? 'text-[#16375f]' : 'text-gray-400'}`}>Nhóm thiết bị</span>
                   <button
                     type="button"
                     onClick={() => {
@@ -327,11 +327,11 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
                       setShowAssetDropdown(false);
                       setGroupAssets([]);
                     }}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-1 ${isAssetMode ? 'bg-teal-600' : 'bg-teal-600'}`}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#1b4c7e] focus:ring-offset-1 ${isAssetMode ? 'bg-[#0b2545]' : 'bg-[#0b2545]'}`}
                   >
                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isAssetMode ? 'translate-x-6' : 'translate-x-1'}`} />
                   </button>
-                  <span className={`text-sm font-medium ${isAssetMode ? 'text-teal-700' : 'text-gray-400'}`}>Thiết bị đơn lẻ</span>
+                  <span className={`text-sm font-medium ${isAssetMode ? 'text-[#16375f]' : 'text-gray-400'}`}>Thiết bị đơn lẻ</span>
                 </div>
 
                 {/* Group mode */}
@@ -343,7 +343,7 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
                         setFormData({ ...formData, equipmentGroupId: e.target.value });
                         if (e.target.value) loadGroupAssets(e.target.value);
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e]"
                       required={!isAssetMode}
                     >
                       <option value="">Chọn nhóm thiết bị</option>
@@ -354,13 +354,13 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
                       ))}
                     </select>
                     {groupAssets.length > 0 && (
-                      <div className="mt-2 p-3 bg-teal-50 rounded-lg border border-teal-200">
+                      <div className="mt-2 p-3 bg-[#eef2f7] rounded-lg border border-[#d6dee8]">
                         <p className="text-sm font-medium text-blue-900 mb-2">
                           {groupAssets.length} thiết bị trong nhóm:
                         </p>
                         <div className="space-y-1">
                           {groupAssets.map((asset: any) => (
-                            <div key={asset.id} className="text-xs text-teal-700">
+                            <div key={asset.id} className="text-xs text-[#16375f]">
                               • {asset.assetCode} - {asset.assetName} {asset.location && `(${asset.location})`}
                             </div>
                           ))}
@@ -387,7 +387,7 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
                           if (!formData.equipmentAssetId) setShowAssetDropdown(true);
                         }}
                         placeholder="Tìm theo mã hoặc tên thiết bị..."
-                        className="w-full pl-9 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                        className="w-full pl-9 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e] focus:border-[#1b4c7e]"
                       />
                       {formData.equipmentAssetId && (
                         <button
@@ -417,7 +417,7 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
                                 setAssetSearch('');
                                 setShowAssetDropdown(false);
                               }}
-                              className="w-full text-left px-4 py-2 hover:bg-teal-50 text-sm border-b border-gray-50 last:border-b-0"
+                              className="w-full text-left px-4 py-2 hover:bg-[#eef2f7] text-sm border-b border-gray-50 last:border-b-0"
                             >
                               <span className="font-medium text-gray-900">{asset.assetCode}</span>
                               <span className="text-gray-500 ml-2">{asset.assetName}</span>
@@ -430,9 +430,9 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
                       </div>
                     )}
                     {selectedAsset && (
-                      <div className="mt-2 p-2 bg-teal-50 border border-teal-200 rounded-lg text-xs text-teal-800">
+                      <div className="mt-2 p-2 bg-[#eef2f7] border border-[#d6dee8] rounded-lg text-xs text-[#0b2545]">
                         <span className="font-medium">{selectedAsset.assetCode}</span> — {selectedAsset.assetName}
-                        {selectedAsset.category && <span className="ml-2 text-teal-600">({selectedAsset.category})</span>}
+                        {selectedAsset.category && <span className="ml-2 text-[#0b2545]">({selectedAsset.category})</span>}
                         {selectedAsset.currentRunningHours != null && <span className="ml-2">• {selectedAsset.currentRunningHours} hrs</span>}
                       </div>
                     )}
@@ -448,7 +448,7 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
                   type="text"
                   value={formData.scheduleName}
                   onChange={(e) => setFormData({ ...formData, scheduleName: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e]"
                   placeholder="Monthly Oil Filter Replacement"
                   required
                 />
@@ -467,7 +467,7 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
                 <select
                   value={formData.intervalType}
                   onChange={(e) => setFormData({ ...formData, intervalType: e.target.value as any })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e]"
                 >
                   {INTERVAL_TYPES.map(type => (
                     <option key={type} value={type}>{type}</option>
@@ -484,7 +484,7 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
                     type="number"
                     value={formData.intervalDays || ''}
                     onChange={(e) => setFormData({ ...formData, intervalDays: parseInt(e.target.value) || undefined })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e]"
                     placeholder="30"
                     min="1"
                   />
@@ -500,7 +500,7 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
                     type="number"
                     value={formData.intervalHours || ''}
                     onChange={(e) => setFormData({ ...formData, intervalHours: parseFloat(e.target.value) || undefined })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e]"
                     placeholder="500"
                     min="1"
                     step="0.1"
@@ -516,7 +516,7 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
                   type="number"
                   value={formData.daysBeforeDue}
                   onChange={(e) => setFormData({ ...formData, daysBeforeDue: parseInt(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e]"
                   min="1"
                 />
               </div>
@@ -528,7 +528,7 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
                 <select
                   value={formData.priority}
                   onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1b4c7e]"
                 >
                   {PRIORITY_LEVELS.map(level => (
                     <option key={level} value={level}>{level}</option>
@@ -541,7 +541,7 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
                   type="checkbox"
                   checked={formData.autoGenerate}
                   onChange={(e) => setFormData({ ...formData, autoGenerate: e.target.checked })}
-                  className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+                  className="w-4 h-4 text-[#0b2545] border-gray-300 rounded focus:ring-[#1b4c7e]"
                 />
                 <label className="ml-2 text-sm text-gray-700">
                   Auto-generate tasks
@@ -557,7 +557,7 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
               <button
                 type="button"
                 onClick={handleAddSparePart}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700"
+                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-[#0b2545] text-white rounded-lg hover:bg-[#16375f]"
               >
                 <Plus className="w-4 h-4" />
                 Add Part
@@ -581,7 +581,7 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
                             <select
                               value={part.materialItemId}
                               onChange={(e) => handleSparePartChange(index, 'materialItemId', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1b4c7e]"
                               required
                             >
                               <option value="">Select Material</option>
@@ -603,7 +603,7 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
                               placeholder="Quantity"
                               min="0.001"
                               step="0.001"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1b4c7e]"
                               required
                             />
                           </div>
@@ -677,7 +677,7 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
               <div className="space-y-3">
                 {formData.checklistItemTemplates.map((item, index) => (
                   <div key={index} className="flex gap-3 items-start p-4 border border-gray-200 rounded-lg bg-gray-50">
-                    <div className="flex-shrink-0 w-8 h-8 bg-teal-600 text-white rounded-full flex items-center justify-center font-semibold text-sm">
+                    <div className="flex-shrink-0 w-8 h-8 bg-[#0b2545] text-white rounded-full flex items-center justify-center font-semibold text-sm">
                       {item.sequenceOrder}
                     </div>
                     
@@ -691,7 +691,7 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
                           value={item.checkpointDescription}
                           onChange={(e) => handleChecklistItemChange(index, 'checkpointDescription', e.target.value)}
                           placeholder="E.g., Check oil level, Inspect filter condition, Measure temperature"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1b4c7e]"
                           required
                         />
                       </div>
@@ -702,7 +702,7 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
                             type="checkbox"
                             checked={item.requiresReading || false}
                             onChange={(e) => handleChecklistItemChange(index, 'requiresReading', e.target.checked)}
-                            className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+                            className="w-4 h-4 text-[#0b2545] border-gray-300 rounded focus:ring-[#1b4c7e]"
                           />
                           <label className="ml-2 text-sm text-gray-700">
                             Requires Reading Value
@@ -711,7 +711,7 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
                       </div>
 
                       {item.requiresReading && (
-                        <div className="grid grid-cols-3 gap-3 p-3 bg-teal-50 border border-teal-200 rounded-lg">
+                        <div className="grid grid-cols-3 gap-3 p-3 bg-[#eef2f7] border border-[#d6dee8] rounded-lg">
                           <div>
                             <label className="block text-xs font-medium text-gray-700 mb-1">
                               Min Value (Normal Range)
@@ -722,7 +722,7 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
                               onChange={(e) => handleChecklistItemChange(index, 'normalRangeMin', e.target.value ? parseFloat(e.target.value) : undefined)}
                               placeholder="0"
                               step="0.01"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1b4c7e]"
                             />
                           </div>
                           <div>
@@ -735,7 +735,7 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
                               onChange={(e) => handleChecklistItemChange(index, 'normalRangeMax', e.target.value ? parseFloat(e.target.value) : undefined)}
                               placeholder="100"
                               step="0.01"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1b4c7e]"
                             />
                           </div>
                           <div>
@@ -747,7 +747,7 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
                               value={item.unit ?? ''}
                               onChange={(e) => handleChecklistItemChange(index, 'unit', e.target.value)}
                               placeholder="°C, bar, rpm"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#1b4c7e]"
                             />
                           </div>
                         </div>
@@ -788,7 +788,7 @@ export function EditScheduleModal({ isOpen, schedule, onClose, onSuccess }: Edit
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50"
+              className="px-4 py-2 bg-[#0b2545] text-white rounded-lg hover:bg-[#16375f] disabled:opacity-50"
               disabled={loading}
             >
               {loading ? 'Updating...' : 'Update Schedule'}
