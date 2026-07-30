@@ -14,6 +14,7 @@ obj/
 *.pdb
 *.cache
 *.json
+!Properties/launchSettings.json
 !appsettings.json
 !package.json
 !tsconfig*.json
