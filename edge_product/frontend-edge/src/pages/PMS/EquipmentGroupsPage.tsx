@@ -308,18 +308,21 @@ export default function EquipmentGroupsPage() {
   };
 
   const handleDelete = async (group: EquipmentGroup) => {
-    if (!confirm(t('pms.groups.confirmDelete', { name: group.groupName }))) {
-      return;
-    }
-
-    try {
-      await equipmentGroupService.delete(group.id);
-      toast.success(t('pms.groups.deleteSuccess'));
-      await loadData();
-    } catch (err: any) {
-      console.error('Error deleting group:', err);
-      toast.error(err.message || t('pms.groups.deleteFailed'));
-    }
+    toast(t('pms.groups.confirmDelete', { name: group.groupName }), {
+      action: {
+        label: t('common.delete') || 'Delete',
+        onClick: async () => {
+          try {
+            await equipmentGroupService.delete(group.id);
+            toast.success(t('pms.groups.deleteSuccess'));
+            await loadData();
+          } catch (err: any) {
+            console.error('Error deleting group:', err);
+            toast.error(err.message || t('pms.groups.deleteFailed'));
+          }
+        }
+      }
+    });
   };
 
   const getDepartmentColor = (dept?: string) => {

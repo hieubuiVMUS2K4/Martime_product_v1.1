@@ -49,7 +49,7 @@ public class SyncService : ISyncService
     private static readonly HashSet<string> _fileTableNames = new(StringComparer.OrdinalIgnoreCase)
     {
         "crew_member", "crew_certificate", "travel_document", "seafarer_document",
-        "employment_document", "health_document"
+        "employment_document", "health_document", "sms_procedure", "sms_procedures", "sms_filled_record", "sms_filled_records"
     };
     
     // Tracks upload cooldowns to prevent rapid retry of failed uploads (in-memory, per instance).
@@ -581,6 +581,11 @@ public class SyncService : ISyncService
             "garbage_record_book" => "garbage_record_books",
             "ballast_water_record_book" => "ballast_water_record_books",
             "maritime_report" => "maritime_reports",
+            "sms_procedure" => "sms_procedures",
+            "sms_form_template" => "sms_form_templates",
+            "sms_filled_record" => "sms_filled_records",
+            "sms_procedure_acknowledge" => "sms_procedure_acknowledgements",
+            "ism_element" => "ism_elements",
             _ => null
         };
 
@@ -1237,9 +1242,13 @@ public class SyncService : ISyncService
             return cert?.DocumentFilePath;
         }
 
+        var entityType = GetDocumentEntityType(tableName);
+        if (entityType == null)
+            return null;
+
         object? entity = null;
         if (Guid.TryParse(recordKey, out var guidKey))
-            entity = await context.FindAsync(GetDocumentEntityType(tableName), guidKey);
+            entity = await context.FindAsync(entityType, guidKey);
 
         if (entity == null)
             return null;
@@ -1258,7 +1267,7 @@ public class SyncService : ISyncService
         return null;
     }
 
-    private static Type GetDocumentEntityType(string tableName)
+    private static Type? GetDocumentEntityType(string tableName)
     {
         return tableName switch
         {
@@ -1266,7 +1275,8 @@ public class SyncService : ISyncService
             "seafarer_document" => typeof(SeafarerDocument),
             "employment_document" => typeof(EmploymentDocument),
             "health_document" => typeof(HealthDocument),
-            _ => typeof(object)
+            "sms_procedure" or "sms_procedures" => typeof(SmsProcedure),
+            _ => null
         };
     }
 
@@ -1310,10 +1320,7 @@ public class SyncService : ISyncService
             writer.WriteStartObject();
             foreach (var property in root.EnumerateObject())
             {
-                if (property.NameEquals("DocumentFilePath") || property.NameEquals("documentFilePath")
-                    || property.NameEquals("FilePath") || property.NameEquals("filePath")
-                    || property.NameEquals("FileUrl") || property.NameEquals("fileUrl")
-                    || property.NameEquals("PhotoUrl") || property.NameEquals("photoUrl"))
+                if (property.NameEquals("PhotoUrl") || property.NameEquals("photoUrl"))
                 {
                     continue;
                 }
@@ -1810,6 +1817,8 @@ public class SyncService : ISyncService
                 request.Manifest.LastError = null;
                 request.Manifest.UpdatedAt = DateTime.UtcNow;
 
+                await UpdateEntityFilePathAsync(context, request.Manifest.TableName, request.Manifest.RecordKey, relativePath, cancellationToken);
+
                 await SendFileReceiptAckToShoreAsync(
                     client,
                     baseUrl,
@@ -1892,6 +1901,41 @@ public class SyncService : ISyncService
                 "Shore file acknowledgment failed for manifest {ManifestId}: {Status}",
                 manifestId,
                 ackResponse.StatusCode);
+        }
+    }
+
+    private async Task UpdateEntityFilePathAsync(
+        EdgeDbContext context,
+        string tableName,
+        string recordKey,
+        string relativePath,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var canonicalTable = tableName.ToLowerInvariant();
+            if ((canonicalTable == "sms_procedure" || canonicalTable == "sms_procedures") && Guid.TryParse(recordKey, out var procId))
+            {
+                var proc = await context.SmsProcedures.FindAsync(new object[] { procId }, cancellationToken);
+                if (proc != null && proc.FilePath != relativePath)
+                {
+                    proc.FilePath = relativePath;
+                    await context.SaveChangesAsync(cancellationToken);
+                }
+            }
+            else if (canonicalTable == "crew_certificate" && int.TryParse(recordKey, out var certId))
+            {
+                var cert = await context.CrewCertificates.FindAsync(new object[] { certId }, cancellationToken);
+                if (cert != null && cert.DocumentFilePath != relativePath)
+                {
+                    cert.DocumentFilePath = relativePath;
+                    await context.SaveChangesAsync(cancellationToken);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to update entity file path for {Table}/{Key}", tableName, recordKey);
         }
     }
 
@@ -2447,6 +2491,7 @@ public class SyncService : ISyncService
                 "seafarer_document" => await context.SeafarerDocuments.FindAsync(new object[] { documentId }, cancellationToken),
                 "employment_document" => await context.EmploymentDocuments.FindAsync(new object[] { documentId }, cancellationToken),
                 "health_document" => await context.HealthDocuments.FindAsync(new object[] { documentId }, cancellationToken),
+                "sms_procedure" or "sms_procedures" => await context.SmsProcedures.FindAsync(new object[] { documentId }, cancellationToken),
                 _ => null
             };
 
@@ -2486,6 +2531,7 @@ public class SyncService : ISyncService
             "seafarer_document" => Path.Combine("uploads", "crew", "documents", "seafarer_documents"),
             "employment_document" => Path.Combine("uploads", "crew", "documents", "employment_documents"),
             "health_document" => Path.Combine("uploads", "crew", "documents", "health_documents"),
+            "sms_procedure" or "sms_procedures" or "sms_filled_record" or "sms_filled_records" => Path.Combine("uploads", "sms"),
             _ => Path.Combine("uploads", "sync-files", tableName)
         };
     }

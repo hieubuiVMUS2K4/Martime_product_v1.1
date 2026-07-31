@@ -1,7 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'sonner'
-import { ToastContainer, Slide } from 'react-toastify'
-import 'react-toastify/dist/ReactToastify.css'
 import { MainLayout } from './components/layouts/MainLayout'
 import { SettingsDialog } from './components/settings'
 import { AuthGuard } from './components/auth/AuthGuard'
@@ -75,7 +73,6 @@ function App() {
     <>
       {/* Global toast provider (sonner) */}
       <Toaster position="top-right" />
-      <ToastContainer position="top-right" autoClose={5000} hideProgressBar={false} newestOnTop closeOnClick pauseOnHover theme="colored" transition={Slide} />
       
       {/* Settings Dialog (renders as portal, controlled by zustand store) */}
       <SettingsDialog />

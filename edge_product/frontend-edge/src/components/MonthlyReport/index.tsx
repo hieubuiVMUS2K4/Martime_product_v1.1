@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 import { ReportingService } from '../../services/reporting.service';
 import { 
   GenerateMonthlyReportDto, 
@@ -153,25 +154,24 @@ const MonthlyReportForm: React.FC<MonthlyReportFormProps> = ({ onReportGenerated
   const handleDeleteReport = async () => {
     if (!selectedReport) return;
 
-    const confirmDelete = window.confirm(
-      `Are you sure you want to delete report ${selectedReport.reportNumber}?\n\n` +
-      `This will permanently delete the ${MONTH_NAMES[selectedReport.month - 1]} ${selectedReport.year} summary report.\n\n` +
-      `This action cannot be undone.`
-    );
-
-    if (!confirmDelete) return;
-
-    try {
-      await ReportingService.deleteMonthlyReport(selectedReport.id);
-      setSuccess(`✓ Report ${selectedReport.reportNumber} deleted successfully`);
-      setSelectedReport(null);
-      await loadMonthlyReports(); // Reload list
-      
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      const errorMessage = getReportErrorMessage(err);
-      setError(errorMessage);
-    }
+    toast(`Are you sure you want to delete report ${selectedReport.reportNumber}?`, {
+      action: {
+        label: 'Delete',
+        onClick: async () => {
+          try {
+            await ReportingService.deleteMonthlyReport(selectedReport.id);
+            setSuccess(`✓ Report ${selectedReport.reportNumber} deleted successfully`);
+            setSelectedReport(null);
+            await loadMonthlyReports(); // Reload list
+            
+            setTimeout(() => setSuccess(null), 3000);
+          } catch (err) {
+            const errorMessage = getReportErrorMessage(err);
+            setError(errorMessage);
+          }
+        }
+      }
+    });
   };
 
   /**

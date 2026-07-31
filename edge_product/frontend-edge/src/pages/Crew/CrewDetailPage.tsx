@@ -444,25 +444,28 @@ export function CrewDetailPage() {
   const handleDeleteAvatar = async () => {
     if (!id || !crew?.photoUrl) return
 
-    if (!confirm(t('crew.edDetail.messages.deleteAvatarConfirm'))) {
-      return
-    }
-
-    try {
-      setUploadingAvatar(true)
-      
-      // Update crew member with null photo URL
-      const updated = await maritimeService.crew.update(id, { ...editedCrew, photoUrl: undefined })
-      setCrew(updated)
-      setEditedCrew(updated)
-      
-      toast.success(t('crew.edDetail.messages.avatarDeleted'))
-    } catch (error: any) {
-      console.error('❌ Failed to delete avatar:', error)
-      toast.error(error.message || t('crew.edDetail.messages.uploadFailed'))
-    } finally {
-      setUploadingAvatar(false)
-    }
+    toast(t('crew.edDetail.messages.deleteAvatarConfirm'), {
+      action: {
+        label: t('common.delete') || 'Xóa',
+        onClick: async () => {
+          try {
+            setUploadingAvatar(true)
+            
+            // Update crew member with null photo URL
+            const updated = await maritimeService.crew.update(id, { ...editedCrew, photoUrl: undefined })
+            setCrew(updated)
+            setEditedCrew(updated)
+            
+            toast.success(t('crew.edDetail.messages.avatarDeleted'))
+          } catch (error: any) {
+            console.error('❌ Failed to delete avatar:', error)
+            toast.error(error.message || t('crew.edDetail.messages.uploadFailed'))
+          } finally {
+            setUploadingAvatar(false)
+          }
+        }
+      }
+    })
   }
 
   const exportToPDF = async () => {

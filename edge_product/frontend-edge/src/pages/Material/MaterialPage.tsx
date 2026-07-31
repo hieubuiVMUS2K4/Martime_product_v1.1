@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { toast } from 'sonner';
 import { Plus, Search, Package, Eye, Edit2, Trash2, ChevronsUpDown, Upload, Link2, Download } from 'lucide-react';
 import { materialService } from '@/services/materialService';
 import type { CreateMaterialItemDto, UpdateMaterialItemDto } from '@/services/materialService';
@@ -77,31 +78,45 @@ export function MaterialPage() {
   };
 
   const handleDeleteItem = async (item: MaterialItem) => {
-    if (!confirm(t('materials.page.confirmDelete', { name: item.name }))) return;
-    try {
-      await materialService.deleteItem(item.id);
-      await loadData();
-    } catch (error: any) {
-      alert(error.message || t('materials.page.failedToDelete'));
-    }
+    toast(t('materials.page.confirmDelete', { name: item.name }), {
+      action: {
+        label: t('common.delete') || 'Delete',
+        onClick: async () => {
+          try {
+            await materialService.deleteItem(item.id);
+            toast.success(t('common.deleted') || 'Item deleted');
+            await loadData();
+          } catch (error: any) {
+            toast.error(error.message || t('materials.page.failedToDelete'));
+          }
+        }
+      }
+    });
   };
 
   const handleBulkDelete = async () => {
     if (selectedRows.size === 0) return;
-    if (!confirm(t('materials.page.confirmBulkDelete', { count: selectedRows.size }))) return;
-    try {
-      const ids = Array.from(selectedRows);
-      await Promise.all(ids.map(id => materialService.deleteItem(id)));
-      setSelectedRows(new Set());
-      await loadData();
-    } catch (error: any) {
-      alert(error.message || t('materials.page.deleteFailed'));
-    }
+    toast(t('materials.page.confirmBulkDelete', { count: selectedRows.size }), {
+      action: {
+        label: t('common.delete') || 'Delete',
+        onClick: async () => {
+          try {
+            const ids = Array.from(selectedRows);
+            await Promise.all(ids.map(id => materialService.deleteItem(id)));
+            setSelectedRows(new Set());
+            toast.success(t('common.deleted') || 'Items deleted');
+            await loadData();
+          } catch (error: any) {
+            toast.error(error.message || t('materials.page.deleteFailed'));
+          }
+        }
+      }
+    });
   };
 
   const handleAssignEquipment = () => {
     if (selectedRows.size === 0) {
-      alert(t('materials.page.selectAtLeastOne'));
+      toast.warning(t('materials.page.selectAtLeastOne'));
       return;
     }
     setAssignEquipmentModalOpen(true);

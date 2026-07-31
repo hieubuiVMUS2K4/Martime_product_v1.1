@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import { 
   Ship, 
   MapPin, 
@@ -345,18 +346,27 @@ export function NoonReportForm() {
         return;
       }
 
-      const shouldLoad = window.confirm(
-        'Found an auto-saved draft from a previous session. Load it?'
-      );
-
-      if (shouldLoad) {
-        const parsed = JSON.parse(saved) as CreateNoonReportDto;
-        setFormData(parsed);
-        setLastAutoSave(new Date());
-        console.log('✅ Loaded auto-saved draft');
-      } else {
-        localStorage.removeItem(AUTOSAVE_KEY);
-      }
+      toast('Found an auto-saved draft from a previous session.', {
+        action: {
+          label: 'Load Draft',
+          onClick: () => {
+            try {
+              const parsed = JSON.parse(saved) as CreateNoonReportDto;
+              setFormData(parsed);
+              setLastAutoSave(new Date());
+              toast.success('Loaded auto-saved draft');
+            } catch (err) {
+              console.error('Failed to load auto-saved draft:', err);
+            }
+          }
+        },
+        cancel: {
+          label: 'Discard',
+          onClick: () => {
+            localStorage.removeItem(AUTOSAVE_KEY);
+          }
+        }
+      });
     } catch (err) {
       console.error('Failed to load auto-saved draft:', err);
     }

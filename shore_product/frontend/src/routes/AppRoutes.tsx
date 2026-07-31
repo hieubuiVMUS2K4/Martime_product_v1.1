@@ -22,6 +22,7 @@ import MaterialRequestPage from '../pages/Materials/MaterialRequestPage';
 import StockReceiptPage from '../pages/Materials/StockReceiptPage';
 import InventoryPage from '../pages/Materials/InventoryPage';
 import LoginPage from '../pages/Auth/LoginPage';
+import { SmsDocumentPage } from '../pages/SMS/SmsDocumentPage';
 import { useAuth } from '../contexts/AuthContext';
 
 /**
@@ -106,6 +107,10 @@ export const AppRoutes: React.FC = () => {
         <Route path="/voyages/new" element={<VoyageFormPage />} />
         <Route path="/voyages/:id/edit" element={<VoyageFormPage />} />
         <Route path="/voyages/:id" element={<VoyageDetailPage />} />
+        <Route path="/sms" element={<SmsDocumentPage />} />
+        <Route path="/sms/form/:templateId" element={<SmsDocumentPage />} />
+        <Route path="/safety/hsqe" element={<SmsDocumentPage />} />
+        <Route path="/safety/hsqe/form/:templateId" element={<SmsDocumentPage />} />
         </Route>
       </Route>
       

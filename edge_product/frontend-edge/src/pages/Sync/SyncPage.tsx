@@ -1,4 +1,5 @@
-﻿import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { toast } from 'sonner'
 import {
   RefreshCw, Cloud, Clock, AlertTriangle,
   CheckCircle2, XCircle, Loader2, Database, ArrowUpDown,
@@ -528,7 +529,7 @@ export function SyncPage() {
     try {
       const result = await syncService.resetErrors()
       await fetchData()
-      alert(result.message)
+      toast.success(result.message)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Reset failed')
     } finally {

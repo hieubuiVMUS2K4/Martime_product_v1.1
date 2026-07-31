@@ -134,6 +134,32 @@ export class ApiClient {
   async delete<T>(endpoint: string): Promise<T> {
     return this.request<T>(endpoint, { method: 'DELETE' });
   }
+
+  async upload<T>(endpoint: string, formData: FormData): Promise<T> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+    try {
+      const response = await fetch(`${this.baseURL}${endpoint}`, {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal,
+        headers: buildAuthHeaders(),
+      });
+      clearTimeout(timeoutId);
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          if (errorData.message) errorMessage = errorData.message;
+        } catch { }
+        throw new Error(errorMessage);
+      }
+      return await response.json();
+    } catch (error) {
+      clearTimeout(timeoutId);
+      throw error;
+    }
+  }
 }
 
 export const apiClient = new ApiClient();

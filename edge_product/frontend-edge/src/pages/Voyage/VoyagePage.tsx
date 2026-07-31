@@ -551,15 +551,21 @@ function VoyageDetailView({ voyageId, onBack, initialTab, onTabChange }: {
             )}
             {isVoyageDeletable(detail.voyageStatus) && (
               <button
-                onClick={async () => {
-                  if (!confirm(t('voyage.page.deleteConfirm', { number: detail.voyageNumber }))) return
-                  try {
-                    await voyageMgmtService.voyages.delete(voyageId)
-                    toast.success(t('voyage.page.deleted'))
-                    onBack()
-                  } catch (err: any) {
-                    toast.error(err.message || t('voyage.page.failedDeleteVoyage'))
-                  }
+                onClick={() => {
+                  toast(t('voyage.page.deleteConfirm', { number: detail.voyageNumber }), {
+                    action: {
+                      label: t('common.delete') || 'Delete',
+                      onClick: async () => {
+                        try {
+                          await voyageMgmtService.voyages.delete(voyageId)
+                          toast.success(t('voyage.page.deleted'))
+                          onBack()
+                        } catch (err: any) {
+                          toast.error(err.message || t('voyage.page.failedDeleteVoyage'))
+                        }
+                      }
+                    }
+                  })
                 }}
                 className="flex items-center gap-1.5 px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
               >
@@ -980,14 +986,20 @@ function PortCallsTab({ detail, onRefresh, voyageStatus }: { detail: VoyageDetai
   }
 
   const handleDelete = async (pc: PortCall) => {
-    if (!confirm(t('voyage.page.removePortCallConfirm', { port: pc.portName, type: pc.callType }))) return
-    try {
-      await voyageMgmtService.portCalls.delete(pc.id)
-      toast.success(t('voyage.page.portCallRemoved'))
-      onRefresh()
-    } catch (err: any) {
-      toast.error(err.message || t('voyage.page.failedRemovePortCall'))
-    }
+    toast(t('voyage.page.removePortCallConfirm', { port: pc.portName, type: pc.callType }), {
+      action: {
+        label: t('common.delete') || 'Delete',
+        onClick: async () => {
+          try {
+            await voyageMgmtService.portCalls.delete(pc.id)
+            toast.success(t('voyage.page.portCallRemoved'))
+            onRefresh()
+          } catch (err: any) {
+            toast.error(err.message || t('voyage.page.failedRemovePortCall'))
+          }
+        }
+      }
+    })
   }
 
   const sorted = [...detail.portCalls].sort((a, b) => a.sequence - b.sequence)
@@ -1293,14 +1305,20 @@ function CrewAssignmentsTab({ detail, onRefresh, voyageStatus }: { detail: Voyag
   }
 
   const handleRemove = async (a: VoyageCrewAssignment) => {
-    if (!confirm(t('voyage.page.removeCrewConfirm', { name: a.crewName || t('voyage.page.thisCrewMember') }))) return
-    try {
-      await voyageMgmtService.crewAssignments.remove(a.id)
-      toast.success(t('voyage.page.crewRemoved'))
-      onRefresh()
-    } catch (err: any) {
-      toast.error(err.message || t('voyage.page.failedRemove'))
-    }
+    toast(t('voyage.page.removeCrewConfirm', { name: a.crewName || t('voyage.page.thisCrewMember') }), {
+      action: {
+        label: t('common.remove') || 'Remove',
+        onClick: async () => {
+          try {
+            await voyageMgmtService.crewAssignments.remove(a.id)
+            toast.success(t('voyage.page.crewRemoved'))
+            onRefresh()
+          } catch (err: any) {
+            toast.error(err.message || t('voyage.page.failedRemove'))
+          }
+        }
+      }
+    })
   }
 
   const handleStatusChange = async (a: VoyageCrewAssignment, newStatus: string) => {
@@ -1779,15 +1797,21 @@ function CargoOperationsTab({ voyageId, voyageStatus, onRefresh }: { voyageId: s
   }
 
   const handleDelete = async (c: VoyageCargoOperation) => {
-    if (!confirm(t('voyage.page.removeCargoOpConfirm', { id: c.operationId }))) return
-    try {
-      await voyageMgmtService.cargo.delete(c.id)
-      toast.success(t('voyage.page.cargoOpRemoved'))
-      loadCargo()
-      onRefresh()
-    } catch (err: any) {
-      toast.error(err.message || t('voyage.page.failedRemoveCargoOp'))
-    }
+    toast(t('voyage.page.removeCargoOpConfirm', { id: c.operationId }), {
+      action: {
+        label: t('common.delete') || 'Delete',
+        onClick: async () => {
+          try {
+            await voyageMgmtService.cargo.delete(c.id)
+            toast.success(t('voyage.page.cargoOpRemoved'))
+            loadCargo()
+            onRefresh()
+          } catch (err: any) {
+            toast.error(err.message || t('voyage.page.failedRemoveCargoOp'))
+          }
+        }
+      }
+    })
   }
 
   const handleStatusChange = async (c: VoyageCargoOperation, newStatus: string) => {

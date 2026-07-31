@@ -418,12 +418,18 @@ function ExpenseSection({ expenses, showForm, setShowForm, voyageId, onRefresh, 
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this expense request?')) return
-    try {
-      await voyageMgmtService.financial.deleteExpense(id)
-      toast.success('Deleted')
-      onRefresh()
-    } catch { toast.error('Failed to delete') }
+    toast('Delete this expense request?', {
+      action: {
+        label: t('common.delete') || 'Delete',
+        onClick: async () => {
+          try {
+            await voyageMgmtService.financial.deleteExpense(id)
+            toast.success('Deleted')
+            onRefresh()
+          } catch { toast.error('Failed to delete') }
+        }
+      }
+    })
   }
 
   const { t } = useTranslationSafe()
@@ -885,12 +891,19 @@ function SettlementSection({ settlements, voyageId, overview, onRefresh, isClose
   }
 
   const handleClose = async () => {
-    if (!confirm('Close voyage financials? This action cannot be undone.')) return
-    try {
-      await voyageMgmtService.financial.close(voyageId, { notes: 'Financial close' })
-      toast.success('Voyage financials closed')
-      onRefresh()
-    } catch { toast.error('Failed to close financials') }
+    toast('Close voyage financials?', {
+      description: 'This action cannot be undone.',
+      action: {
+        label: t('common.confirm') || 'Confirm',
+        onClick: async () => {
+          try {
+            await voyageMgmtService.financial.close(voyageId, { notes: 'Financial close' })
+            toast.success('Voyage financials closed')
+            onRefresh()
+          } catch { toast.error('Failed to close financials') }
+        }
+      }
+    })
   }
 
   const { t } = useTranslationSafe()

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Document Library Page - Main Orchestrator
  * ISM Code / ISO 9001 Document Control System
  * 
@@ -1334,19 +1334,24 @@ export function DocumentLibraryPage() {
   };
   const handleRestoreVersion = async (version: DocChapterVersion) => {
     if (!selectedDoc) return;
-    if (confirm(`Bạn có chắc chắn muốn khôi phục tài liệu về phiên bản ${version.version}?`)) {
-      try {
-        await documentService.updateDocument(selectedDoc.id, {
-          content: version.content,
-          changeSummary: `Khôi phục về phiên bản ${version.version}`,
-          changedBy: currentAuthorString
-        });
-        toast.success(`Đã khôi phục về phiên bản ${version.version} thành công!`);
-        await fetchDocuments();
-      } catch {
-        toast.error('Không thể khôi phục phiên bản');
+    toast(`Bạn có chắc chắn muốn khôi phục tài liệu về phiên bản ${version.version}?`, {
+      action: {
+        label: 'Khôi phục',
+        onClick: async () => {
+          try {
+            await documentService.updateDocument(selectedDoc.id, {
+              content: version.content,
+              changeSummary: `Khôi phục về phiên bản ${version.version}`,
+              changedBy: currentAuthorString
+            });
+            toast.success(`Đã khôi phục về phiên bản ${version.version} thành công!`);
+            await fetchDocuments();
+          } catch {
+            toast.error('Không thể khôi phục phiên bản');
+          }
+        }
       }
-    }
+    });
   };
 
   const handlePrintDocument = () => {

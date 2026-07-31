@@ -1,13 +1,12 @@
                                 import { useState, useEffect, useMemo } from 'react';
 import { Plus, Calendar, Clock, Wrench, Search, ChevronLeft, ChevronRight, Edit2, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { maintenanceScheduleService } from '@/services/maintenance-schedule.service';
 import { AddScheduleModal } from '@/components/pms/AddScheduleModal';
 import { EditScheduleModal } from '@/components/pms/EditScheduleModal';
 import { ViewScheduleModal } from '@/components/pms/ViewScheduleModal';
 import { useTranslationSafe } from '@/contexts/I18nContext';
 import type { MaintenanceSchedule } from '@/types/pms.types';
-
-
 
 export default function ScheduleConfigPage() {
   const { t } = useTranslationSafe();
@@ -93,15 +92,21 @@ export default function ScheduleConfigPage() {
   // View functionality available via handleEdit - users can edit or just view
   
   const handleDelete = async (schedule: MaintenanceSchedule) => {
-    if (!confirm(t('pms.scheduleConfig.confirmDelete', { name: schedule.scheduleName }))) {
-      return;
-    }
-    try {
-      await maintenanceScheduleService.delete(schedule.id);
-      await loadSchedules();
-    } catch (error) {
-      console.error('Error deleting schedule:', error);
-    }
+    toast(t('pms.scheduleConfig.confirmDelete', { name: schedule.scheduleName }), {
+      action: {
+        label: t('common.delete') || 'Delete',
+        onClick: async () => {
+          try {
+            await maintenanceScheduleService.delete(schedule.id);
+            toast.success(t('pms.scheduleConfig.deletedSuccess') || 'Schedule deleted');
+            await loadSchedules();
+          } catch (error) {
+            toast.error('Error deleting schedule');
+            console.error('Error deleting schedule:', error);
+          }
+        }
+      }
+    });
   };
 
   // Pagination calculations

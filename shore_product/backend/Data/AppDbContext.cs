@@ -179,6 +179,15 @@ namespace ProductApi.Data
 
         public DbSet<ReportEvaluation> ReportEvaluations { get; set; } = null!;
 
+        // ============================================================
+        // SMS — SAFETY MANAGEMENT SYSTEM
+        // ============================================================
+        public DbSet<IsmElement> IsmElements { get; set; } = null!;
+        public DbSet<SmsProcedure> SmsProcedures { get; set; } = null!;
+        public DbSet<SmsProcedureAcknowledge> SmsProcedureAcknowledgements { get; set; } = null!;
+        public DbSet<SmsFormTemplate> SmsFormTemplates { get; set; } = null!;
+        public DbSet<SmsFilledRecord> SmsFilledRecords { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -1905,6 +1914,77 @@ namespace ProductApi.Data
             modelBuilder.Entity<ReportEvaluation>()
                 .HasIndex(e => e.ReportId)
                 .IsUnique();
+
+            // ============================================================
+            // SMS SYSTEM ENTITY CONFIGURATIONS
+            // ============================================================
+            modelBuilder.Entity<IsmElement>(entity =>
+            {
+                entity.ToTable("ism_elements");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.CreatedAt)
+                    .HasConversion(v => v.ToUniversalTime(), v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+                entity.Property(e => e.UpdatedAt)
+                    .HasConversion(v => v.ToUniversalTime(), v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+            });
+
+            modelBuilder.Entity<SmsProcedure>(entity =>
+            {
+                entity.ToTable("sms_procedures");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.PublishDate)
+                    .HasConversion(v => v.ToUniversalTime(), v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+                entity.Property(e => e.ObsoleteDate)
+                    .HasConversion(v => v.HasValue ? v.Value.ToUniversalTime() : (DateTime?)null, v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : (DateTime?)null);
+                entity.Property(e => e.CreatedAt)
+                    .HasConversion(v => v.ToUniversalTime(), v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+                entity.Property(e => e.UpdatedAt)
+                    .HasConversion(v => v.ToUniversalTime(), v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+                entity.HasIndex(e => e.ProcedureCode);
+                entity.HasIndex(e => e.Status);
+                entity.HasIndex(e => e.IsmElementId);
+            });
+
+            modelBuilder.Entity<SmsProcedureAcknowledge>(entity =>
+            {
+                entity.ToTable("sms_procedure_acknowledgements");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.AcknowledgedAt)
+                    .HasConversion(v => v.ToUniversalTime(), v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+                entity.Property(e => e.CreatedAt)
+                    .HasConversion(v => v.ToUniversalTime(), v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+                entity.Property(e => e.UpdatedAt)
+                    .HasConversion(v => v.ToUniversalTime(), v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+                entity.HasIndex(e => new { e.SmsProcedureId, e.UserName, e.Rank });
+            });
+
+            modelBuilder.Entity<SmsFormTemplate>(entity =>
+            {
+                entity.ToTable("sms_form_templates");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.CreatedAt)
+                    .HasConversion(v => v.ToUniversalTime(), v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+                entity.Property(e => e.UpdatedAt)
+                    .HasConversion(v => v.ToUniversalTime(), v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+                entity.HasIndex(e => e.FormCode);
+                entity.HasIndex(e => e.SmsProcedureId);
+            });
+
+            modelBuilder.Entity<SmsFilledRecord>(entity =>
+            {
+                entity.ToTable("sms_filled_records");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.FilledDate)
+                    .HasConversion(v => v.ToUniversalTime(), v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+                entity.Property(e => e.CreatedAt)
+                    .HasConversion(v => v.ToUniversalTime(), v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+                entity.Property(e => e.UpdatedAt)
+                    .HasConversion(v => v.ToUniversalTime(), v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+                entity.HasIndex(e => e.Status);
+                entity.HasIndex(e => e.FormCode);
+                entity.HasIndex(e => e.SmsFormTemplateId);
+                entity.HasIndex(e => e.VesselName);
+            });
         }
     }
 }

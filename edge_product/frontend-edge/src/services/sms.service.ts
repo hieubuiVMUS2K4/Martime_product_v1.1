@@ -162,6 +162,7 @@ class SmsService {
     newVersion: string;
     newContent: string;
     changeNote?: string;
+    filePath?: string;
   }): Promise<{ message: string; newProcedureId: string }> {
     return apiClient.post<{ message: string; newProcedureId: string }>('/sms/procedures/version-up', data);
   }

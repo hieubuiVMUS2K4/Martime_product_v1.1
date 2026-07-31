@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { toast } from 'react-toastify'
+import { toast } from 'sonner'
 import { X } from 'lucide-react'
 import { maritimeService } from '@/services/maritime.service'
 import type { Country } from '@/types/maritime.types'

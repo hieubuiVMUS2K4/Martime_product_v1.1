@@ -532,27 +532,32 @@ export function CrewCertificatePage() {
   const handleRemoveRankCertificate = async (rankCertificateId: number) => {
     if (!expandedRankId) return
     
-    if (!confirm(t('crew.monitor.confirmRemove'))) return
+    toast(t('crew.monitor.confirmRemove'), {
+      action: {
+        label: t('common.delete') || 'Xóa',
+        onClick: async () => {
+          try {
+            const response = await authFetch(`/api/rank-certificates/${rankCertificateId}`, {
+              method: 'DELETE'
+            })
 
-    try {
-      const response = await authFetch(`/api/rank-certificates/${rankCertificateId}`, {
-        method: 'DELETE'
-      })
-
-      if (response.ok) {
-        // Force reload from API to get fresh data
-        const apiResponse = await authFetch(`/api/rank-certificates/rank/${expandedRankId}`)
-        if (apiResponse.ok) {
-          const newRankCerts = await apiResponse.json()
-          // Update both cache and state immediately
-          setRankCertsCache(prev => new Map(prev).set(expandedRankId, newRankCerts))
-          setRankCertificates(newRankCerts)
-          console.log('✅ Rank certificates updated in UI after removing')
+            if (response.ok) {
+              // Force reload from API to get fresh data
+              const apiResponse = await authFetch(`/api/rank-certificates/rank/${expandedRankId}`)
+              if (apiResponse.ok) {
+                const newRankCerts = await apiResponse.json()
+                // Update both cache and state immediately
+                setRankCertsCache(prev => new Map(prev).set(expandedRankId, newRankCerts))
+                setRankCertificates(newRankCerts)
+                console.log('✅ Rank certificates updated in UI after removing')
+              }
+            }
+          } catch (error) {
+            console.error('Failed to remove certificate:', error)
+          }
         }
       }
-    } catch (error) {
-      console.error('Failed to remove certificate:', error)
-    }
+    })
   }
 
   // Load all crew certificates when crew tab is active - BULK load
