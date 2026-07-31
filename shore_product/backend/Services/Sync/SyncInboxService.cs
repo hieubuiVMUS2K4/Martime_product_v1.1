@@ -220,6 +220,21 @@ public class SyncInboxService : ISyncInboxService
 
         // Reporting — master data from Edge
         ["report_type"]            = typeof(ProductApi.Models.ReportType),
+
+        // SMS — Safety Management System
+        ["ism_element"]                    = typeof(ProductApi.Models.IsmElement),
+        ["ism_elements"]                   = typeof(ProductApi.Models.IsmElement),
+        ["sms_procedure"]                  = typeof(ProductApi.Models.SmsProcedure),
+        ["sms_procedures"]                 = typeof(ProductApi.Models.SmsProcedure),
+        ["sms_procedure_acknowledge"]      = typeof(ProductApi.Models.SmsProcedureAcknowledge),
+        ["sms_procedure_acknowledges"]     = typeof(ProductApi.Models.SmsProcedureAcknowledge),
+        ["sms_procedure_acknowledgement"]  = typeof(ProductApi.Models.SmsProcedureAcknowledge),
+        ["sms_procedure_acknowledgments"]  = typeof(ProductApi.Models.SmsProcedureAcknowledge),
+        ["sms_procedure_acknowledgements"] = typeof(ProductApi.Models.SmsProcedureAcknowledge),
+        ["sms_form_template"]              = typeof(ProductApi.Models.SmsFormTemplate),
+        ["sms_form_templates"]             = typeof(ProductApi.Models.SmsFormTemplate),
+        ["sms_filled_record"]              = typeof(ProductApi.Models.SmsFilledRecord),
+        ["sms_filled_records"]             = typeof(ProductApi.Models.SmsFilledRecord),
     };
 
     // Some sync producers emit plural table names while Shore expects singular.
@@ -250,6 +265,14 @@ public class SyncInboxService : ISyncInboxService
         ["arrival_reports"] = "arrival_report",
         ["bunker_reports"] = "bunker_report",
         ["position_reports"] = "position_report",
+        ["ism_element"] = "ism_elements",
+        ["sms_procedure"] = "sms_procedures",
+        ["sms_procedure_acknowledge"] = "sms_procedure_acknowledgements",
+        ["sms_procedure_acknowledges"] = "sms_procedure_acknowledgements",
+        ["sms_procedure_acknowledgement"] = "sms_procedure_acknowledgements",
+        ["sms_procedure_acknowledgments"] = "sms_procedure_acknowledgements",
+        ["sms_form_template"] = "sms_form_templates",
+        ["sms_filled_record"] = "sms_filled_records",
     };
 
     // Tables that edge auto-syncs but shore intentionally does not store.
@@ -266,6 +289,25 @@ public class SyncInboxService : ISyncInboxService
         "garbage_record_part_i",     // Logbook — no shore model
         "garbage_record_part_ii",    // Logbook — no shore model
         "ballast_water_record_book", // Logbook — no shore model
+        // Legacy HSQE tables from older Edge versions
+        "hsqe_document",
+        "hsqe_document_revision",
+        "hsqe_document_sync_status",
+        "hsqe_work_permit",
+        "hsqe_attachment",
+        "hsqe_audit_log",
+        "hsqe_sync_log",
+        "hsqe_template",
+        "hsqe_template_section",
+        "hsqe_template_field",
+        "hsqe_incident",
+        "hsqe_incidents",
+        "hsqe_capa",
+        "hsqe_capas",
+        "hsqe_risk_assessment",
+        "hsqe_risk_assessments",
+        "hsqe_document_read_log",
+        "hsqe_document_read_logs",
     };
 
     private static string CanonicalizeTableName(string? tableName)
@@ -277,6 +319,40 @@ public class SyncInboxService : ISyncInboxService
             ? canonical
             : tableName;
     }
+
+    /// <summary>
+    /// Returns a numeric order for dependency-aware batch processing.
+    /// Lower numbers are processed first (parent/reference tables),
+    /// higher numbers are processed later (child/dependent tables).
+    /// Tables not explicitly listed default to order 50 (middle tier).
+    /// </summary>
+    private static int GetTableProcessingOrder(string canonicalTable)
+    {
+        return canonicalTable switch
+        {
+            // Tier 0: Reference / seed tables
+            "certificate" or "country" or "rank" or "rank_certificate" or "country_certificate"
+                or "report_type" or "equipment_group" or "material_category" or "store_location" => 0,
+
+            // Tier 1: Core entity tables (parents)
+            "crew_member" or "vessel" or "ship_data" or "ism_elements" => 10,
+
+            // Tier 2: Direct children of tier 1
+            "sms_procedures" or "voyage_record" or "port" or "port_call"
+                or "crew_logbook_entry" or "equipment_asset" => 20,
+
+            // Tier 3: Grandchildren (depend on tier 2)
+            "sms_form_templates" or "sms_procedure_acknowledgements"
+                or "voyage_plan_leg" or "crew_certificate" or "maintenance_task" => 30,
+
+            // Tier 4: Deep children (depend on tier 3)
+            "sms_filled_records" or "maintenance_history" or "maintenance_schedule" => 40,
+
+            // Default tier for everything else
+            _ => 50,
+        };
+    }
+
 
     // Edge auto-queue emits full-entity snapshots for voyage sync rows even when the
     // action type is UPDATE. On first arrival at Shore there is no existing mirror row,
@@ -308,6 +384,14 @@ public class SyncInboxService : ISyncInboxService
         "employment_document",
         "health_document",
         "crew_certificate",
+        // SMS operational data from Edge
+        "sms_filled_record",
+        "sms_filled_records",
+        "sms_procedure_acknowledge",
+        "sms_procedure_acknowledges",
+        "sms_procedure_acknowledgement",
+        "sms_procedure_acknowledgments",
+        "sms_procedure_acknowledgements",
     };
 
     // Tables where entities are scoped per-vessel (have VesselId).
@@ -374,8 +458,14 @@ public class SyncInboxService : ISyncInboxService
             await AutoRegisterVesselAsync(imo);
         }
 
-        // Group by table for more efficient processing
-        var grouped = items.GroupBy(i => i.TableName);
+        // Group by table for more efficient processing.
+        // Order groups by dependency level so parent tables are processed before children.
+        // This prevents FK violations when e.g. sms_procedure_acknowledgements arrives
+        // in the same batch as its parent sms_procedures.
+        var grouped = items
+            .GroupBy(i => i.TableName)
+            .OrderBy(g => GetTableProcessingOrder(CanonicalizeTableName(g.Key)))
+            .ToList();
 
 
         foreach (var group in grouped)
@@ -444,9 +534,9 @@ public class SyncInboxService : ISyncInboxService
 
             if (!_tableEntityMap.TryGetValue(canonicalTable, out var entityType))
             {
-                if (_ignoredTables.Contains(canonicalTable))
+                if (_ignoredTables.Contains(canonicalTable) || canonicalTable.StartsWith("hsqe_", StringComparison.OrdinalIgnoreCase))
                 {
-                    _logger.LogDebug("Ignoring edge-only table: {Table}, {Count} items skipped", canonicalTable, group.Count());
+                    _logger.LogDebug("Ignoring edge-only/legacy table: {Table}, {Count} items skipped", canonicalTable, group.Count());
                     result.Succeeded += group.Count();
                     continue;
                 }
@@ -994,10 +1084,7 @@ public class SyncInboxService : ISyncInboxService
             writer.WriteStartObject();
             foreach (var property in root.EnumerateObject())
             {
-                if (property.NameEquals("DocumentFilePath") || property.NameEquals("documentFilePath")
-                    || property.NameEquals("FilePath") || property.NameEquals("filePath")
-                    || property.NameEquals("FileUrl") || property.NameEquals("fileUrl")
-                    || property.NameEquals("PhotoUrl") || property.NameEquals("photoUrl"))
+                if (property.NameEquals("PhotoUrl") || property.NameEquals("photoUrl"))
                 {
                     continue;
                 }
@@ -1011,9 +1098,9 @@ public class SyncInboxService : ISyncInboxService
     }
 
     /// <summary>
-    /// Strip file reference properties EXCEPT FileUrl.
-    /// Used for document tables where ConflictResolver needs FileUrl
-    /// to apply it from edge (edge wins for file properties on documents).
+    /// Strip file reference properties EXCEPT FileUrl, FilePath, DocumentFilePath.
+    /// Used for document tables where ConflictResolver needs file paths
+    /// to apply them from edge (edge wins for file properties on documents).
     /// </summary>
     private static string StripFileReferencePropertiesExceptFileUrl(string payload)
     {
@@ -1028,11 +1115,10 @@ public class SyncInboxService : ISyncInboxService
             writer.WriteStartObject();
             foreach (var property in root.EnumerateObject())
             {
-                // Strip PhotoUrl — always server by file transfer, never in metadata payload.
-                // Keep FileUrl and DocumentFilePath — edge uploads files to these properties
+                // Strip PhotoUrl — always served by file transfer, never in metadata payload.
+                // Keep FileUrl, FilePath and DocumentFilePath — edge uploads files to these properties
                 // directly, and the conflict resolver needs them to update the entity.
-                if (property.NameEquals("PhotoUrl") || property.NameEquals("photoUrl")
-                    || property.NameEquals("FilePath") || property.NameEquals("filePath"))
+                if (property.NameEquals("PhotoUrl") || property.NameEquals("photoUrl"))
                 {
                     continue;
                 }
@@ -1080,8 +1166,8 @@ public class SyncInboxService : ISyncInboxService
 
         if (!_tableEntityMap.TryGetValue(item.TableName, out var entityType))
         {
-            if (_ignoredTables.Contains(item.TableName))
-                return; // silently skip edge-only tables
+            if (_ignoredTables.Contains(item.TableName) || item.TableName.StartsWith("hsqe_", StringComparison.OrdinalIgnoreCase))
+                return; // silently skip edge-only / legacy tables
 
             _logger.LogWarning("Unknown sync table: {Table}", item.TableName);
             await LogSyncOperation(item, "FAILED", $"Unknown table: {item.TableName}");
@@ -2141,6 +2227,124 @@ public class SyncInboxService : ISyncInboxService
                 }
             }
         }
+
+        // ── SmsFormTemplate → SmsProcedure resolution ──
+        if (entityType == typeof(ProductApi.Models.SmsFormTemplate))
+        {
+            var template = (ProductApi.Models.SmsFormTemplate)entity;
+            var procExists = await _context.SmsProcedures.AnyAsync(p => p.Id == template.SmsProcedureId);
+            if (!procExists)
+            {
+                var procCode = ExtractPropertyFromPayload(rawPayload, "ProcedureCode", "procedureCode");
+                ProductApi.Models.SmsProcedure? matchedProc = null;
+                if (!string.IsNullOrEmpty(procCode))
+                {
+                    matchedProc = await _context.SmsProcedures.FirstOrDefaultAsync(p => p.ProcedureCode == procCode);
+                }
+
+                if (matchedProc != null)
+                {
+                    _logger.LogInformation(
+                        "SmsFormTemplate {FormCode}: Resolved edge SmsProcedureId {EdgeProcId} -> shore SmsProcedureId {ShoreProcId} via ProcedureCode {Code}",
+                        template.FormCode, template.SmsProcedureId, matchedProc.Id, procCode);
+                    template.SmsProcedureId = matchedProc.Id;
+                }
+                else
+                {
+                    var fallbackProc = await _context.SmsProcedures.FirstOrDefaultAsync();
+                    if (fallbackProc != null)
+                    {
+                        _logger.LogWarning(
+                            "SmsFormTemplate {FormCode}: Procedure {EdgeProcId} not found on shore — remapping to fallback procedure {FallbackId} ({FallbackCode})",
+                            template.FormCode, template.SmsProcedureId, fallbackProc.Id, fallbackProc.ProcedureCode);
+                        template.SmsProcedureId = fallbackProc.Id;
+                    }
+                }
+            }
+        }
+
+        // ── SmsFilledRecord → SmsFormTemplate & FormCode resolution ──
+        if (entityType == typeof(ProductApi.Models.SmsFilledRecord))
+        {
+            var record = (ProductApi.Models.SmsFilledRecord)entity;
+            
+            var template = await _context.SmsFormTemplates.FirstOrDefaultAsync(t => t.Id == record.SmsFormTemplateId);
+            if (template == null)
+            {
+                var formCode = !string.IsNullOrWhiteSpace(record.FormCode)
+                    ? record.FormCode
+                    : ExtractPropertyFromPayload(rawPayload, "FormCode", "formCode");
+
+                if (!string.IsNullOrEmpty(formCode))
+                {
+                    var matchedTemplate = await _context.SmsFormTemplates.FirstOrDefaultAsync(t => t.FormCode == formCode);
+                    if (matchedTemplate != null)
+                    {
+                        _logger.LogInformation(
+                            "SmsFilledRecord {Id}: Resolved edge SmsFormTemplateId {EdgeTemplateId} -> shore {ShoreTemplateId} via FormCode {FormCode}",
+                            record.Id, record.SmsFormTemplateId, matchedTemplate.Id, formCode);
+                        record.SmsFormTemplateId = matchedTemplate.Id;
+                        template = matchedTemplate;
+                    }
+                }
+
+                if (template == null)
+                {
+                    template = await _context.SmsFormTemplates.FirstOrDefaultAsync();
+                    if (template != null)
+                    {
+                        _logger.LogWarning(
+                            "SmsFilledRecord {Id}: Form template {EdgeTemplateId} not found on shore — remapping to fallback template {FallbackId} ({FormCode})",
+                            record.Id, record.SmsFormTemplateId, template.Id, template.FormCode);
+                        record.SmsFormTemplateId = template.Id;
+                    }
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(record.FormCode))
+            {
+                if (template != null && !string.IsNullOrWhiteSpace(template.FormCode))
+                {
+                    record.FormCode = template.FormCode;
+                }
+                else
+                {
+                    var payloadCode = ExtractPropertyFromPayload(rawPayload, "FormCode", "formCode");
+                    record.FormCode = !string.IsNullOrWhiteSpace(payloadCode) ? payloadCode : "UNKNOWN";
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(record.FormTitle))
+            {
+                if (template != null && !string.IsNullOrWhiteSpace(template.Title))
+                {
+                    record.FormTitle = template.Title;
+                }
+                else
+                {
+                    var payloadTitle = ExtractPropertyFromPayload(rawPayload, "FormTitle", "formTitle");
+                    record.FormTitle = !string.IsNullOrWhiteSpace(payloadTitle) ? payloadTitle : record.FormCode;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(record.ProcedureCode))
+            {
+                if (template != null)
+                {
+                    var proc = await _context.SmsProcedures.FirstOrDefaultAsync(p => p.Id == template.SmsProcedureId);
+                    if (proc != null && !string.IsNullOrWhiteSpace(proc.ProcedureCode))
+                    {
+                        record.ProcedureCode = proc.ProcedureCode;
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(record.ProcedureCode))
+                {
+                    var payloadProcCode = ExtractPropertyFromPayload(rawPayload, "ProcedureCode", "procedureCode");
+                    record.ProcedureCode = !string.IsNullOrWhiteSpace(payloadProcCode) ? payloadProcCode : "SOP-01";
+                }
+            }
+        }
     }
 
     private async Task ResolveIdentityDocumentForeignKeysAsync(object entity, string? rawPayload)
@@ -2292,6 +2496,34 @@ public class SyncInboxService : ISyncInboxService
         }
 
         return new string(crewId.Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
+    }
+
+    private static string? ExtractPropertyFromPayload(string? rawPayload, params string[] propertyNames)
+    {
+        if (string.IsNullOrWhiteSpace(rawPayload)) return null;
+        try
+        {
+            using var doc = JsonDocument.Parse(rawPayload);
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object) return null;
+
+            foreach (var propName in propertyNames)
+            {
+                foreach (var prop in root.EnumerateObject())
+                {
+                    if (string.Equals(prop.Name, propName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (prop.Value.ValueKind == JsonValueKind.String)
+                            return prop.Value.GetString();
+                        if (prop.Value.ValueKind == JsonValueKind.Object && prop.Value.TryGetProperty("ProcedureCode", out var codeProp))
+                            return codeProp.GetString();
+                        return prop.Value.ToString();
+                    }
+                }
+            }
+        }
+        catch { }
+        return null;
     }
 
     // ============================================================
@@ -2540,17 +2772,44 @@ public class SyncInboxService : ISyncInboxService
             using var doc = JsonDocument.Parse(json);
             if (doc.RootElement.ValueKind != JsonValueKind.Object) return json;
 
-            var scalars = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
-            foreach (var prop in doc.RootElement.EnumerateObject())
+            using var stream = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(stream))
             {
-                // Keep primitive values and nulls; skip embedded objects and arrays
-                if (prop.Value.ValueKind != JsonValueKind.Object &&
-                    prop.Value.ValueKind != JsonValueKind.Array)
+                writer.WriteStartObject();
+                foreach (var prop in doc.RootElement.EnumerateObject())
                 {
-                    scalars[prop.Name] = prop.Value;
+                    // Keep primitive values and nulls directly
+                    if (prop.Value.ValueKind != JsonValueKind.Object &&
+                        prop.Value.ValueKind != JsonValueKind.Array)
+                    {
+                        prop.WriteTo(writer);
+                        continue;
+                    }
+
+                    // Preserve JSON content properties even if sent as Object or Array in JSON
+                    var name = prop.Name;
+                    if (string.Equals(name, "FilledData", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(name, "filled_data", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(name, "DigitalSignatures", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(name, "digital_signatures", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(name, "ContentSchema", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(name, "content_schema", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(name, "EdgeChanges", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(name, "edge_changes", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (prop.Value.ValueKind == JsonValueKind.String)
+                        {
+                            prop.WriteTo(writer);
+                        }
+                        else
+                        {
+                            writer.WriteString(name, prop.Value.GetRawText());
+                        }
+                    }
                 }
+                writer.WriteEndObject();
             }
-            return JsonSerializer.Serialize(scalars);
+            return System.Text.Encoding.UTF8.GetString(stream.ToArray());
         }
         catch
         {

@@ -63,12 +63,25 @@ public class SyncConflictHandler : ISyncConflictHandler
         ["voyage_disbursement"] = typeof(VoyageDisbursement),
         ["voyage_actual_revenue"] = typeof(VoyageActualRevenue),
         ["voyage_settlement"] = typeof(VoyageSettlement),
+
+        // Safety Management System (SMS)
+        ["ism_element"] = typeof(IsmElement),
+        ["ism_elements"] = typeof(IsmElement),
+        ["sms_procedure"] = typeof(SmsProcedure),
+        ["sms_procedures"] = typeof(SmsProcedure),
+        ["sms_form_template"] = typeof(SmsFormTemplate),
+        ["sms_form_templates"] = typeof(SmsFormTemplate),
+        ["sms_filled_record"] = typeof(SmsFilledRecord),
+        ["sms_filled_records"] = typeof(SmsFilledRecord),
+        ["sms_procedure_acknowledge"] = typeof(SmsProcedureAcknowledge),
+        ["sms_procedure_acknowledgements"] = typeof(SmsProcedureAcknowledge),
     };
 
     // Master data tables — always accept from Shore
     private static readonly HashSet<string> _masterDataTables = new(StringComparer.OrdinalIgnoreCase)
     {
-        "certificate", "country", "rank", "rank_certificate", "country_certificate"
+        "certificate", "country", "rank", "rank_certificate", "country_certificate",
+        "ism_element", "ism_elements", "sms_procedure", "sms_procedures", "sms_form_template", "sms_form_templates"
     };
 
     // Human-readable labels for crew fields that should trigger notifications

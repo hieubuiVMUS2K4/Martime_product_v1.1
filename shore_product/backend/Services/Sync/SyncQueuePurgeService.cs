@@ -47,15 +47,16 @@ namespace ProductApi.Services.Sync
 
             _logger.LogInformation("Executing database cleanup for sync records older than {CutoffDate}...", cutoffDate);
 
-            // Execute raw SQL for high efficiency deletion
-            var deletedIdempotency = await dbContext.Database.ExecuteSqlRawAsync(
-                @"DELETE FROM ""SyncIdempotencyRecords"" WHERE ""CreatedAt"" < {0}",
-                cutoffDate,
+            // Execute interpolated SQL for high efficiency deletion
+            // Note: Using ExecuteSqlInterpolatedAsync so CancellationToken is not treated as a SQL parameter.
+            // SyncIdempotencyRecord has ProcessedAt (not CreatedAt), and SyncLog has ProcessedAt (not Timestamp).
+            // Table names use snake_case convention configured in AppDbContext.
+            var deletedIdempotency = await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $@"DELETE FROM sync_idempotency_records WHERE ""ProcessedAt"" < {cutoffDate}",
                 cancellationToken);
 
-            var deletedLogs = await dbContext.Database.ExecuteSqlRawAsync(
-                @"DELETE FROM ""SyncLogs"" WHERE ""Timestamp"" < {0}",
-                cutoffDate,
+            var deletedLogs = await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $@"DELETE FROM sync_logs WHERE ""ProcessedAt"" < {cutoffDate}",
                 cancellationToken);
 
             _logger.LogInformation("Purged {DeletedIdempotency} idempotency records and {DeletedLogs} sync logs.",

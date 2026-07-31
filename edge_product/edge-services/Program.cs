@@ -263,6 +263,9 @@ namespace MaritimeEdge
                 builder.Services.AddHostedService<MaritimeEdge.Services.Voyage.AlertSyncEnqueuerService>();
             }
 
+            // SMS Sync Enqueuer — đồng bộ SmsFilledRecord + SmsProcedureAcknowledge từ Edge lên Shore
+            builder.Services.AddHostedService<MaritimeEdge.Services.Sync.SmsSyncEnqueuerService>();
+
             builder.Services.AddHostedService<MaritimeEdge.Services.Core.DataCleanupService>();
             builder.Services.AddHostedService<MaritimeEdge.Services.Core.EdgeSyncQueuePurgeService>();
             if (builder.Configuration.GetValue("Sync:Enabled", true))
@@ -432,6 +435,29 @@ namespace MaritimeEdge
                         ADD COLUMN IF NOT EXISTS is_running boolean NOT NULL DEFAULT false;
                     ");
 
+                    // ── Migration: Add missing form_code column to sms_filled_records ──
+                    // The original AddSmsSystem migration omitted this column from the table
+                    // definition even though the SmsFilledRecord model includes a FormCode property.
+                    await dbContext.Database.ExecuteSqlRawAsync(@"
+                        ALTER TABLE public.sms_filled_records
+                        ADD COLUMN IF NOT EXISTS form_code character varying(50) NOT NULL DEFAULT '';
+                        ALTER TABLE public.sms_filled_records
+                        ADD COLUMN IF NOT EXISTS form_title text NOT NULL DEFAULT '';
+                        ALTER TABLE public.sms_filled_records
+                        ADD COLUMN IF NOT EXISTS procedure_code character varying(50) NOT NULL DEFAULT '';
+                    ");
+
+                    // ── Self-healing: Repair missing file_path in sms_procedures ──
+                    await dbContext.Database.ExecuteSqlRawAsync(@"
+                        UPDATE public.sms_procedures p
+                        SET file_path = m.storage_path
+                        FROM public.sync_file_manifests m
+                        WHERE (m.table_name = 'sms_procedure' OR m.table_name = 'sms_procedures')
+                          AND m.record_key = p.id::text
+                          AND (p.file_path IS NULL OR p.file_path = '')
+                          AND m.storage_path IS NOT NULL AND m.storage_path <> '';
+                    ");
+
                     await EnsurePortSeedDataAsync(dbContext, logger, app.Environment.ContentRootPath);
                     logger.LogInformation("Seeding SMS Document Management system data...");
                     await SmsSeedData.SeedAsync(dbContext);
@@ -506,7 +532,7 @@ namespace MaritimeEdge
             app.Use(async (context, next) =>
             {
                 context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
-                context.Response.Headers.Append("X-Frame-Options", "DENY");
+                context.Response.Headers.Append("X-Frame-Options", "SAMEORIGIN");
                 context.Response.Headers.Append("X-XSS-Protection", "1; mode=block");
                 context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
                 await next();

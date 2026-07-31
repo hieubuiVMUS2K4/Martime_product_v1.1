@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit2, Trash2, Eye, ArrowLeft, ChevronLeft, ChevronRight as ChevronRightIcon, Search, X, CheckCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import { stockReceiptService } from '@/services/stockReceipt.service';
 import { materialService } from '@/services/materialService';
 import { storeLocationService } from '@/services/store-location.service';
@@ -115,7 +116,7 @@ export default function StockReceiptPage() {
   };
 
   const handleSave = async (andApprove = false) => {
-    if (formItems.length === 0) return alert('Vui lòng thêm ít nhất 1 dòng vật tư.');
+    if (formItems.length === 0) return toast.error('Vui lòng thêm ít nhất 1 dòng vật tư.');
     try {
       setSaving(true);
       const payload = { ...formData, items: formItems };
@@ -132,16 +133,28 @@ export default function StockReceiptPage() {
   };
 
   const handleComplete = async (id: number) => {
-    if (!confirm('Xác nhận hoàn thành nhập kho? Tồn kho sẽ được cập nhật.')) return;
-    await stockReceiptService.complete(id);
-    setView('list');
-    loadList();
+    toast('Xác nhận hoàn thành nhập kho? Tồn kho sẽ được cập nhật.', {
+      action: {
+        label: 'Xác nhận',
+        onClick: async () => {
+          await stockReceiptService.complete(id);
+          setView('list');
+          loadList();
+        }
+      }
+    });
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Xác nhận xóa phiếu này?')) return;
-    await stockReceiptService.delete(id);
-    loadList();
+    toast('Xác nhận xóa phiếu này?', {
+      action: {
+        label: 'Xóa',
+        onClick: async () => {
+          await stockReceiptService.delete(id);
+          loadList();
+        }
+      }
+    });
   };
 
   const addFormItem = () => {

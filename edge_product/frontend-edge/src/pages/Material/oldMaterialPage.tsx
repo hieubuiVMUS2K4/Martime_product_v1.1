@@ -1,5 +1,6 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Boxes, Layers, Search, AlertTriangle, Tag, Edit2, Trash2, TrendingUp, FileSpreadsheet } from 'lucide-react';
+import { toast } from 'sonner';
 import { materialService } from '../../services/materialService';
 import { receiptService } from '../../services/receiptService';
 import type { MaterialItem, MaterialCategory } from '../../types/maritime.types';
@@ -121,13 +122,19 @@ export function MaterialPage() {
   };
 
   const handleDeleteItem = async (item: MaterialItem) => {
-    if (!confirm(`Are you sure you want to delete "${item.name}"?`)) return;
-    try {
-      await materialService.deleteItem(item.id);
-      await loadData();
-    } catch (error: any) {
-      alert(error.message || 'Failed to delete item');
-    }
+    toast(`Are you sure you want to delete "${item.name}"?`, {
+      action: {
+        label: 'Delete',
+        onClick: async () => {
+          try {
+            await materialService.deleteItem(item.id);
+            await loadData();
+          } catch (error: any) {
+            toast.error(error.message || 'Failed to delete item');
+          }
+        }
+      }
+    });
   };
 
   const handleStockAdjustment = async (data: StockAdjustmentDto) => {
@@ -150,13 +157,19 @@ export function MaterialPage() {
   };
 
   const handleDeleteCategory = async (category: MaterialCategory) => {
-    if (!confirm(`Are you sure you want to delete category "${category.name}"?`)) return;
-    try {
-      await materialService.deleteCategory(category.id);
-      await loadData();
-    } catch (error: any) {
-      alert(error.message || 'Failed to delete category');
-    }
+    toast(`Are you sure you want to delete category "${category.name}"?`, {
+      action: {
+        label: 'Delete',
+        onClick: async () => {
+          try {
+            await materialService.deleteCategory(category.id);
+            await loadData();
+          } catch (error: any) {
+            toast.error(error.message || 'Failed to delete category');
+          }
+        }
+      }
+    });
   };
 
   const filteredItems = useMemo(() => {
@@ -610,7 +623,7 @@ export function MaterialPage() {
         onClose={() => setImportReceiptModalOpen(false)}
         onSuccess={() => {
           loadData();
-          alert('Import successful!');
+          toast.success('Import successful!');
         }}
       />
 

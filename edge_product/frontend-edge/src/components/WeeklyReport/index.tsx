@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 import { ReportingService } from '../../services/reporting.service';
 import { 
   GenerateWeeklyReportDto, 
@@ -149,23 +150,24 @@ const WeeklyReportForm: React.FC<WeeklyReportFormProps> = ({ onReportGenerated }
   const handleDeleteReport = async () => {
     if (!selectedReport) return;
 
-    const confirmDelete = window.confirm(
-      `Are you sure you want to delete report ${selectedReport.reportNumber}?\n\nThis action cannot be undone.`
-    );
-
-    if (!confirmDelete) return;
-
-    try {
-      await ReportingService.deleteWeeklyReport(selectedReport.id);
-      setSuccess(`✓ Report ${selectedReport.reportNumber} deleted successfully`);
-      setSelectedReport(null);
-      await loadWeeklyReports(); // Reload list
-      
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      const errorMessage = getReportErrorMessage(err);
-      setError(errorMessage);
-    }
+    toast(`Are you sure you want to delete report ${selectedReport.reportNumber}?`, {
+      action: {
+        label: 'Delete',
+        onClick: async () => {
+          try {
+            await ReportingService.deleteWeeklyReport(selectedReport.id);
+            setSuccess(`✓ Report ${selectedReport.reportNumber} deleted successfully`);
+            setSelectedReport(null);
+            await loadWeeklyReports(); // Reload list
+            
+            setTimeout(() => setSuccess(null), 3000);
+          } catch (err) {
+            const errorMessage = getReportErrorMessage(err);
+            setError(errorMessage);
+          }
+        }
+      }
+    });
   };
 
   /**

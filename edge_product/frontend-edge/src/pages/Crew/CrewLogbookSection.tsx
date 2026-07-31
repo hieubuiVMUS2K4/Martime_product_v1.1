@@ -381,14 +381,20 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
   };
 
   const handleDeleteService = async (entryId: string) => {
-    if (!window.confirm('Xóa quá trình đi biển này?')) return;
-    try {
-      await maritimeService.logbook.deleteEntry(crewMemberId, entryId);
-      toast.success('Xóa quá trình đi biển thành công');
-      loadData();
-    } catch (err: any) {
-      toast.error(err.message || 'Không thể xóa');
-    }
+    toast('Xóa quá trình đi biển này?', {
+      action: {
+        label: 'Xóa',
+        onClick: async () => {
+          try {
+            await maritimeService.logbook.deleteEntry(crewMemberId, entryId);
+            toast.success('Xóa quá trình đi biển thành công');
+            loadData();
+          } catch (err: any) {
+            toast.error(err.message || 'Không thể xóa');
+          }
+        }
+      }
+    });
   };
 
   if (loading || !crew) {

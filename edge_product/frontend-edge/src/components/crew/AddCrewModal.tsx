@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { toast } from 'react-toastify'
+import { toast } from 'sonner'
 import { X, User, Save, AlertCircle, Heart, GraduationCap, Phone, Briefcase } from 'lucide-react'
 import { CrewMember } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'

@@ -1,4 +1,4 @@
-import { toast } from 'react-toastify';
+import { toast } from 'sonner';
 
 interface FormTL1501Props {
   formValues: Record<string, any>;

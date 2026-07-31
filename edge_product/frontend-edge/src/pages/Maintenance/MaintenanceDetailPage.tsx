@@ -19,6 +19,7 @@ import {
 import { MaintenanceTask, CrewMember } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
 import { format, parseISO, differenceInDays } from 'date-fns'
+import { toast } from 'sonner'
 import { useTranslationSafe } from '@/contexts/I18nContext'
 
 export function MaintenanceDetailPage() {
@@ -51,7 +52,7 @@ export function MaintenanceDetailPage() {
     
     const taskId = id
     if (!taskId) {
-      alert('Invalid task ID')
+      toast.error('Invalid task ID')
       navigate('/pms/maintenance')
       return
     }
@@ -67,7 +68,7 @@ export function MaintenanceDetailPage() {
       }
     } catch (error) {
       console.error('Failed to load task details:', error)
-      alert('Failed to load maintenance task details')
+      toast.error('Failed to load maintenance task details')
     } finally {
       setLoading(false)
     }
@@ -114,12 +115,12 @@ export function MaintenanceDetailPage() {
       setIsEditing(false)
       
       console.log('✅ Maintenance task updated successfully')
-      alert('✅ Maintenance task updated successfully!')
+      toast.success('Maintenance task updated successfully!')
     } catch (error: any) {
       console.error('❌ Failed to save task:', error)
       const errorMessage = error.message || 'Failed to update maintenance task'
       const errorDetails = error.details || ''
-      alert(`Error: ${errorMessage}${errorDetails ? '\n\nDetails: ' + errorDetails : ''}`)
+      toast.error(`Error: ${errorMessage}${errorDetails ? ' - ' + errorDetails : ''}`)
     } finally {
       setSaving(false)
     }
@@ -128,29 +129,25 @@ export function MaintenanceDetailPage() {
   const handleDelete = async () => {
     if (!task) return
     
-    const confirmed = window.confirm(
-      `⚠️ Are you sure you want to delete this maintenance task?\n\n` +
-      `Task ID: ${task.taskId}\n` +
-      `Equipment: ${task.equipmentName}\n` +
-      `Description: ${task.taskDescription}\n\n` +
-      `This action cannot be undone!`
-    )
-    
-    if (!confirmed) return
-    
-    try {
-      setDeleting(true)
-      await maritimeService.maintenance.delete(task.id)
-      
-      console.log('✅ Task deleted successfully')
-      alert('✅ Maintenance task deleted successfully!')
-      navigate('/pms/maintenance')
-    } catch (error: any) {
-      console.error('❌ Failed to delete task:', error)
-      alert(`Error: ${error.message || 'Failed to delete task'}`)
-    } finally {
-      setDeleting(false)
-    }
+    toast(`Delete task "${task.equipmentName}"?`, {
+      description: `Task ID: ${task.taskId} | Description: ${task.taskDescription}`,
+      action: {
+        label: t('common.delete') || 'Delete',
+        onClick: async () => {
+          try {
+            setDeleting(true)
+            await maritimeService.maintenance.delete(task.id)
+            toast.success('Maintenance task deleted successfully!')
+            navigate('/pms/maintenance')
+          } catch (error: any) {
+            console.error('❌ Failed to delete task:', error)
+            toast.error(`Error: ${error.message || 'Failed to delete task'}`)
+          } finally {
+            setDeleting(false)
+          }
+        }
+      }
+    })
   }
 
   const getDaysUntilDue = () => {

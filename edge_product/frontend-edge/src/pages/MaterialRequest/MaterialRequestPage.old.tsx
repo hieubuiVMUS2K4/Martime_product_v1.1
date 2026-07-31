@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit2, Trash2, Send, Eye, ArrowLeft, ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { materialRequestService } from '@/services/materialRequest.service';
 import { materialService } from '@/services/materialService';
 import { useTranslationSafe } from '@/contexts/I18nContext';
@@ -126,7 +127,7 @@ export default function MaterialRequestPage() {
   };
 
   const handleSave = async (andSubmit = false) => {
-    if (formItems.length === 0) return alert('Vui lòng thêm ít nhất 1 dòng vật tư.');
+    if (formItems.length === 0) return toast.error('Vui lòng thêm ít nhất 1 dòng vật tư.');
     try {
       setSaving(true);
       const payload = {
@@ -150,9 +151,15 @@ export default function MaterialRequestPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Xác nhận xóa yêu cầu này?')) return;
-    await materialRequestService.delete(id);
-    loadList();
+    toast('Xác nhận xóa yêu cầu này?', {
+      action: {
+        label: 'Xóa',
+        onClick: async () => {
+          await materialRequestService.delete(id);
+          loadList();
+        }
+      }
+    });
   };
 
   const addFormItem = () => {

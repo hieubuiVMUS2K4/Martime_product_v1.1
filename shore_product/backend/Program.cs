@@ -441,6 +441,102 @@ if (autoMigrateDatabase)
             ");
             logger.LogInformation("Default admin user seed completed.");
 
+            // ── Auto-create SMS tables if not present ──
+            await db.Database.ExecuteSqlRawAsync(@"
+                CREATE TABLE IF NOT EXISTS ism_elements (
+                    ""Id"" integer NOT NULL,
+                    ""ChapterName"" character varying(250) NOT NULL,
+                    CONSTRAINT ""PK_ism_elements"" PRIMARY KEY (""Id"")
+                );
+
+                CREATE TABLE IF NOT EXISTS sms_procedures (
+                    ""Id"" uuid NOT NULL,
+                    ""IsmElementId"" integer NOT NULL,
+                    ""ProcedureCode"" character varying(50) NOT NULL,
+                    ""Title"" character varying(300) NOT NULL,
+                    ""Content"" text NOT NULL,
+                    ""Version"" character varying(20) NOT NULL,
+                    ""PublishDate"" timestamp with time zone NOT NULL,
+                    ""ObsoleteDate"" timestamp with time zone,
+                    ""Status"" character varying(20) NOT NULL,
+                    ""WatermarkText"" character varying(100),
+                    ""FilePath"" character varying(500),
+                    ""OriginalFileName"" character varying(250),
+                    ""ChangeNote"" text,
+                    ""CreatedAt"" timestamp with time zone NOT NULL,
+                    ""UpdatedAt"" timestamp with time zone NOT NULL,
+                    CONSTRAINT ""PK_sms_procedures"" PRIMARY KEY (""Id""),
+                    CONSTRAINT ""FK_sms_procedures_ism_elements_IsmElementId"" FOREIGN KEY (""IsmElementId"") REFERENCES ism_elements (""Id"") ON DELETE CASCADE
+                );
+
+                CREATE TABLE IF NOT EXISTS sms_procedure_acknowledgements (
+                    ""Id"" uuid NOT NULL,
+                    ""SmsProcedureId"" uuid NOT NULL,
+                    ""UserName"" character varying(100) NOT NULL,
+                    ""Rank"" character varying(50) NOT NULL,
+                    ""AcknowledgedAt"" timestamp with time zone NOT NULL,
+                    ""DigitalSignature"" text,
+                    ""CreatedAt"" timestamp with time zone NOT NULL,
+                    ""UpdatedAt"" timestamp with time zone NOT NULL,
+                    CONSTRAINT ""PK_sms_procedure_acknowledgements"" PRIMARY KEY (""Id""),
+                    CONSTRAINT ""FK_sms_procedure_ack_sms_procedures"" FOREIGN KEY (""SmsProcedureId"") REFERENCES sms_procedures (""Id"") ON DELETE CASCADE
+                );
+
+                CREATE TABLE IF NOT EXISTS sms_form_templates (
+                    ""Id"" uuid NOT NULL,
+                    ""SmsProcedureId"" uuid NOT NULL,
+                    ""FormCode"" character varying(50) NOT NULL,
+                    ""Title"" character varying(300) NOT NULL,
+                    ""ContentSchema"" text NOT NULL,
+                    ""CreatedAt"" timestamp with time zone NOT NULL,
+                    ""UpdatedAt"" timestamp with time zone NOT NULL,
+                    CONSTRAINT ""PK_sms_form_templates"" PRIMARY KEY (""Id""),
+                    CONSTRAINT ""FK_sms_form_templates_sms_procedures_SmsProcedureId"" FOREIGN KEY (""SmsProcedureId"") REFERENCES sms_procedures (""Id"") ON DELETE CASCADE
+                );
+
+                CREATE TABLE IF NOT EXISTS sms_filled_records (
+                    ""Id"" uuid NOT NULL,
+                    ""SmsFormTemplateId"" uuid NOT NULL,
+                    ""FormCode"" character varying(50) NOT NULL DEFAULT '',
+                    ""FormTitle"" character varying(300) NOT NULL DEFAULT '',
+                    ""ProcedureCode"" character varying(50) NOT NULL DEFAULT '',
+                    ""FilledBy"" character varying(100) NOT NULL,
+                    ""FilledDate"" timestamp with time zone NOT NULL,
+                    ""FilledData"" text NOT NULL,
+                    ""DigitalSignatures"" text,
+                    ""Status"" character varying(20) NOT NULL,
+                    ""VesselName"" character varying(100),
+                    ""CreatedAt"" timestamp with time zone NOT NULL,
+                    ""UpdatedAt"" timestamp with time zone NOT NULL,
+                    CONSTRAINT ""PK_sms_filled_records"" PRIMARY KEY (""Id""),
+                    CONSTRAINT ""FK_sms_filled_records_sms_form_templates"" FOREIGN KEY (""SmsFormTemplateId"") REFERENCES sms_form_templates (""Id"") ON DELETE CASCADE
+                );
+
+                -- Fix existing sms_filled_records: add defaults to denormalized columns
+                -- so Edge-synced rows (which omit these fields) insert successfully.
+                ALTER TABLE sms_filled_records ALTER COLUMN ""FormTitle"" SET DEFAULT '';
+                ALTER TABLE sms_filled_records ALTER COLUMN ""ProcedureCode"" SET DEFAULT '';
+                ALTER TABLE sms_filled_records ALTER COLUMN ""FormCode"" SET DEFAULT '';
+
+                CREATE TABLE IF NOT EXISTS sms_procedure_histories (
+                    ""Id"" uuid NOT NULL,
+                    ""SmsProcedureId"" uuid NOT NULL,
+                    ""Version"" character varying(20) NOT NULL,
+                    ""Content"" text NOT NULL,
+                    ""ChangeNote"" text,
+                    ""ChangedBy"" character varying(100) NOT NULL,
+                    ""ChangedAt"" timestamp with time zone NOT NULL,
+                    ""CreatedAt"" timestamp with time zone NOT NULL,
+                    ""UpdatedAt"" timestamp with time zone NOT NULL,
+                    CONSTRAINT ""PK_sms_procedure_histories"" PRIMARY KEY (""Id""),
+                    CONSTRAINT ""FK_sms_procedure_histories_sms_procedures"" FOREIGN KEY (""SmsProcedureId"") REFERENCES sms_procedures (""Id"") ON DELETE CASCADE
+                );
+            ");
+
+            // ── Seed SMS initial data (ISM elements & procedures) ──
+            await SmsSeedData.SeedAsync(db);
+            logger.LogInformation("SMS Seed Data completed.");
+
             logger.LogInformation("Database migration/verification completed successfully.");
             break;
         }
@@ -519,18 +615,35 @@ Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "documents", "employ
 Directory.CreateDirectory(Path.Combine(uploadsPath, "crew", "documents", "health_documents"));
 Directory.CreateDirectory(Path.Combine(uploadsPath, "sync-content"));
 Directory.CreateDirectory(Path.Combine(uploadsPath, "sync-staging"));
+Directory.CreateDirectory(Path.Combine(uploadsPath, "sms"));
 
 // Security Headers Middleware for Production
 app.Use(async (context, next) =>
 {
     context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
-    context.Response.Headers.Append("X-Frame-Options", "DENY");
+    context.Response.Headers.Append("X-Frame-Options", "SAMEORIGIN");
     context.Response.Headers.Append("X-XSS-Protection", "1; mode=block");
     context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
     await next();
 });
 
 app.UseCors("AllowWebMobile");
+
+// Serve uploaded static files (SMS PDFs, avatars, certificates)
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadsPath),
+    RequestPath = "/uploads",
+    OnPrepareResponse = ctx =>
+    {
+        var origin = ctx.Context.Request.Headers["Origin"].ToString();
+        if (!string.IsNullOrEmpty(origin))
+        {
+            ctx.Context.Response.Headers["Access-Control-Allow-Origin"] = origin;
+            ctx.Context.Response.Headers["Access-Control-Allow-Credentials"] = "true";
+        }
+    }
+});
 app.UseRouting();
 app.UseRateLimiter();
 app.UseWhen(

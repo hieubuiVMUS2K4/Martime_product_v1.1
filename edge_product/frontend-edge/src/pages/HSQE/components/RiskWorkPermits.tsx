@@ -475,29 +475,39 @@ export function RiskWorkPermits() {
   };
 
   const deletePermit = async (id: string) => {
-    if (confirm('Xóa giấy phép làm việc này khỏi danh sách?')) {
-      try {
-        await apiClient.delete(`/hsqe/permits/${id}`);
-        toast.success('Đã xóa giấy phép.');
-        await fetchRisksAndPermits();
-        setSelectedPermitId('perm-1');
-      } catch (err) {
-        toast.error('Không thể xóa giấy phép');
+    toast('Xóa giấy phép làm việc này khỏi danh sách?', {
+      action: {
+        label: 'Xóa',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/hsqe/permits/${id}`);
+            toast.success('Đã xóa giấy phép.');
+            await fetchRisksAndPermits();
+            setSelectedPermitId('perm-1');
+          } catch (err) {
+            toast.error('Không thể xóa giấy phép');
+          }
+        }
       }
-    }
+    });
   };
 
   const deleteRisk = async (id: string) => {
-    if (confirm('Xóa bản đánh giá rủi ro và JSA này?')) {
-      try {
-        await apiClient.delete(`/hsqe/risks/${id}`);
-        toast.success('Đã xóa đánh giá rủi ro.');
-        await fetchRisksAndPermits();
-        setSelectedRiskId('risk-1');
-      } catch (err) {
-        toast.error('Không thể xóa đánh giá rủi ro');
+    toast('Xóa bản đánh giá rủi ro và JSA này?', {
+      action: {
+        label: 'Xóa',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/hsqe/risks/${id}`);
+            toast.success('Đã xóa đánh giá rủi ro.');
+            await fetchRisksAndPermits();
+            setSelectedRiskId('risk-1');
+          } catch (err) {
+            toast.error('Không thể xóa đánh giá rủi ro');
+          }
+        }
       }
-    }
+    });
   };
 
   if (loading) {

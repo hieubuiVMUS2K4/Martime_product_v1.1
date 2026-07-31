@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import {
   Anchor,
   ArrowLeft,
@@ -311,9 +312,10 @@ export function ReportDetailPage() {
       await ReportingService.approveReport(id!, approvalData);
       setShowApproveModal(false);
       setApprovalData({ masterSignature: currentAccountName, approvalRemarks: '' });
+      toast.success('Report approved successfully');
       await reloadAll();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to approve report');
+      toast.error(err instanceof Error ? err.message : 'Failed to approve report');
     }
   };
 
@@ -322,9 +324,10 @@ export function ReportDetailPage() {
       await ReportingService.rejectReport(id!, rejectionReason);
       setShowRejectModal(false);
       setRejectionReason('');
+      toast.success('Report rejected');
       await reloadAll();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to reject report');
+      toast.error(err instanceof Error ? err.message : 'Failed to reject report');
     }
   };
 
@@ -337,9 +340,10 @@ export function ReportDetailPage() {
       });
       setShowTransmitModal(false);
       setTransmitData({ transmissionMethod: 'EMAIL', recipientEmails: '' });
+      toast.success('Report transmitted successfully');
       await reloadAll();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to transmit report');
+      toast.error(err instanceof Error ? err.message : 'Failed to transmit report');
     }
   };
 
@@ -681,14 +685,21 @@ export function ReportDetailPage() {
                   </button>
                 )}
                 <button
-                  onClick={async () => {
-                    if (!window.confirm('Submit this report for approval?')) return;
-                    try {
-                      await ReportingService.submitReport(id!);
-                      await reloadAll();
-                    } catch (err) {
-                      alert(err instanceof Error ? err.message : 'Failed to submit report');
-                    }
+                  onClick={() => {
+                    toast('Submit this report for approval?', {
+                      action: {
+                        label: 'Submit',
+                        onClick: async () => {
+                          try {
+                            await ReportingService.submitReport(id!);
+                            toast.success('Report submitted');
+                            await reloadAll();
+                          } catch (err) {
+                            toast.error(err instanceof Error ? err.message : 'Failed to submit report');
+                          }
+                        }
+                      }
+                    });
                   }}
                   className="inline-flex items-center gap-1.5 rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700"
                 >
@@ -734,9 +745,10 @@ export function ReportDetailPage() {
                   if (!corrections) return;
                   try {
                     await ReportingService.reopenReport(id!, corrections);
+                    toast.success('Report reopened');
                     await reloadAll();
                   } catch (err) {
-                    alert(err instanceof Error ? err.message : 'Failed to reopen report');
+                    toast.error(err instanceof Error ? err.message : 'Failed to reopen report');
                   }
                 }}
                 className="inline-flex items-center gap-1.5 rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700"

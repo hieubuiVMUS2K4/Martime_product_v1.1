@@ -185,6 +185,15 @@ namespace MaritimeEdge.Models
         [JsonIgnore]
         public virtual SmsFormTemplate? FormTemplate { get; set; }
 
+        [MaxLength(50)]
+        public string FormCode { get; set; } = string.Empty;
+
+        [MaxLength(300)]
+        public string FormTitle { get; set; } = string.Empty;
+
+        [MaxLength(50)]
+        public string ProcedureCode { get; set; } = string.Empty;
+
         [Required]
         [MaxLength(100)]
         public string VesselName { get; set; } = "M/V Green Star";

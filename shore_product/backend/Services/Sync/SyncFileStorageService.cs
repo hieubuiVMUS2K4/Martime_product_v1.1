@@ -232,6 +232,7 @@ public sealed class LocalSyncFileStorageService : ISyncFileStorageService
             "seafarer_document" => Path.Combine("uploads", "crew", "documents", "seafarer_documents"),
             "employment_document" => Path.Combine("uploads", "crew", "documents", "employment_documents"),
             "health_document" => Path.Combine("uploads", "crew", "documents", "health_documents"),
+            "sms_procedure" or "sms_procedures" or "sms_filled_record" or "sms_filled_records" => Path.Combine("uploads", "sms"),
             _ => Path.Combine("uploads", "sync-files", tableName)
         };
     }
