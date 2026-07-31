@@ -69,7 +69,6 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
-package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
@@ -181,7 +180,6 @@ npm
 
 # Files config đặt sai vị trí
 /vite.config.ts
-/package-lock.json
 
 # SQL files cũ/trùng lặp (giữ insert-sample-data-fixed.sql)
 edge-services/insert-sample-data.sql
