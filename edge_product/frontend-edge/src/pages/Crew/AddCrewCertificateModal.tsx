@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { toast } from 'react-toastify'
+import { toast } from 'sonner'
 import { Award, FileText, Save, Upload, Trash2, Image, X } from 'lucide-react'
 import { maritimeService } from '../../services/maritime.service'
 import { Certificate, CrewMember, Country } from '../../types/maritime.types'

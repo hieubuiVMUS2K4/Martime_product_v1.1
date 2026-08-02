@@ -310,6 +310,9 @@ namespace MaritimeEdge.Controllers.Safety
                 {
                     Id = Guid.NewGuid(),
                     SmsFormTemplateId = req.FormTemplateId,
+                    FormCode = template.FormCode,
+                    FormTitle = template.Title,
+                    ProcedureCode = template.Procedure?.ProcedureCode ?? string.Empty,
                     VesselName = string.IsNullOrWhiteSpace(req.VesselName) ? "M/V Green Star" : req.VesselName,
                     FilledBy = req.FilledBy,
                     FilledDate = DateTime.UtcNow,
@@ -488,355 +491,49 @@ namespace MaritimeEdge.Controllers.Safety
         }
 
         // ==========================================
-        // 10. VERSION CONTROL (BUMP VERSION / OBSOLETE OLD ONES)
+        // 10. VERSION CONTROL (LOCKED AT EDGE)
         // ==========================================
         [HttpPost("procedures/version-up")]
         public async Task<IActionResult> BumpProcedureVersion([FromBody] BumpVersionRequest req)
         {
-            try
-            {
-                var currentProcedure = await _context.SmsProcedures
-                    .FirstOrDefaultAsync(p => p.Id == req.ProcedureId);
-
-                if (currentProcedure == null)
-                    return NotFound(new { message = "Không tìm thấy quy trình nguồn" });
-
-                // 1. Obsolete older active versions of the same code
-                var code = currentProcedure.ProcedureCode;
-                var olderProcedures = await _context.SmsProcedures
-                    .Where(p => p.ProcedureCode == code && p.Status == "Active")
-                    .ToListAsync();
-
-                foreach (var old in olderProcedures)
-                {
-                    old.Status = "Obsolete";
-                    old.ObsoleteDate = DateTime.UtcNow;
-                    old.WatermarkText = "TÀI LIỆU LỖI THỜI (OBSOLETE)";
-                    old.UpdatedAt = DateTime.UtcNow;
-                    old.IsSynced = false;
-                    _context.SmsProcedures.Update(old);
-                }
-
-                // 2. Create new procedure revision
-                var newProc = new SmsProcedure
-                {
-                    Id = Guid.NewGuid(),
-                    IsmElementId = currentProcedure.IsmElementId,
-                    ProcedureCode = code,
-                    Title = currentProcedure.Title,
-                    Content = req.NewContent,
-                    Version = req.NewVersion,
-                    PublishDate = DateTime.UtcNow,
-                    Status = "Active",
-                    ChangeNote = req.ChangeNote,
-                    WatermarkText = "TÀI LIỆU ĐƯỢC KIỂM SOÁT",
-                    IsSynced = false,
-                    OriginNode = "SHIP_01"
-                };
-
-                await _context.SmsProcedures.AddAsync(newProc);
-
-                // 3. Duplicate templates from older to new procedure
-                var templates = await _context.SmsFormTemplates
-                    .Where(t => t.SmsProcedureId == currentProcedure.Id)
-                    .ToListAsync();
-
-                foreach (var temp in templates)
-                {
-                    var newTemp = new SmsFormTemplate
-                    {
-                        Id = Guid.NewGuid(),
-                        SmsProcedureId = newProc.Id,
-                        FormCode = temp.FormCode,
-                        Title = temp.Title,
-                        ContentSchema = temp.ContentSchema,
-                        IsSynced = false,
-                        OriginNode = "SHIP_01"
-                    };
-                    await _context.SmsFormTemplates.AddAsync(newTemp);
-                }
-
-                await _context.SaveChangesAsync();
-
-                return Ok(new { message = "Cập nhật phiên bản mới thành công. Phiên bản cũ đã được đưa vào kho lưu trữ Lỗi thời.", newProcedureId = newProc.Id });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error bumping procedure version");
-                return StatusCode(500, new { message = "Gặp lỗi khi tạo phiên bản mới", error = ex.Message });
-            }
+            return BadRequest(new { message = "Chức năng tạo/cập nhật phiên bản quy trình SMS đã bị khóa tại nút Tàu (Edge). Mọi thay đổi quy trình được quản lý tập trung tại Văn phòng Bờ (Shore Master)." });
         }
 
         // ==========================================
-        // 11. IMPORT DOCX (HYBRID WORD TO PDF CONVERSION & TEXT EXTRACTION)
+        // 11. IMPORT DOCX (LOCKED AT EDGE)
         // ==========================================
         [HttpPost("procedures/import")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> ImportDocx([FromForm] IFormFile file)
         {
-            try
-            {
-                if (file == null || file.Length == 0)
-                {
-                    return BadRequest(new { message = "Vui lòng chọn file (.docx, .doc, .pdf) để upload." });
-                }
-
-                var ext = Path.GetExtension(file.FileName).ToLower();
-                if (ext != ".docx" && ext != ".doc" && ext != ".pdf")
-                {
-                    return BadRequest(new { message = "Chỉ chấp nhận các định dạng file .docx, .doc hoặc .pdf." });
-                }
-
-                byte[] pdfBytes;
-                string plainText = "";
-
-                if (ext == ".pdf")
-                {
-                    // 1. If it's already a PDF, read bytes directly without conversion
-                    using (var memoryStream = new MemoryStream())
-                    {
-                        await file.CopyToAsync(memoryStream);
-                        pdfBytes = memoryStream.ToArray();
-                    }
-                    plainText = $"<p>[Nội dung định dạng tài liệu PDF - Vui lòng xem chi tiết bằng file đính kèm: {file.FileName}]</p>";
-                }
-                else
-                {
-                    // 2. Convert Word (.docx or .doc) to PDF using local Gotenberg headless LibreOffice API
-                    try
-                    {
-                        using (var httpClient = new System.Net.Http.HttpClient())
-                        {
-                            // Increase timeout for complex document conversions
-                            httpClient.Timeout = TimeSpan.FromSeconds(60);
-
-                            using (var formContent = new System.Net.Http.MultipartFormDataContent())
-                            {
-                                using (var fileStream = file.OpenReadStream())
-                                using (var streamContent = new System.Net.Http.StreamContent(fileStream))
-                                {
-                                    string mediaType = ext == ".doc" 
-                                        ? "application/msword" 
-                                        : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-                                    
-                                    streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(mediaType);
-                                    formContent.Add(streamContent, "files", file.FileName);
-
-                                    var gotenbergUrl = (_configuration["DocumentConversion:GotenbergUrl"] ?? "http://localhost:3200").TrimEnd('/');
-                                    var response = await httpClient.PostAsync($"{gotenbergUrl}/forms/libreoffice/convert", formContent);
-                                    if (!response.IsSuccessStatusCode)
-                                    {
-                                        var errorText = await response.Content.ReadAsStringAsync();
-                                        throw new Exception($"Gotenberg PDF conversion failed: {response.StatusCode} - {errorText}");
-                                    }
-                                    pdfBytes = await response.Content.ReadAsByteArrayAsync();
-                                }
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Gotenberg PDF conversion failed for {FileName}", file.FileName);
-                        return StatusCode(500, new { message = "Lỗi khi chuyển đổi file Word sang PDF. Vui lòng kiểm tra dịch vụ Gotenberg.", error = ex.Message });
-                    }
-
-                    // 3. Extract Plain Text from .docx using Mammoth. If it is .doc, set a placeholder.
-                    if (ext == ".docx")
-                    {
-                        try
-                        {
-                            using (var docxStream = file.OpenReadStream())
-                            {
-                                var mammothConverter = new DocumentConverter();
-                                var textResult = mammothConverter.ExtractRawText(docxStream);
-                                plainText = textResult.Value;
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogWarning(ex, "Failed to extract plain text using Mammoth");
-                            plainText = $"<p>[Nội dung bóc tách từ file Word gặp lỗi - Xem chi tiết bằng file đính kèm: {file.FileName}]</p>";
-                        }
-                    }
-                    else // .doc
-                    {
-                        plainText = $"<p>[Nội dung định dạng tài liệu Word cũ .doc - Xem chi tiết bằng file đính kèm: {file.FileName}]</p>";
-                    }
-                }
-
-                // 4. Save PDF file to disk under uploads/sms
-                var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "uploads", "sms");
-                if (!Directory.Exists(uploadsDir))
-                {
-                    Directory.CreateDirectory(uploadsDir);
-                }
-
-                var baseGuid = Guid.NewGuid().ToString();
-                var pdfUniqueFileName = $"SMS_{baseGuid}_{Path.GetFileNameWithoutExtension(file.FileName)}.pdf";
-                var pdfFilePath = Path.Combine(uploadsDir, pdfUniqueFileName);
-
-                await System.IO.File.WriteAllBytesAsync(pdfFilePath, pdfBytes);
-
-                var downloadUrl = $"/uploads/sms/{pdfUniqueFileName}";
-
-                return Ok(new
-                {
-                    message = "Xử lý file tài liệu thành công",
-                    html = plainText,
-                    filePath = downloadUrl
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error importing file {FileName}", file?.FileName);
-                return StatusCode(500, new { message = "Gặp lỗi khi xử lý file tài liệu", error = ex.Message });
-            }
+            return BadRequest(new { message = "Chức năng Import quy trình SMS từ file Word/PDF đã bị khóa tại nút Tàu (Edge). Mọi tài liệu do Văn phòng Bờ (Shore Master) ban hành." });
         }
 
         // ==========================================
-        // 12. CREATE NEW PROCEDURE
+        // 12. CREATE NEW PROCEDURE (LOCKED AT EDGE)
         // ==========================================
         [HttpPost("procedures")]
         public async Task<IActionResult> CreateProcedure([FromBody] CreateProcedureRequest req)
         {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(req.ProcedureCode) || string.IsNullOrWhiteSpace(req.Title))
-                {
-                    return BadRequest(new { message = "Vui lòng cung cấp đầy đủ mã quy trình và tiêu đề." });
-                }
-
-                // Check if code already exists under active state
-                var exists = await _context.SmsProcedures
-                    .AnyAsync(p => p.ProcedureCode == req.ProcedureCode && p.Status == "Active");
-                if (exists)
-                {
-                    return BadRequest(new { message = $"Quy trình với mã số {req.ProcedureCode} đã tồn tại và đang hoạt động." });
-                }
-
-                var proc = new SmsProcedure
-                {
-                    Id = Guid.NewGuid(),
-                    IsmElementId = req.IsmElementId,
-                    ProcedureCode = req.ProcedureCode,
-                    Title = req.Title,
-                    Content = req.Content,
-                    Version = req.Version,
-                    FilePath = req.FilePath,
-                    PublishDate = DateTime.UtcNow,
-                    Status = "Active",
-                    WatermarkText = "TÀI LIỆU ĐƯỢC KIỂM SOÁT",
-                    IsSynced = false,
-                    OriginNode = "SHIP_01"
-                };
-
-                await _context.SmsProcedures.AddAsync(proc);
-                await _context.SaveChangesAsync();
-
-                return Ok(new { message = "Tạo mới quy trình thành công.", procedureId = proc.Id });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error creating procedure");
-                return StatusCode(500, new { message = "Lỗi khi tạo quy trình mới", error = ex.Message });
-            }
+            return BadRequest(new { message = "Chức năng tạo mới quy trình SMS đã bị khóa tại nút Tàu (Edge). Mọi quy trình do Văn phòng Bờ (Shore Master) quản lý." });
         }
 
         // ==========================================
-        // 13. CREATE FORM TEMPLATE (LINK TO PROCEDURE)
+        // 13. CREATE FORM TEMPLATE (LOCKED AT EDGE)
         // ==========================================
         [HttpPost("templates")]
         public async Task<IActionResult> CreateFormTemplate([FromBody] CreateFormTemplateRequest req)
         {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(req.FormCode) || string.IsNullOrWhiteSpace(req.Title))
-                {
-                    return BadRequest(new { message = "Vui lòng cung cấp mã biểu mẫu và tiêu đề." });
-                }
-
-                var procedure = await _context.SmsProcedures.FindAsync(req.SmsProcedureId);
-                if (procedure == null)
-                    return NotFound(new { message = "Không tìm thấy quy trình liên kết." });
-
-                if (procedure.Status == "Obsolete")
-                    return BadRequest(new { message = "Quy trình đã lỗi thời, không thể gắn biểu mẫu mới." });
-
-                // Check duplicate form code
-                var exists = await _context.SmsFormTemplates
-                    .AnyAsync(t => t.FormCode == req.FormCode && t.SmsProcedureId == req.SmsProcedureId);
-                if (exists)
-                    return BadRequest(new { message = $"Biểu mẫu mã {req.FormCode} đã tồn tại trong quy trình này." });
-
-                var template = new SmsFormTemplate
-                {
-                    Id = Guid.NewGuid(),
-                    SmsProcedureId = req.SmsProcedureId,
-                    FormCode = req.FormCode,
-                    Title = req.Title,
-                    ContentSchema = req.ContentSchema ?? "[]",
-                    IsSynced = false,
-                    OriginNode = "SHIP_01"
-                };
-
-                await _context.SmsFormTemplates.AddAsync(template);
-                await _context.SaveChangesAsync();
-
-                return Ok(new { message = "Tạo biểu mẫu liên kết thành công.", templateId = template.Id });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error creating form template");
-                return StatusCode(500, new { message = "Lỗi khi tạo biểu mẫu", error = ex.Message });
-            }
+            return BadRequest(new { message = "Chức năng tạo biểu mẫu quy trình SMS đã bị khóa tại nút Tàu (Edge). Mọi biểu mẫu do Văn phòng Bờ (Shore Master) quản lý." });
         }
 
         // ==========================================
-        // 14. DELETE PROCEDURE (ONLY FOR OBSOLETE ONES)
+        // 14. DELETE PROCEDURE (LOCKED AT EDGE)
         // ==========================================
         [HttpDelete("procedures/{id}")]
         public async Task<IActionResult> DeleteProcedure(Guid id)
         {
-            try
-            {
-                var procedure = await _context.SmsProcedures
-                    .Include(p => p.Acknowledgements)
-                    .Include(p => p.FormTemplates)
-                        .ThenInclude(t => t.FilledRecords)
-                    .FirstOrDefaultAsync(p => p.Id == id);
-
-                if (procedure == null)
-                    return NotFound(new { message = "Không tìm thấy Quy trình cần xóa" });
-
-                if (procedure.Status != "Obsolete")
-                {
-                    return BadRequest(new { message = "Chỉ được phép xóa quy trình đã lỗi thời (Obsolete)." });
-                }
-
-                // Remove related filled records
-                foreach (var template in procedure.FormTemplates)
-                {
-                    _context.SmsFilledRecords.RemoveRange(template.FilledRecords);
-                }
-
-                // Remove related form templates
-                _context.SmsFormTemplates.RemoveRange(procedure.FormTemplates);
-
-                // Remove related acknowledgements
-                _context.SmsProcedureAcknowledgements.RemoveRange(procedure.Acknowledgements);
-
-                // Remove the procedure itself
-                _context.SmsProcedures.Remove(procedure);
-
-                await _context.SaveChangesAsync();
-
-                return Ok(new { message = "Xóa quy trình lỗi thời thành công." });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting procedure {Id}", id);
-                return StatusCode(500, new { message = "Gặp lỗi khi xóa quy trình", error = ex.Message });
-            }
+            return BadRequest(new { message = "Chức năng xóa quy trình SMS đã bị khóa tại nút Tàu (Edge). Mọi thay đổi do Văn phòng Bờ (Shore Master) quản lý." });
         }
 
         // ==========================================
@@ -873,108 +570,21 @@ namespace MaritimeEdge.Controllers.Safety
         }
 
         // ==========================================
-        // 16. ASSIGN EXISTING FORM TEMPLATES TO A PROCEDURE (CLONE/DUPLICATE)
+        // 16. ASSIGN EXISTING FORM TEMPLATES (LOCKED AT EDGE)
         // ==========================================
         [HttpPost("procedures/{procedureId}/assign-templates")]
         public async Task<IActionResult> AssignTemplates(Guid procedureId, [FromBody] List<Guid> templateIds)
         {
-            try
-            {
-                var procedure = await _context.SmsProcedures.FindAsync(procedureId);
-                if (procedure == null)
-                    return NotFound(new { message = "Không tìm thấy quy trình liên kết." });
-
-                if (procedure.Status == "Obsolete")
-                    return BadRequest(new { message = "Quy trình đã lỗi thời, không thể gán thêm biểu mẫu." });
-
-                if (templateIds == null || !templateIds.Any())
-                    return BadRequest(new { message = "Vui lòng chọn ít nhất một biểu mẫu để gán." });
-
-                var templates = await _context.SmsFormTemplates
-                    .Where(t => templateIds.Contains(t.Id))
-                    .ToListAsync();
-
-                if (!templates.Any())
-                    return BadRequest(new { message = "Không tìm thấy các biểu mẫu được chọn." });
-
-                var assignedTemplates = new List<SmsFormTemplate>();
-                foreach (var temp in templates)
-                {
-                    // Check if a template with the same form code is already assigned to this procedure
-                    var exists = await _context.SmsFormTemplates
-                        .AnyAsync(t => t.FormCode == temp.FormCode && t.SmsProcedureId == procedureId);
-                    
-                    if (exists)
-                    {
-                        // Skip to avoid duplication of FormCode in the same procedure
-                        continue;
-                    }
-
-                    var newTemp = new SmsFormTemplate
-                    {
-                        Id = Guid.NewGuid(),
-                        SmsProcedureId = procedureId,
-                        FormCode = temp.FormCode,
-                        Title = temp.Title,
-                        ContentSchema = temp.ContentSchema,
-                        IsSynced = false,
-                        OriginNode = "SHIP_01",
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
-                    };
-                    await _context.SmsFormTemplates.AddAsync(newTemp);
-                    assignedTemplates.Add(newTemp);
-                }
-
-                if (assignedTemplates.Any())
-                {
-                    await _context.SaveChangesAsync();
-                }
-
-                return Ok(new 
-                { 
-                    message = $"Đã gán thành công {assignedTemplates.Count} biểu mẫu vào quy trình.",
-                    assignedTemplateIds = assignedTemplates.Select(t => t.Id).ToList()
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error assigning templates to procedure {ProcedureId}", procedureId);
-                return StatusCode(500, new { message = "Gặp lỗi khi gán biểu mẫu", error = ex.Message });
-            }
+            return BadRequest(new { message = "Chức năng gán biểu mẫu quy trình SMS đã bị khóa tại nút Tàu (Edge)." });
         }
 
         // ==========================================
-        // 17. UNASSIGN / DELETE FORM TEMPLATE
+        // 17. UNASSIGN / DELETE FORM TEMPLATE (LOCKED AT EDGE)
         // ==========================================
         [HttpDelete("templates/{id}")]
         public async Task<IActionResult> DeleteFormTemplate(Guid id)
         {
-            try
-            {
-                var template = await _context.SmsFormTemplates
-                    .Include(t => t.FilledRecords)
-                    .FirstOrDefaultAsync(t => t.Id == id);
-
-                if (template == null)
-                    return NotFound(new { message = "Không tìm thấy biểu mẫu cần xóa." });
-
-                // Check if there are filled records associated with this template
-                if (template.FilledRecords.Any())
-                {
-                    return BadRequest(new { message = "Biểu mẫu này đã có hồ sơ ghi chép (filled records) được điền, không thể xóa để bảo toàn dữ liệu." });
-                }
-
-                _context.SmsFormTemplates.Remove(template);
-                await _context.SaveChangesAsync();
-
-                return Ok(new { message = "Bỏ gán biểu mẫu thành công." });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting form template {Id}", id);
-                return StatusCode(500, new { message = "Gặp lỗi khi bỏ gán biểu mẫu", error = ex.Message });
-            }
+            return BadRequest(new { message = "Chức năng xóa/bỏ gán biểu mẫu SMS đã bị khóa tại nút Tàu (Edge)." });
         }
     }
 
@@ -1022,6 +632,7 @@ namespace MaritimeEdge.Controllers.Safety
         public string NewVersion { get; set; } = string.Empty;
         public string NewContent { get; set; } = string.Empty;
         public string? ChangeNote { get; set; }
+        public string? FilePath { get; set; }
     }
 
     public class SignatureEntry

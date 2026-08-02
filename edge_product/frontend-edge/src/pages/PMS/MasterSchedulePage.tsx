@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Calendar, ChevronLeft, ChevronRight, Download, Clock, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 import { addDays } from 'date-fns';
 import { maintenanceScheduleService } from '@/services/maintenance-schedule.service';
 import { useTranslationSafe } from '@/contexts/I18nContext';
@@ -349,7 +350,7 @@ export default function MasterSchedulePage() {
   };
 
   const handleExport = () => {
-    alert(t('pms.masterSchedule.exportComingSoon'));
+    toast.info(t('pms.masterSchedule.exportComingSoon'));
   };
 
   if (loading) {

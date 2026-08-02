@@ -1,6 +1,7 @@
 import { useCallback, type ChangeEvent } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { X, Settings, Sun, Moon, Monitor } from 'lucide-react';
+import { toast } from 'sonner';
 import { useSettingsStore, type Theme, type FontSize } from '@/stores/settings.store';
 import { useTranslation } from '@/contexts/I18nContext';
 
@@ -58,9 +59,14 @@ export function SettingsDialog() {
 
   const handleReset = useCallback(() => {
     const confirmMessage = t('settings.confirmReset');
-    if (window.confirm(confirmMessage)) {
-      resetToDefaults();
-    }
+    toast(confirmMessage, {
+      action: {
+        label: t('common.reset') || 'Reset',
+        onClick: () => {
+          resetToDefaults();
+        }
+      }
+    });
   }, [resetToDefaults, t]);
 
   const handleOpenChange = useCallback(

@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   Shield, FileText, ChevronRight, ChevronDown, Check, X,
-  Award, Filter, Edit3, Save, RefreshCw,
+  Award, Filter, Save, RefreshCw,
   AlertTriangle, BookOpen, Lock, Sparkles, Send, Database,
   History, Plus, Trash2, Printer, Search, Maximize2, Minimize2,
   GitCompare, ChevronLeft, Layers, Link2, ExternalLink, Eye
 } from 'lucide-react';
-import { toast } from 'react-toastify';
+import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/auth.store';
 import { smsService, SmsTreeChapter, SmsProcedureDetail, SmsFormTemplate, SmsFilledRecord, SignatureEntry, SmsProcedure } from '@/services/sms.service';
 import { RichTextEditor } from '@/components/editor/RichTextEditor';
@@ -81,6 +81,30 @@ function diffHtml(oldHtml: string, newHtml: string): string {
   
   return result.join('');
 }
+
+const formatPdfUrl = (pathStr?: string) => {
+  if (!pathStr) return '';
+  if (pathStr.startsWith('http://') || pathStr.startsWith('https://')) {
+    try {
+      const url = new URL(pathStr);
+      url.pathname = url.pathname.split('/').map(segment => encodeURIComponent(segment)).join('/');
+      url.hash = 'toolbar=0';
+      return url.toString();
+    } catch {
+      return `${pathStr}#toolbar=0`;
+    }
+  }
+  const cleanPath = pathStr.replace(/\\/g, '/');
+  const normalizedPath = cleanPath.startsWith('/') ? cleanPath : '/' + cleanPath;
+  const parts = normalizedPath.split('/').map(segment => encodeURIComponent(segment));
+  return `${parts.join('/')}#toolbar=0`;
+};
+
+const isPdfFile = (pathStr?: string) => {
+  if (!pathStr) return false;
+  const clean = pathStr.split('?')[0].split('#')[0].toLowerCase();
+  return clean.endsWith('.pdf');
+};
 
 interface CleaningScheduleItem {
   num: string;
@@ -248,6 +272,51 @@ export function SmsDocumentPage() {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assignTemplateId, setAssignTemplateId] = useState('');
   const [assignProcedureId, setAssignProcedureId] = useState('');
+  const [selectedAssignedForm, setSelectedAssignedForm] = useState<any | null>(null);
+
+  // Group Form Templates by FormCode for Form Library view
+  const groupedFormTemplates = useMemo(() => {
+    const map = new Map<string, {
+      formCode: string;
+      title: string;
+      sampleId: string;
+      contentSchema: string;
+      fieldCount: number;
+      assignedProcedures: Array<{ id: string; code: string; title: string; templateId: string }>;
+    }>();
+
+    allFormTemplates.forEach(t => {
+      const code = t.formCode?.trim() || 'UNCODED';
+      if (!map.has(code)) {
+        let fieldCount = 0;
+        try {
+          fieldCount = JSON.parse(t.contentSchema || '[]').length;
+        } catch { }
+        map.set(code, {
+          formCode: code,
+          title: t.title,
+          sampleId: t.id,
+          contentSchema: t.contentSchema || '[]',
+          fieldCount,
+          assignedProcedures: []
+        });
+      }
+
+      const group = map.get(code)!;
+      if (t.procedureCode) {
+        if (!group.assignedProcedures.some(p => p.code === t.procedureCode)) {
+          group.assignedProcedures.push({
+            id: t.smsProcedureId || '',
+            code: t.procedureCode,
+            title: t.procedureTitle || '',
+            templateId: t.id
+          });
+        }
+      }
+    });
+
+    return Array.from(map.values());
+  }, [allFormTemplates]);
 
   // Auditor States
   const [auditChapterFilter, setAuditChapterFilter] = useState<number | 'ALL'>('ALL');
@@ -278,23 +347,27 @@ export function SmsDocumentPage() {
     });
   };
 
-  const handleDeleteProcedure = async (proc: SmsProcedure) => {
-    const confirmDelete = window.confirm(
-      `Bạn có chắc chắn muốn xóa quy trình "${proc.procedureCode} - ${proc.title}" khỏi cơ sở dữ liệu? Hành động này sẽ xóa vĩnh viễn quy trình, biểu mẫu liên kết và các hồ sơ liên quan.`
-    );
-    if (!confirmDelete) return;
-
-    try {
-      await smsService.deleteProcedure(proc.id);
-      toast.success('Xóa quy trình thành công!');
-      if (selectedProcId === proc.id) {
-        setSelectedProcId(null);
-        setSelectedProcDetail(null);
-      }
-      fetchTree();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Lỗi khi xóa quy trình');
-    }
+  const handleDeleteProcedure = (proc: SmsProcedure) => {
+    toast(`Bạn có chắc chắn muốn xóa quy trình "${proc.procedureCode} - ${proc.title}" khỏi cơ sở dữ liệu? Hành động này sẽ xóa vĩnh viễn quy trình, biểu mẫu liên kết và các hồ sơ liên quan.`, {
+      action: {
+        label: 'Xóa',
+        onClick: async () => {
+          try {
+            await smsService.deleteProcedure(proc.id);
+            toast.success('Xóa quy trình thành công!');
+            if (selectedProcId === proc.id) {
+              setSelectedProcId(null);
+              setSelectedProcDetail(null);
+            }
+            fetchTree();
+          } catch (err: any) {
+            toast.error(err.response?.data?.message || 'Lỗi khi xóa quy trình');
+          }
+        },
+      },
+      cancel: { label: 'Hủy', onClick: () => {} },
+      duration: 8000,
+    });
   };
 
   // ─── Data Loading ──────────────────────────────────────────
@@ -851,7 +924,8 @@ export function SmsDocumentPage() {
           procedureId: importForm.existingProcedureId,
           newVersion: importForm.version,
           newContent: importedHtml,
-          changeNote: importForm.changeNote
+          changeNote: importForm.changeNote,
+          filePath: importedFilePath
         });
         newProcId = res.newProcedureId;
         toast.success('Ban hành phiên bản cập nhật từ Word thành công!');
@@ -1065,23 +1139,33 @@ export function SmsDocumentPage() {
     }
   };
 
-  const handleUnassignTemplate = async (templateId: string, title: string) => {
+  const handleUnassignTemplate = (templateId: string, title: string) => {
     if (!selectedProcDetail) return;
-    const confirmUnassign = window.confirm(
-      `Bạn có chắc chắn muốn bỏ gán biểu mẫu "${title}" khỏi quy trình này?`
-    );
-    if (!confirmUnassign) return;
-
-    try {
-      await smsService.deleteFormTemplate(templateId);
-      toast.success('Bỏ gán biểu mẫu thành công!');
-      // Reload procedure details & tree silently in background
-      loadProcedureDetails(selectedProcDetail.id);
-      fetchTree(undefined, true);
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Lỗi khi bỏ gán biểu mẫu');
-    }
+    toast(`Bạn có chắc chắn muốn bỏ gán biểu mẫu "${title}" khỏi quy trình này?`, {
+      action: {
+        label: 'Bỏ gán',
+        onClick: async () => {
+          try {
+            await smsService.deleteFormTemplate(templateId);
+            toast.success('Bỏ gán biểu mẫu thành công!');
+            loadProcedureDetails(selectedProcDetail.id);
+            fetchTree(undefined, true);
+          } catch (err: any) {
+            toast.error(err.response?.data?.message || 'Lỗi khi bỏ gán biểu mẫu');
+          }
+        },
+      },
+      cancel: { label: 'Hủy', onClick: () => {} },
+      duration: 8000,
+    });
   };
+
+  void showFormBuilder;
+  void creatingTemplate;
+  void setAssignTemplateId;
+  void handleCreateFormTemplate;
+  void handleOpenTemplateSelector;
+  void handleUnassignTemplate;
 
   const addFormField = () => {
     const newId = `field_${Date.now()}`;
@@ -1396,7 +1480,7 @@ export function SmsDocumentPage() {
               <div className="flex-1 overflow-hidden h-full flex flex-col">
                 {importedFilePath ? (
                   <iframe
-                    src={`${importedFilePath}#toolbar=0`}
+                    src={formatPdfUrl(importedFilePath)}
                     className="w-full h-full min-h-[450px] border border-slate-200 dark:border-slate-800 bg-slate-105 dark:bg-slate-900 rounded-xl shadow-sm"
                     title="Import PDF Preview"
                   />
@@ -1708,15 +1792,7 @@ export function SmsDocumentPage() {
                           <Printer className="w-4 h-4" />
                         </button>
                       )}
-                      {selectedProcDetail?.status === 'Active' && (
-                        <button
-                          onClick={() => setIsEditingSop(!isEditingSop)}
-                          className="p-2 text-slate-500 hover:text-slate-800 dark:hover:text-white bg-slate-200/50 hover:bg-slate-200 dark:bg-slate-800 rounded-lg transition"
-                          title="Sửa đổi & Nâng cấp Version"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </button>
-                      )}
+
                       {selectedProcDetail && (
                         <button
                           onClick={() => {
@@ -1800,10 +1876,10 @@ export function SmsDocumentPage() {
                           </button>
                         </div>
                       </div>
-                    ) : selectedProcDetail?.filePath?.endsWith('.pdf') ? (
+                    ) : selectedProcDetail?.filePath && isPdfFile(selectedProcDetail.filePath) ? (
                       /* PDF FULL VIEW */
                       <iframe
-                        src={`${selectedProcDetail.filePath}#toolbar=0`}
+                        src={formatPdfUrl(selectedProcDetail.filePath)}
                         className="w-full h-full min-h-[600px] border-0 bg-slate-100 dark:bg-slate-900"
                         title={selectedProcDetail.title}
                       />
@@ -3417,187 +3493,13 @@ export function SmsDocumentPage() {
                                 >
                                   <Send className="w-3.5 h-3.5" />
                                 </button>
-                                <button
-                                  onClick={() => handleUnassignTemplate(temp.id, temp.title)}
-                                  className="p-1.5 text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 hover:text-rose-600 rounded-lg transition opacity-0 group-hover:opacity-100"
-                                  title="Bỏ gán biểu mẫu"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
                               </div>
                             </div>
                           ))}
                         </div>
                       ) : (
                         <div className="border border-dashed border-slate-250 dark:border-slate-800 rounded-2xl p-6 text-center text-slate-400 text-xs">
-                          Quy trình này chưa có biểu mẫu liên kết. Hãy tạo biểu mẫu mới bên dưới.
-                        </div>
-                      )}
-
-                      {/* CREATE NEW FORM TEMPLATE SECTION */}
-                      {selectedProcDetail?.status === 'Active' && (
-                        <div className="border-t border-slate-200 dark:border-slate-800 pt-4">
-                          {!showFormBuilder ? (
-                            <div className="space-y-2">
-                              <button
-                                onClick={() => setShowFormBuilder(true)}
-                                className="w-full flex items-center justify-center gap-2 py-3 px-4 border-2 border-dashed border-blue-300 dark:border-blue-800 hover:border-blue-500 text-blue-600 dark:text-blue-400 rounded-xl text-xs font-bold hover:bg-blue-50 dark:hover:bg-blue-950/20 transition group"
-                              >
-                                <Plus className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                                Tạo biểu mẫu mới liên kết với quy trình này
-                              </button>
-                              <button
-                                onClick={handleOpenTemplateSelector}
-                                className="w-full flex items-center justify-center gap-2 py-3 px-4 border-2 border-dashed border-slate-350 dark:border-slate-800 hover:border-blue-500 text-slate-650 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-xl text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-900/30 transition group"
-                              >
-                                <Database className="w-4 h-4 group-hover:scale-110 transition-transform text-blue-500" />
-                                Gán biểu mẫu đã có vào quy trình
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 space-y-4 shadow-lg animate-in fade-in duration-300">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <div className="p-1.5 bg-blue-100 dark:bg-blue-950 text-blue-600 rounded-lg">
-                                    <Plus className="w-4 h-4" />
-                                  </div>
-                                  <h4 className="text-sm font-bold text-slate-800 dark:text-white">Tạo biểu mẫu mới</h4>
-                                </div>
-                                <button
-                                  onClick={() => { setShowFormBuilder(false); setFormBuilderData({ formCode: '', title: '', fields: [] }); }}
-                                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition"
-                                >
-                                  <X className="w-4 h-4 text-slate-400" />
-                                </button>
-                              </div>
-
-                              {/* Form Code & Title */}
-                              <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Mã biểu mẫu</label>
-                                  <input
-                                    type="text"
-                                    placeholder="VD: BM-07-08"
-                                    value={formBuilderData.formCode}
-                                    onChange={(e) => setFormBuilderData(prev => ({ ...prev, formCode: e.target.value }))}
-                                    className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tiêu đề biểu mẫu</label>
-                                  <input
-                                    type="text"
-                                    placeholder="VD: Checklist an toàn cháy nổ"
-                                    value={formBuilderData.title}
-                                    onChange={(e) => setFormBuilderData(prev => ({ ...prev, title: e.target.value }))}
-                                    className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
-                                  />
-                                </div>
-                              </div>
-
-                              {/* Dynamic Fields Builder */}
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[10px] font-bold text-slate-500 uppercase">Các trường dữ liệu ({formBuilderData.fields.length})</span>
-                                  <button
-                                    onClick={addFormField}
-                                    className="flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-700 transition"
-                                  >
-                                    <Plus className="w-3 h-3" /> Thêm trường
-                                  </button>
-                                </div>
-
-                                {formBuilderData.fields.length === 0 && (
-                                  <div className="text-[10px] text-slate-400 italic py-2 text-center border border-dashed border-slate-200 dark:border-slate-700 rounded-lg">
-                                    Chưa có trường nào. Nhấn "Thêm trường" để bắt đầu.
-                                  </div>
-                                )}
-
-                                <div className="space-y-2 max-h-52 overflow-y-auto pr-1 scrollbar-thin">
-                                  {formBuilderData.fields.map((field, idx) => (
-                                    <div key={field.id} className="flex items-start gap-2 p-2.5 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800">
-                                      <div className="flex-1 grid grid-cols-3 gap-2">
-                                        <input
-                                          type="text"
-                                          placeholder="Tên trường"
-                                          value={field.label}
-                                          onChange={(e) => updateFormField(idx, 'label', e.target.value)}
-                                          className="px-2 py-1.5 text-[11px] rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white outline-none focus:ring-1 focus:ring-blue-500"
-                                        />
-                                        <select
-                                          value={field.type}
-                                          onChange={(e) => updateFormField(idx, 'type', e.target.value)}
-                                          className="px-2 py-1.5 text-[11px] rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white outline-none focus:ring-1 focus:ring-blue-500"
-                                        >
-                                          <option value="text">Văn bản</option>
-                                          <option value="textarea">Đoạn văn</option>
-                                          <option value="number">Số</option>
-                                          <option value="date">Ngày</option>
-                                          <option value="select">Lựa chọn</option>
-                                          <option value="checkbox">Checkbox</option>
-                                        </select>
-                                        <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                                          <input
-                                            type="checkbox"
-                                            checked={field.required}
-                                            onChange={(e) => updateFormField(idx, 'required', e.target.checked)}
-                                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
-                                          />
-                                          <span className="text-[10px] text-slate-500">Bắt buộc</span>
-                                        </label>
-                                      </div>
-                                      <button
-                                        onClick={() => removeFormField(idx)}
-                                        className="p-1 text-rose-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded transition flex-shrink-0"
-                                      >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                      </button>
-                                    </div>
-                                  ))}
-                                </div>
-
-                                {/* Options input for select fields */}
-                                {formBuilderData.fields.some(f => f.type === 'select') && (
-                                  <div className="space-y-1.5 p-2.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-lg">
-                                    <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400">Tùy chọn cho trường "Lựa chọn" (phân cách bằng dấu phẩy):</span>
-                                    {formBuilderData.fields.filter(f => f.type === 'select').map((field) => {
-                                      const originalIdx = formBuilderData.fields.indexOf(field);
-                                      return (
-                                        <div key={field.id} className="flex items-center gap-2">
-                                          <span className="text-[10px] text-amber-600 font-mono w-20 truncate">{field.label || 'Chưa đặt tên'}</span>
-                                          <input
-                                            type="text"
-                                            placeholder="VD: Đạt, Không đạt, N/A"
-                                            value={field.options || ''}
-                                            onChange={(e) => updateFormField(originalIdx, 'options', e.target.value)}
-                                            className="flex-1 px-2 py-1 text-[11px] rounded border border-amber-200 dark:border-amber-800 bg-white dark:bg-slate-800 text-slate-800 dark:text-white outline-none focus:ring-1 focus:ring-amber-500"
-                                          />
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Action Buttons */}
-                              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                                <button
-                                  onClick={() => { setShowFormBuilder(false); setFormBuilderData({ formCode: '', title: '', fields: [] }); }}
-                                  className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 rounded-lg transition"
-                                >
-                                  Hủy
-                                </button>
-                                <button
-                                  onClick={handleCreateFormTemplate}
-                                  disabled={creatingTemplate}
-                                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition disabled:opacity-50"
-                                >
-                                  {creatingTemplate ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                                  {creatingTemplate ? 'Đang tạo...' : 'Tạo biểu mẫu'}
-                                </button>
-                              </div>
-                            </div>
-                          )}
+                          Quy trình này hiện chưa có biểu mẫu liên kết.
                         </div>
                       )}
                     </div>
@@ -3730,22 +3632,6 @@ export function SmsDocumentPage() {
                   className="pl-9 pr-4 py-1.5 text-xs border border-slate-250 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-white outline-none focus:ring-1 focus:ring-blue-500 w-60"
                 />
               </div>
-
-              {/* Add New Button */}
-              <button
-                onClick={() => {
-                  setNewFormCode('');
-                  setNewFormTitle('');
-                  const activeProcs = treeData.flatMap(ch => ch.procedures).filter(p => p.status === 'Active');
-                  const firstSop = activeProcs[0]?.id || '';
-                  setNewFormProcedureId(firstSop);
-                  setFormBuilderData({ formCode: '', title: '', fields: [] });
-                  setShowNewFormModal(true);
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm transition"
-              >
-                <Plus className="w-4 h-4" /> Thêm biểu mẫu
-              </button>
             </div>
           </div>
 
@@ -3755,70 +3641,61 @@ export function SmsDocumentPage() {
               <div className="h-full flex items-center justify-center text-slate-400">
                 <RefreshCw className="w-6 h-6 animate-spin mr-2" /> Đang tải thư viện biểu mẫu...
               </div>
-            ) : allFormTemplates.length === 0 ? (
+            ) : groupedFormTemplates.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center p-8 text-slate-400 text-xs">
                 Thư viện chưa có biểu mẫu nào.
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-6">
-                {allFormTemplates
-                  .filter(t => 
-                    t.formCode.toLowerCase().includes(formLibrarySearch.toLowerCase()) ||
-                    t.title.toLowerCase().includes(formLibrarySearch.toLowerCase())
+                {groupedFormTemplates
+                  .filter(group => 
+                    group.formCode.toLowerCase().includes(formLibrarySearch.toLowerCase()) ||
+                    group.title.toLowerCase().includes(formLibrarySearch.toLowerCase())
                   )
-                  .map((temp) => (
-                    <div key={temp.id} className="bg-slate-50 dark:bg-slate-850 p-4 rounded-xl border border-slate-205 dark:border-slate-800 shadow-sm flex flex-col justify-between hover:shadow-md transition">
+                  .map((group) => (
+                    <div key={group.formCode} className="bg-slate-50 dark:bg-slate-850 p-4 rounded-xl border border-slate-205 dark:border-slate-800 shadow-sm flex flex-col justify-between hover:shadow-md transition">
                       <div>
                         <div className="flex items-center justify-between mb-2">
                           <span 
-                            onClick={() => window.open(`/safety/hsqe/form/${temp.id}`, '_blank')}
+                            onClick={() => window.open(`/safety/hsqe/form/${group.sampleId}`, '_blank')}
                             className="font-mono text-[10px] font-bold bg-blue-50 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors"
                             title="Bấm để xem chi tiết biểu mẫu"
                           >
-                            {temp.formCode}
+                            {group.formCode}
                           </span>
-                          <span className="text-[10px] text-slate-400">ID: {temp.id.substring(0, 8)}</span>
+                          <span className="text-[10px] text-slate-400">Số trường: {group.fieldCount}</span>
                         </div>
                         <h5 
-                          onClick={() => window.open(`/safety/hsqe/form/${temp.id}`, '_blank')}
-                          className="text-xs font-bold text-slate-850 dark:text-white mb-1.5 leading-snug cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                          onClick={() => window.open(`/safety/hsqe/form/${group.sampleId}`, '_blank')}
+                          className="text-xs font-bold text-slate-850 dark:text-white mb-2 leading-snug cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                           title="Bấm để xem chi tiết biểu mẫu"
                         >
-                          {temp.title}
+                          {group.title}
                         </h5>
                         
-                        <div className="space-y-1 text-xs text-slate-500 mb-4">
-                          {temp.procedureCode ? (
-                            <p className="flex items-start gap-1">
-                              <Link2 className="w-3.5 h-3.5 text-slate-450 flex-shrink-0 mt-0.5" />
-                              <span>Quy trình: <span className="font-semibold text-slate-700 dark:text-slate-350">{temp.procedureCode} - {temp.procedureTitle}</span></span>
-                            </p>
-                          ) : (
-                            <p className="text-amber-500 italic">Chưa liên kết quy trình</p>
-                          )}
-                          <p className="text-[10px] text-slate-400">Số trường: {JSON.parse(temp.contentSchema || '[]').length}</p>
+                        <div className="mb-4">
+                          <button
+                            onClick={() => setSelectedAssignedForm(group)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg text-xs font-bold hover:bg-blue-100 dark:hover:bg-blue-900/50 transition cursor-pointer"
+                            title="Bấm để xem danh sách quy trình gán"
+                          >
+                            <Link2 className="w-3.5 h-3.5" />
+                            {group.assignedProcedures.length > 0 ? (
+                              <span>Đã gán vào <strong className="underline">{group.assignedProcedures.length} quy trình</strong></span>
+                            ) : (
+                              <span className="text-amber-600 dark:text-amber-400 font-normal italic">Chưa gán quy trình nào</span>
+                            )}
+                          </button>
                         </div>
                       </div>
 
                       <div className="flex items-center justify-end gap-2 border-t border-slate-200 dark:border-slate-800 pt-3">
                         <button
-                          onClick={() => window.open(`/safety/hsqe/form/${temp.id}`, '_blank')}
-                          className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1"
+                          onClick={() => window.open(`/safety/hsqe/form/${group.sampleId}`, '_blank')}
+                          className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5"
                           title="Xem chi tiết biểu mẫu"
                         >
                           <Eye className="w-3.5 h-3.5 text-slate-500" /> Xem chi tiết
-                        </button>
-                        <button
-                          onClick={() => {
-                            setAssignTemplateId(temp.id);
-                            const activeProcs = treeData.flatMap(ch => ch.procedures).filter(p => p.status === 'Active');
-                            const firstSop = activeProcs[0]?.id || '';
-                            setAssignProcedureId(firstSop);
-                            setShowAssignModal(true);
-                          }}
-                          className="px-2.5 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-450 text-xs font-semibold rounded-lg hover:bg-blue-100 dark:hover:bg-slate-800 transition flex items-center gap-1"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" /> Gán vào quy trình khác
                         </button>
                       </div>
                     </div>
@@ -4921,6 +4798,81 @@ export function SmsDocumentPage() {
               </button>
             </>
           )}
+        </div>
+      )}
+      {/* Modal displaying list of assigned procedures */}
+      {selectedAssignedForm && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-850 rounded-2xl max-w-lg w-full border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col">
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-blue-50 dark:bg-blue-950 text-blue-600 rounded-xl">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/40 px-2 py-0.5 rounded">
+                      {selectedAssignedForm.formCode}
+                    </span>
+                    <span className="text-xs text-slate-400 font-medium">({selectedAssignedForm.assignedProcedures.length} quy trình đã gán)</span>
+                  </div>
+                  <h3 className="font-bold text-slate-850 dark:text-white text-sm mt-0.5">{selectedAssignedForm.title}</h3>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedAssignedForm(null)}
+                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition"
+              >
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto max-h-[60vh] space-y-3 scrollbar-thin">
+              {selectedAssignedForm.assignedProcedures.length === 0 ? (
+                <div className="text-center py-6 text-slate-400 text-xs italic">
+                  Biểu mẫu này chưa được gán vào quy trình nào.
+                </div>
+              ) : (
+                selectedAssignedForm.assignedProcedures.map((proc: any, idx: number) => (
+                  <div
+                    key={idx}
+                    className="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between hover:border-blue-300 dark:hover:border-blue-800 transition"
+                  >
+                    <div className="space-y-0.5 flex-1 pr-3">
+                      <span className="font-mono text-[11px] font-bold text-slate-700 dark:text-slate-300 bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded">
+                        {proc.code}
+                      </span>
+                      <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 leading-snug mt-1">
+                        {proc.title}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedAssignedForm(null);
+                        if (proc.id) {
+                          setSelectedProcId(proc.id);
+                          loadProcedureDetails(proc.id);
+                          setViewMode('workspace');
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1 flex-shrink-0"
+                    >
+                      <Eye className="w-3.5 h-3.5" /> Xem quy trình
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="p-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end">
+              <button
+                onClick={() => setSelectedAssignedForm(null)}
+                className="px-4 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

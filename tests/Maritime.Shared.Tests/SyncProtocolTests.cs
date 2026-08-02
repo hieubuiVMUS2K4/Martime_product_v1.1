@@ -1,6 +1,6 @@
 using System.Text.Json;
-using Maritime.Shared.DTOs;
-using Maritime.Shared.Enums;
+using Maritime.Shared.DTOs.Sync;
+using Maritime.Shared.Models.Sync;
 using Xunit;
 
 namespace Maritime.Shared.Tests
@@ -13,15 +13,14 @@ namespace Maritime.Shared.Tests
             // Arrange
             var original = new SyncQueueItemDto
             {
-                Id = Guid.NewGuid(),
+                OutboxId = 1001,
                 TableName = "crew_members",
                 RecordKey = "CREW-1001",
-                ActionType = SyncActionType.UPDATE,
-                Priority = SyncPriority.Operational,
-                PayloadJson = "{\"fullName\":\"Nguyen Van A\",\"rank\":\"Captain\"}",
+                ActionType = "UPDATE",
+                Payload = "{\"fullName\":\"Nguyen Van A\",\"rank\":\"Captain\"}",
                 OriginNode = "VESSEL_IMO_9876543",
                 SyncVersion = 42,
-                CreatedAt = DateTime.UtcNow
+                Timestamp = DateTime.UtcNow
             };
 
             // Act
@@ -30,11 +29,10 @@ namespace Maritime.Shared.Tests
 
             // Assert
             Assert.NotNull(deserialized);
-            Assert.Equal(original.Id, deserialized.Id);
+            Assert.Equal(original.OutboxId, deserialized.OutboxId);
             Assert.Equal(original.TableName, deserialized.TableName);
             Assert.Equal(original.RecordKey, deserialized.RecordKey);
             Assert.Equal(original.ActionType, deserialized.ActionType);
-            Assert.Equal(original.Priority, deserialized.Priority);
             Assert.Equal(original.OriginNode, deserialized.OriginNode);
             Assert.Equal(original.SyncVersion, deserialized.SyncVersion);
         }

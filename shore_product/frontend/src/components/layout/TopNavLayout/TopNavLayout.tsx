@@ -69,6 +69,7 @@ const navItems: NavItemDef[] = [
   // },
   { type: 'link', path: '/sign-off-requests', label: 'Duyệt xuống tàu' },
   { type: 'link', path: '/report', label: 'Báo cáo' },
+  { type: 'link', path: '/sms',    label: '🛡️ SMS System' },
   { type: 'link', path: '/sync',   label: 'Đồng bộ' },
 ];
 

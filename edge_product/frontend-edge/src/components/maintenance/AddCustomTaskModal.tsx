@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface AddCustomTaskModalProps {
   isOpen: boolean
@@ -28,7 +29,7 @@ export function AddCustomTaskModal({ isOpen, onClose, onAdd, columnTitle }: AddC
     e.preventDefault()
     
     if (!title.trim()) {
-      alert('Please enter a title')
+      toast.error('Please enter a title')
       return
     }
 

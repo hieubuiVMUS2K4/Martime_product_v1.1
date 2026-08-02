@@ -192,13 +192,19 @@ export const AbstractLogPage: React.FC = () => {
 
   // ── Delete ──
   const handleDelete = async (id: string) => {
-    if (!confirm(t('voyageLog.form.course').includes('COG') ? 'Xóa Nhật ký vắn tắt này và toàn bộ dữ liệu liên quan?' : 'Delete this Abstract Log and all data?')) return
-    try {
-      await abstractLogService.delete(id)
-      toast.success(t('common.saveSuccess'))
-      setSelectedLog(null)
-      navigate('/logbooks/abstract')
-    } catch { toast.error(t('common.saveFailed')) }
+    toast(t('voyageLog.form.course').includes('COG') ? 'Xóa Nhật ký vắn tắt này và toàn bộ dữ liệu liên quan?' : 'Delete this Abstract Log and all data?', {
+      action: {
+        label: 'Delete',
+        onClick: async () => {
+          try {
+            await abstractLogService.delete(id)
+            toast.success(t('common.saveSuccess'))
+            setSelectedLog(null)
+            navigate('/logbooks/abstract')
+          } catch { toast.error(t('common.saveFailed')) }
+        }
+      }
+    });
   }
 
   // ── Auto-fill ──
@@ -281,18 +287,24 @@ export const AbstractLogPage: React.FC = () => {
   // ── Delete leg ──
   const handleDeleteLeg = async (legId: string) => {
     if (!selectedLog) return
-    if (!confirm(t('voyageLog.form.course').includes('COG') ? 'Xóa chặng này và tất cả bản ghi nhật ký hàng ngày liên quan?' : 'Delete this leg and all its daily entries?')) return
-    try {
-      setSaving(true)
-      await abstractLogService.deleteLeg(legId)
-      await fetchDetail(selectedLog.id)
-      setActiveTab('sum')
-      toast.success(t('common.saveSuccess'))
-    } catch (err: any) {
-      toast.error(err?.message || t('common.saveFailed'))
-    } finally {
-      setSaving(false)
-    }
+    toast(t('voyageLog.form.course').includes('COG') ? 'Xóa chặng này và tất cả bản ghi nhật ký hàng ngày liên quan?' : 'Delete this leg and all its daily entries?', {
+      action: {
+        label: 'Delete',
+        onClick: async () => {
+          try {
+            setSaving(true)
+            await abstractLogService.deleteLeg(legId)
+            await fetchDetail(selectedLog.id)
+            setActiveTab('sum')
+            toast.success(t('common.saveSuccess'))
+          } catch (err: any) {
+            toast.error(err?.message || t('common.saveFailed'))
+          } finally {
+            setSaving(false)
+          }
+        }
+      }
+    });
   }
 
   // ── Actions for header ──
@@ -895,9 +907,20 @@ const LegTab: React.FC<{
     } finally { setSavingEntry(false) }
   }
   const handleDeleteEntry = async (entryId: string) => {
-    if (!confirm(isVi ? 'Xóa bản ghi này?' : 'Delete this entry?')) return
-    try { await abstractLogService.deleteEntry(entryId); toast.success(t('common.saveSuccess')); onRefresh() }
-    catch { toast.error(t('common.saveFailed')) }
+    toast(isVi ? 'Xóa bản ghi này?' : 'Delete this entry?', {
+      action: {
+        label: 'Delete',
+        onClick: async () => {
+          try {
+            await abstractLogService.deleteEntry(entryId);
+            toast.success(t('common.saveSuccess'));
+            onRefresh();
+          } catch {
+            toast.error(t('common.saveFailed'));
+          }
+        }
+      }
+    });
   }
 
   return (

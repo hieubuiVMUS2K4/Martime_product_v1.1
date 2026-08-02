@@ -43,7 +43,7 @@ public class SyncOutboxService : ISyncOutboxService
     private static readonly HashSet<string> _fileTableNames = new(StringComparer.OrdinalIgnoreCase)
     {
         "crew_member", "crew_certificate", "travel_document", "seafarer_document",
-        "employment_document", "health_document"
+        "employment_document", "health_document", "sms_procedure", "sms_procedures", "sms_filled_record", "sms_filled_records"
     };
 
     private static readonly JsonSerializerOptions _jsonOptions = new()
@@ -310,10 +310,8 @@ public class SyncOutboxService : ISyncOutboxService
             writer.WriteStartObject();
             foreach (var property in root.EnumerateObject())
             {
-                if (property.NameEquals("DocumentFilePath") || property.NameEquals("documentFilePath")
-                    || property.NameEquals("FilePath") || property.NameEquals("filePath")
-                    || property.NameEquals("FileUrl") || property.NameEquals("fileUrl")
-                    || property.NameEquals("PhotoUrl") || property.NameEquals("photoUrl"))
+                // Only strip PhotoUrl (avatars) if needed; preserve relative file paths (FilePath, DocumentFilePath, FileUrl)
+                if (property.NameEquals("PhotoUrl") || property.NameEquals("photoUrl"))
                 {
                     continue;
                 }

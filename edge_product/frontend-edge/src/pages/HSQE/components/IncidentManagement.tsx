@@ -333,16 +333,21 @@ export function IncidentManagement() {
   };
 
   const deleteIncident = async (id: string) => {
-    if (confirm('Bạn chắc chắn muốn xóa báo cáo sự cố này?')) {
-      try {
-        await apiClient.delete(`/hsqe/incidents/${id}`);
-        toast.success('Đã xóa báo cáo sự cố.');
-        await fetchIncidents();
-        setSelectedIncidentId('inc-1');
-      } catch (err) {
-        toast.error('Không thể xóa sự cố');
+    toast('Bạn chắc chắn muốn xóa báo cáo sự cố này?', {
+      action: {
+        label: 'Xóa',
+        onClick: async () => {
+          try {
+            await apiClient.delete(`/hsqe/incidents/${id}`);
+            toast.success('Đã xóa báo cáo sự cố.');
+            await fetchIncidents();
+            setSelectedIncidentId('inc-1');
+          } catch (err) {
+            toast.error('Không thể xóa sự cố');
+          }
+        }
       }
-    }
+    });
   };
 
   // Filter logic

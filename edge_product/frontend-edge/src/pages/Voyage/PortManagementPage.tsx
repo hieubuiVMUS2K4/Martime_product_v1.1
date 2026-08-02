@@ -140,14 +140,20 @@ export function PortManagementPage() {
   }
 
   const handleDelete = async (port: Port) => {
-    if (!confirm(t('voyage.portMgmt.deactivateConfirm', { code: port.portCode, name: port.portName }))) return
-    try {
-      await voyageMgmtService.ports.delete(port.id)
-      toast.success(t('voyage.portMgmt.portDeactivated', { code: port.portCode }))
-      loadPorts()
-    } catch (err: any) {
-      toast.error(err.message || t('voyage.portMgmt.failedDelete'))
-    }
+    toast(t('voyage.portMgmt.deactivateConfirm', { code: port.portCode, name: port.portName }), {
+      action: {
+        label: t('common.deactivate') || 'Deactivate',
+        onClick: async () => {
+          try {
+            await voyageMgmtService.ports.delete(port.id)
+            toast.success(t('voyage.portMgmt.portDeactivated', { code: port.portCode }))
+            loadPorts()
+          } catch (err: any) {
+            toast.error(err.message || t('voyage.portMgmt.failedDelete'))
+          }
+        }
+      }
+    })
   }
 
   return (

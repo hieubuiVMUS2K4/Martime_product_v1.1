@@ -14,6 +14,13 @@
     "@tailwindcss/forms": "^0.5.11",
     "@tailwindcss/typography": "^0.5.19",
     "@tanstack/react-query": "^5.100.14",
+    "@tiptap/extension-highlight": "^3.29.2",
+    "@tiptap/extension-placeholder": "^3.29.2",
+    "@tiptap/extension-text-align": "^3.29.2",
+    "@tiptap/extension-underline": "^3.29.2",
+    "@tiptap/pm": "^3.29.2",
+    "@tiptap/react": "^3.29.2",
+    "@tiptap/starter-kit": "^3.29.2",
     "@types/leaflet": "^1.9.21",
     "@types/react-window": "^1.8.8",
     "@vietmap/vietmap-gl-js": "^7.0.0-pre.1",
@@ -28,10 +35,12 @@
     "react-dom": "^19.1.1",
     "react-leaflet": "^5.0.0",
     "react-router-dom": "^7.9.3",
+    "react-toastify": "^11.1.0",
     "react-window": "^2.2.7",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.3.1",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",

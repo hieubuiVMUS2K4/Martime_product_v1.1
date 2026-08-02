@@ -1,7 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'sonner'
-import { ToastContainer, Slide } from 'react-toastify'
-import 'react-toastify/dist/ReactToastify.css'
 import { MainLayout } from './components/layouts/MainLayout'
 import { SettingsDialog } from './components/settings'
 import { AuthGuard } from './components/auth/AuthGuard'
@@ -73,7 +71,7 @@ import { AccountManagementPage } from './pages/Admin/AccountManagementPage'
 function App() {
   return (
     <>
-      {/* Global toast provider (sonner).
+      {/* Toast dùng chung (sonner).
           Mặc định sonner chỉ hiện ~4s và trượt vào rất nhanh nên thông báo thêm/sửa/xoá
           nháy một cái là mất. Kéo dài thời gian hiện và bật nút đóng để đọc kịp. */}
       <Toaster
@@ -84,8 +82,6 @@ function App() {
         visibleToasts={4}
         toastOptions={{ style: { transition: 'all 320ms cubic-bezier(0.16, 1, 0.3, 1)' } }}
       />
-      {/* Hai modal tài liệu dùng react-toastify, để cùng thời lượng với sonner cho đồng nhất. */}
-      <ToastContainer position="top-right" autoClose={6000} hideProgressBar={false} newestOnTop closeOnClick pauseOnHover draggable theme="colored" transition={Slide} />
       
       {/* Settings Dialog (renders as portal, controlled by zustand store) */}
       <SettingsDialog />
