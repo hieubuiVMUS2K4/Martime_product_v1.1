@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using ProductApi.Data;
@@ -11,9 +12,11 @@ using ProductApi.Data;
 namespace productapi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260802161218_DropVesselCertificateAssignments")]
+    partial class DropVesselCertificateAssignments
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -6126,11 +6129,6 @@ namespace productapi.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("ConfigDownloadCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(0);
-
                     b.Property<int>("ConsecutiveFailures")
                         .HasColumnType("integer");
 
@@ -6140,9 +6138,6 @@ namespace productapi.Migrations
                     b.Property<string>("CurrentNetworkType")
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
-
-                    b.Property<DateTime?>("FirstHandshakeAt")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("ImoNumber")
                         .HasMaxLength(20)
@@ -6166,25 +6161,11 @@ namespace productapi.Migrations
                     b.Property<int?>("LastAcknowledgedKeyVersion")
                         .HasColumnType("integer");
 
-                    b.Property<DateTime?>("LastConfigDownloadedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastConfigDownloadedBy")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("LastConfigDownloadedIp")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
                     b.Property<string>("LastError")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
                     b.Property<DateTime?>("LastErrorAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("LastHandshakeAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("LastHeartbeatAt")
@@ -6211,22 +6192,6 @@ namespace productapi.Migrations
                     b.Property<DateTime?>("LastSignedRequestAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("NodeApiToken")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<string>("NodeApiTokenHash")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<DateTime?>("NodeApiTokenRotatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("NodeApiTokenVersion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(1);
-
                     b.Property<string>("NodeId")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -6244,16 +6209,6 @@ namespace productapi.Migrations
                     b.Property<string>("PreviousSigningKey")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
-
-                    b.Property<DateTime?>("ProvisionedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ProvisioningStatus")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
-                        .HasDefaultValue("Unknown");
 
                     b.Property<DateTime?>("RevokedAt")
                         .HasColumnType("timestamp with time zone");
@@ -6287,12 +6242,8 @@ namespace productapi.Migrations
 
                     b.HasIndex("IsRevoked");
 
-                    b.HasIndex("NodeApiTokenHash");
-
                     b.HasIndex("NodeId")
                         .IsUnique();
-
-                    b.HasIndex("ProvisioningStatus");
 
                     b.ToTable("sync_node_trackers", (string)null);
                 });

@@ -680,20 +680,9 @@ public class SyncInboxService : ISyncInboxService
             await EmitSyncBatchNotificationsAsync(items, result.Succeeded);
         }
 
-        // ── Auto-create VesselCertificateAssignments from synced certificate/crew data ──
-        if (grouped.Any(g => g.Key.Equals("certificate", StringComparison.OrdinalIgnoreCase)
-                          || g.Key.Equals("crew_certificate", StringComparison.OrdinalIgnoreCase)
-                          || g.Key.Equals("crew_member", StringComparison.OrdinalIgnoreCase)))
-        {
-            try
-            {
-                await AutoCreateVesselCertificateAssignmentsAsync(items);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Auto-create VesselCertificateAssignments failed (non-critical)");
-            }
-        }
+        // Trước đây chỗ này tự sinh VesselCertificateAssignment từ dữ liệu tàu đẩy lên.
+        // Đã bỏ: danh mục loại chứng chỉ do bờ làm chủ và phát xuống mọi tàu, không còn
+        // khái niệm gán loại chứng chỉ cho từng tàu nên cũng không còn gì để suy ra.
 
         // ── AUTO-ENQUEUE all NoonReports for AI evaluation ──
         if (noonReportIdsForEvaluation.Count > 0)
@@ -832,116 +821,6 @@ public class SyncInboxService : ISyncInboxService
 
         await _context.SyncIdempotencyRecords.AddAsync(record);
     }
-
-    /// <summary>
-    /// After syncing crew_certificate from edge, auto-create VesselCertificateAssignment
-    /// records so the vessel's required certificate list is populated from snapshot data.
-    /// </summary>
-    private async Task AutoCreateVesselCertificateAssignmentsAsync(List<SyncQueueItemDto> items)
-    {
-        // Find all distinct origin IMOs from this batch
-        var imos = items
-            .Where(i => !string.IsNullOrWhiteSpace(i.OriginNode))
-            .Select(i => i.OriginNode)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        foreach (var imo in imos)
-        {
-            // Resolve vessel from IMO
-            var vessel = await _context.Vessels
-                .AsNoTracking()
-                .FirstOrDefaultAsync(v => v.IMO == imo);
-            if (vessel == null) continue;
-
-            // Source: certificate records from this vessel's current incoming sync batch.
-            // Fall back to SyncIdempotencyRecords for historical syncs if batch has no cert items.
-            var batchCertIds = items
-                .Where(i => string.Equals(i.OriginNode, imo, StringComparison.OrdinalIgnoreCase)
-                         && string.Equals(i.TableName, "certificate", StringComparison.OrdinalIgnoreCase))
-                .Select(i => i.RecordKey)
-                .Where(k => int.TryParse(k, out _))
-                .Select(int.Parse)
-                .Distinct()
-                .ToList();
-
-            List<int> certTypeIds;
-            if (batchCertIds.Count > 0)
-            {
-                certTypeIds = await _context.CrewCertificateTypes
-                    .Where(c => c.IsActive && batchCertIds.Contains(c.Id))
-                    .Select(c => c.Id)
-                    .Distinct()
-                    .ToListAsync();
-            }
-            else
-            {
-                // No certificate items in current batch — derive from historical sync records.
-                var syncKeys = await _context.SyncIdempotencyRecords
-                    .AsNoTracking()
-                    .Where(r => r.OriginNode == imo && r.IdempotencyKey.StartsWith("certificate:"))
-                    .Select(r => r.IdempotencyKey)
-                    .ToListAsync();
-
-                var historicalIds = syncKeys
-                    .Select(k => k.Split(':'))
-                    .Where(parts => parts.Length >= 2 && int.TryParse(parts[1], out _))
-                    .Select(parts => int.Parse(parts[1]))
-                    .Distinct()
-                    .ToList();
-
-                certTypeIds = historicalIds.Count > 0
-                    ? await _context.CrewCertificateTypes
-                        .Where(c => c.IsActive && historicalIds.Contains(c.Id))
-                        .Select(c => c.Id)
-                        .Distinct()
-                        .ToListAsync()
-                    : new List<int>();
-            }
-
-            if (certTypeIds.Count == 0) continue;
-
-            // Get already-assigned certificate type IDs for this vessel
-            var existingIds = await _context.VesselCertificateAssignments
-                .Where(a => a.VesselId == vessel.Id)
-                .Select(a => a.CertificateId)
-                .ToListAsync();
-
-            var toAdd = certTypeIds.Except(existingIds).ToList();
-            if (toAdd.Count > 0)
-            {
-                var newAssignments = toAdd.Select(certId => new VesselCertificateAssignment
-                {
-                    CertificateId = certId,
-                    VesselId = vessel.Id,
-                    AssignedAt = DateTime.UtcNow,
-                    IsSynced = true,
-                }).ToList();
-
-                _context.VesselCertificateAssignments.AddRange(newAssignments);
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation(
-                    "Auto-created {Count} VesselCertificateAssignments for vessel {VesselName} (IMO: {IMO}) from snapshot",
-                    newAssignments.Count, vessel.Name, imo);
-            }
-
-            // Keep auto-synced assignments aligned to current vessel certificate set from snapshot.
-            var staleAutoAssignments = await _context.VesselCertificateAssignments
-                .Where(a => a.VesselId == vessel.Id && a.IsSynced && !certTypeIds.Contains(a.CertificateId))
-                .ToListAsync();
-            if (staleAutoAssignments.Count > 0)
-            {
-                _context.VesselCertificateAssignments.RemoveRange(staleAutoAssignments);
-                await _context.SaveChangesAsync();
-                _logger.LogInformation(
-                    "Removed {Count} stale auto-synced VesselCertificateAssignments for vessel {VesselName} (IMO: {IMO})",
-                    staleAutoAssignments.Count, vessel.Name, imo);
-            }
-        }
-    }
-
-
 
     private async Task UpsertIncomingFileReferencesAsync(SyncQueueItemDto item)
     {

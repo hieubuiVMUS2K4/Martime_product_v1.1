@@ -19,7 +19,7 @@
 | `ReportsController.cs` | `api/Reports` | Danh sách/CRUD-đọc `MaritimeReport` (Noon/Departure/Arrival/Bunker/Position), duyệt/từ chối báo cáo, lịch báo cáo theo tháng |
 | `ShipsController.cs` | `api/Ships` | CRUD tối giản cho entity `Ship` — **xem ghi chú "Ship vs Vessel" bên dưới** |
 | `SyncDashboardController.cs` | `api/sync/dashboard` | Giám sát & quản trị hạ tầng sync (xem `Services/Sync/README.md`) — tổng quan, trạng thái node, xoay khóa ký, force resync |
-| `VesselCertificateAssignmentsController.cs` | `api/vessels/{vesselId}/certificates` | Gán loại chứng chỉ nào là bắt buộc cho từng tàu, đẩy xuống Edge qua sync outbox |
+| `VesselCertificateAssignmentsController.cs` | `api/vessels/{vesselId}/certificates` | Chỉ còn `GET crew` — chứng chỉ của thuyền viên đang ở trên tàu. Phần gán loại chứng chỉ cho tàu đã bỏ: danh mục do bờ làm chủ, phát xuống mọi tàu |
 | `VesselTelemetryController.cs` | `api/vessel-telemetry` | Vị trí/route/alert/engine-event thời gian thực cho bản đồ; có đường nạp trực tiếp NMEA/sensor riêng biệt với `/api/sync` |
 | `VesselsController.cs` | `api/Vessels` | CRUD tàu (`Vessel`) — entity thật, ~200 trường; vị trí, nhiên liệu, alert, metrics, crew/report/sync-log theo tàu |
 | `VoyagesController.cs` | `api/Voyages` | Controller lớn nhất (~1200 dòng): CRUD chuyến đi, dashboard hạm đội, timeline, hiệu suất kế hoạch/thực tế, 5 nhóm CRUD kế hoạch (cargo/bunker/crew-change plan, cost/revenue estimate), và cả quản trị DLQ sync |
@@ -59,7 +59,7 @@ Một điểm khác biệt quan trọng so với thiết kế "chuẩn": **rất
 - **Controllers → Services**: đa số action gọi interface trong `Services/` (`ICrewService`, `IVoyageService`, `IComplianceService`...). Xem `Services/README.md`.
 - **Controllers → Data**: nhiều action (đặc biệt các thao tác đọc/join nhanh) gọi thẳng `AppDbContext` từ `Data/AppDbContext.cs`.
 - **Controllers → DTOs**: request/response phần lớn dùng các lớp trong `DTOs/`, nhưng nhiều request DTO nhỏ (ví dụ `LoginRequest`, `CountryRequest`, `AssignVesselRequest`) được khai báo ngay trong file controller thay vì `DTOs/` — một điểm không nhất quán cần nhớ khi tìm kiếm.
-- **Sync**: `SyncController` là điểm vào duy nhất cho giao thức đồng bộ hai chiều (`/api/sync` POST nhận push từ Edge, `/api/sync/pull` GET phục vụ Edge kéo dữ liệu Shore). `VesselCertificateAssignmentsController` và nhiều service bên dưới cũng tự gọi `ISyncOutboxService` để đẩy dữ liệu xuống Edge ngoài luồng sync chính.
+- **Sync**: `SyncController` là điểm vào duy nhất cho giao thức đồng bộ hai chiều (`/api/sync` POST nhận push từ Edge, `/api/sync/pull` GET phục vụ Edge kéo dữ liệu Shore). Nhiều service bên dưới cũng tự gọi `ISyncOutboxService` để đẩy dữ liệu xuống Edge ngoài luồng sync chính.
 - **Security**: hành vi xác thực/ủy quyền được set up ở `Program.cs` và thực thi bởi các lớp trong `Security/` — đọc `Security/README.md` để hiểu chính xác `[Authorize(Policy = "InternalAccess")]` nghĩa là gì (xem ghi chú dưới).
 
 ## Ghi chú khi đọc/dạy

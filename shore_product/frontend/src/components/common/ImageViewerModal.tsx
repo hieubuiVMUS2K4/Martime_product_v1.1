@@ -103,23 +103,23 @@ const ImageViewerModal: React.FC<ImageViewerModalProps> = ({
     <div style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)' }}>
       <div style={{ background: '#fff', borderRadius: 8, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', maxWidth: 900, maxHeight: '90vh', width: 'calc(100% - 32px)', display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', borderBottom: '1px solid #e5e7eb' }}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, color: '#111827' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', borderBottom: '1px solid #d6dee8' }}>
+          <h3 style={{ fontSize: 16, fontWeight: 600, color: '#14202e' }}>
             {previewFile
               ? (isCurrentPdf ? 'Xem trước PDF mới' : 'Xem trước ảnh mới')
               : (isPdfUrl(currentImageUrl || imageUrl) ? 'Tài liệu PDF' : 'Ảnh tài liệu')}
           </h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 4 }}>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: 4 }}>
             <X style={{ width: 20, height: 20 }} />
           </button>
         </div>
 
         {/* Body */}
-        <div style={{ flex: 1, overflow: 'auto', padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9fafb', minHeight: 400 }}>
+        <div style={{ flex: 1, overflow: 'auto', padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f8fc', minHeight: 400 }}>
           {uploading ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-              <div className="animate-spin" style={{ width: 48, height: 48, borderRadius: '50%', border: '4px solid #14b8a6', borderTopColor: 'transparent' }} />
-              <p style={{ color: '#4b5563', fontWeight: 500 }}>Đang tải lên...</p>
+              <div className="animate-spin" style={{ width: 48, height: 48, borderRadius: '50%', border: '4px solid #0b2545', borderTopColor: 'transparent' }} />
+              <p style={{ color: '#64748b', fontWeight: 500 }}>Đang tải lên...</p>
             </div>
           ) : isCurrentPdf ? (
             <iframe
@@ -140,18 +140,18 @@ const ImageViewerModal: React.FC<ImageViewerModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div style={{ padding: 16, borderTop: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: 16, borderTop: '1px solid #d6dee8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {documentId && customUploadHandler && !previewFile && (
               <button onClick={handleSelectFile} disabled={uploading}
-                style={{ padding: '8px 16px', background: '#0d9488', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 500 }}>
+                style={{ padding: '8px 16px', background: '#0b2545', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 500 }}>
                 <Upload style={{ width: 16, height: 16 }} /> Thay đổi file
               </button>
             )}
             {previewFile && (
               <>
                 <button onClick={handleConfirmChange} disabled={uploading}
-                  style={{ padding: '8px 16px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 14, fontWeight: 500 }}>
+                  style={{ padding: '8px 16px', background: '#0b2545', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 14, fontWeight: 500 }}>
                   ✓ Xác nhận
                 </button>
                 <button onClick={handleCancelChange} disabled={uploading}
@@ -162,7 +162,7 @@ const ImageViewerModal: React.FC<ImageViewerModalProps> = ({
             )}
           </div>
           <button onClick={onClose} disabled={uploading}
-            style={{ padding: '8px 16px', background: '#4b5563', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 14 }}>
+            style={{ padding: '8px 16px', background: '#64748b', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 14 }}>
             Đóng
           </button>
         </div>

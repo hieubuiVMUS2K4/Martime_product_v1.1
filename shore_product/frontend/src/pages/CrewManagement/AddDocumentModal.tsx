@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Upload, X, Trash2 } from 'lucide-react';
+import { Upload, X, Trash2, FileText } from 'lucide-react';
 import { crewApi, referenceApi } from '../../services/crew.service';
 import { useToast } from '../../components/common/Toast';
 import type { Country } from '../../types/crew.types';
+import './CrewModalShell.css';
 
 const DOCUMENT_TARGET_OPTIONS = [
   { value: 'travel', label: 'Giấy tờ đi lại' },
@@ -126,97 +127,92 @@ export const AddDocumentModal: React.FC<Props> = ({ isOpen, crewMemberId, onClos
     }
   };
 
-  const inputCls = 'w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none';
-  const labelCls = 'mb-1 block text-xs font-medium uppercase text-gray-500';
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.4)' }}>
-      <div className="w-full max-w-2xl rounded-lg bg-white shadow-xl mx-4">
-        <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3" style={{ background: '#c5f0ea' }}>
-          <h2 className="text-base font-semibold" style={{ color: '#0d7377' }}>Thêm tài liệu định danh</h2>
-          <button onClick={onClose} className="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700">
-            <X className="h-5 w-5" />
-          </button>
+    <div className="acm-overlay" onClick={onClose}>
+      <div className="acm-modal" onClick={e => e.stopPropagation()}>
+        <div className="acm-header">
+          <FileText size={17} />
+          <h2>Thêm tài liệu định danh</h2>
+          <button type="button" className="acm-close" onClick={onClose}><X size={17} /></button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 p-4">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="md:col-span-2">
-              <label className={labelCls}>Loại tài liệu (nhóm)</label>
-              <select value={form.category} onChange={e => handleCategoryChange(e.target.value)} className={inputCls}>
+        <form onSubmit={handleSubmit} className="acm-body">
+          <div className="acm-grid">
+            <div className="acm-field acm-field--full">
+              <label>Loại tài liệu (nhóm)</label>
+              <select value={form.category} onChange={e => handleCategoryChange(e.target.value)}>
                 {DOCUMENT_TARGET_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
 
-            <div>
-              <label className={labelCls}>Loại tài liệu *</label>
-              <select value={form.documentType} onChange={e => set('documentType', e.target.value)} className={inputCls} required>
+            <div className="acm-field">
+              <label>Loại tài liệu *</label>
+              <select value={form.documentType} onChange={e => set('documentType', e.target.value)} required>
                 <option value="">Chọn loại tài liệu</option>
                 {currentTypeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
 
-            <div>
-              <label className={labelCls}>Số tài liệu *</label>
-              <input type="text" value={form.documentNumber} onChange={e => set('documentNumber', e.target.value)} className={inputCls} required />
+            <div className="acm-field">
+              <label>Số tài liệu *</label>
+              <input type="text" value={form.documentNumber} onChange={e => set('documentNumber', e.target.value)} required />
             </div>
 
-            <div>
-              <label className={labelCls}>Ngày cấp</label>
-              <input type="date" value={form.issueDate} onChange={e => set('issueDate', e.target.value)} className={inputCls} />
+            <div className="acm-field">
+              <label>Ngày cấp</label>
+              <input type="date" value={form.issueDate} onChange={e => set('issueDate', e.target.value)} />
             </div>
 
-            <div>
-              <label className={labelCls}>Ngày hết hạn</label>
-              <input type="date" value={form.expiryDate} onChange={e => set('expiryDate', e.target.value)} className={inputCls} />
+            <div className="acm-field">
+              <label>Ngày hết hạn</label>
+              <input type="date" value={form.expiryDate} onChange={e => set('expiryDate', e.target.value)} />
             </div>
 
-            <div>
-              <label className={labelCls}>Quốc gia cấp</label>
-              <select value={form.countryId} onChange={e => set('countryId', e.target.value)} className={inputCls}>
+            <div className="acm-field">
+              <label>Quốc gia cấp</label>
+              <select value={form.countryId} onChange={e => set('countryId', e.target.value)}>
                 <option value="">Chọn quốc gia</option>
                 {countries.map(c => <option key={c.id} value={c.id}>{c.countryName}</option>)}
               </select>
             </div>
 
-            <div>
-              <label className={labelCls}>Notes</label>
-              <input type="text" value={form.notes} onChange={e => set('notes', e.target.value)} className={inputCls} placeholder="Ghi chú..." />
+            <div className="acm-field">
+              <label>Ghi chú</label>
+              <input type="text" value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Ghi chú..." />
             </div>
 
-            <div className="md:col-span-2">
-              <label className={labelCls}>Ảnh / File tài liệu</label>
+            <div className="acm-field acm-field--full">
+              <label>Ảnh / File tài liệu</label>
               <input ref={fileInputRef} type="file" accept=".jpg,.jpeg,.png,.gif,.pdf" onChange={handleFileSelect} style={{ display: 'none' }} />
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-3">
+              <div className="acm-file-area">
                 {docFilePreview ? (
-                  <div className="relative inline-block">
-                    <img src={docFilePreview} alt="Preview" className="h-28 rounded object-contain" />
-                    <button type="button" onClick={() => { setDocFile(null); setDocFilePreview(null); }}
-                      className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center">
-                      <Trash2 size={10} />
+                  <div className="acm-file-preview">
+                    <img src={docFilePreview} alt="Preview" />
+                    <button type="button" className="acm-file-remove"
+                      onClick={() => { setDocFile(null); setDocFilePreview(null); }}>
+                      <Trash2 size={12} />
                     </button>
                   </div>
                 ) : docFile ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-700">📄 {docFile.name}</span>
-                    <button type="button" onClick={() => { setDocFile(null); setDocFilePreview(null); }}
-                      className="text-red-500 hover:text-red-700"><Trash2 size={14} /></button>
+                  <div className="acm-file-info">
+                    <span>{docFile.name}</span>
+                    <button type="button" className="acm-file-remove"
+                      onClick={() => { setDocFile(null); setDocFilePreview(null); }}>
+                      <Trash2 size={12} />
+                    </button>
                   </div>
                 ) : (
-                  <button type="button" onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-2 text-sm text-teal-600 hover:text-teal-800">
-                    <Upload size={16} /> Chọn ảnh / file (JPG, PNG, PDF, tối đa 10MB)
+                  <button type="button" className="acm-upload-btn" onClick={() => fileInputRef.current?.click()}>
+                    <Upload size={14} /> Chọn ảnh / file (JPG, PNG, PDF, tối đa 10MB)
                   </button>
                 )}
               </div>
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-            <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 text-sm">
-              Hủy
-            </button>
-            <button type="submit" disabled={submitting} className="px-4 py-2 rounded text-white text-sm font-medium disabled:opacity-50" style={{ background: '#0d7377' }}>
+          <div className="acm-footer">
+            <button type="button" className="acm-btn-cancel" onClick={onClose}>Hủy</button>
+            <button type="submit" className="acm-btn-save" disabled={submitting}>
               {submitting ? 'Đang lưu...' : 'Thêm tài liệu'}
             </button>
           </div>

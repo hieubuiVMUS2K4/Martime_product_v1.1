@@ -142,7 +142,7 @@ export const PendingSignOffsPage: React.FC = () => {
                     <div className="inline-flex gap-1.5">
                       <button
                         onClick={() => handleApprove(it)} disabled={busyId === it.id}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-teal-600 text-white text-xs hover:bg-teal-700 disabled:opacity-50">
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#0b2545] text-white text-xs hover:bg-[#16375f] disabled:opacity-50">
                         <Check size={12} /> Duyệt
                       </button>
                       <button

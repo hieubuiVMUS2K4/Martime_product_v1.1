@@ -123,6 +123,31 @@ public class CertificatesController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// POST /api/certificates/sync/broadcast-all — Đồng bộ TOÀN BỘ danh mục loại chứng chỉ
+    /// xuống mọi tàu (initial/full resync). Đối xứng với /api/material/sync/broadcast-all.
+    /// </summary>
+    [HttpPost("sync/broadcast-all")]
+    public async Task<IActionResult> BroadcastAllCertificateTypes()
+    {
+        try
+        {
+            var (certs, countryMappings, rankMappings) = await _certService.BroadcastAllCertificateTypesAsync();
+            return Ok(new
+            {
+                message = "Đã đẩy toàn bộ danh mục loại chứng chỉ xuống tàu",
+                certificates = certs,
+                countryMappings,
+                rankMappings
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error broadcasting all certificate types");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
     // ============================================================
     // CERTIFICATE MAPPINGS (Countries & Ranks)
     // ============================================================
@@ -284,6 +309,25 @@ public class CertificatesController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting fleet compliance");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
+    /// GET /api/certificates/compliance/matrix — Ma trận tuân thủ xoay theo LOẠI chứng chỉ:
+    /// mỗi loại cho biết ai đang thiếu, kèm tổng hợp chức danh nào đang có người thiếu.
+    /// </summary>
+    [HttpGet("compliance/matrix")]
+    public async Task<IActionResult> GetComplianceMatrix([FromQuery] bool onboardOnly = false)
+    {
+        try
+        {
+            var matrix = await _certService.GetComplianceMatrixAsync(onboardOnly);
+            return Ok(matrix);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error building certificate compliance matrix");
             return StatusCode(500, new { error = "Internal server error" });
         }
     }

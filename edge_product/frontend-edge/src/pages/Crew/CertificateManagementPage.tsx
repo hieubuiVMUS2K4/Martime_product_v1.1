@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { 
-  Award, 
-  Plus, 
-  Users, 
+import {
+  Award,
+  Plus,
+  Users,
   AlertTriangle,
   CheckCircle,
   XCircle,
@@ -12,12 +12,54 @@ import {
   User,
   Flag,
   Trash2,
+  Info,
+  Globe,
+  Briefcase,
 } from 'lucide-react'
 import { Certificate, CrewCertificate, CrewMember } from '../../types/maritime.types'
 import { format, differenceInDays, parseISO } from 'date-fns'
 import { maritimeService } from '../../services/maritime.service'
 import { AddCrewCertificateModal } from './AddCrewCertificateModal'
 import { useTranslationSafe } from '@/contexts/I18nContext'
+
+/** Nhãn tiếng Việt cho bộ phận của chức danh. */
+const DEPARTMENT_LABELS: Record<string, string> = {
+  DECK: 'Boong',
+  ENGINE: 'Máy',
+  CATERING: 'Phục vụ',
+}
+
+/** Một dòng "nhãn — giá trị" trong thẻ thông tin, cùng khuôn với trang chi tiết thiết bị. */
+function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-start justify-between gap-4 py-2 border-b border-gray-100 last:border-b-0">
+      <span className="text-sm text-gray-500 shrink-0">{label}</span>
+      <div className="text-sm font-medium text-gray-900 text-right min-w-0">{children}</div>
+    </div>
+  )
+}
+
+/** Thẻ có tiêu đề, dùng chung cho toàn bộ tab Thông tin. */
+function SectionCard({ title, icon: Icon, count, children, className = '' }: {
+  title: string
+  icon?: React.ComponentType<{ className?: string }>
+  count?: number
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <div className={`bg-white rounded-lg border border-gray-200 flex flex-col ${className}`}>
+      <div className="px-4 py-2.5 border-b border-gray-200 bg-gray-50 rounded-t-lg flex items-center gap-2">
+        {Icon && <Icon className="w-4 h-4 text-gray-400" />}
+        <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">{title}</h3>
+        {count !== undefined && (
+          <span className="ml-auto px-1.5 py-0.5 bg-gray-200 text-gray-700 text-xs font-semibold rounded">{count}</span>
+        )}
+      </div>
+      <div className="px-4 py-2 flex-1">{children}</div>
+    </div>
+  )
+}
 
 export function CertificateManagementPage() {
   const { t } = useTranslationSafe()
@@ -27,9 +69,11 @@ export function CertificateManagementPage() {
   const [selectedCertificate, setSelectedCertificate] = useState<Certificate | null>(null)
   const [crewWithCertificate, setCrewWithCertificate] = useState<(CrewCertificate & { crewMember: CrewMember })[]>([])
   const [countries, setCountries] = useState<any[]>([])
+  const [ranks, setRanks] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; crewCert: any } | null>(null)
   const [selectedRow, setSelectedRow] = useState<number | null>(null)
+  const [activeTab, setActiveTab] = useState<'crew' | 'info'>('crew')
 
   // Add Crew Certificate Modal state
   const [showAddCertModal, setShowAddCertModal] = useState(false)
@@ -75,14 +119,22 @@ export function CertificateManagementPage() {
 
   const loadCountries = async (certificateId: number) => {
     try {
-      console.log('🔵 Loading countries for certificate:', certificateId)
       const data = await maritimeService.certificates.getCertificateCountries(certificateId)
-      console.log('✅ Countries loaded:', data)
-      const countriesArray = Array.isArray(data) ? data : []
-      setCountries(countriesArray)
+      setCountries(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('❌ Failed to load countries:', error)
       setCountries([])
+    }
+  }
+
+  /** Chức danh (STCW) bắt buộc phải có loại chứng chỉ này — bảng nối rank_certificates. */
+  const loadRanks = async (certificateId: number) => {
+    try {
+      const data = await maritimeService.certificates.getCertificateRanks(certificateId)
+      setRanks(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error('❌ Failed to load ranks:', error)
+      setRanks([])
     }
   }
 
@@ -123,9 +175,9 @@ export function CertificateManagementPage() {
       console.log('📊 Mapped count:', mapped.length)
       console.log('🔍 First record details:', JSON.stringify(mapped[0], null, 2))
       setCrewWithCertificate(mapped as any)
-      
-      // Also load countries
-      await loadCountries(certificateId)
+
+      // Quốc gia áp dụng + chức danh yêu cầu cho tab Thông tin
+      await Promise.all([loadCountries(certificateId), loadRanks(certificateId)])
     } catch (error: any) {
       console.error('❌ Failed to load crew with certificate:', error)
       console.error('❌ Error type:', error?.constructor?.name)
@@ -201,6 +253,40 @@ export function CertificateManagementPage() {
     }
   }
 
+  /** Thống kê tình trạng hiệu lực của các chứng chỉ thuộc loại này đang có trên tàu. */
+  const stats = useMemo(() => {
+    const now = new Date()
+    let valid = 0, expiring = 0, expired = 0
+    for (const cc of crewWithCertificate) {
+      if (!cc.expiryDate) continue
+      const d = differenceInDays(parseISO(cc.expiryDate), now)
+      if (d < 0) expired++
+      else if (d <= 90) expiring++
+      else valid++
+    }
+    return { total: crewWithCertificate.length, valid, expiring, expired }
+  }, [crewWithCertificate])
+
+  /** Gom chức danh theo bộ phận để bảng chức danh đọc được theo nhóm thay vì một rừng thẻ. */
+  const ranksByDepartment = useMemo(() => {
+    const groups = new Map<string, any[]>()
+    for (const rc of ranks) {
+      const rank = rc.rank ?? rc.Rank
+      if (!rank) continue
+      const dept = rank.department ?? rank.Department ?? 'OTHER'
+      if (!groups.has(dept)) groups.set(dept, [])
+      groups.get(dept)!.push(rank)
+    }
+    for (const list of groups.values()) {
+      list.sort((a, b) => (a.sortOrder ?? a.SortOrder ?? 0) - (b.sortOrder ?? b.SortOrder ?? 0))
+    }
+    // Boong → Máy → Phục vụ → còn lại, cho khớp thứ tự quen thuộc trên tàu.
+    const order = ['DECK', 'ENGINE', 'CATERING']
+    return [...groups.entries()].sort(
+      (a, b) => (order.indexOf(a[0]) + 1 || 99) - (order.indexOf(b[0]) + 1 || 99)
+    )
+  }, [ranks])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -241,66 +327,160 @@ export function CertificateManagementPage() {
       {/* Main Content - Certificate Details View */}
       {selectedCertificate ? (
           <div className="p-4 space-y-3">
-            {/* Certificate Info Card */}
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              {selectedCertificate.description && (
-                <p className="text-sm text-gray-600 mb-3 pb-3 border-b border-gray-200">
-                  {selectedCertificate.description}
-                </p>
-              )}
-
-              <div className="grid grid-cols-4 gap-3 mb-3">
-                <div>
-                  <p className="text-xs text-gray-500 uppercase mb-1">{t('crew.certificateManagement.category')}</p>
-                  <div>{getCategoryBadge(selectedCertificate.category)}</div>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 uppercase mb-1">{t('crew.certificateManagement.validityPeriod')}</p>
-                  <p className="text-sm font-semibold text-gray-900">
-                    {selectedCertificate.validityPeriodMonths ? `${selectedCertificate.validityPeriodMonths} ${t('crew.certificateManagement.months')}` : t('crew.certMgmt.na')}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 uppercase mb-1">{t('crew.certificateManagement.mandatory')}</p>
-                  <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
-                    selectedCertificate.isMandatory 
-                      ? 'bg-red-100 text-red-700' 
-                      : 'bg-gray-100 text-gray-700'
-                  }`}>
-                    {selectedCertificate.isMandatory ? t('crew.certificateManagement.yes') : t('crew.certificateManagement.no')}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 uppercase mb-1">{t('crew.certificateManagement.status')}</p>
-                  <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
-                    selectedCertificate.isActive 
-                      ? 'bg-green-100 text-green-700' 
-                      : 'bg-gray-100 text-gray-700'
-                  }`}>
-                    {selectedCertificate.isActive ? t('crew.certificateManagement.active') : t('crew.certificateManagement.inactive')}
-                  </span>
-                </div>
-              </div>
-
-              {/* Countries List */}
-              <div className="pt-3 border-t border-gray-200">
-                <p className="text-xs text-gray-500 uppercase mb-2">{t('crew.certMgmt.applicableCountries', { count: countries.length })}</p>
-                {countries.length > 0 ? (
-                  <div className="flex flex-wrap gap-1.5">
-                    {countries.map((cc: any, idx: number) => (
-                      <span key={cc.id || idx} className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded border border-blue-200">
-                        {cc.countryName}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-500">{t('crew.certMgmt.noCountries')}</p>
-                )}
-              </div>
+            {/* Tab switcher */}
+            <div className="flex border-b border-gray-200 bg-white rounded-t-lg px-2">
+              <button
+                onClick={() => setActiveTab('crew')}
+                className={`px-4 py-2.5 text-sm font-medium flex items-center gap-2 border-b-2 -mb-px transition-colors ${
+                  activeTab === 'crew'
+                    ? 'border-blue-600 text-blue-700'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                {t('crew.certMgmt.tabCrew')}
+                <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${
+                  activeTab === 'crew' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
+                }`}>{crewWithCertificate.length}</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('info')}
+                className={`px-4 py-2.5 text-sm font-medium flex items-center gap-2 border-b-2 -mb-px transition-colors ${
+                  activeTab === 'info'
+                    ? 'border-blue-600 text-blue-700'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Info className="w-4 h-4" />
+                {t('crew.certMgmt.tabInfo')}
+              </button>
             </div>
 
-            {/* Crew with This Certificate */}
-            <div className="bg-white rounded-lg border border-gray-200">
+            {/* ── TAB 2: Thông tin loại chứng chỉ ── */}
+            {activeTab === 'info' && (
+              <div className="space-y-3">
+                {/* Hàng 1: ba thẻ thông tin — cùng khuôn với trang chi tiết thiết bị */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                  <SectionCard title={t('crew.certMgmt.basicInfo')} icon={Info}>
+                    <InfoRow label={t('crew.certificateManagement.code')}>
+                      <code className="font-mono text-xs">{selectedCertificate.certificateCode}</code>
+                    </InfoRow>
+                    <InfoRow label={t('crew.certificateManagement.certificateName')}>
+                      {selectedCertificate.certificateName}
+                    </InfoRow>
+                    <InfoRow label={t('crew.certificateManagement.category')}>
+                      {getCategoryBadge(selectedCertificate.category)}
+                    </InfoRow>
+                    <InfoRow label={t('crew.certificateManagement.status')}>
+                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
+                        selectedCertificate.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                      }`}>
+                        {selectedCertificate.isActive ? t('crew.certificateManagement.active') : t('crew.certificateManagement.inactive')}
+                      </span>
+                    </InfoRow>
+                  </SectionCard>
+
+                  <SectionCard title={t('crew.certMgmt.validityRequirements')} icon={Clock}>
+                    <InfoRow label={t('crew.certificateManagement.validityPeriod')}>
+                      {selectedCertificate.validityPeriodMonths
+                        ? `${selectedCertificate.validityPeriodMonths} ${t('crew.certificateManagement.months')}`
+                        : t('crew.certMgmt.na')}
+                    </InfoRow>
+                    <InfoRow label={t('crew.certificateManagement.mandatory')}>
+                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
+                        selectedCertificate.isMandatory ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'
+                      }`}>
+                        {selectedCertificate.isMandatory ? t('crew.certificateManagement.yes') : t('crew.certificateManagement.no')}
+                      </span>
+                    </InfoRow>
+                    <InfoRow label={t('crew.certMgmt.countryCount')}>{countries.length}</InfoRow>
+                    <InfoRow label={t('crew.certMgmt.rankCount')}>{ranks.length}</InfoRow>
+                  </SectionCard>
+
+                  <SectionCard title={t('crew.certMgmt.onboardStatus')} icon={Users}>
+                    <InfoRow label={t('crew.certMgmt.holdersOnboard')}>{stats.total}</InfoRow>
+                    <InfoRow label={t('crew.certMgmt.valid')}>
+                      <span className="text-green-600 font-semibold">{stats.valid}</span>
+                    </InfoRow>
+                    <InfoRow label={t('crew.certificateManagement.expiringSoon')}>
+                      <span className={stats.expiring > 0 ? 'text-yellow-600 font-semibold' : ''}>{stats.expiring}</span>
+                    </InfoRow>
+                    <InfoRow label={t('crew.certMgmt.expired')}>
+                      <span className={stats.expired > 0 ? 'text-red-600 font-semibold' : ''}>{stats.expired}</span>
+                    </InfoRow>
+                  </SectionCard>
+                </div>
+
+                {/* Hàng 2: quốc gia + chức danh, hai cột cho đỡ trống bên phải */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
+                  <SectionCard title={t('crew.certMgmt.applicableCountriesTitle')} icon={Globe} count={countries.length}>
+                    {countries.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5 py-1">
+                        {countries.map((c: any, idx: number) => (
+                          <span
+                            key={c.id || idx}
+                            className="inline-flex items-center gap-1.5 px-2 py-1 bg-blue-50 text-blue-800 text-xs rounded border border-blue-200"
+                          >
+                            {c.countryCode && (
+                              <code className="font-mono text-[10px] text-blue-500">{c.countryCode}</code>
+                            )}
+                            {c.countryName}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500 py-3 text-center">{t('crew.certMgmt.noCountries')}</p>
+                    )}
+                  </SectionCard>
+
+                  <SectionCard title={t('crew.certMgmt.requiredRanksTitle')} icon={Briefcase} count={ranks.length}>
+                    {ranksByDepartment.length > 0 ? (
+                      <div className="space-y-2 py-1">
+                        {ranksByDepartment.map(([dept, list]) => (
+                          <div key={dept}>
+                            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">
+                              {DEPARTMENT_LABELS[dept] || dept} ({list.length})
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {list.map((r: any, idx: number) => (
+                                <span
+                                  key={r.id || idx}
+                                  className="inline-flex items-center gap-1.5 px-2 py-1 bg-slate-50 text-slate-800 text-xs rounded border border-slate-200"
+                                >
+                                  <code className="font-mono text-[10px] text-slate-500">
+                                    {r.rankCode ?? r.RankCode}
+                                  </code>
+                                  {r.rankName ?? r.RankName}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500 py-3 text-center">{t('crew.certMgmt.noRanks')}</p>
+                    )}
+                  </SectionCard>
+                </div>
+
+                {/* Hàng 3: mô tả — chỉ hiện khi có, tránh để lại thẻ rỗng */}
+                {selectedCertificate.description && (
+                  <SectionCard title={t('crew.certMgmt.description')} icon={Award}>
+                    <p className="text-sm text-gray-700 py-1 whitespace-pre-line">
+                      {selectedCertificate.description}
+                    </p>
+                  </SectionCard>
+                )}
+
+                <p className="text-xs text-gray-400 flex items-center gap-1.5 px-1">
+                  <Info className="w-3.5 h-3.5 shrink-0" />
+                  {t('crew.certMgmt.managedByShore')}
+                </p>
+              </div>
+            )}
+
+            {/* ── TAB 1: Thuyền viên có chứng chỉ ── */}
+            <div className={`bg-white rounded-lg border border-gray-200 ${activeTab === 'crew' ? '' : 'hidden'}`}>
               <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
                 <h3 className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-2">
                   <Users className="w-4 h-4" />

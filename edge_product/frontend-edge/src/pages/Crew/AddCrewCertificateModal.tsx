@@ -396,6 +396,11 @@ export function AddCrewCertificateModal({
                       ))}
                     </select>
                     {errors.certificateId && <p className="text-red-500 text-xs mt-1">{errors.certificateId}</p>}
+                    {/* Danh mục loại chứng chỉ do bờ quản lý — tàu không tự thêm được nữa,
+                        nên phải nói rõ người dùng cần làm gì khi không tìm thấy loại phù hợp. */}
+                    <p className="text-xs text-gray-500 mt-1">
+                      {t('crew.addCrewCert.certificateTypeManagedByShore')}
+                    </p>
                   </div>
 
                   {/* Crew Member */}

@@ -28,7 +28,9 @@ CreateCrewAsync(request)
 
 **Gán thuyền viên vào tàu** (`AssignToVesselAsync`) khác biệt về hướng sync: thay vì `BroadcastAsync` (mọi tàu), nó dùng `EnqueueAsync(vessel.IMO, ...)` (chỉ đúng 1 tàu) để snapshot **toàn bộ** hồ sơ + chứng chỉ + 4 loại tài liệu của crew đó xuống đúng con tàu họ sắp lên — set `VesselId`, `IsOnboard=false` (chưa true — cờ này chỉ bật thật khi có sự kiện sign-on, xem `Services/CrewManagement/README.md`), `PoolStatus="Assigned"`, `OnboardStatus="PendingReview"`.
 
-**Quản lý chứng chỉ loại (`CertificateService`)** phân biệt rõ 2 chính sách sync: chứng chỉ CỤ THỂ của một thuyền viên (`crew_certificate`) dùng `BroadcastAsync` (mọi tàu); còn LOẠI chứng chỉ (master data, `certificate`) cố tình **không** broadcast — chỉ `EnqueueAsync` tới đúng những tàu đã được gán loại chứng chỉ đó qua `VesselCertificateAssignments` (comment trong code: *"Certificate types are only pushed to a specific vessel's edge when they are explicitly assigned"*).
+**Quản lý chứng chỉ loại (`CertificateService`)** dùng `BroadcastAsync` cho cả chứng chỉ CỤ THỂ của một thuyền viên (`crew_certificate`) lẫn LOẠI chứng chỉ (master data: `certificate`, `country_certificate`, `rank_certificate`) — bờ làm chủ danh mục và phát xuống mọi tàu, đúng khuôn danh mục vật tư. Tàu chỉ đọc, dùng làm khoá ngoại khi gán chứng chỉ cho thuyền viên. Cơ chế gán loại chứng chỉ theo từng tàu (`VesselCertificateAssignments`) đã bị bỏ.
+
+Khi sửa loại chứng chỉ, mapping quốc tịch/chức danh chỉ **thêm–bớt phần chênh lệch** chứ không xoá sạch rồi tạo lại: cách cũ cấp Id mới cho cả mapping không đổi, khiến bờ và tàu đánh số khác nhau cho cùng một cặp giá trị và va chạm unique index ở tàu.
 
 ## Liên kết với phần khác
 

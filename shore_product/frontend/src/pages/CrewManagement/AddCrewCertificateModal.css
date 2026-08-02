@@ -1,150 +1,35 @@
-/* AddCrewCertificateModal – MOC Theme */
-
-.acm-overlay {
-  position: fixed; inset: 0; z-index: 500;
-  background: rgba(0, 0, 0, 0.45);
-  display: flex; align-items: center; justify-content: center;
-  animation: acmFadeIn 0.15s ease;
-}
-@keyframes acmFadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-.acm-modal {
-  background: #fff; border-radius: 8px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-  width: 580px; max-width: 95vw; max-height: 90vh;
-  overflow-y: auto;
-  animation: acmSlideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-@keyframes acmSlideIn { from { transform: translateY(12px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-
-.acm-header {
-  display: flex; align-items: center; gap: 8px;
-  padding: 14px 20px; border-bottom: 1px solid #e5e7eb;
-}
-.acm-header h2 { flex: 1; font-size: 15px; font-weight: 700; color: #132d2b; margin: 0; }
-.acm-header svg:first-child { color: #0d7377; }
-.acm-close {
-  width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
-  border: none; background: none; color: #4f847a; cursor: pointer; border-radius: 6px;
-}
-.acm-close:hover { background: #effaf5; color: #132d2b; }
-
-.acm-loading { padding: 40px; text-align: center; color: #4f847a; font-size: 13px; }
-.acm-error { background: #fef2f2; color: #dc2626; padding: 8px 12px; border-radius: 6px; font-size: 12px; margin-bottom: 10px; }
-
-.acm-body { padding: 16px 20px; }
-
-.acm-grid {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
-}
-.acm-field { display: flex; flex-direction: column; gap: 3px; }
-.acm-field--full { grid-column: 1 / -1; }
-
-.acm-field label {
-  font-size: 11.5px; font-weight: 600; color: #4b5563;
-  text-transform: uppercase; letter-spacing: 0.02em;
-}
-.acm-field input,
-.acm-field select,
-.acm-field textarea {
-  padding: 7px 10px; border: 1px solid #b5e3da;
-  border-radius: 5px; font-size: 13px; color: #132d2b;
-  background: #fff; outline: none;
-  transition: border-color 0.12s;
-}
-.acm-field input:focus,
-.acm-field select:focus,
-.acm-field textarea:focus { border-color: #0d7377; }
-
-.acm-err { font-size: 11px; color: #dc2626; }
-
-/* File upload */
-.acm-file-area {
-  border: 2px dashed #b5e3da; border-radius: 6px;
-  padding: 12px; text-align: center;
-  background: #f5fefc; transition: border-color 0.12s;
-}
-.acm-file-area:hover { border-color: #0d7377; }
-
-.acm-upload-btn {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 16px; border: 1px solid #b5e3da;
-  border-radius: 6px; background: #fff;
-  font-size: 12px; color: #4b5563; cursor: pointer;
-  transition: all 0.12s;
-}
-.acm-upload-btn:hover { border-color: #0d7377; color: #0d7377; }
-
-.acm-file-preview {
-  position: relative; display: inline-block;
-}
-.acm-file-preview img {
-  max-height: 120px; max-width: 100%; border-radius: 4px;
-  object-fit: contain;
-}
-.acm-file-info {
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  font-size: 12px; color: #4b5563;
-}
-.acm-file-remove {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 26px; height: 26px; border: none; border-radius: 50%;
-  background: #fee2e2; color: #dc2626; cursor: pointer;
-  transition: all 0.12s;
-}
-.acm-file-remove:hover { background: #dc2626; color: #fff; }
-
-/* Footer */
-.acm-footer {
-  display: flex; justify-content: flex-end; gap: 8px;
-  padding: 12px 20px; border-top: 1px solid #e5e7eb;
-}
-.acm-btn-cancel {
-  padding: 7px 16px; border: 1px solid #b5e3da;
-  border-radius: 6px; background: #fff; color: #4b5563;
-  font-size: 12px; font-weight: 500; cursor: pointer;
-}
-.acm-btn-cancel:hover { background: #effaf5; }
-
-.acm-btn-save {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 7px 18px; border: none;
-  border-radius: 6px; background: #0d7377; color: #fff;
-  font-size: 12px; font-weight: 600; cursor: pointer;
-  transition: background 0.12s;
-}
-.acm-btn-save:hover { background: #0a5e5e; }
-.acm-btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
+/* Phần riêng của modal thêm chứng chỉ: ô chọn loại chứng chỉ có nhóm.
+   Khung chung nằm ở CrewModalShell.css */
 
 /* Custom Certificate Dropdown */
 .acm-cert-dropdown { position: relative; }
 .acm-cert-dropdown__trigger {
-  width: 100%; padding: 7px 10px; border: 1px solid #d1d5db; border-radius: 6px;
+  width: 100%; padding: 7px 10px; border: 1px solid #d6dee8; border-radius: 6px;
   background: #fff; font-size: 12px; text-align: left; cursor: pointer;
   display: flex; justify-content: space-between; align-items: center;
   transition: border-color 0.15s;
 }
-.acm-cert-dropdown__trigger:hover { border-color: #0d7377; }
+.acm-cert-dropdown__trigger:hover { border-color: #0b2545; }
 .acm-cert-dropdown__placeholder { color: #9ca3af; }
-.acm-cert-dropdown__arrow { font-size: 11px; color: #6b7280; transition: transform 0.15s; }
+.acm-cert-dropdown__arrow { font-size: 11px; color: #64748b; transition: transform 0.15s; }
 .acm-cert-dropdown__arrow.open { transform: rotate(180deg); }
 .acm-cert-dropdown__menu {
   position: absolute; top: calc(100% + 4px); left: 0; right: 0;
-  background: #fff; border: 1px solid #d1d5db; border-radius: 6px;
+  background: #fff; border: 1px solid #d6dee8; border-radius: 6px;
   box-shadow: 0 6px 20px rgba(0,0,0,0.12); z-index: 50;
   max-height: 260px; overflow-y: auto;
 }
 .acm-cert-dropdown__group-label {
-  padding: 6px 12px; font-size: 11px; font-weight: 700; color: #0d7377;
-  background: #f0fdf4; border-bottom: 1px solid #e5e7eb;
+  padding: 6px 12px; font-size: 11px; font-weight: 700; color: #0b2545;
+  background: #eef2f7; border-bottom: 1px solid #d6dee8;
   text-transform: uppercase; letter-spacing: 0.3px; position: sticky; top: 0;
 }
 .acm-cert-dropdown__item {
   padding: 8px 12px; font-size: 12px; cursor: pointer;
-  border-bottom: 1px solid #f3f4f6; transition: background 0.1s;
+  border-bottom: 1px solid #eef2f7; transition: background 0.1s;
 }
 .acm-cert-dropdown__item:last-child { border-bottom: none; }
-.acm-cert-dropdown__item:hover { background: #f0fdf4; }
+.acm-cert-dropdown__item:hover { background: #eef2f7; }
 .acm-cert-dropdown__item.selected { background: #e0f2fe; font-weight: 600; }
 .acm-cert-dropdown__item--required {
   background: #fffbeb; font-weight: 600; color: #92400e;
