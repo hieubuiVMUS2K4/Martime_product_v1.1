@@ -10,7 +10,8 @@ import {
   AlertTriangle,
   Eye,
   FileDown,
-  BookOpen
+  BookOpen,
+  Pencil
 } from 'lucide-react'
 import { CrewMember } from '../../types/maritime.types'
 import { maritimeService } from '../../services/maritime.service'
@@ -48,6 +49,23 @@ export function CrewDetailPage() {
   const [isCertificatesExpanded, setIsCertificatesExpanded] = useState(true)
   const [isAddDocumentModalOpen, setIsAddDocumentModalOpen] = useState(false)
   const [isAddHealthDocumentModalOpen, setIsAddHealthDocumentModalOpen] = useState(false)
+  // Sua tai lieu / chung chi: giu ban ghi dang sua de modal dien san du lieu.
+  const [editingDoc, setEditingDoc] = useState<any | null>(null)
+  const [editingDocTable, setEditingDocTable] = useState<string | null>(null)
+  const [editingCert, setEditingCert] = useState<any | null>(null)
+
+  /** Mo modal sua tai lieu. Tai lieu suc khoe va giay to dinh danh dung hai modal khac nhau. */
+  const openEditDoc = (doc: any, table: string) => {
+    setEditingDoc(doc)
+    setEditingDocTable(table)
+    if (table === 'health_documents') setIsAddHealthDocumentModalOpen(true)
+    else setIsAddDocumentModalOpen(true)
+  }
+
+  const openEditCert = (cert: any) => {
+    setEditingCert(cert)
+    setShowAddCertModal(true)
+  }
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false)
   const [imageViewerUrl, setImageViewerUrl] = useState<string | null>(null)
   const [imageViewerDocId, setImageViewerDocId] = useState<string | null>(null)
@@ -2011,26 +2029,21 @@ export function CrewDetailPage() {
                     <table className="w-full border-collapse" style={{tableLayout: 'fixed'}}>
                       <thead className="bg-white border-b-2 border-gray-300">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '3%'}}></th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '20%'}}>{t('crew.edDetail.docs.name')}</th>
                           <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '8%'}}>{t('crew.edDetail.docs.files')}</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>{t('crew.edDetail.docs.number')}</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>{t('crew.edDetail.docs.dateOfIssue')}</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>{t('crew.edDetail.docs.place')}</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>{t('crew.edDetail.docs.country')}</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '12%'}}>{t('crew.edDetail.docs.expDate')}</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '16%'}}>{t('crew.edDetail.docs.expDate')}</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '12%'}}>{t('crew.edDetail.docs.actions')}</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white">
                         {/* Travel Documents */}
                         {travelDocuments.map((doc) => (
                           <tr key={`travel-${doc.id}`} className="border-b border-gray-100 hover:bg-gray-50">
-                            <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '3%'}}>
-                              <button className="text-gray-400 hover:text-gray-600">::</button>
-                            </td>
                             <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200" style={{width: '20%'}}>
                               <div className="flex items-center gap-2">
-                                <span>🔒</span>
                                 <span className="font-medium">{doc.documentType}</span>
                               </div>
                             </td>
@@ -2063,13 +2076,18 @@ export function CrewDetailPage() {
                               <div className="truncate">{doc.issueDate ? format(new Date(doc.issueDate), 'dd/MM/yyyy') : '-'}</div>
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
-                              <div className="truncate">-</div>
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
                               <div className="truncate">{doc.country?.name || doc.countryId === 1 ? 'Vietnam' : '-'}</div>
                             </td>
-                            <td className="px-4 py-3 text-sm text-gray-700" style={{width: '12%'}}>
+                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '16%'}}>
                               <div className="truncate">{doc.expiryDate ? format(new Date(doc.expiryDate), 'dd/MM/yyyy') : '-'}</div>
+                            </td>
+                            <td className="px-4 py-3 text-center" style={{width: '12%'}}>
+                              <div className="flex items-center justify-center gap-1">
+                                <button onClick={() => openEditDoc(doc, 'travel_documents')} title={t('crew.edDetail.docs.edit')}
+                                  className="inline-flex items-center justify-center w-8 h-8 rounded border border-gray-300 hover:bg-gray-50">
+                                  <Pencil className="w-4 h-4 text-gray-500" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -2077,12 +2095,8 @@ export function CrewDetailPage() {
                         {/* Seafarer Documents */}
                         {seafarerDocuments.map((doc) => (
                           <tr key={`seafarer-${doc.id}`} className="border-b border-gray-100 hover:bg-gray-50">
-                            <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '3%'}}>
-                              <button className="text-gray-400 hover:text-gray-600">::</button>
-                            </td>
                             <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200" style={{width: '20%'}}>
                               <div className="flex items-center gap-2">
-                                <span>🔒</span>
                                 <span className="font-medium">{doc.documentType}</span>
                               </div>
                             </td>
@@ -2115,13 +2129,18 @@ export function CrewDetailPage() {
                               <div className="truncate">{doc.issueDate ? format(new Date(doc.issueDate), 'dd/MM/yyyy') : '-'}</div>
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
-                              <div className="truncate">-</div>
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
                               <div className="truncate">{doc.country?.name || doc.countryId === 1 ? 'Vietnam' : '-'}</div>
                             </td>
-                            <td className="px-4 py-3 text-sm text-gray-700" style={{width: '12%'}}>
+                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '16%'}}>
                               <div className="truncate">{doc.expiryDate ? format(new Date(doc.expiryDate), 'dd/MM/yyyy') : '-'}</div>
+                            </td>
+                            <td className="px-4 py-3 text-center" style={{width: '12%'}}>
+                              <div className="flex items-center justify-center gap-1">
+                                <button onClick={() => openEditDoc(doc, 'seafarer_documents')} title={t('crew.edDetail.docs.edit')}
+                                  className="inline-flex items-center justify-center w-8 h-8 rounded border border-gray-300 hover:bg-gray-50">
+                                  <Pencil className="w-4 h-4 text-gray-500" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -2129,12 +2148,8 @@ export function CrewDetailPage() {
                         {/* Employment Documents */}
                         {employmentDocuments.map((doc) => (
                           <tr key={`employment-${doc.id}`} className="border-b border-gray-100 hover:bg-gray-50">
-                            <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '3%'}}>
-                              <button className="text-gray-400 hover:text-gray-600">::</button>
-                            </td>
                             <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200" style={{width: '20%'}}>
                               <div className="flex items-center gap-2">
-                                <span>🔒</span>
                                 <span className="font-medium">{doc.documentType}</span>
                               </div>
                             </td>
@@ -2167,20 +2182,25 @@ export function CrewDetailPage() {
                               <div className="truncate">{doc.issueDate ? format(new Date(doc.issueDate), 'dd/MM/yyyy') : '-'}</div>
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
-                              <div className="truncate">-</div>
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
                               <div className="truncate">{doc.country?.name || doc.countryId === 1 ? 'Vietnam' : '-'}</div>
                             </td>
-                            <td className="px-4 py-3 text-sm text-gray-700" style={{width: '12%'}}>
+                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '16%'}}>
                               <div className="truncate">{doc.expiryDate ? format(new Date(doc.expiryDate), 'dd/MM/yyyy') : '-'}</div>
+                            </td>
+                            <td className="px-4 py-3 text-center" style={{width: '12%'}}>
+                              <div className="flex items-center justify-center gap-1">
+                                <button onClick={() => openEditDoc(doc, 'employment_documents')} title={t('crew.edDetail.docs.edit')}
+                                  className="inline-flex items-center justify-center w-8 h-8 rounded border border-gray-300 hover:bg-gray-50">
+                                  <Pencil className="w-4 h-4 text-gray-500" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
                         
                         {(travelDocuments.length + seafarerDocuments.length + employmentDocuments.length) === 0 && (
                           <tr className="border-b border-gray-100">
-                            <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                            <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
                               {t('crew.edDetail.docs.noIdentityDocs')}
                             </td>
                           </tr>
@@ -2221,25 +2241,19 @@ export function CrewDetailPage() {
                     <table className="w-full border-collapse" style={{tableLayout: 'fixed'}}>
                       <thead className="bg-white border-b-2 border-gray-300">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '3%'}}></th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '20%'}}>{t('crew.edDetail.docs.name')}</th>
                           <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '8%'}}>{t('crew.edDetail.docs.files')}</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>{t('crew.edDetail.docs.number')}</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>{t('crew.edDetail.docs.dateOfIssue')}</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>{t('crew.edDetail.docs.place')}</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '12%'}}>{t('crew.edDetail.docs.country')}</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '12%'}}>{t('crew.edDetail.docs.expDate')}</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '16%'}}>{t('crew.edDetail.docs.expDate')}</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '12%'}}>{t('crew.edDetail.docs.actions')}</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white">
                         {healthDocuments.map((doc) => (
                           <tr key={`health-${doc.id}`} className="border-b border-gray-100 hover:bg-gray-50">
-                            <td className="px-4 py-3 text-center border-r border-gray-200" style={{width: '3%'}}>
-                              <button className="text-gray-400 hover:text-gray-600">::</button>
-                            </td>
                             <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200" style={{width: '20%'}}>
                               <div className="flex items-center gap-2">
-                                <span>🏥</span>
                                 <span className="font-medium">{doc.documentType}</span>
                               </div>
                             </td>
@@ -2271,21 +2285,23 @@ export function CrewDetailPage() {
                             <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
                               <div className="truncate">{doc.issueDate ? format(new Date(doc.issueDate), 'dd/MM/yyyy') : '-'}</div>
                             </td>
-                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
-                              <div className="truncate">-</div>
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '12%'}}>
-                              <div className="truncate">-</div>
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-700" style={{width: '12%'}}>
+                            <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-200" style={{width: '16%'}}>
                               <div className="truncate">{doc.expiryDate ? format(new Date(doc.expiryDate), 'dd/MM/yyyy') : '-'}</div>
+                            </td>
+                            <td className="px-4 py-3 text-center" style={{width: '12%'}}>
+                              <div className="flex items-center justify-center gap-1">
+                                <button onClick={() => openEditDoc(doc, 'health_documents')} title={t('crew.edDetail.docs.edit')}
+                                  className="inline-flex items-center justify-center w-8 h-8 rounded border border-gray-300 hover:bg-gray-50">
+                                  <Pencil className="w-4 h-4 text-gray-500" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
                         
                         {healthDocuments.length === 0 && (
                           <tr className="border-b border-gray-100">
-                            <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                            <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
                               {t('crew.edDetail.docs.noHealthDocs')}
                             </td>
                           </tr>
@@ -2334,7 +2350,8 @@ export function CrewDetailPage() {
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '9%'}}>{t('crew.edDetail.docs.issueDate')}</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '9%'}}>{t('crew.edDetail.docs.expiryDate')}</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '14%'}}>{t('crew.edDetail.docs.issuingAuth')}</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '10%'}}>{t('crew.edDetail.docs.status')}</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200" style={{width: '10%'}}>{t('crew.edDetail.docs.status')}</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '10%'}}>{t('crew.edDetail.docs.actions')}</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white">
@@ -2426,11 +2443,19 @@ export function CrewDetailPage() {
                                   {cert.issuingAuthority || '-'}
                                 </div>
                               </td>
-                              <td className="px-4 py-3 text-sm" style={{width: '10%'}}>
+                              <td className="px-4 py-3 text-sm border-r border-gray-200" style={{width: '10%'}}>
                                 <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${status.bgColor} ${status.color}`}>
                                   <StatusIcon className="w-3 h-3" />
                                   {status.status}
                                 </span>
+                              </td>
+                              <td className="px-4 py-3 text-center" style={{width: '10%'}}>
+                                <div className="flex items-center justify-center gap-1">
+                                  <button onClick={() => openEditCert(cert)} title={t('crew.edDetail.docs.edit')}
+                                    className="inline-flex items-center justify-center w-8 h-8 rounded border border-gray-300 hover:bg-gray-50">
+                                    <Pencil className="w-4 h-4 text-gray-500" />
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           )
@@ -2465,7 +2490,9 @@ export function CrewDetailPage() {
       <AddDocumentModal
         isOpen={isAddDocumentModalOpen}
         crewMemberId={id || ''}
-        onClose={() => setIsAddDocumentModalOpen(false)}
+        editingDocument={editingDoc}
+        editingTable={editingDocTable}
+        onClose={() => { setIsAddDocumentModalOpen(false); setEditingDoc(null); setEditingDocTable(null) }}
         onSuccess={() => {
           if (id) {
             loadDocuments(id)
@@ -2476,7 +2503,8 @@ export function CrewDetailPage() {
       <AddHealthDocumentModal
         isOpen={isAddHealthDocumentModalOpen}
         crewMemberId={id || ''}
-        onClose={() => setIsAddHealthDocumentModalOpen(false)}
+        editingDocument={editingDoc}
+        onClose={() => { setIsAddHealthDocumentModalOpen(false); setEditingDoc(null); setEditingDocTable(null) }}
         onSuccess={() => {
           if (id) {
             loadDocuments(id)
@@ -2512,7 +2540,8 @@ export function CrewDetailPage() {
 
       <AddCrewCertificateModal
         isOpen={showAddCertModal}
-        onClose={() => setShowAddCertModal(false)}
+        editingCertificate={editingCert}
+        onClose={() => { setShowAddCertModal(false); setEditingCert(null) }}
         onSave={() => {
           if (id) {
             // Reload certificates

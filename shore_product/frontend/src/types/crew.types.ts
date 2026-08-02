@@ -111,6 +111,8 @@ export interface CrewComplianceSummary {
 /** Ô của lưới: trạng thái một loại chứng chỉ với một thuyền viên. */
 export interface CrewCertStatus {
   crewMemberId: string;
+  /** Id bản ghi chứng chỉ đang giữ; không có nghĩa là người này chưa có loại đó. */
+  crewCertificateId?: number;
   status: ComplianceStatus;
   expiryDate?: string;
   daysUntilExpiry?: number;

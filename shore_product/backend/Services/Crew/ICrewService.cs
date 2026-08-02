@@ -47,6 +47,9 @@ public interface ICrewService
     /// <summary>Add a document to a crew member.</summary>
     Task<DocumentDto> AddCrewDocumentAsync(Guid crewId, CreateIdentityDocumentDto request);
 
+    /// <summary>Cập nhật thông tin một tài liệu (không đụng tới file đính kèm).</summary>
+    Task<DocumentDto?> UpdateCrewDocumentAsync(Guid crewId, Guid documentId, CreateIdentityDocumentDto request);
+
     /// <summary>Delete a crew document.</summary>
     Task<bool> DeleteCrewDocumentAsync(Guid crewId, Guid documentId, string category);
 

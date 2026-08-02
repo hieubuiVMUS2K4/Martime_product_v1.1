@@ -3,7 +3,8 @@ import { Loader2, Users, ChevronDown, ChevronRight, AlertTriangle, RefreshCw } f
 import { certificateApi } from '../../../services/crew.service';
 import { useToast } from '../../../components/common/Toast';
 import { MultiSelectFilter } from './MultiSelectFilter';
-import type { ComplianceMatrix, ComplianceStatus } from '../../../types/crew.types';
+import { AddCrewCertificateModal } from '../../CrewManagement/AddCrewCertificateModal';
+import type { ComplianceMatrix, ComplianceStatus, CrewCertificate, CrewCertStatus } from '../../../types/crew.types';
 import '../Crew/CrewListPage.css';
 import './RankComplianceTab.css';
 
@@ -38,6 +39,36 @@ export const RankComplianceTab: React.FC = () => {
   const [onlyGaps, setOnlyGaps] = useState(false);
   const [searchCrew, setSearchCrew] = useState('');
 
+  /* Bấm vào một ô của lưới để thao tác thẳng trên đúng chứng chỉ của đúng người. */
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalCrew, setModalCrew] = useState<{ id: string; name: string; rankId?: number } | null>(null);
+  const [modalCertId, setModalCertId] = useState<number | undefined>();
+  const [modalEditing, setModalEditing] = useState<CrewCertificate | null>(null);
+
+  /**
+   * Ô trống  -> thêm mới, đặt sẵn loại chứng chỉ và thuyền viên.
+   * Ô đã có  -> sửa/gia hạn ngay trên bản ghi đó, không tạo bản mới.
+   */
+  const openCell = async (
+    crew: { crewMemberId: string; crewName: string; rankId?: number },
+    certificateId: number,
+    crewCertificateId?: number,
+  ) => {
+    setModalCrew({ id: crew.crewMemberId, name: crew.crewName, rankId: crew.rankId });
+    setModalCertId(certificateId);
+    if (crewCertificateId) {
+      try {
+        setModalEditing(await certificateApi.getCrewCertificateById(crewCertificateId));
+      } catch {
+        toast.error('Không tải được chứng chỉ để sửa');
+        return;
+      }
+    } else {
+      setModalEditing(null);
+    }
+    setModalOpen(true);
+  };
+
   /* Đo bề rộng vùng bảng để chia cột cho vừa khít. */
   const areaRef = useRef<HTMLDivElement>(null);
   const [areaWidth, setAreaWidth] = useState(0);
@@ -71,7 +102,7 @@ export const RankComplianceTab: React.FC = () => {
 
   /** Tra trạng thái theo (chứng chỉ, thuyền viên) — dựng một lần thay vì tìm tuyến tính mỗi ô. */
   const statusIndex = useMemo(() => {
-    const map = new Map<string, { status: ComplianceStatus; expiryDate?: string; daysUntilExpiry?: number }>();
+    const map = new Map<string, CrewCertStatus>();
     data?.certificates.forEach(cert =>
       cert.crew.forEach(c => map.set(`${cert.certificateId}|${c.crewMemberId}`, c))
     );
@@ -291,14 +322,32 @@ export const RankComplianceTab: React.FC = () => {
                               const tip = `${c.certificateName} — ${st.label}`
                                 + (cell.expiryDate ? `\nHết hạn: ${new Date(cell.expiryDate).toLocaleDateString('vi-VN')}` : '')
                                 + (cell.status !== 'MISSING' && cell.daysUntilExpiry != null ? `\nCòn ${cell.daysUntilExpiry} ngày` : '');
+                              const action = cell.status === 'MISSING' ? 'Bấm để thêm chứng chỉ này'
+                                : cell.status === 'EXPIRED' ? 'Bấm để gia hạn'
+                                : 'Bấm để sửa thông tin';
                               return (
                                 <td key={c.certificateId} style={{ textAlign: 'center' }}>
-                                  <span title={tip} style={{
-                                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                                    minWidth: 26, height: 21, padding: '0 6px', borderRadius: 4,
-                                    background: st.bg, color: st.color, border: `1px solid ${st.border}`,
-                                    fontSize: 11, fontWeight: 700, cursor: 'help',
-                                  }}>{st.short}</span>
+                                  <button
+                                    type="button"
+                                    title={`${tip}
+${action}`}
+                                    onClick={() => openCell(m, c.certificateId, cell.crewCertificateId)}
+                                    style={{
+                                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                      minWidth: 26, height: 21, padding: '0 6px', borderRadius: 4,
+                                      background: st.bg, color: st.color, border: `1px solid ${st.border}`,
+                                      fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                      transition: 'transform .08s, box-shadow .08s',
+                                    }}
+                                    onMouseEnter={e => {
+                                      e.currentTarget.style.transform = 'scale(1.12)';
+                                      e.currentTarget.style.boxShadow = '0 1px 5px rgba(11,37,69,.22)';
+                                    }}
+                                    onMouseLeave={e => {
+                                      e.currentTarget.style.transform = 'none';
+                                      e.currentTarget.style.boxShadow = 'none';
+                                    }}
+                                  >{st.short}</button>
                                 </td>
                               );
                             })}
@@ -324,7 +373,22 @@ export const RankComplianceTab: React.FC = () => {
         })}
       </div>
 
+      {modalOpen && modalCrew && (
+        <AddCrewCertificateModal
+          isOpen={modalOpen}
+          crewMemberId={modalCrew.id}
+          crewMemberName={modalCrew.name}
+          rankId={modalCrew.rankId}
+          presetCertificateId={modalCertId}
+          editingCertificate={modalEditing}
+          onClose={() => { setModalOpen(false); setModalEditing(null); setModalCrew(null); }}
+          onSave={() => { setModalOpen(false); setModalEditing(null); setModalCrew(null); fetchData(); }}
+        />
+      )}
+
       <p style={{ fontSize: 11.5, color: '#8695a6', margin: '8px 2px' }}>
+        Bấm vào một ô để thao tác ngay: ô trống thì thêm chứng chỉ, ô hết hạn thì gia hạn trên
+        chính bản ghi đó, ô còn hiệu lực thì sửa thông tin.
         Cột hiển thị đúng bộ chứng chỉ khai báo cho chức danh đó ở tab Danh mục. Dấu
         <span style={{ color: '#dc2626' }}> *</span> đánh dấu loại bắt buộc theo luật — là thuộc tính
         của loại chứng chỉ, không phải yêu cầu áp cho mọi chức danh.

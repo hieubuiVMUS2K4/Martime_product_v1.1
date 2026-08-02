@@ -204,6 +204,12 @@ export const crewApi = {
       method: 'POST', body: JSON.stringify({ ...data, category }),
     }),
 
+  /** Cập nhật thông tin tài liệu. File đính kèm đi đường riêng qua uploadDocumentFile. */
+  updateDocument: (crewId: string, docId: string, category: string, data: CreateDocumentRequest): Promise<CrewDocument> =>
+    request(`${BASE}/crew/${crewId}/documents/${category}/${docId}`, {
+      method: 'PUT', body: JSON.stringify({ ...data, category }),
+    }),
+
   /** Delete crew document */
   deleteDocument: (crewId: string, docId: string, category: string): Promise<void> =>
     request(`${BASE}/crew/${crewId}/documents/${category}/${docId}`, { method: 'DELETE' }),
@@ -331,6 +337,10 @@ export const certificateApi = {
   /** Get all certificates for a crew member */
   getCrewCertificates: (crewMemberId: string): Promise<CrewCertificate[]> =>
     request(`${BASE}/certificates/crew/${crewMemberId}`),
+
+  /** Lấy một chứng chỉ của thuyền viên theo id — dùng để mở modal sửa/gia hạn từ ma trận. */
+  getCrewCertificateById: (id: number): Promise<CrewCertificate> =>
+    request(`${BASE}/certificates/crew-certificates/${id}`),
 
   /** Add certificate to crew */
   addCrewCertificate: (data: CrewCertificateRequest): Promise<CrewCertificate> =>

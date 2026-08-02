@@ -12,10 +12,14 @@ interface Props {
   crewMemberId: string;
   rankId?: number;
   editingCertificate?: CrewCertificate | null;
+  /** Đặt sẵn loại chứng chỉ khi thêm mới (bấm từ ô trống của ma trận tuân thủ). */
+  presetCertificateId?: number;
+  /** Tên thuyền viên hiện trên tiêu đề để biết đang thao tác cho ai. */
+  crewMemberName?: string;
 }
 
 export const AddCrewCertificateModal: React.FC<Props> = ({
-  isOpen, onClose, onSave, crewMemberId, rankId, editingCertificate,
+  isOpen, onClose, onSave, crewMemberId, rankId, editingCertificate, presetCertificateId, crewMemberName,
 }) => {
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
@@ -23,6 +27,8 @@ export const AddCrewCertificateModal: React.FC<Props> = ({
   const [countries, setCountries] = useState<Country[]>([]);
   const [certificateFile, setCertificateFile] = useState<File | null>(null);
   const [certificatePreview, setCertificatePreview] = useState<string | null>(null);
+  /** Ảnh đã lưu trên máy chủ — hiện lên khi sửa để soát trước, thay được ngay nếu sai. */
+  const [savedFileUrl, setSavedFileUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
@@ -39,10 +45,28 @@ export const AddCrewCertificateModal: React.FC<Props> = ({
 
   const isEditMode = !!editingCertificate;
 
+  /**
+   * Khoá ô chọn loại chứng chỉ khi mở từ ma trận tuân thủ hoặc khi đang sửa:
+   * loại chứng chỉ đã được xác định từ chính ô vừa bấm, đổi ở đây là sai đối tượng.
+   */
+  const certLocked = isEditMode || presetCertificateId != null;
+
+  /**
+   * Chỉ hiện các loại chứng chỉ mà chức danh của thuyền viên này yêu cầu.
+   * API trả kèm cờ isRequiredForRank khi có rankId; không truyền rankId thì hiện tất cả.
+   * Loại đang được chọn luôn giữ lại trong danh sách, kể cả khi nó không thuộc chức danh
+   * (dữ liệu cũ), nếu không ô select sẽ trống trơn và người dùng tưởng mất dữ liệu.
+   */
+  const visibleCertTypes = certTypes.filter(c => {
+    if (!c.isActive && c.id.toString() !== form.certificateId) return false;
+    if (c.id.toString() === form.certificateId) return true;
+    return rankId ? c.isRequiredForRank === true : true;
+  });
+
   useEffect(() => {
     if (!isOpen) return;
     setForm({
-      certificateId: editingCertificate?.certificateId?.toString() || '',
+      certificateId: editingCertificate?.certificateId?.toString() || presetCertificateId?.toString() || '',
       certificateNumber: editingCertificate?.certificateNumber || '',
       issueDate: (editingCertificate?.issueDate || '').split('T')[0],
       expiryDate: (editingCertificate?.expiryDate || '').split('T')[0],
@@ -54,8 +78,9 @@ export const AddCrewCertificateModal: React.FC<Props> = ({
     setErrors({});
     setCertificateFile(null);
     setCertificatePreview(null);
+    setSavedFileUrl(editingCertificate?.documentFilePath || editingCertificate?.fileUrl || null);
     loadData();
-  }, [isOpen]);
+  }, [isOpen, editingCertificate, presetCertificateId]);
 
   const loadData = async () => {
     setLoadingData(true);
@@ -172,7 +197,7 @@ export const AddCrewCertificateModal: React.FC<Props> = ({
       <div className="acm-modal" onClick={e => e.stopPropagation()}>
         <div className="acm-header">
           <Award size={18} />
-          <h2>{isEditMode ? 'Sửa chứng chỉ' : 'Thêm chứng chỉ'}</h2>
+          <h2>{isEditMode ? 'Sửa chứng chỉ' : 'Thêm chứng chỉ'}{crewMemberName ? ` — ${crewMemberName}` : ''}</h2>
           <button className="acm-close" onClick={onClose}><X size={18} /></button>
         </div>
 
@@ -185,9 +210,14 @@ export const AddCrewCertificateModal: React.FC<Props> = ({
             <div className="acm-grid">
               <div className="acm-field acm-field--full">
                 <label>Loại chứng chỉ *</label>
-                <select value={form.certificateId} onChange={e => handleCertChange(e.target.value)}>
+                <select
+                  value={form.certificateId}
+                  onChange={e => handleCertChange(e.target.value)}
+                  disabled={certLocked}
+                  style={certLocked ? { background: '#eef2f7', cursor: 'not-allowed' } : undefined}
+                >
                   <option value="">Chọn loại chứng chỉ</option>
-                  {certTypes.filter(c => c.isActive).map(c => (
+                  {visibleCertTypes.map(c => (
                     <option key={c.id} value={c.id}>{c.certificateName} ({c.certificateCode})</option>
                   ))}
                 </select>
@@ -255,6 +285,20 @@ export const AddCrewCertificateModal: React.FC<Props> = ({
                       <span>📄 {certificateFile.name}</span>
                       <button type="button" className="acm-file-remove" onClick={() => { setCertificateFile(null); setCertificatePreview(null); }}>
                         <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ) : savedFileUrl ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                      {/^.+\.(jpe?g|png|gif)$/i.test(savedFileUrl) ? (
+                        <img src={savedFileUrl} alt="Ảnh đã lưu"
+                          style={{ maxHeight: 150, maxWidth: '100%', borderRadius: 4, objectFit: 'contain', border: '1px solid #d6dee8' }} />
+                      ) : (
+                        <a href={savedFileUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, color: '#0b2545' }}>
+                          Xem tệp đã lưu
+                        </a>
+                      )}
+                      <button type="button" className="acm-upload-btn" onClick={() => fileInputRef.current?.click()}>
+                        <Upload size={16} /> Thay tệp khác
                       </button>
                     </div>
                   ) : (

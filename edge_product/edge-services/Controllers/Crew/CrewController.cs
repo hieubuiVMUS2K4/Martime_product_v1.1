@@ -1205,6 +1205,92 @@ public class CrewController : ControllerBase
     }
 
     /// <summary>
+    /// Cập nhật THÔNG TIN một tài liệu đã có (không đụng tới file đính kèm — file có
+    /// endpoint riêng ở .../file ngay bên dưới).
+    /// PUT /api/crew/identity-documents/{documentId}
+    /// Khoa theo documentId nhu endpoint sua chung chi va endpoint upload file tai lieu.
+    /// </summary>
+    [HttpPut("identity-documents/{documentId}")]
+    public async Task<IActionResult> UpdateIdentityDocument(Guid documentId, [FromBody] CreateIdentityDocumentDto dto)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(dto.TargetTable))
+                return BadRequest(new { error = "targetTable is required" });
+            if (string.IsNullOrWhiteSpace(dto.DocumentType))
+                return BadRequest(new { error = "documentType is required" });
+            if (string.IsNullOrWhiteSpace(dto.DocumentNumber))
+                return BadRequest(new { error = "documentNumber is required" });
+
+            var now = DateTime.UtcNow;
+
+            switch (dto.TargetTable.Trim().ToLowerInvariant())
+            {
+                case "travel_documents":
+                {
+                    var e = await _context.TravelDocuments.FirstOrDefaultAsync(d => d.Id == documentId);
+                    if (e == null) return NotFound(new { error = "Document not found" });
+                    e.DocumentType = dto.DocumentType.Trim();
+                    e.DocumentNumber = dto.DocumentNumber.Trim();
+                    e.IssueDate = dto.IssueDate; e.ExpiryDate = dto.ExpiryDate;
+                    e.CountryId = dto.CountryId; e.Notes = dto.Notes; e.UpdatedAt = now;
+                    await _context.SaveChangesAsync();
+                    await EnqueueIdentityDocumentSyncAsync("travel_document", e.Id.ToString(), SyncActionType.UPDATE, e);
+                    return Ok(e);
+                }
+
+                case "seafarer_documents":
+                {
+                    var e = await _context.SeafarerDocuments.FirstOrDefaultAsync(d => d.Id == documentId);
+                    if (e == null) return NotFound(new { error = "Document not found" });
+                    e.DocumentType = dto.DocumentType.Trim();
+                    e.DocumentNumber = dto.DocumentNumber.Trim();
+                    e.IssueDate = dto.IssueDate; e.ExpiryDate = dto.ExpiryDate;
+                    e.CountryId = dto.CountryId; e.Notes = dto.Notes; e.UpdatedAt = now;
+                    await _context.SaveChangesAsync();
+                    await EnqueueIdentityDocumentSyncAsync("seafarer_document", e.Id.ToString(), SyncActionType.UPDATE, e);
+                    return Ok(e);
+                }
+
+                case "employment_documents":
+                {
+                    var e = await _context.EmploymentDocuments.FirstOrDefaultAsync(d => d.Id == documentId);
+                    if (e == null) return NotFound(new { error = "Document not found" });
+                    e.DocumentType = dto.DocumentType.Trim();
+                    e.DocumentNumber = dto.DocumentNumber.Trim();
+                    e.IssueDate = dto.IssueDate; e.ExpiryDate = dto.ExpiryDate;
+                    e.CountryId = dto.CountryId; e.Notes = dto.Notes; e.UpdatedAt = now;
+                    await _context.SaveChangesAsync();
+                    await EnqueueIdentityDocumentSyncAsync("employment_document", e.Id.ToString(), SyncActionType.UPDATE, e);
+                    return Ok(e);
+                }
+
+                case "health_documents":
+                {
+                    // HealthDocument không có CountryId — bỏ qua trường này thay vì cố gán.
+                    var e = await _context.HealthDocuments.FirstOrDefaultAsync(d => d.Id == documentId);
+                    if (e == null) return NotFound(new { error = "Document not found" });
+                    e.DocumentType = dto.DocumentType.Trim();
+                    e.DocumentNumber = dto.DocumentNumber.Trim();
+                    e.IssueDate = dto.IssueDate; e.ExpiryDate = dto.ExpiryDate;
+                    e.Notes = dto.Notes; e.UpdatedAt = now;
+                    await _context.SaveChangesAsync();
+                    await EnqueueIdentityDocumentSyncAsync("health_document", e.Id.ToString(), SyncActionType.UPDATE, e);
+                    return Ok(e);
+                }
+
+                default:
+                    return BadRequest(new { error = "targetTable must be one of: travel_documents, seafarer_documents, employment_documents, health_documents" });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating identity document {DocId}", documentId);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
+    /// <summary>
     /// Update file for an existing identity document
     /// PUT /api/crew/identity-documents/{documentId}/file
     /// </summary>

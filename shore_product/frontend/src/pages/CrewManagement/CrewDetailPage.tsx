@@ -130,6 +130,25 @@ export const CrewDetailPage: React.FC = () => {
   const [isAddDocModalOpen, setIsAddDocModalOpen] = useState(false);
   const [isAddHealthDocModalOpen, setIsAddHealthDocModalOpen] = useState(false);
   const [docFileUploadTarget, setDocFileUploadTarget] = useState<{ docId: string; category: string } | null>(null);
+  const [editingDoc, setEditingDoc] = useState<CrewDocument | null>(null);
+
+  /** Mở modal sửa đúng loại: tài liệu y tế và giấy tờ định danh dùng hai modal khác nhau. */
+  const openEditDoc = (doc: CrewDocument) => {
+    setEditingDoc(doc);
+    if (doc.category === 'health') setIsAddHealthDocModalOpen(true);
+    else setIsAddDocModalOpen(true);
+  };
+
+  const handleDeleteDocument = async (doc: CrewDocument) => {
+    if (!window.confirm('Bạn có chắc muốn xóa tài liệu này?')) return;
+    try {
+      await crewApi.deleteDocument(id!, doc.id, doc.category);
+      await loadDocuments(true);
+      toast.success('Xóa tài liệu thành công');
+    } catch (err: unknown) {
+      toast.error((err instanceof Error ? err.message : null) || 'Không thể xóa tài liệu');
+    }
+  };
   const [uploadingDocFile, setUploadingDocFile] = useState(false);
   const docFileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -351,22 +370,27 @@ export const CrewDetailPage: React.FC = () => {
     docFileInputRef.current?.click();
   };
 
-  const DocTable = ({ docs }: { docs: CrewDocument[] }) => (
+  /**
+   * Bảng tài liệu dùng chung cho giấy tờ định danh và tài liệu y tế.
+   * `showCountry` tắt với bảng y tế vì HealthDocument không có CountryId — cột đó luôn rỗng.
+   */
+  const DocTable = ({ docs, showCountry = true }: { docs: CrewDocument[]; showCountry?: boolean }) => (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-sm" style={{ tableLayout: 'fixed' }}>
         <thead className="cd-table-thead">
           <tr>
-            <th style={{ width: '22%' }}>Name</th>
-            <th style={{ width: '18%' }}>Number</th>
-            <th style={{ width: '14%' }}>Issue Date</th>
-            <th style={{ width: '14%' }}>Expiry Date</th>
-            <th style={{ width: '14%' }}>Country</th>
-            <th style={{ width: '18%', textAlign: 'center' }}>File</th>
+            <th style={{ width: showCountry ? '22%' : '28%' }}>Name</th>
+            <th style={{ width: '16%' }}>Number</th>
+            <th style={{ width: '13%' }}>Issue Date</th>
+            <th style={{ width: '13%' }}>Expiry Date</th>
+            {showCountry && <th style={{ width: '14%' }}>Country</th>}
+            <th style={{ width: '8%', textAlign: 'center' }}>File</th>
+            <th style={{ width: '14%', textAlign: 'center' }}>Thao tác</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
           {docs.length === 0 ? (
-            <tr><td colSpan={6} className="px-4 py-6 text-center text-gray-400">No documents</td></tr>
+            <tr><td colSpan={showCountry ? 7 : 6} className="px-4 py-6 text-center text-gray-400">No documents</td></tr>
           ) : docs.map(doc => (
             <tr key={doc.id} className="hover:bg-gray-50">
               <td className="px-4 py-2 font-medium text-gray-800 truncate">
@@ -375,7 +399,7 @@ export const CrewDetailPage: React.FC = () => {
               <td className="px-4 py-2 text-gray-600 truncate">{doc.documentNumber || '--'}</td>
               <td className="px-4 py-2 text-gray-600">{fmt(doc.issueDate)}</td>
               <td className="px-4 py-2 text-gray-600">{fmt(doc.expiryDate)}</td>
-              <td className="px-4 py-2 text-gray-600 truncate">{doc.countryName || '--'}</td>
+              {showCountry && <td className="px-4 py-2 text-gray-600 truncate">{doc.countryName || '--'}</td>}
               <td className="px-4 py-2 text-center">
                 <div className="inline-flex items-center gap-1 justify-center">
                   {doc.fileUrl && (
@@ -402,6 +426,24 @@ export const CrewDetailPage: React.FC = () => {
                       <Upload className="w-3.5 h-3.5" />
                     </button>
                   )}
+                </div>
+              </td>
+              <td className="px-4 py-2 text-center">
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 4 }}>
+                  <button
+                    onClick={() => openEditDoc(doc)}
+                    title="Edit"
+                    style={{ background: 'none', border: '1px solid #d6dee8', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+                  >
+                    <Pencil className="w-3.5 h-3.5" style={{ color: '#64748b' }} />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteDocument(doc)}
+                    title="Delete"
+                    style={{ background: 'none', border: '1px solid #fecaca', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" style={{ color: '#dc2626' }} />
+                  </button>
                 </div>
               </td>
             </tr>
@@ -847,7 +889,7 @@ export const CrewDetailPage: React.FC = () => {
                       <Plus className="w-4 h-4" /> Thêm tài liệu y tế
                     </button>
                   </div>
-                  <DocTable docs={healthDocs} />
+                  <DocTable docs={healthDocs} showCountry={false} />
                 </div>
 
                 {/* Certificates */}
@@ -870,12 +912,6 @@ export const CrewDetailPage: React.FC = () => {
                   ) : !certificates || certificates.length === 0 ? (
                     <div className="text-center py-10 text-gray-400">
                       <p>Chưa có chứng chỉ nào</p>
-                      <button
-                        onClick={() => { setEditingCert(null); setShowAddCertModal(true); }}
-                        style={{ marginTop: 8, padding: '6px 16px', background: '#0b2545', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}
-                      >
-                        + Thêm chứng chỉ đầu tiên
-                      </button>
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
@@ -1247,14 +1283,16 @@ export const CrewDetailPage: React.FC = () => {
           <AddDocumentModal
             isOpen={isAddDocModalOpen}
             crewMemberId={id}
-            onClose={() => setIsAddDocModalOpen(false)}
+            onClose={() => { setIsAddDocModalOpen(false); setEditingDoc(null); }}
             onSuccess={() => loadDocuments(true)}
+            editingDocument={editingDoc}
           />
           <AddHealthDocumentModal
             isOpen={isAddHealthDocModalOpen}
             crewMemberId={id}
-            onClose={() => setIsAddHealthDocModalOpen(false)}
+            onClose={() => { setIsAddHealthDocModalOpen(false); setEditingDoc(null); }}
             onSuccess={() => loadDocuments(true)}
+            editingDocument={editingDoc}
           />
         </>
       )}
