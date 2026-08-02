@@ -73,9 +73,19 @@ import { AccountManagementPage } from './pages/Admin/AccountManagementPage'
 function App() {
   return (
     <>
-      {/* Global toast provider (sonner) */}
-      <Toaster position="top-right" />
-      <ToastContainer position="top-right" autoClose={5000} hideProgressBar={false} newestOnTop closeOnClick pauseOnHover theme="colored" transition={Slide} />
+      {/* Global toast provider (sonner).
+          Mặc định sonner chỉ hiện ~4s và trượt vào rất nhanh nên thông báo thêm/sửa/xoá
+          nháy một cái là mất. Kéo dài thời gian hiện và bật nút đóng để đọc kịp. */}
+      <Toaster
+        position="top-right"
+        duration={6000}
+        closeButton
+        richColors
+        visibleToasts={4}
+        toastOptions={{ style: { transition: 'all 320ms cubic-bezier(0.16, 1, 0.3, 1)' } }}
+      />
+      {/* Hai modal tài liệu dùng react-toastify, để cùng thời lượng với sonner cho đồng nhất. */}
+      <ToastContainer position="top-right" autoClose={6000} hideProgressBar={false} newestOnTop closeOnClick pauseOnHover draggable theme="colored" transition={Slide} />
       
       {/* Settings Dialog (renders as portal, controlled by zustand store) */}
       <SettingsDialog />

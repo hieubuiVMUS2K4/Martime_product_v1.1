@@ -1,5 +1,5 @@
 import { X } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'react-toastify'
 import { maritimeService } from '../../services/maritime.service'
 
@@ -8,7 +8,12 @@ type AddHealthDocumentModalProps = {
   crewMemberId: string
   onClose: () => void
   onSuccess: () => void
+  /** Có giá trị = đang SỬA tài liệu này; bỏ trống = thêm mới. */
+  editingDocument?: any | null
 }
+
+/** Chuẩn hoá ngày về dạng yyyy-MM-dd cho input type="date". */
+const toDateInput = (v?: string | null) => (v ? String(v).slice(0, 10) : '')
 
 const HEALTH_DOCUMENT_TYPES = [
   { value: 'medical_certificate', label: 'Medical Certificate' },
@@ -19,7 +24,7 @@ const HEALTH_DOCUMENT_TYPES = [
   { value: 'other', label: 'Other' },
 ]
 
-export default function AddHealthDocumentModal({ isOpen, crewMemberId, onClose, onSuccess }: AddHealthDocumentModalProps) {
+export default function AddHealthDocumentModal({ isOpen, crewMemberId, onClose, onSuccess, editingDocument }: AddHealthDocumentModalProps) {
   const [documentType, setDocumentType] = useState('')
   const [documentNumber, setDocumentNumber] = useState('')
   const [issueDate, setIssueDate] = useState('')
@@ -27,6 +32,19 @@ export default function AddHealthDocumentModal({ isOpen, crewMemberId, onClose, 
   const [notes, setNotes] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
+
+  const isEditing = !!editingDocument
+
+  // Nạp sẵn dữ liệu khi mở ở chế độ sửa, dọn form khi mở để thêm mới.
+  useEffect(() => {
+    if (!isOpen) return
+    setDocumentType(editingDocument?.documentType || '')
+    setDocumentNumber(editingDocument?.documentNumber || '')
+    setIssueDate(toDateInput(editingDocument?.issueDate))
+    setExpiryDate(toDateInput(editingDocument?.expiryDate))
+    setNotes(editingDocument?.notes || '')
+    setFile(null)
+  }, [isOpen, editingDocument])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -38,16 +56,33 @@ export default function AddHealthDocumentModal({ isOpen, crewMemberId, onClose, 
 
     try {
       setLoading(true)
-      const formData = new FormData()
-      formData.append('targetTable', 'health_documents')
-      formData.append('documentType', documentType)
-      formData.append('documentNumber', documentNumber)
-      if (issueDate) formData.append('issueDate', issueDate)
-      if (expiryDate) formData.append('expiryDate', expiryDate)
-      if (notes) formData.append('notes', notes)
-      if (file) formData.append('file', file)
+      if (isEditing) {
+        await maritimeService.crew.updateIdentityDocument(editingDocument.id, {
+          targetTable: 'health_documents',
+          documentType,
+          documentNumber,
+          issueDate: issueDate || null,
+          expiryDate: expiryDate || null,
+          notes: notes || null,
+        })
+        if (file) {
+          const fd = new FormData()
+          fd.append('file', file)
+          fd.append('targetTable', 'health_documents')
+          await maritimeService.crew.updateDocumentFile(editingDocument.id, fd)
+        }
+      } else {
+        const formData = new FormData()
+        formData.append('targetTable', 'health_documents')
+        formData.append('documentType', documentType)
+        formData.append('documentNumber', documentNumber)
+        if (issueDate) formData.append('issueDate', issueDate)
+        if (expiryDate) formData.append('expiryDate', expiryDate)
+        if (notes) formData.append('notes', notes)
+        if (file) formData.append('file', file)
 
-      await maritimeService.crew.createIdentityDocument(crewMemberId, formData)
+        await maritimeService.crew.createIdentityDocument(crewMemberId, formData)
+      }
       
       // Reset form
       setDocumentType('')
@@ -59,10 +94,10 @@ export default function AddHealthDocumentModal({ isOpen, crewMemberId, onClose, 
       
       onSuccess()
       onClose()
-      toast.success('Health document added successfully!')
+      toast.success(isEditing ? 'Health document updated successfully!' : 'Health document added successfully!')
     } catch (error: any) {
       console.error('Failed to add health document:', error)
-      toast.error(error.message || 'Failed to add health document')
+      toast.error(error.message || (isEditing ? 'Failed to update health document' : 'Failed to add health document'))
     } finally {
       setLoading(false)
     }
@@ -74,7 +109,7 @@ export default function AddHealthDocumentModal({ isOpen, crewMemberId, onClose, 
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Add Health Document</h3>
+          <h3 className="text-lg font-semibold text-gray-900">{isEditing ? 'Edit Health Document' : 'Add Health Document'}</h3>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"

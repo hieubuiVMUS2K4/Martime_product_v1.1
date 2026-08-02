@@ -190,6 +190,20 @@ export class MaritimeService {
         method: 'PUT',
         body: formData,
       }),
+    /** Cập nhật THÔNG TIN tài liệu. File đính kèm đi đường riêng qua updateDocumentFile. */
+    updateIdentityDocument: (documentId: string, data: {
+      targetTable: string
+      documentType: string
+      documentNumber: string
+      issueDate?: string | null
+      expiryDate?: string | null
+      countryId?: number | null
+      notes?: string | null
+    }) =>
+      this.request<any>(`/crew/identity-documents/${documentId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
     getSeafarerDocuments: (crewMemberId: string) =>
       this.request<any[]>(`/crew/${crewMemberId}/seafarer-documents`),
     getEmploymentDocuments: (crewMemberId: string) =>

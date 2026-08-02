@@ -1,6 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Upload, X, Trash2, HeartPulse } from 'lucide-react';
 import { crewApi } from '../../services/crew.service';
+import type { CrewDocument } from '../../types/crew.types';
 import { useToast } from '../../components/common/Toast';
 import './CrewModalShell.css';
 
@@ -18,9 +19,14 @@ type Props = {
   crewMemberId: string;
   onClose: () => void;
   onSuccess?: () => void;
+  /** Có giá trị = đang SỬA tài liệu này; bỏ trống = thêm mới. */
+  editingDocument?: CrewDocument | null;
 };
 
-export const AddHealthDocumentModal: React.FC<Props> = ({ isOpen, crewMemberId, onClose, onSuccess }) => {
+/** Chuẩn hoá ngày về dạng yyyy-MM-dd cho input type="date". */
+const toDateInput = (v?: string | null) => (v ? v.slice(0, 10) : '');
+
+export const AddHealthDocumentModal: React.FC<Props> = ({ isOpen, crewMemberId, onClose, onSuccess, editingDocument }) => {
   const toast = useToast();
   const [documentType, setDocumentType] = useState('');
   const [documentNumber, setDocumentNumber] = useState('');
@@ -31,6 +37,20 @@ export const AddHealthDocumentModal: React.FC<Props> = ({ isOpen, crewMemberId, 
   const [docFile, setDocFile] = useState<File | null>(null);
   const [docFilePreview, setDocFilePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const isEditing = !!editingDocument;
+
+  // Nạp sẵn dữ liệu khi mở ở chế độ sửa, và dọn form khi mở để thêm mới.
+  useEffect(() => {
+    if (!isOpen) return;
+    setDocumentType(editingDocument?.documentType || '');
+    setDocumentNumber(editingDocument?.documentNumber || '');
+    setIssueDate(toDateInput(editingDocument?.issueDate));
+    setExpiryDate(toDateInput(editingDocument?.expiryDate));
+    setNotes(editingDocument?.notes || '');
+    setDocFile(null);
+    setDocFilePreview(null);
+  }, [isOpen, editingDocument]);
 
   const resetForm = () => {
     setDocumentType('');
@@ -63,24 +83,28 @@ export const AddHealthDocumentModal: React.FC<Props> = ({ isOpen, crewMemberId, 
     }
     try {
       setLoading(true);
-      const created = await crewApi.addDocument(crewMemberId, 'health', {
+      const payload = {
         documentType,
         documentNumber: documentNumber.trim(),
         issueDate: issueDate || undefined,
         expiryDate: expiryDate || undefined,
         notes: notes || undefined,
-      });
-      if (docFile && created.id) {
+      };
+      const saved = isEditing
+        ? await crewApi.updateDocument(crewMemberId, editingDocument!.id, 'health', payload)
+        : await crewApi.addDocument(crewMemberId, 'health', payload);
+
+      if (docFile && saved.id) {
         const fd = new FormData();
         fd.append('file', docFile);
-        await crewApi.uploadDocumentFile(crewMemberId, 'health', created.id, fd);
+        await crewApi.uploadDocumentFile(crewMemberId, 'health', saved.id, fd);
       }
-      toast.success('Thêm tài liệu sức khỏe thành công!');
+      toast.success(isEditing ? 'Cập nhật tài liệu sức khỏe thành công!' : 'Thêm tài liệu sức khỏe thành công!');
       resetForm();
       onSuccess?.();
       onClose();
     } catch (err: any) {
-      toast.error(err.message || 'Không thể thêm tài liệu sức khỏe');
+      toast.error(err.message || (isEditing ? 'Không thể cập nhật tài liệu sức khỏe' : 'Không thể thêm tài liệu sức khỏe'));
     } finally {
       setLoading(false);
     }
@@ -93,7 +117,7 @@ export const AddHealthDocumentModal: React.FC<Props> = ({ isOpen, crewMemberId, 
       <div className="acm-modal" onClick={e => e.stopPropagation()}>
         <div className="acm-header">
           <HeartPulse size={17} />
-          <h2>Thêm tài liệu sức khỏe</h2>
+          <h2>{isEditing ? 'Sửa tài liệu sức khỏe' : 'Thêm tài liệu sức khỏe'}</h2>
           <button type="button" className="acm-close" onClick={onClose}><X size={17} /></button>
         </div>
 
@@ -159,7 +183,7 @@ export const AddHealthDocumentModal: React.FC<Props> = ({ isOpen, crewMemberId, 
           <div className="acm-footer">
             <button type="button" className="acm-btn-cancel" onClick={onClose}>Hủy</button>
             <button type="submit" className="acm-btn-save" disabled={loading}>
-              {loading ? 'Đang lưu...' : 'Thêm tài liệu'}
+              {loading ? 'Đang lưu...' : isEditing ? 'Lưu thay đổi' : 'Thêm tài liệu'}
             </button>
           </div>
         </form>

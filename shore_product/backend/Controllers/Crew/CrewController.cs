@@ -399,6 +399,34 @@ public class CrewController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// PUT /api/crew/{crewId}/documents/{category}/{documentId} — Cập nhật thông tin tài liệu.
+    /// File đính kèm có luồng riêng ở endpoint .../file bên dưới.
+    /// </summary>
+    [HttpPut("{crewId:guid}/documents/{category}/{documentId:guid}")]
+    public async Task<IActionResult> UpdateCrewDocument(Guid crewId, string category, Guid documentId,
+        [FromBody] CreateIdentityDocumentDto request)
+    {
+        try
+        {
+            // Category lấy theo route để tránh lệch khi client quên gửi trong body.
+            request.Category = category;
+
+            var doc = await _crewService.UpdateCrewDocumentAsync(crewId, documentId, request);
+            if (doc == null) return NotFound(new { error = "Document not found" });
+            return Ok(doc);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating document {DocId} for crew {CrewId}", documentId, crewId);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
+
     /// <summary>DELETE /api/crew/{crewId}/documents/{category}/{documentId}</summary>
     [HttpDelete("{crewId:guid}/documents/{category}/{documentId:guid}")]
     public async Task<IActionResult> DeleteCrewDocument(Guid crewId, string category, Guid documentId)

@@ -589,7 +589,7 @@ public class CertificateService : ICertificateService
             .ToListAsync();
 
         var crewCerts = await _context.CrewCertificates.AsNoTracking()
-            .Select(cc => new { cc.CrewMemberId, cc.CertificateId, cc.ExpiryDate })
+            .Select(cc => new { cc.Id, cc.CrewMemberId, cc.CertificateId, cc.ExpiryDate })
             .ToListAsync();
 
         // Tên tàu để người dùng biết phải liên hệ tàu nào — nạp một lần rồi tra bằng dictionary.
@@ -604,13 +604,14 @@ public class CertificateService : ICertificateService
 
         // Thuyền viên → chứng chỉ đang giữ. Một người có thể có nhiều bản cùng loại
         // (cấp lại nhiều lần) nên lấy bản hạn xa nhất — đó mới là bản còn hiệu lực.
-        var heldExpiryByCrew = new Dictionary<Guid, Dictionary<int, DateTime>>();
+        // Giữ kèm Id bản ghi để giao diện bấm thẳng vào ô là sửa/gia hạn đúng chứng chỉ đó.
+        var heldByCrew = new Dictionary<Guid, Dictionary<int, (int Id, DateTime Expiry)>>();
         foreach (var cc in crewCerts)
         {
-            if (!heldExpiryByCrew.TryGetValue(cc.CrewMemberId, out var map))
-                heldExpiryByCrew[cc.CrewMemberId] = map = new Dictionary<int, DateTime>();
-            if (!map.TryGetValue(cc.CertificateId, out var existing) || cc.ExpiryDate > existing)
-                map[cc.CertificateId] = cc.ExpiryDate;
+            if (!heldByCrew.TryGetValue(cc.CrewMemberId, out var map))
+                heldByCrew[cc.CrewMemberId] = map = new Dictionary<int, (int, DateTime)>();
+            if (!map.TryGetValue(cc.CertificateId, out var existing) || cc.ExpiryDate > existing.Expiry)
+                map[cc.CertificateId] = (cc.Id, cc.ExpiryDate);
         }
 
         // Đếm mức chức danh và mức từng người, cộng dồn trong lúc duyệt.
@@ -661,9 +662,13 @@ public class CertificateService : ICertificateService
                 summary.RequiredCount++;
 
                 DateTime? expiry = null;
-                if (heldExpiryByCrew.TryGetValue(member.Id, out var held)
+                int? crewCertId = null;
+                if (heldByCrew.TryGetValue(member.Id, out var held)
                     && held.TryGetValue(cert.Id, out var e))
-                    expiry = e;
+                {
+                    expiry = e.Expiry;
+                    crewCertId = e.Id;
+                }
 
                 string status;
                 if (expiry == null) { status = "MISSING"; row.MissingCount++; summary.MissingCount++; }
@@ -675,6 +680,7 @@ public class CertificateService : ICertificateService
                 row.Crew.Add(new CrewCertStatusDto
                 {
                     CrewMemberId = member.Id,
+                    CrewCertificateId = crewCertId,
                     Status = status,
                     ExpiryDate = expiry,
                     DaysUntilExpiry = expiry.HasValue ? (int)(expiry.Value - now).TotalDays : null,

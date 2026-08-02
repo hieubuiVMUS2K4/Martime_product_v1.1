@@ -184,6 +184,8 @@ public class CertificateComplianceRow
 public class CrewCertStatusDto
 {
     public Guid CrewMemberId { get; set; }
+    /// <summary>Id bản ghi crew_certificate đang giữ; null khi người này chưa có loại chứng chỉ đó.</summary>
+    public int? CrewCertificateId { get; set; }
     /// <summary>VALID | EXPIRING_SOON | EXPIRED | MISSING</summary>
     public string Status { get; set; } = "MISSING";
     public DateTime? ExpiryDate { get; set; }

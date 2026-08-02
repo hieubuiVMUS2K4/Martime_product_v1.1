@@ -451,9 +451,14 @@ public class SyncConflictHandler : ISyncConflictHandler
             }
             else if (tableName.EndsWith("_document"))
             {
-                // Shore is authoritative for documents — accept everything from shore
-                // (metadata + files). Edge sends file changes to shore via its own sync.
-                shouldApply = true;
+                // Giống hệt crew_certificate ở trên: bờ làm chủ thông tin tài liệu, tàu giữ
+                // đường dẫn file. Trước đây nhánh này nhận TẤT CẢ từ bờ, kể cả đường dẫn file,
+                // nên ảnh vừa chụp/quét dưới tàu bị bờ ghi đè mất.
+                var edgeOwnedFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    "DocumentFilePath", "FilePath", "FileUrl", "FileName"
+                };
+                shouldApply = !edgeOwnedFields.Contains(prop.Name);
             }
 
             if (shouldApply)

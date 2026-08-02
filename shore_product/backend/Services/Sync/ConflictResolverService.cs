@@ -419,15 +419,18 @@ public class ConflictResolverService : IConflictResolverService
 
     private ConflictResolution ResolveDocumentConflict(object existing, object incoming, string originNode)
     {
-        // Shore wins: DocumentNumber, DocumentType, IssueDate, ExpiryDate, CountryId, Notes
-        //   (metadata entered/corrected by shore admin must not be overwritten by edge image update)
-        // Edge wins: FileUrl, DocumentFilePath, FilePath, FileName
-        //   (files are scanned/captured on board)
-        var shoreFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "DocumentType", "DocumentNumber", "IssueDate", "ExpiryDate", "CountryId", "Notes"
-        };
-        var edgeFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        // CẢ HAI BÊN đều được sửa thông tin tài liệu, nên bên nào gửi lên thì lấy của bên đó.
+        //
+        // Trước đây nhóm metadata (DocumentType, DocumentNumber, IssueDate, ExpiryDate,
+        // CountryId, Notes) được quy định là "bờ làm chủ" và mọi giá trị từ tàu đều bị bỏ.
+        // Luật đó viết khi tàu CHỈ upload được ảnh scan, nên metadata từ tàu bị coi là tiếng
+        // vọng cũ. Từ khi tàu có màn hình sửa tài liệu thật, giả định đó không còn đúng:
+        // tàu sửa xong, đẩy lên, bờ im lặng vứt đi và người dùng không hề biết.
+        //
+        // Vẫn giữ hai nguyên tắc cũ: bỏ qua giá trị null/rỗng (không cho phép xoá trắng một
+        // trường bằng cách gửi thiếu), và đường dẫn file thì tàu làm chủ — bờ không được ghi
+        // đè vì ảnh được chụp/quét dưới tàu.
+        var edgeOwnedFileFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "DocumentFilePath", "FilePath", "FileUrl", "FileName"
         };
@@ -443,11 +446,8 @@ public class ConflictResolverService : IConflictResolverService
             if (incomingValue == null) continue;
             if (incomingValue is string s && s.Length == 0) continue;
 
-            bool shouldApply;
-            if (originNode == "SHORE")
-                shouldApply = !edgeFields.Contains(prop.Name);
-            else
-                shouldApply = !shoreFields.Contains(prop.Name);
+            // Bờ gửi xuống thì không được đụng vào đường dẫn file của tàu; ngoài ra áp tất cả.
+            var shouldApply = originNode != "SHORE" || !edgeOwnedFileFields.Contains(prop.Name);
 
             if (shouldApply)
             {

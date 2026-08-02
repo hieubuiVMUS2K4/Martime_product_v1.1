@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Upload, X, Trash2, FileText } from 'lucide-react';
 import { crewApi, referenceApi } from '../../services/crew.service';
 import { useToast } from '../../components/common/Toast';
-import type { Country } from '../../types/crew.types';
+import type { Country, CrewDocument } from '../../types/crew.types';
 import './CrewModalShell.css';
 
 const DOCUMENT_TARGET_OPTIONS = [
@@ -34,6 +34,8 @@ type Props = {
   crewMemberId: string;
   onClose: () => void;
   onSuccess?: () => void;
+  /** Có giá trị = đang SỬA tài liệu này; bỏ trống = thêm mới. */
+  editingDocument?: CrewDocument | null;
 };
 
 type FormState = {
@@ -56,7 +58,10 @@ const initialForm: FormState = {
   notes: '',
 };
 
-export const AddDocumentModal: React.FC<Props> = ({ isOpen, crewMemberId, onClose, onSuccess }) => {
+/** Chuẩn hoá ngày về dạng yyyy-MM-dd cho input type="date". */
+const toDateInput = (v?: string | null) => (v ? v.slice(0, 10) : '');
+
+export const AddDocumentModal: React.FC<Props> = ({ isOpen, crewMemberId, onClose, onSuccess, editingDocument }) => {
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
   const [countries, setCountries] = useState<Country[]>([]);
@@ -65,14 +70,26 @@ export const AddDocumentModal: React.FC<Props> = ({ isOpen, crewMemberId, onClos
   const [docFilePreview, setDocFilePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const isEditing = !!editingDocument;
+
   useEffect(() => {
     if (isOpen) {
       referenceApi.getCountries().then(setCountries).catch(() => {});
-      setForm(initialForm);
+      setForm(editingDocument
+        ? {
+            category: editingDocument.category || 'travel',
+            documentType: editingDocument.documentType || '',
+            documentNumber: editingDocument.documentNumber || '',
+            issueDate: toDateInput(editingDocument.issueDate),
+            expiryDate: toDateInput(editingDocument.expiryDate),
+            countryId: editingDocument.countryId != null ? String(editingDocument.countryId) : '',
+            notes: editingDocument.notes || '',
+          }
+        : initialForm);
       setDocFile(null);
       setDocFilePreview(null);
     }
-  }, [isOpen]);
+  }, [isOpen, editingDocument]);
 
   if (!isOpen) return null;
 
@@ -104,24 +121,31 @@ export const AddDocumentModal: React.FC<Props> = ({ isOpen, crewMemberId, onClos
     }
     try {
       setSubmitting(true);
-      const created = await crewApi.addDocument(crewMemberId, form.category, {
+      const payload = {
         documentType: form.documentType.trim(),
         documentNumber: form.documentNumber.trim(),
         issueDate: form.issueDate || undefined,
         expiryDate: form.expiryDate || undefined,
         countryId: form.countryId ? Number(form.countryId) : undefined,
         notes: form.notes || undefined,
-      });
-      if (docFile && created.id) {
+      };
+
+      // Khi sửa, category lấy theo tài liệu gốc: đổi nhóm đồng nghĩa đổi bảng lưu,
+      // không xử lý được bằng một lệnh cập nhật.
+      const saved = isEditing
+        ? await crewApi.updateDocument(crewMemberId, editingDocument!.id, editingDocument!.category, payload)
+        : await crewApi.addDocument(crewMemberId, form.category, payload);
+
+      if (docFile && saved.id) {
         const fd = new FormData();
         fd.append('file', docFile);
-        await crewApi.uploadDocumentFile(crewMemberId, form.category, created.id, fd);
+        await crewApi.uploadDocumentFile(crewMemberId, saved.category || form.category, saved.id, fd);
       }
-      toast.success('Thêm tài liệu thành công!');
+      toast.success(isEditing ? 'Cập nhật tài liệu thành công!' : 'Thêm tài liệu thành công!');
       onSuccess?.();
       onClose();
     } catch (err: any) {
-      toast.error(err.message || 'Không thể thêm tài liệu');
+      toast.error(err.message || (isEditing ? 'Không thể cập nhật tài liệu' : 'Không thể thêm tài liệu'));
     } finally {
       setSubmitting(false);
     }
@@ -132,7 +156,7 @@ export const AddDocumentModal: React.FC<Props> = ({ isOpen, crewMemberId, onClos
       <div className="acm-modal" onClick={e => e.stopPropagation()}>
         <div className="acm-header">
           <FileText size={17} />
-          <h2>Thêm tài liệu định danh</h2>
+          <h2>{isEditing ? 'Sửa tài liệu định danh' : 'Thêm tài liệu định danh'}</h2>
           <button type="button" className="acm-close" onClick={onClose}><X size={17} /></button>
         </div>
 
@@ -140,7 +164,7 @@ export const AddDocumentModal: React.FC<Props> = ({ isOpen, crewMemberId, onClos
           <div className="acm-grid">
             <div className="acm-field acm-field--full">
               <label>Loại tài liệu (nhóm)</label>
-              <select value={form.category} onChange={e => handleCategoryChange(e.target.value)}>
+              <select value={form.category} onChange={e => handleCategoryChange(e.target.value)} disabled={isEditing}>
                 {DOCUMENT_TARGET_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
@@ -213,7 +237,7 @@ export const AddDocumentModal: React.FC<Props> = ({ isOpen, crewMemberId, onClos
           <div className="acm-footer">
             <button type="button" className="acm-btn-cancel" onClick={onClose}>Hủy</button>
             <button type="submit" className="acm-btn-save" disabled={submitting}>
-              {submitting ? 'Đang lưu...' : 'Thêm tài liệu'}
+              {submitting ? 'Đang lưu...' : isEditing ? 'Lưu thay đổi' : 'Thêm tài liệu'}
             </button>
           </div>
         </form>

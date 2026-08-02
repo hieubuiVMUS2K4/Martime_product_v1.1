@@ -33,7 +33,14 @@ type AddDocumentModalProps = {
   crewMemberId: string
   onClose: () => void
   onSuccess?: () => void
+  /** Có giá trị = đang SỬA tài liệu này; bỏ trống = thêm mới. */
+  editingDocument?: any | null
+  /** Bảng lưu của tài liệu đang sửa (travel_documents / seafarer_documents / ...). */
+  editingTable?: string | null
 }
+
+/** Chuẩn hoá ngày về dạng yyyy-MM-dd cho input type="date". */
+const toDateInput = (v?: string | null) => (v ? String(v).slice(0, 10) : '')
 
 type FormState = {
   targetTable: string
@@ -57,11 +64,30 @@ const initialFormState: FormState = {
   file: null,
 }
 
-export default function AddDocumentModal({ isOpen, crewMemberId, onClose, onSuccess }: AddDocumentModalProps) {
+export default function AddDocumentModal({ isOpen, crewMemberId, onClose, onSuccess, editingDocument, editingTable }: AddDocumentModalProps) {
   const [submitting, setSubmitting] = useState(false)
   const [countries, setCountries] = useState<Country[]>([])
   const [loadingCountries, setLoadingCountries] = useState(false)
   const [form, setForm] = useState<FormState>(initialFormState)
+
+  const isEditing = !!editingDocument
+
+  // Nạp sẵn dữ liệu khi mở ở chế độ sửa, dọn form khi mở để thêm mới.
+  useEffect(() => {
+    if (!isOpen) return
+    setForm(editingDocument
+      ? {
+          targetTable: editingTable || 'travel_documents',
+          documentType: editingDocument.documentType || '',
+          documentNumber: editingDocument.documentNumber || '',
+          issueDate: toDateInput(editingDocument.issueDate),
+          expiryDate: toDateInput(editingDocument.expiryDate),
+          countryId: editingDocument.countryId != null ? String(editingDocument.countryId) : '',
+          notes: editingDocument.notes || '',
+          file: null,
+        }
+      : initialFormState)
+  }, [isOpen, editingDocument, editingTable])
 
   useEffect(() => {
     if (!isOpen) return
@@ -115,25 +141,44 @@ export default function AddDocumentModal({ isOpen, crewMemberId, onClose, onSucc
     try {
       setSubmitting(true)
 
-      const payload = new FormData()
-      payload.append('targetTable', form.targetTable)
-      payload.append('documentType', form.documentType.trim())
-      payload.append('documentNumber', form.documentNumber.trim())
+      if (isEditing) {
+        // Bảng lưu lấy theo tài liệu gốc: đổi nhóm là đổi bảng, không sửa được bằng một lệnh.
+        await maritimeService.crew.updateIdentityDocument(editingDocument.id, {
+          targetTable: editingTable || form.targetTable,
+          documentType: form.documentType.trim(),
+          documentNumber: form.documentNumber.trim(),
+          issueDate: form.issueDate || null,
+          expiryDate: form.expiryDate || null,
+          countryId: form.countryId ? Number(form.countryId) : null,
+          notes: form.notes || null,
+        })
+        if (form.file) {
+          const fd = new FormData()
+          fd.append('file', form.file)
+          fd.append('targetTable', editingTable || form.targetTable)
+          await maritimeService.crew.updateDocumentFile(editingDocument.id, fd)
+        }
+      } else {
+        const payload = new FormData()
+        payload.append('targetTable', form.targetTable)
+        payload.append('documentType', form.documentType.trim())
+        payload.append('documentNumber', form.documentNumber.trim())
 
-      if (form.issueDate) payload.append('issueDate', form.issueDate)
-      if (form.expiryDate) payload.append('expiryDate', form.expiryDate)
-      if (form.countryId) payload.append('countryId', form.countryId)
-      if (form.notes) payload.append('notes', form.notes)
-      if (form.file) payload.append('file', form.file)
+        if (form.issueDate) payload.append('issueDate', form.issueDate)
+        if (form.expiryDate) payload.append('expiryDate', form.expiryDate)
+        if (form.countryId) payload.append('countryId', form.countryId)
+        if (form.notes) payload.append('notes', form.notes)
+        if (form.file) payload.append('file', form.file)
 
-      await maritimeService.crew.createIdentityDocument(crewMemberId, payload)
+        await maritimeService.crew.createIdentityDocument(crewMemberId, payload)
+      }
 
-      toast.success('Added document successfully')
+      toast.success(isEditing ? 'Updated document successfully' : 'Added document successfully')
       onSuccess?.()
       resetAndClose()
     } catch (error: any) {
       console.error('❌ Failed to add document:', error)
-      toast.error(error.message || 'Failed to add document')
+      toast.error(error.message || (isEditing ? 'Failed to update document' : 'Failed to add document'))
     } finally {
       setSubmitting(false)
     }
@@ -143,7 +188,7 @@ export default function AddDocumentModal({ isOpen, crewMemberId, onClose, onSucc
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-2xl rounded-lg bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-          <h2 className="text-base font-semibold text-gray-800">Add Identity Document</h2>
+          <h2 className="text-base font-semibold text-gray-800">{isEditing ? 'Edit Identity Document' : 'Add Identity Document'}</h2>
           <button
             type="button"
             onClick={resetAndClose}
@@ -160,7 +205,8 @@ export default function AddDocumentModal({ isOpen, crewMemberId, onClose, onSucc
               <select
                 value={form.targetTable}
                 onChange={(e) => handleTargetTableChange(e.target.value)}
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                disabled={isEditing}
+                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none disabled:bg-gray-100"
               >
                 {DOCUMENT_TARGET_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>{option.label}</option>
