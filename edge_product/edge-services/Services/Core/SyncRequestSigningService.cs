@@ -22,6 +22,7 @@ public sealed class SyncRequestSigningService : ISyncRequestSigningService
     private const string SignatureHeader = "X-Sync-Signature";
     private const string ContentHashHeader = "X-Sync-Content-SHA256";
     private const string ProtocolHeader = "X-Sync-Protocol";
+    private const string NodeApiTokenHeader = "X-Node-Api-Token";
 
     private readonly IEdgeRuntimeConfigService _runtimeConfigService;
     private readonly ILogger<SyncRequestSigningService> _logger;
@@ -64,14 +65,19 @@ public sealed class SyncRequestSigningService : ISyncRequestSigningService
             return request;
         }
 
+        var nodeId = syncConfig.NodeId;
+        var nodeApiToken = syncConfig.NodeApiToken;
+
+        if (string.IsNullOrWhiteSpace(nodeApiToken))
+            throw new InvalidOperationException("NodeApiToken must be configured for sync requests.");
+        request.Headers.TryAddWithoutValidation(NodeApiTokenHeader, nodeApiToken);
+
         if (!syncConfig.SecurityEnabled)
             return request;
 
-        var nodeId = syncConfig.NodeId;
         var signingKey = syncConfig.SigningKey;
         var protocolVersion = syncConfig.ProtocolVersion;
         var keyVersion = syncConfig.KeyVersion;
-
         if (string.IsNullOrWhiteSpace(signingKey))
             throw new InvalidOperationException("SigningKey must be configured when signed sync is enabled.");
         if (keyVersion <= 0)

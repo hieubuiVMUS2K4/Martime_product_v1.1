@@ -47,14 +47,15 @@ namespace ProductApi.Services.Sync
 
             _logger.LogInformation("Executing database cleanup for sync records older than {CutoffDate}...", cutoffDate);
 
-            // Execute raw SQL for high efficiency deletion
+            // Tables are mapped to snake_case in AppDbContext, while shared sync
+            // model columns remain PascalCase in the existing dump schema.
             var deletedIdempotency = await dbContext.Database.ExecuteSqlRawAsync(
-                @"DELETE FROM ""SyncIdempotencyRecords"" WHERE ""CreatedAt"" < {0}",
+                @"DELETE FROM sync_idempotency_records WHERE ""ProcessedAt"" < {0}",
                 new object[] { cutoffDate },
                 cancellationToken);
 
             var deletedLogs = await dbContext.Database.ExecuteSqlRawAsync(
-                @"DELETE FROM ""SyncLogs"" WHERE ""Timestamp"" < {0}",
+                @"DELETE FROM sync_logs WHERE ""ProcessedAt"" < {0}",
                 new object[] { cutoffDate },
                 cancellationToken);
 

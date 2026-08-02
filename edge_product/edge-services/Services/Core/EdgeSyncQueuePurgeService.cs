@@ -47,9 +47,10 @@ namespace MaritimeEdge.Services.Core
 
             _logger.LogInformation("Purging processed sync queue items on edge older than {CutoffDate}...", cutoffDate);
 
-            // Delete synced items older than cutoff date
+            // sync_queue is mapped to snake_case in EdgeDbContext and the dump schema.
+            // A queue item is considered processed when synced_at is set.
             var deletedQueue = await dbContext.Database.ExecuteSqlRawAsync(
-                @"DELETE FROM ""SyncQueue"" WHERE ""IsSynced"" = true AND ""SyncedAt"" < {0}",
+                @"DELETE FROM sync_queue WHERE synced_at IS NOT NULL AND synced_at < {0}",
                 new object[] { cutoffDate },
                 cancellationToken);
 
