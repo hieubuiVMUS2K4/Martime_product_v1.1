@@ -17,7 +17,10 @@ public interface ISyncService
     Task<NetworkType> GetCurrentNetworkStatusAsync();
     Task PullFromShoreAsync(CancellationToken cancellationToken);
     Task SendHeartbeatAsync(CancellationToken cancellationToken);
+    SyncConnectivitySnapshot GetConnectivitySnapshot();
 }
+
+public sealed record SyncConnectivitySnapshot(bool IsReachable, string? LastError, DateTime? LastCheckedAtUtc);
 
 public class SyncService : ISyncService
 {
@@ -60,7 +63,9 @@ public class SyncService : ISyncService
     private static readonly ConcurrentDictionary<string, TokenBucketState> _tokenBuckets = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<long, double> _previousRetryDelaySeconds = new();
     private static readonly object _connectivityLock = new();
-    private static volatile bool _shoreReachable = true;
+    private static volatile bool _shoreReachable = false;
+    private static string? _lastConnectivityError = "Shore sync has not connected yet";
+    private static DateTime? _lastConnectivityCheckedAtUtc;
     private static DateTime _warmupUntilUtc = DateTime.MinValue;
 
     private readonly record struct RetryPolicyConfig(
@@ -134,6 +139,14 @@ public class SyncService : ISyncService
             ? parsed
             : NetworkType.Shore_WiFi;
         return _currentNetwork.Value;
+    }
+
+    public SyncConnectivitySnapshot GetConnectivitySnapshot()
+    {
+        lock (_connectivityLock)
+        {
+            return new SyncConnectivitySnapshot(_shoreReachable, _lastConnectivityError, _lastConnectivityCheckedAtUtc);
+        }
     }
 
     public async Task ExecuteSyncAsync(CancellationToken cancellationToken)
@@ -407,8 +420,10 @@ public class SyncService : ISyncService
                 if (!response.IsSuccessStatusCode)
                 {
                     _logger.LogWarning("Shore pull failed: {Status}", response.StatusCode);
+                    UpdateShoreReachability(false, nodeId, retryPolicy, $"Pull failed: HTTP {(int)response.StatusCode}");
                     break;
                 }
+                UpdateShoreReachability(true, nodeId, retryPolicy);
 
                 var pullResponse = await JsonSerializer.DeserializeAsync<Maritime.Shared.DTOs.Sync.SyncPullResponse>(
                     await response.Content.ReadAsStreamAsync(cancellationToken), _jsonOptions, cancellationToken);
@@ -478,10 +493,12 @@ public class SyncService : ISyncService
         catch (HttpRequestException ex)
         {
             _logger.LogWarning(ex, "Cannot reach shore API for pull");
+            UpdateShoreReachability(false, nodeId, retryPolicy, $"Pull network error: {ex.Message}");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error during shore pull");
+            UpdateShoreReachability(false, nodeId, retryPolicy, $"Pull error: {ex.Message}");
         }
     }
 
@@ -528,7 +545,11 @@ public class SyncService : ISyncService
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogWarning("Signed heartbeat failed with status {Status}", response.StatusCode);
+            UpdateShoreReachability(false, nodeId, LoadRetryPolicyConfig(), $"Heartbeat failed: HTTP {(int)response.StatusCode}");
+            return;
         }
+
+        UpdateShoreReachability(true, nodeId, LoadRetryPolicyConfig());
     }
 
     // ============================================================
@@ -940,12 +961,14 @@ public class SyncService : ISyncService
         return nowUtc < _warmupUntilUtc;
     }
 
-    private void UpdateShoreReachability(bool isReachable, string nodeId, RetryPolicyConfig retryPolicy)
+    private void UpdateShoreReachability(bool isReachable, string nodeId, RetryPolicyConfig retryPolicy, string? error = null)
     {
         lock (_connectivityLock)
         {
             var previous = _shoreReachable;
             _shoreReachable = isReachable;
+            _lastConnectivityCheckedAtUtc = DateTime.UtcNow;
+            _lastConnectivityError = isReachable ? null : error;
 
             if (!previous && isReachable && retryPolicy.WarmupMaxSeconds > 0)
             {

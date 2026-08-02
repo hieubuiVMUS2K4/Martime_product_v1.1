@@ -515,6 +515,38 @@ if (autoMigrateDatabase)
                     CONSTRAINT ""FK_sms_filled_records_sms_form_templates"" FOREIGN KEY (""SmsFormTemplateId"") REFERENCES sms_form_templates (""Id"") ON DELETE CASCADE
                 );
 
+                -- Bring pre-existing SMS tables up to the model shape. CREATE TABLE IF NOT EXISTS
+                -- does not update older local DBs that were created by an earlier SMS draft.
+                ALTER TABLE ism_elements
+                    ADD COLUMN IF NOT EXISTS ""IsSynced"" boolean NOT NULL DEFAULT false,
+                    ADD COLUMN IF NOT EXISTS ""OriginNode"" character varying(50) NOT NULL DEFAULT 'SHORE',
+                    ADD COLUMN IF NOT EXISTS ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT NOW(),
+                    ADD COLUMN IF NOT EXISTS ""UpdatedAt"" timestamp with time zone NOT NULL DEFAULT NOW();
+
+                ALTER TABLE sms_procedures
+                    ADD COLUMN IF NOT EXISTS ""IsSynced"" boolean NOT NULL DEFAULT false,
+                    ADD COLUMN IF NOT EXISTS ""OriginNode"" character varying(50) NOT NULL DEFAULT 'SHORE',
+                    ADD COLUMN IF NOT EXISTS ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT NOW(),
+                    ADD COLUMN IF NOT EXISTS ""UpdatedAt"" timestamp with time zone NOT NULL DEFAULT NOW();
+
+                ALTER TABLE sms_procedure_acknowledgements
+                    ADD COLUMN IF NOT EXISTS ""IsSynced"" boolean NOT NULL DEFAULT false,
+                    ADD COLUMN IF NOT EXISTS ""OriginNode"" character varying(50) NOT NULL DEFAULT 'SHORE',
+                    ADD COLUMN IF NOT EXISTS ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT NOW(),
+                    ADD COLUMN IF NOT EXISTS ""UpdatedAt"" timestamp with time zone NOT NULL DEFAULT NOW();
+
+                ALTER TABLE sms_form_templates
+                    ADD COLUMN IF NOT EXISTS ""IsSynced"" boolean NOT NULL DEFAULT false,
+                    ADD COLUMN IF NOT EXISTS ""OriginNode"" character varying(50) NOT NULL DEFAULT 'SHORE',
+                    ADD COLUMN IF NOT EXISTS ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT NOW(),
+                    ADD COLUMN IF NOT EXISTS ""UpdatedAt"" timestamp with time zone NOT NULL DEFAULT NOW();
+
+                ALTER TABLE sms_filled_records
+                    ADD COLUMN IF NOT EXISTS ""IsSynced"" boolean NOT NULL DEFAULT false,
+                    ADD COLUMN IF NOT EXISTS ""OriginNode"" character varying(50) NOT NULL DEFAULT 'SHORE',
+                    ADD COLUMN IF NOT EXISTS ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT NOW(),
+                    ADD COLUMN IF NOT EXISTS ""UpdatedAt"" timestamp with time zone NOT NULL DEFAULT NOW();
+
                 -- Fix existing sms_filled_records: add defaults to denormalized columns
                 -- so Edge-synced rows (which omit these fields) insert successfully.
                 ALTER TABLE sms_filled_records ALTER COLUMN ""FormTitle"" SET DEFAULT '';
@@ -547,6 +579,7 @@ if (autoMigrateDatabase)
         {
             retryCount++;
             logger.LogError(ex, $"Database migration attempt {retryCount} failed.");
+            db.ChangeTracker.Clear();
             if (retryCount >= 5) throw;
             await Task.Delay(5000); // Wait 5 seconds before retry
         }

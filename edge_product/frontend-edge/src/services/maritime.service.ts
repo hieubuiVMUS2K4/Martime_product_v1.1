@@ -536,6 +536,8 @@ export class MaritimeService {
         pendingRecords: number
         lastSyncAt?: string
         isOnline: boolean
+        lastConnectionError?: string
+        lastConnectionCheckedAt?: string
       }>('/sync/status'),
     trigger: () => this.request('/sync/trigger', { method: 'POST' }),
   }

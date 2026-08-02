@@ -70,8 +70,9 @@ public class SyncController : ControllerBase
                 .Select(s => s.SyncedAt)
                 .FirstOrDefaultAsync();
 
-            // isOnline = ping shore API directly for real connectivity status
-            bool isOnline = false;
+            // isOnline must reflect sync connectivity, not just a reachable /api/health endpoint.
+            bool shoreHealthOk = false;
+            string? connectionError = null;
             try
             {
                 string? shoreBaseUrl = null;
@@ -88,19 +89,32 @@ public class SyncController : ControllerBase
                     var client = _httpClientFactory.CreateClient("ShoreAPI");
                     using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(5));
                     var pingResponse = await client.GetAsync($"{shoreBaseUrl}/api/health", cts.Token);
-                    isOnline = pingResponse.IsSuccessStatusCode;
+                    shoreHealthOk = pingResponse.IsSuccessStatusCode;
+                    if (!shoreHealthOk)
+                        connectionError = $"Shore health check failed: HTTP {(int)pingResponse.StatusCode}";
+                }
+                else
+                {
+                    connectionError = "No active Shore configuration";
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                isOnline = false;
+                shoreHealthOk = false;
+                connectionError = $"Shore health check failed: {ex.Message}";
             }
+
+            var syncConnectivity = _syncService.GetConnectivitySnapshot();
+            var isOnline = shoreHealthOk && syncConnectivity.IsReachable;
+            connectionError = isOnline ? null : syncConnectivity.LastError ?? connectionError ?? "Shore sync is not reachable";
 
             var status = new
             {
                 pendingRecords = pendingRecords,
                 lastSyncAt = lastSync,
-                isOnline = isOnline
+                isOnline = isOnline,
+                lastConnectionError = connectionError,
+                lastConnectionCheckedAt = syncConnectivity.LastCheckedAtUtc
             };
 
             return Ok(status);

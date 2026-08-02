@@ -17,6 +17,8 @@ type SyncStatus = {
   pendingRecords: number
   lastSyncAt?: string
   isOnline: boolean
+  lastConnectionError?: string
+  lastConnectionCheckedAt?: string
 }
 
 // ============================================================
@@ -766,6 +768,11 @@ export function SyncPage() {
                 {isOnline ? t('sync.connected') : t('sync.disconnected')}
               </span>
             </div>
+            {!isOnline && status?.lastConnectionError && (
+              <p className="text-xs text-red-500 mt-2 line-clamp-2" title={status.lastConnectionError}>
+                {status.lastConnectionError}
+              </p>
+            )}
           </div>
 
           {/* Pending Records */}
