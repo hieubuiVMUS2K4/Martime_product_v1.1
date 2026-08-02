@@ -290,14 +290,9 @@ public class SyncController : ControllerBase
             var ranks = await _context.Ranks.AsNoTracking().ToListAsync();
             foreach (var x in ranks) Enqueue("rank", x.Id.ToString(), x);
 
-            var rankCerts = await _context.RankCertificates.AsNoTracking().ToListAsync();
-            foreach (var x in rankCerts) Enqueue("rank_certificate", x.Id.ToString(), x);
-
-            var countryCerts = await _context.CountryCertificates.AsNoTracking().ToListAsync();
-            foreach (var x in countryCerts) Enqueue("country_certificate", x.Id.ToString(), x);
-
-            var certs = await _context.Certificates.AsNoTracking().ToListAsync();
-            foreach (var x in certs) Enqueue("certificate", x.Id.ToString(), x);
+            // Danh mục loại chứng chỉ (certificate, rank_certificate, country_certificate) do BỜ làm chủ
+            // và phát xuống mọi tàu. Tàu chỉ đọc, không được đẩy ngược lên — bờ vốn đã bỏ qua chúng
+            // (_shoreAuthoritative), nên gửi lên chỉ tạo rác trong hàng đợi và che mất lệch dữ liệu thật.
 
             // Crew members (depend on Rank + Country — include nav props for FK resolution on Shore)
             var crew = await _context.CrewMembers.AsNoTracking()
@@ -447,14 +442,8 @@ public class SyncController : ControllerBase
                         var ranks        = await _context.Ranks.AsNoTracking().ToListAsync();
                         foreach (var x in ranks) Enqueue("rank", x.Id.ToString(), x);
 
-                        var rankCerts    = await _context.RankCertificates.AsNoTracking().ToListAsync();
-                        foreach (var x in rankCerts) Enqueue("rank_certificate", x.Id.ToString(), x);
-
-                        var countryCerts = await _context.CountryCertificates.AsNoTracking().ToListAsync();
-                        foreach (var x in countryCerts) Enqueue("country_certificate", x.Id.ToString(), x);
-
-                        var certs        = await _context.Certificates.AsNoTracking().ToListAsync();
-                        foreach (var x in certs) Enqueue("certificate", x.Id.ToString(), x);
+                        // Danh mục loại chứng chỉ do BỜ làm chủ — tàu chỉ đọc, không đẩy ngược lên.
+                        // Xem ghi chú ở nhánh full snapshot phía trên.
 
                         var crew         = await _context.CrewMembers.AsNoTracking()
                             .Include(c => c.Rank)

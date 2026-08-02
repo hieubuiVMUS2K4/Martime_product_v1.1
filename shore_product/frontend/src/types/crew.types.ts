@@ -84,6 +84,78 @@ export interface CertificateType {
   createdAt?: string;
 }
 
+/* ── Ma trận tuân thủ: lưới thuyền viên × loại chứng chỉ ── */
+
+/** Trạng thái của một ô trong lưới. */
+export type ComplianceStatus = 'VALID' | 'EXPIRING_SOON' | 'EXPIRED' | 'MISSING';
+
+/** Một thuyền viên: nhận dạng + tổng kết tình trạng của riêng người đó. */
+export interface CrewComplianceSummary {
+  crewMemberId: string;
+  crewName: string;
+  crewCode?: string;
+  rankId?: number;
+  rankName?: string;
+  department?: string;
+  vesselName?: string;
+  isOnboard: boolean;
+  requiredCount: number;
+  validCount: number;
+  expiringCount: number;
+  expiredCount: number;
+  missingCount: number;
+  /** Thiếu hẳn + hết hạn — con số cần hành động. */
+  gapCount: number;
+}
+
+/** Ô của lưới: trạng thái một loại chứng chỉ với một thuyền viên. */
+export interface CrewCertStatus {
+  crewMemberId: string;
+  status: ComplianceStatus;
+  expiryDate?: string;
+  daysUntilExpiry?: number;
+}
+
+/** Một loại chứng chỉ: thống kê + trạng thái của TẤT CẢ người bắt buộc phải có. */
+export interface CertificateComplianceRow {
+  certificateId: number;
+  certificateCode: string;
+  certificateName: string;
+  category?: string;
+  isMandatory: boolean;
+  requiredCount: number;
+  validCount: number;
+  expiringCount: number;
+  expiredCount: number;
+  missingCount: number;
+  /** Thiếu hẳn + hết hạn — con số cần hành động. */
+  gapCount: number;
+  crew: CrewCertStatus[];
+}
+
+/** Tổng hợp theo chức danh. */
+export interface RankComplianceRow {
+  rankId: number;
+  rankCode: string;
+  rankName: string;
+  department?: string;
+  crewCount: number;
+  requiredPerCrew: number;
+  crewWithGaps: number;
+  gapCount: number;
+}
+
+export interface ComplianceMatrix {
+  generatedAt: string;
+  crewTotal: number;
+  totalGaps: number;
+  /** Hàng của lưới. */
+  crew: CrewComplianceSummary[];
+  /** Cột của lưới, kèm thống kê từng loại. */
+  certificates: CertificateComplianceRow[];
+  ranks: RankComplianceRow[];
+}
+
 export interface CrewCertificate {
   id: number;
   crewMemberId: string;

@@ -387,7 +387,7 @@ export const CrewDetailPage: React.FC = () => {
                         setIsImageViewerOpen(true);
                       }}
                       title="View file"
-                      className="inline-flex items-center justify-center w-7 h-7 rounded bg-teal-500 hover:bg-teal-600 text-white"
+                      className="inline-flex items-center justify-center w-7 h-7 rounded bg-[#0b2545] hover:bg-[#16375f] text-white"
                       style={{ border: 'none', cursor: 'pointer' }}>
                       <Eye className="w-3.5 h-3.5" />
                     </button>
@@ -431,7 +431,7 @@ export const CrewDetailPage: React.FC = () => {
               onClick={handleSave}
               disabled={saving}
               className="px-6 py-2 text-white rounded font-medium disabled:opacity-50 text-sm"
-              style={{ background: '#0d7377' }}
+              style={{ background: '#0b2545' }}
             >
               {saving ? 'Đang lưu...' : 'Lưu'}
             </button>
@@ -455,7 +455,7 @@ export const CrewDetailPage: React.FC = () => {
               </div>
             )}
             {crew.onboardStatusChangedBy && (
-              <div style={{ fontSize: 12, color: '#a0aec0', marginTop: 6 }}>
+              <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>
                 By: {crew.onboardStatusChangedBy}
                 {crew.onboardStatusChangedAt && ` • ${new Date(crew.onboardStatusChangedAt).toLocaleString('en-GB')}`}
               </div>
@@ -470,11 +470,11 @@ export const CrewDetailPage: React.FC = () => {
             <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 22, height: 22, padding: '0 6px', background: '#ef4444', color: '#fff', fontSize: 12, fontWeight: 700, borderRadius: 11 }}>{edgeChanges.length}</span>
             <span>Tàu đã chỉnh sửa <strong>{edgeChanges.length}</strong> trường. Các trường thay đổi được đánh dấu <span style={{ color: '#ef4444', fontWeight: 700 }}>MÀU Đỏ</span> bên dưới.</span>
           </div>
-          <button onClick={handleMarkViewed} style={{ padding: '5px 14px', fontSize: 12, fontWeight: 600, color: '#fff', background: '#0d7377', border: 'none', borderRadius: 4, cursor: 'pointer' }}>✓ Đã xem</button>
+          <button onClick={handleMarkViewed} style={{ padding: '5px 14px', fontSize: 12, fontWeight: 600, color: '#fff', background: '#0b2545', border: 'none', borderRadius: 4, cursor: 'pointer' }}>✓ Đã xem</button>
         </div>
       )}
       {/* Tabs */}
-      <div className="bg-white" style={{ borderBottom: '1px solid #b5e3da' }}>
+      <div className="bg-white" style={{ borderBottom: '1px solid #d6dee8' }}>
         <div className="px-6 flex gap-1">
           {([
             { key: 'basic-data', label: 'Thông tin cơ bản' },
@@ -492,7 +492,7 @@ export const CrewDetailPage: React.FC = () => {
               className={`flex items-center gap-1.5 px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === tab.key ? '' : 'border-transparent text-gray-600 hover:text-gray-800'
               }`}
-              style={activeTab === tab.key ? { borderBottomColor: '#0d7377', color: '#0d7377', background: '#e6f5f3' } : {}}
+              style={activeTab === tab.key ? { borderBottomColor: '#0b2545', color: '#0b2545', background: '#dce9f8' } : {}}
             >
               {tab.icon}{tab.label}
               {(() => {
@@ -640,7 +640,7 @@ export const CrewDetailPage: React.FC = () => {
                         <button
                           onClick={handleAvatarSave}
                           disabled={uploadingAvatar}
-                          className={`px-3 py-1.5 text-white text-xs rounded flex items-center gap-1 ${uploadingAvatar ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
+                          className={`px-3 py-1.5 text-white text-xs rounded flex items-center gap-1 ${uploadingAvatar ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#0b2545] hover:bg-[#16375f]'}`}
                         >
                           <Upload className="w-3 h-3" /> {uploadingAvatar ? 'Đang lưu...' : 'Lưu'}
                         </button>
@@ -655,7 +655,7 @@ export const CrewDetailPage: React.FC = () => {
                     ) : (
                       <button
                         onClick={handleAvatarChoose}
-                        className="px-3 py-1.5 text-white text-xs rounded bg-teal-600 hover:bg-teal-700 flex items-center gap-1"
+                        className="px-3 py-1.5 text-white text-xs rounded bg-[#0b2545] hover:bg-[#16375f] flex items-center gap-1"
                       >
                         <Upload className="w-3 h-3" /> Đổi ảnh
                       </button>
@@ -665,7 +665,7 @@ export const CrewDetailPage: React.FC = () => {
                     {pendingAvatarFile ? 'Nhấn Lưu để xác nhận' : 'JPG/PNG, tối đa 5MB'}
                   </p>
                   <div className="mt-3 flex items-center gap-2">
-                    <input type="checkbox" checked={edited.isOnboard ?? false} onChange={e => set('isOnboard', e.target.checked)} className="w-4 h-4 text-teal-600" />
+                    <input type="checkbox" checked={edited.isOnboard ?? false} onChange={e => set('isOnboard', e.target.checked)} className="w-4 h-4 text-[#0b2545]" />
                     <label className="text-sm font-medium text-gray-700">Trên tàu</label>
                   </div>
                 </div>
@@ -826,7 +826,7 @@ export const CrewDetailPage: React.FC = () => {
                     </h3>
                     <button
                       onClick={() => setIsAddDocModalOpen(true)}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: '#0d7377', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: '#0b2545', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
                     >
                       <Plus className="w-4 h-4" /> Thêm tài liệu
                     </button>
@@ -842,7 +842,7 @@ export const CrewDetailPage: React.FC = () => {
                     </h3>
                     <button
                       onClick={() => setIsAddHealthDocModalOpen(true)}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: '#0d7377', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: '#0b2545', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
                     >
                       <Plus className="w-4 h-4" /> Thêm tài liệu y tế
                     </button>
@@ -858,7 +858,7 @@ export const CrewDetailPage: React.FC = () => {
                     </h3>
                     <button
                       onClick={() => { setEditingCert(null); setShowAddCertModal(true); }}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: '#0d7377', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: '#0b2545', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
                     >
                       <Plus className="w-4 h-4" /> Thêm chứng chỉ
                     </button>
@@ -872,7 +872,7 @@ export const CrewDetailPage: React.FC = () => {
                       <p>Chưa có chứng chỉ nào</p>
                       <button
                         onClick={() => { setEditingCert(null); setShowAddCertModal(true); }}
-                        style={{ marginTop: 8, padding: '6px 16px', background: '#0d7377', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}
+                        style={{ marginTop: 8, padding: '6px 16px', background: '#0b2545', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}
                       >
                         + Thêm chứng chỉ đầu tiên
                       </button>
@@ -925,9 +925,9 @@ export const CrewDetailPage: React.FC = () => {
                                     title={fileUrl ? 'View file' : 'Upload file'}
                                   >
                                     {uploadingCertId === cert.id ? (
-                                      <div className="animate-spin" style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid #14b8a6', borderTopColor: 'transparent', display: 'inline-block' }} />
+                                      <div className="animate-spin" style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid #0b2545', borderTopColor: 'transparent', display: 'inline-block' }} />
                                     ) : fileUrl ? (
-                                      <span className="inline-flex items-center justify-center w-7 h-7 rounded bg-teal-500 hover:bg-teal-600 text-white">
+                                      <span className="inline-flex items-center justify-center w-7 h-7 rounded bg-[#0b2545] hover:bg-[#16375f] text-white">
                                         <Eye className="w-3.5 h-3.5" />
                                       </span>
                                     ) : (
@@ -942,9 +942,9 @@ export const CrewDetailPage: React.FC = () => {
                                     <button
                                       onClick={() => { setEditingCert(cert); setShowAddCertModal(true); }}
                                       title="Edit"
-                                      style={{ background: 'none', border: '1px solid #d1d5db', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+                                      style={{ background: 'none', border: '1px solid #d6dee8', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                                     >
-                                      <Pencil className="w-3.5 h-3.5" style={{ color: '#4b5563' }} />
+                                      <Pencil className="w-3.5 h-3.5" style={{ color: '#64748b' }} />
                                     </button>
                                     <button
                                       onClick={() => handleDeleteCertificate(cert.id)}
@@ -973,10 +973,10 @@ export const CrewDetailPage: React.FC = () => {
           <div className="cd-section">
             <div className="cd-section-header">
               <div className="flex items-center gap-2">
-                <Ship className="w-4 h-4" style={{ color: '#0d7377' }} />
+                <Ship className="w-4 h-4" style={{ color: '#0b2545' }} />
                 <h3 className="cd-section-title">Service Records</h3>
               </div>
-              <span style={{ fontSize: 12, color: '#6b7280' }}>{serviceRecords.length} record(s)</span>
+              <span style={{ fontSize: 12, color: '#64748b' }}>{serviceRecords.length} record(s)</span>
             </div>
 
             {recordsLoading ? (
@@ -1022,13 +1022,13 @@ export const CrewDetailPage: React.FC = () => {
                           </td>
                           <td className="px-4 py-3 text-gray-500 font-mono text-xs">{rec.vesselIMO || '�'}</td>
                           <td className="px-4 py-3">
-                            <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-teal-100 text-teal-700">
+                            <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-[#dce9f8] text-[#0b2545]">
                               {rec.rankDuringService || '�'}
                             </span>
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1 text-gray-700">
-                              <Calendar className="w-3.5 h-3.5 text-green-500" />
+                              <Calendar className="w-3.5 h-3.5 text-[#64748b]" />
                               {fmt(rec.signOnDate)}
                             </div>
                           </td>
@@ -1068,7 +1068,7 @@ export const CrewDetailPage: React.FC = () => {
                 <p>No onboarding case found for this crew member</p>
                 <button
                   onClick={() => navigate(`/onboarding/new?crewId=${id}`)}
-                  className="mt-3 px-4 py-2 text-sm bg-teal-600 text-white rounded hover:bg-teal-700"
+                  className="mt-3 px-4 py-2 text-sm bg-[#0b2545] text-white rounded hover:bg-[#16375f]"
                 >
                   Create Onboarding Case
                 </button>
@@ -1114,7 +1114,7 @@ export const CrewDetailPage: React.FC = () => {
                 </div>
                 <button
                   onClick={() => navigate(`/onboarding/${onboardingCase.id}`)}
-                  className="mt-4 px-4 py-2 text-sm border border-blue-300 text-teal-600 rounded hover:bg-teal-50"
+                  className="mt-4 px-4 py-2 text-sm border border-blue-300 text-[#0b2545] rounded hover:bg-[#eef2f7]"
                 >
                   View Full Details
                 </button>
@@ -1158,7 +1158,7 @@ export const CrewDetailPage: React.FC = () => {
                           <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${
                             doc.status === 'Verified' ? 'bg-green-100 text-green-700' :
                             doc.status === 'Rejected' ? 'bg-red-100 text-red-700' :
-                            doc.status === 'Submitted' || doc.status === 'SentForVerification' ? 'bg-teal-100 text-teal-700' :
+                            doc.status === 'Submitted' || doc.status === 'SentForVerification' ? 'bg-[#dce9f8] text-[#0b2545]' :
                             'bg-gray-100 text-gray-600'
                           }`}>{doc.status}</span>
                         </td>
@@ -1196,7 +1196,7 @@ export const CrewDetailPage: React.FC = () => {
                       <div className="flex items-center gap-2 text-sm">
                         <span className="px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-600">{entry.fromStatus}</span>
                         <span className="text-gray-400">?</span>
-                        <span className="px-2 py-0.5 rounded text-xs font-semibold bg-teal-100 text-teal-700">{entry.toStatus}</span>
+                        <span className="px-2 py-0.5 rounded text-xs font-semibold bg-[#dce9f8] text-[#0b2545]">{entry.toStatus}</span>
                       </div>
                       {entry.reason && <p className="text-sm text-gray-600 mt-1">{entry.reason}</p>}
                       <p className="text-xs text-gray-400 mt-1">by {entry.changedBy} � {fmt(entry.changedAt)}</p>

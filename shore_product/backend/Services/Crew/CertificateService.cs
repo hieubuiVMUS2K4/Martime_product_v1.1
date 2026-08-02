@@ -112,8 +112,13 @@ public class CertificateService : ICertificateService
 
         _logger.LogInformation("Created certificate type {Code} - {Name}", cert.CertificateCode, cert.CertificateName);
 
-        // Do NOT sync to edge here. Certificate types are only pushed to a specific
-        // vessel's edge when they are explicitly assigned via VesselCertificateAssignments.
+        // Danh mục loại chứng chỉ do BỜ làm chủ và phát xuống MỌI tàu — giống danh mục vật tư
+        // (material_item_catalog). Không còn khái niệm gán chứng chỉ cho từng tàu.
+        if (_syncOutbox != null)
+        {
+            await _syncOutbox.BroadcastAsync("certificate", cert.Id.ToString(), SyncActionType.CREATE, cert);
+            await BroadcastCountryRankMappingsAsync(cert.Id);
+        }
 
         return MapToDto(cert);
     }
@@ -133,76 +138,82 @@ public class CertificateService : ICertificateService
 
         await _context.SaveChangesAsync();
 
-        // Track old mapping IDs for sync deletion before replacing
-        List<int> oldCountryMappingIds = new();
-        List<int> oldRankMappingIds = new();
+        // Mapping quốc tịch/chức danh: CHỈ thêm–bớt phần chênh lệch, không xoá sạch rồi tạo lại.
+        //
+        // Cách cũ (xoá hết + insert lại) cấp Id mới cho cả những mapping không hề đổi. Bờ và tàu
+        // vì thế đánh số khác nhau cho cùng một cặp giá trị — ngày 02/08/2026 đối soát thấy
+        // country_certificates dòng 74/76 bị hoán đổi giữa hai phía, và vì tàu có unique index
+        // (country_id, certificate_id) nên phát lại nguyên trạng là vi phạm ràng buộc theo cả hai
+        // thứ tự. Nó cũng là nguồn của sequence drift (tàu: max id 106 mà dãy số ở 76).
+        var removedCountryMappingIds = new List<int>();
+        var addedCountryMappings = new List<CountryCertificate>();
 
-        // Update country mappings if provided (flush deletes first to avoid unique index violation)
         if (request.CountryIds != null)
         {
-            var oldCountries = await _context.CountryCertificates.Where(cc => cc.CertificateId == id).ToListAsync();
-            oldCountryMappingIds = oldCountries.Select(cc => cc.Id).ToList();
-            _context.CountryCertificates.RemoveRange(oldCountries);
-            await _context.SaveChangesAsync();
-            foreach (var countryId in request.CountryIds)
-                _context.CountryCertificates.Add(new CountryCertificate { CertificateId = id, CountryId = countryId, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow });
+            var current = await _context.CountryCertificates.Where(cc => cc.CertificateId == id).ToListAsync();
+            var wanted = request.CountryIds.Distinct().ToHashSet();
+
+            var toRemove = current.Where(cc => !wanted.Contains(cc.CountryId)).ToList();
+            removedCountryMappingIds = toRemove.Select(cc => cc.Id).ToList();
+            _context.CountryCertificates.RemoveRange(toRemove);
+
+            foreach (var countryId in wanted.Where(c => !current.Any(cc => cc.CountryId == c)))
+            {
+                var row = new CountryCertificate { CertificateId = id, CountryId = countryId, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
+                _context.CountryCertificates.Add(row);
+                addedCountryMappings.Add(row);
+            }
+
+            // Xoá trước rồi mới thêm, tránh đụng unique index khi một cặp vừa bị bỏ vừa được thêm lại.
             await _context.SaveChangesAsync();
         }
 
-        // Update rank mappings if provided (flush deletes first to avoid unique index violation)
+        var removedRankMappingIds = new List<int>();
+        var addedRankMappings = new List<RankCertificate>();
+
         if (request.RankIds != null)
         {
-            var oldRanks = await _context.RankCertificates.Where(rc => rc.CertificateId == id).ToListAsync();
-            oldRankMappingIds = oldRanks.Select(rc => rc.Id).ToList();
-            _context.RankCertificates.RemoveRange(oldRanks);
-            await _context.SaveChangesAsync();
-            foreach (var rankId in request.RankIds)
-                _context.RankCertificates.Add(new RankCertificate { CertificateId = id, RankId = rankId, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow });
+            var current = await _context.RankCertificates.Where(rc => rc.CertificateId == id).ToListAsync();
+            var wanted = request.RankIds.Distinct().ToHashSet();
+
+            var toRemove = current.Where(rc => !wanted.Contains(rc.RankId)).ToList();
+            removedRankMappingIds = toRemove.Select(rc => rc.Id).ToList();
+            _context.RankCertificates.RemoveRange(toRemove);
+
+            foreach (var rankId in wanted.Where(r => !current.Any(rc => rc.RankId == r)))
+            {
+                var row = new RankCertificate { CertificateId = id, RankId = rankId, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
+                _context.RankCertificates.Add(row);
+                addedRankMappings.Add(row);
+            }
+
             await _context.SaveChangesAsync();
         }
 
-        // Only sync to vessels that already have this certificate assigned.
+        // Phát xuống MỌI tàu. Chỉ gửi phần thay đổi: mapping giữ nguyên thì tàu không cần biết.
         if (_syncOutbox != null)
         {
-            var assignedImos = await GetAssignedVesselImosAsync(id);
-            foreach (var imo in assignedImos)
-            {
-                await _syncOutbox.EnqueueAsync(imo, "certificate", cert.Id.ToString(), SyncActionType.UPDATE, cert);
+            await _syncOutbox.BroadcastAsync("certificate", cert.Id.ToString(), SyncActionType.UPDATE, cert);
 
-                // Send DELETE for old mappings so edge removes stale rows
-                foreach (var oldId in oldCountryMappingIds)
-                    await _syncOutbox.EnqueueAsync(imo, "country_certificate", oldId.ToString(), SyncActionType.DELETE, new { Id = oldId });
-                foreach (var oldId in oldRankMappingIds)
-                    await _syncOutbox.EnqueueAsync(imo, "rank_certificate", oldId.ToString(), SyncActionType.DELETE, new { Id = oldId });
+            foreach (var oldId in removedCountryMappingIds)
+                await _syncOutbox.BroadcastAsync("country_certificate", oldId.ToString(), SyncActionType.DELETE, new { Id = oldId });
+            foreach (var oldId in removedRankMappingIds)
+                await _syncOutbox.BroadcastAsync("rank_certificate", oldId.ToString(), SyncActionType.DELETE, new { Id = oldId });
 
-                // Send CREATE for new mappings
-                await EnqueueCountryRankMappingsToNodeAsync(id, imo);
-            }
+            foreach (var cc in addedCountryMappings)
+                await _syncOutbox.BroadcastAsync("country_certificate", cc.Id.ToString(), SyncActionType.CREATE, cc);
+            foreach (var rc in addedRankMappings)
+                await _syncOutbox.BroadcastAsync("rank_certificate", rc.Id.ToString(), SyncActionType.CREATE, rc);
         }
 
         return MapToDto(cert);
     }
 
     /// <summary>
-    /// Returns the list of distinct vessel IMOs that have the given certificate type assigned.
-    /// Used to send targeted sync only to relevant edges.
+    /// Phát toàn bộ mapping quốc tịch + chức danh của một loại chứng chỉ xuống MỌI tàu.
+    /// Dùng khi tạo mới loại chứng chỉ và khi đồng bộ lại toàn bộ danh mục.
     /// </summary>
-    private async Task<List<string>> GetAssignedVesselImosAsync(int certificateId)
-    {
-        return await _context.VesselCertificateAssignments
-            .AsNoTracking()
-            .Where(a => a.CertificateId == certificateId)
-            .Join(_context.Vessels, a => a.VesselId, v => v.Id, (a, v) => v.IMO)
-            .Distinct()
-            .ToListAsync();
-    }
-
-    /// <summary>
-    /// Enqueues all CountryCertificate and RankCertificate rows for a certificate
-    /// to a specific edge node (vessel IMO). Used when a certificate is assigned to a vessel
-    /// or when master data is updated for vessels that already have the assignment.
-    /// </summary>
-    public async Task EnqueueCountryRankMappingsToNodeAsync(int certificateId, string targetNode)
+    private async Task BroadcastCountryRankMappingsAsync(int certificateId)
     {
         if (_syncOutbox == null) return;
 
@@ -211,17 +222,44 @@ public class CertificateService : ICertificateService
             .Where(cc => cc.CertificateId == certificateId)
             .ToListAsync();
         foreach (var cc in countryCerts)
-            await _syncOutbox.EnqueueAsync(targetNode, "country_certificate", cc.Id.ToString(), SyncActionType.CREATE, cc);
+            await _syncOutbox.BroadcastAsync("country_certificate", cc.Id.ToString(), SyncActionType.CREATE, cc);
 
         var rankCerts = await _context.RankCertificates
             .AsNoTracking()
             .Where(rc => rc.CertificateId == certificateId)
             .ToListAsync();
         foreach (var rc in rankCerts)
-            await _syncOutbox.EnqueueAsync(targetNode, "rank_certificate", rc.Id.ToString(), SyncActionType.CREATE, rc);
+            await _syncOutbox.BroadcastAsync("rank_certificate", rc.Id.ToString(), SyncActionType.CREATE, rc);
 
-        _logger.LogInformation("Enqueued {CC} country + {RC} rank mappings for certificate {Id} → {Node}",
-            countryCerts.Count, rankCerts.Count, certificateId, targetNode);
+        _logger.LogInformation("Broadcast {CC} country + {RC} rank mappings for certificate {Id} → tất cả tàu",
+            countryCerts.Count, rankCerts.Count, certificateId);
+    }
+
+    /// <summary>
+    /// Đồng bộ TOÀN BỘ danh mục loại chứng chỉ xuống mọi tàu (initial/full resync).
+    /// Đối xứng với MaterialController.BroadcastAllCatalog cho danh mục vật tư.
+    /// Phát loại chứng chỉ trước, rồi tới mapping vì mapping tham chiếu certificate_id.
+    /// </summary>
+    public async Task<(int Certificates, int CountryMappings, int RankMappings)> BroadcastAllCertificateTypesAsync()
+    {
+        if (_syncOutbox == null) return (0, 0, 0);
+
+        var certs = await _context.CrewCertificateTypes.AsNoTracking().ToListAsync();
+        foreach (var c in certs)
+            await _syncOutbox.BroadcastAsync("certificate", c.Id.ToString(), SyncActionType.CREATE, c);
+
+        var countryCerts = await _context.CountryCertificates.AsNoTracking().ToListAsync();
+        foreach (var cc in countryCerts)
+            await _syncOutbox.BroadcastAsync("country_certificate", cc.Id.ToString(), SyncActionType.CREATE, cc);
+
+        var rankCerts = await _context.RankCertificates.AsNoTracking().ToListAsync();
+        foreach (var rc in rankCerts)
+            await _syncOutbox.BroadcastAsync("rank_certificate", rc.Id.ToString(), SyncActionType.CREATE, rc);
+
+        _logger.LogInformation("Đã phát toàn bộ danh mục chứng chỉ xuống mọi tàu: {C} loại, {CC} quốc tịch, {RC} chức danh",
+            certs.Count, countryCerts.Count, rankCerts.Count);
+
+        return (certs.Count, countryCerts.Count, rankCerts.Count);
     }
 
     public async Task<bool> DeleteCertificateTypeAsync(int id)
@@ -236,13 +274,9 @@ public class CertificateService : ICertificateService
 
         _logger.LogInformation("Deactivated certificate type {Code}", cert.CertificateCode);
 
-        // Only sync to vessels that already have this certificate assigned.
+        // Xoá mềm: phát cờ IsActive=false xuống MỌI tàu để loại này biến khỏi danh sách chọn.
         if (_syncOutbox != null)
-        {
-            var assignedImos = await GetAssignedVesselImosAsync(id);
-            foreach (var imo in assignedImos)
-                await _syncOutbox.EnqueueAsync(imo, "certificate", cert.Id.ToString(), SyncActionType.UPDATE, cert);
-        }
+            await _syncOutbox.BroadcastAsync("certificate", cert.Id.ToString(), SyncActionType.UPDATE, cert);
 
         return true;
     }
@@ -523,6 +557,195 @@ public class CertificateService : ICertificateService
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Ma trận tuân thủ xoay theo LOẠI chứng chỉ.
+    ///
+    /// Khác <see cref="GetFleetComplianceAsync"/> ở hai điểm: (1) trả lời được "loại chứng chỉ này
+    /// đang thiếu ở những ai" chứ không chỉ "người này thiếu những gì", và (2) tính trong một lượt
+    /// — nạp 5 tập dữ liệu rồi ghép trong bộ nhớ, thay vì gọi lặp theo từng thuyền viên.
+    ///
+    /// Quy tắc: chứng chỉ bắt buộc với một thuyền viên là ĐÚNG bộ khai báo cho chức danh của họ
+    /// trong rank_certificates. Cờ IsMandatory chỉ là thuộc tính của loại chứng chỉ ("bắt buộc
+    /// theo luật") dùng để đánh dấu khi hiển thị, KHÔNG phải yêu cầu áp cho mọi người.
+    /// </summary>
+    public async Task<ComplianceMatrixDto> GetComplianceMatrixAsync(bool onboardOnly = false)
+    {
+        var now = DateTime.UtcNow;
+        var soonCutoff = now.AddDays(90);
+
+        var crewQuery = _context.CrewMembers.AsNoTracking().Include(c => c.Rank).AsQueryable();
+        if (onboardOnly) crewQuery = crewQuery.Where(c => c.IsOnboard);
+        var crew = await crewQuery.ToListAsync();
+
+        var certTypes = await _context.CrewCertificateTypes.AsNoTracking()
+            .Where(c => c.IsActive)
+            .OrderBy(c => c.Category).ThenBy(c => c.CertificateName)
+            .ToListAsync();
+
+        var rankCerts = await _context.RankCertificates.AsNoTracking()
+            .Select(rc => new { rc.RankId, rc.CertificateId })
+            .ToListAsync();
+
+        var crewCerts = await _context.CrewCertificates.AsNoTracking()
+            .Select(cc => new { cc.CrewMemberId, cc.CertificateId, cc.ExpiryDate })
+            .ToListAsync();
+
+        // Tên tàu để người dùng biết phải liên hệ tàu nào — nạp một lần rồi tra bằng dictionary.
+        var vesselNames = await _context.Vessels.AsNoTracking()
+            .Select(v => new { v.Id, v.Name })
+            .ToDictionaryAsync(v => v.Id, v => v.Name);
+
+        // Chức danh → tập loại chứng chỉ bắt buộc của chức danh đó.
+        var certIdsByRank = rankCerts
+            .GroupBy(rc => rc.RankId)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.CertificateId).ToHashSet());
+
+        // Thuyền viên → chứng chỉ đang giữ. Một người có thể có nhiều bản cùng loại
+        // (cấp lại nhiều lần) nên lấy bản hạn xa nhất — đó mới là bản còn hiệu lực.
+        var heldExpiryByCrew = new Dictionary<Guid, Dictionary<int, DateTime>>();
+        foreach (var cc in crewCerts)
+        {
+            if (!heldExpiryByCrew.TryGetValue(cc.CrewMemberId, out var map))
+                heldExpiryByCrew[cc.CrewMemberId] = map = new Dictionary<int, DateTime>();
+            if (!map.TryGetValue(cc.CertificateId, out var existing) || cc.ExpiryDate > existing)
+                map[cc.CertificateId] = cc.ExpiryDate;
+        }
+
+        // Đếm mức chức danh và mức từng người, cộng dồn trong lúc duyệt.
+        var gapsPerRank = new Dictionary<int, int>();
+        var crewWithGapPerRank = new Dictionary<int, HashSet<Guid>>();
+
+        var crewSummaries = crew.ToDictionary(m => m.Id, m => new CrewSummaryDto
+        {
+            CrewMemberId = m.Id,
+            CrewName = m.FullName,
+            CrewCode = m.CrewId,
+            RankId = m.RankId,
+            RankName = m.Rank?.RankName,
+            Department = m.Rank?.Department,
+            VesselName = m.VesselId.HasValue && vesselNames.TryGetValue(m.VesselId.Value, out var vn) ? vn : null,
+            IsOnboard = m.IsOnboard,
+        });
+
+        var rows = new List<CertificateComplianceRow>();
+        var totalGaps = 0;
+
+        foreach (var cert in certTypes)
+        {
+            var row = new CertificateComplianceRow
+            {
+                CertificateId = cert.Id,
+                CertificateCode = cert.CertificateCode,
+                CertificateName = cert.CertificateName,
+                Category = cert.Category,
+                IsMandatory = cert.IsMandatory,
+            };
+
+            foreach (var member in crew)
+            {
+                // Yêu cầu của một người = ĐÚNG bộ chứng chỉ khai báo cho chức danh của họ
+                // (rank_certificates). Không cộng thêm các loại có cờ IsMandatory: cờ đó nói
+                // "loại này bắt buộc theo luật", không phải "mọi thuyền viên đều phải có" —
+                // cộng vào thì Chief Engineer bị đòi cả CoC-Master lẫn CoC-Officer.
+                var requiredByRank = member.RankId.HasValue
+                    && certIdsByRank.TryGetValue(member.RankId.Value, out var set)
+                    && set.Contains(cert.Id);
+
+                // Không bắt buộc với người này thì bỏ qua — ô tương ứng trong lưới để trống.
+                if (!requiredByRank) continue;
+
+                var summary = crewSummaries[member.Id];
+                row.RequiredCount++;
+                summary.RequiredCount++;
+
+                DateTime? expiry = null;
+                if (heldExpiryByCrew.TryGetValue(member.Id, out var held)
+                    && held.TryGetValue(cert.Id, out var e))
+                    expiry = e;
+
+                string status;
+                if (expiry == null) { status = "MISSING"; row.MissingCount++; summary.MissingCount++; }
+                else if (expiry < now) { status = CertificateStatus.EXPIRED; row.ExpiredCount++; summary.ExpiredCount++; }
+                else if (expiry < soonCutoff) { status = CertificateStatus.EXPIRING_SOON; row.ExpiringCount++; summary.ExpiringCount++; }
+                else { status = CertificateStatus.VALID; row.ValidCount++; summary.ValidCount++; }
+
+                // Ghi mọi ô, kể cả người đã đạt — giao diện cần toàn cảnh để tô sáng chỗ hụt.
+                row.Crew.Add(new CrewCertStatusDto
+                {
+                    CrewMemberId = member.Id,
+                    Status = status,
+                    ExpiryDate = expiry,
+                    DaysUntilExpiry = expiry.HasValue ? (int)(expiry.Value - now).TotalDays : null,
+                });
+
+                // Chỉ "thiếu hẳn" và "hết hạn" mới tính là lỗ hổng phải xử lý;
+                // sắp hết hạn vẫn còn hiệu lực nên chỉ cảnh báo.
+                if (status is "MISSING" or CertificateStatus.EXPIRED)
+                {
+                    row.GapCount++;
+                    summary.GapCount++;
+                    totalGaps++;
+
+                    if (member.RankId.HasValue)
+                    {
+                        var rid = member.RankId.Value;
+                        gapsPerRank[rid] = gapsPerRank.GetValueOrDefault(rid) + 1;
+                        if (!crewWithGapPerRank.TryGetValue(rid, out var s))
+                            crewWithGapPerRank[rid] = s = new HashSet<Guid>();
+                        s.Add(member.Id);
+                    }
+                }
+            }
+
+            rows.Add(row);
+        }
+
+        // Tổng hợp theo chức danh — chỉ những chức danh thực sự có người.
+        var ranks = await _context.Ranks.AsNoTracking().ToListAsync();
+        var rankRows = ranks
+            .Select(r =>
+            {
+                var crewCount = crew.Count(c => c.RankId == r.Id);
+                if (crewCount == 0) return null;
+
+                var required = certIdsByRank.TryGetValue(r.Id, out var set) ? set.Count : 0;
+
+                return new RankComplianceRow
+                {
+                    RankId = r.Id,
+                    RankCode = r.RankCode,
+                    RankName = r.RankName,
+                    Department = r.Department,
+                    CrewCount = crewCount,
+                    RequiredPerCrew = required,
+                    CrewWithGaps = crewWithGapPerRank.TryGetValue(r.Id, out var s) ? s.Count : 0,
+                    GapCount = gapsPerRank.GetValueOrDefault(r.Id),
+                };
+            })
+            .Where(r => r != null)
+            .Select(r => r!)
+            .OrderByDescending(r => r.GapCount)
+            .ThenBy(r => r.RankName)
+            .ToList();
+
+        // Người hụt nhiều nhất lên đầu để nhìn phát thấy ngay, rồi nhóm theo chức danh và tên.
+        var crewRows = crewSummaries.Values
+            .OrderByDescending(c => c.GapCount)
+            .ThenBy(c => c.RankName)
+            .ThenBy(c => c.CrewName)
+            .ToList();
+
+        return new ComplianceMatrixDto
+        {
+            GeneratedAt = now,
+            CrewTotal = crew.Count,
+            TotalGaps = totalGaps,
+            Crew = crewRows,
+            Certificates = rows,
+            Ranks = rankRows,
+        };
     }
 
     // ============================================================

@@ -503,21 +503,21 @@
   width: 100%;
   padding: 5px 10px;
   font-size: 13px;
-  color: #132d2b;
+  color: #14202e;
   background: #fff;
-  border: 1px solid #a8ddd4;
+  border: 1px solid #d6dee8;
   border-radius: 3px;
   transition: border-color 0.15s;
   box-sizing: border-box;
 }
 .cd-field:focus {
   outline: none;
-  border-color: #0d7377;
-  box-shadow: 0 0 0 2px rgba(13, 115, 119, 0.1);
+  border-color: #0b2545;
+  box-shadow: 0 0 0 2px rgba(11, 37, 69, 0.12);
 }
 .cd-field:disabled,
 .cd-field[readonly] {
-  background: #f5fefc;
+  background: #f5f8fc;
   cursor: not-allowed;
 }
 .cd-field.resize-none { resize: none; }
@@ -567,13 +567,13 @@
   font-size: 12px;
   font-weight: 600;
   color: #fff;
-  background: #0d7377;
+  background: #0b2545;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   transition: background 0.15s;
 }
-.cd-edge-btn:hover { background: #09554f; }
+.cd-edge-btn:hover { background: #16375f; }
 
 /* Change indicator (per-field old→new text) */
 .cd-change-indicator {
@@ -630,7 +630,7 @@
   display: block;
   font-size: 11px;
   font-weight: 600;
-  color: #133d38;
+  color: #14202e;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   margin-bottom: 3px;
@@ -638,14 +638,14 @@
 
 .cd-section {
   background: #fff;
-  border: 1px solid #b5e3da;
+  border: 1px solid #d6dee8;
   border-radius: 6px;
   overflow: hidden;
   box-shadow: 0 1px 4px rgba(0, 60, 120, 0.05);
 }
 .cd-section-header {
-  background: #c5f0ea;
-  border-bottom: 1px solid #a8ddd4;
+  background: #eef2f7;
+  border-bottom: 1px solid #d6dee8;
   padding: 7px 16px;
   display: flex;
   align-items: center;
@@ -654,7 +654,7 @@
 .cd-section-title {
   font-size: 11.5px;
   font-weight: 700;
-  color: #133d38;
+  color: #14202e;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin: 0;
@@ -662,13 +662,13 @@
 .cd-section-body { padding: 16px; }
 
 .cd-table-thead th {
-  background: #c5f0ea;
-  border-bottom: 1px solid #a8ddd4;
+  background: #eef2f7;
+  border-bottom: 1px solid #d6dee8;
   padding: 7px 16px;
   text-align: left;
   font-size: 11px;
   font-weight: 700;
-  color: #133d38;
+  color: #14202e;
   text-transform: uppercase;
   white-space: nowrap;
 }

@@ -56,8 +56,7 @@ POST /api/sync   [Body: List<SyncQueueItemDto>]
           deserialize JSON thiếu field) → đây là cơ chế "delta-safe guard"
        6) ghi SyncIdempotencyRecord, SaveChangesAsync CHO TỪNG ITEM (1 lỗi không
           làm hỏng cả batch)
-   • sau batch: gộp thông báo cho Shore (1 thông báo/tàu), tự tạo
-     VesselCertificateAssignment nếu batch có certificate/crew_certificate/crew_member,
+   • sau batch: gộp thông báo cho Shore (1 thông báo/tàu),
      tự enqueue NoonReport mới vào hàng đợi đánh giá AI (Services/Background/)
         ▼
    commit transaction → CrewSyncOrchestrator.UpdateNodeAfterPushAsync (cập nhật
@@ -88,16 +87,17 @@ POST /api/sync   [Body: List<SyncQueueItemDto>]
 
 ### 3. Pull: Shore → Edge (đẩy dữ liệu do Shore tạo/sửa xuống tàu)
 
-**Ví dụ cụ thể — gán chứng chỉ bắt buộc cho 1 tàu** (`Controllers/VesselCertificateAssignmentsController.Assign`):
+**Ví dụ cụ thể — thêm một loại chứng chỉ vào danh mục** (`Services/Crew/CertificateService.CreateCertificateTypeAsync`):
 
 ```
-1. Nhân viên HR gán loại chứng chỉ "STCW Basic Safety" cho tàu IMO=1234567
+1. Nhân viên HR thêm loại chứng chỉ "STCW Basic Safety" vào danh mục ở Master Data
         ▼
-2. ISyncOutboxService.EnqueueAsync(targetNode: "1234567", tableName: "certificate",
-                                    recordKey: certId, action: CREATE, payload: certType)
-   (đẩy thêm cả "country_certificate"/"rank_certificate" liên quan TRƯỚC,
-    rồi mới "vessel_certificate_assignment" — vì Edge cần có master data
-    trước khi nhận bản ghi tham chiếu tới nó)
+2. ISyncOutboxService.BroadcastAsync(tableName: "certificate", recordKey: certId,
+                                      action: CREATE, payload: certType)
+   → TargetNode="*", tức MỌI tàu đều nhận. Danh mục loại chứng chỉ do bờ làm chủ,
+     giống danh mục vật tư (material_item_catalog); không còn cơ chế gán theo tàu.
+   (phát "certificate" TRƯỚC, rồi mới "country_certificate"/"rank_certificate"
+    — vì hai bảng nối tham chiếu certificate_id)
         ▼
    SyncOutboxService.EnqueueAsync: nếu đã có item CHƯA giao (DeliveredAt=null) cùng
    (node, table, key) → GHI ĐÈ payload lên item cũ thay vì tạo dòng mới (dedup)

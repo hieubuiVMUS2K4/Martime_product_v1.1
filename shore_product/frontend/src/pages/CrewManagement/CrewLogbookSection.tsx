@@ -379,7 +379,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
   if (loading || !crew) {
     return (
       <div className="flex flex-col items-center justify-center py-20 bg-white/60 backdrop-blur-sm rounded-xl border border-gray-200/50">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-teal-600 mb-3" />
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#0b2545] mb-3" />
         <span className="text-sm text-gray-500">Đang thiết lập Sổ thuyền viên...</span>
       </div>
     );
@@ -413,7 +413,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
             {/* Card Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-2">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-teal-50 text-teal-650 rounded-xl">
+                <div className="p-2.5 bg-[#eef2f7] text-[#0b2545] rounded-xl">
                   <Book className="w-5 h-5" />
                 </div>
                 <div>
@@ -507,7 +507,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-2">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-teal-50 text-teal-650 rounded-xl">
+                <div className="p-2 bg-[#eef2f7] text-[#0b2545] rounded-xl">
                   <Edit3 className="w-5 h-5" />
                 </div>
                 <div>
@@ -518,7 +518,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
               
               <button
                 onClick={() => setIsEditingMeta(true)}
-                className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-teal-50 text-teal-650 hover:bg-teal-100 text-xs font-bold rounded-lg transition-all"
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#eef2f7] text-[#0b2545] hover:bg-[#dce9f8] text-xs font-bold rounded-lg transition-all"
               >
                 <Pencil className="w-3.5 h-3.5" />
                 <span>Chỉnh sửa sổ / Edit Seaman's Book</span>
@@ -619,7 +619,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mt-6 select-text">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 mb-6 gap-2">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl">
+            <div className="p-2.5 bg-[#eef2f7] text-[#0b2545] rounded-xl">
               <Book className="w-5 h-5" />
             </div>
             <div>
@@ -641,7 +641,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
             <p className="text-slate-500 font-medium text-xs">Chưa có quá trình đi biển nào được khai báo.</p>
             <button
               onClick={handleOpenAddService}
-              className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 bg-teal-650 hover:bg-teal-700 text-white font-bold rounded-xl text-xs transition-all shadow-md active:scale-95"
+              className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 bg-[#0b2545] hover:bg-[#16375f] text-white font-bold rounded-xl text-xs transition-all shadow-md active:scale-95"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Khai báo quá trình đầu tiên</span>
@@ -694,7 +694,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                       </td>
                       <td className="px-4 py-3.5">
                         {details.rank
-                          ? <span className="inline-flex px-2 py-0.5 rounded bg-teal-50 text-teal-700 font-semibold border border-teal-100">{details.rank}</span>
+                          ? <span className="inline-flex px-2 py-0.5 rounded bg-[#eef2f7] text-[#0b2545] font-semibold border border-[#d6dee8]">{details.rank}</span>
                           : <span className="text-slate-300">---</span>}
                       </td>
                       <td className="px-4 py-3.5">
@@ -738,7 +738,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                         <div className="inline-flex gap-1.5">
                           <button
                             onClick={() => handleOpenEditService({ entry, details })}
-                            className="p-1.5 rounded-lg bg-white hover:bg-teal-50 hover:text-teal-650 border border-slate-200 shadow-sm transition-colors"
+                            className="p-1.5 rounded-lg bg-white hover:bg-[#eef2f7] hover:text-[#0b2545] border border-slate-200 shadow-sm transition-colors"
                             title="Sửa quá trình"
                           >
                             <Pencil className="w-3.5 h-3.5" />
@@ -761,7 +761,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
             <div className="flex justify-end pt-4 border-t border-slate-100">
               <button
                 onClick={handleOpenAddService}
-                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-teal-650 hover:bg-teal-700 text-white font-bold rounded-lg text-xs transition-all shadow-md active:scale-95 border border-teal-500/20"
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-[#0b2545] hover:bg-[#16375f] text-white font-bold rounded-lg text-xs transition-all shadow-md active:scale-95 border border-[#0b2545]/20"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Khai báo đi tàu / Declare Sea Service</span>
@@ -775,10 +775,10 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
       {isEditingMeta && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl border border-gray-150 flex flex-col max-h-[90vh]">
-            <div className="px-6 py-4 border-b border-gray-100 bg-teal-600 text-white rounded-t-2xl flex items-center justify-between">
+            <div className="px-6 py-4 border-b border-gray-100 bg-[#0b2545] text-white rounded-t-2xl flex items-center justify-between">
               <div>
                 <h3 className="text-base font-bold text-white">Chỉnh sửa Sổ Thuyền Viên 3D</h3>
-                <p className="text-[10px] text-teal-100 mt-0.5">Dữ liệu sẽ tự động đồng bộ hóa lên hệ thống Shore (Bờ) và hồ sơ gốc</p>
+                <p className="text-[10px] text-[#dce9f8] mt-0.5">Dữ liệu sẽ tự động đồng bộ hóa lên hệ thống Shore (Bờ) và hồ sơ gốc</p>
               </div>
               <button onClick={() => setIsEditingMeta(false)} className="text-white hover:bg-white/10 p-1.5 rounded-lg"><X className="w-5 h-5" /></button>
             </div>
@@ -788,28 +788,28 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
               <button
                 type="button"
                 onClick={() => setMetaFormTab('trang1')}
-                className={`px-4 py-2 text-xs font-bold border-b-2 transition-all ${metaFormTab === 'trang1' ? 'border-teal-650 text-teal-650' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                className={`px-4 py-2 text-xs font-bold border-b-2 transition-all ${metaFormTab === 'trang1' ? 'border-[#0b2545] text-[#0b2545]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
               >
                 Trang 1: Lý lịch cá nhân
               </button>
               <button
                 type="button"
                 onClick={() => setMetaFormTab('trang2')}
-                className={`px-4 py-2 text-xs font-bold border-b-2 transition-all ${metaFormTab === 'trang2' ? 'border-teal-650 text-teal-650' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                className={`px-4 py-2 text-xs font-bold border-b-2 transition-all ${metaFormTab === 'trang2' ? 'border-[#0b2545] text-[#0b2545]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
               >
                 Trang 2: Cơ quan cấp
               </button>
               <button
                 type="button"
                 onClick={() => setMetaFormTab('trang3')}
-                className={`px-4 py-2 text-xs font-bold border-b-2 transition-all ${metaFormTab === 'trang3' ? 'border-teal-650 text-teal-650' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                className={`px-4 py-2 text-xs font-bold border-b-2 transition-all ${metaFormTab === 'trang3' ? 'border-[#0b2545] text-[#0b2545]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
               >
                 Trang 3: Liên hệ khẩn cấp
               </button>
               <button
                 type="button"
                 onClick={() => setMetaFormTab('trang4')}
-                className={`px-4 py-2 text-xs font-bold border-b-2 transition-all ${metaFormTab === 'trang4' ? 'border-teal-650 text-teal-650' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                className={`px-4 py-2 text-xs font-bold border-b-2 transition-all ${metaFormTab === 'trang4' ? 'border-[#0b2545] text-[#0b2545]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
               >
                 Trang 4: Ghi chú khác
               </button>
@@ -825,7 +825,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                         type="text"
                         value={bookMeta.bookNo}
                         onChange={(e) => setBookMeta({ ...bookMeta, bookNo: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500 font-mono font-bold"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545] font-mono font-bold"
                         required
                       />
                     </div>
@@ -835,7 +835,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                         type="text"
                         value={bookMeta.fullName}
                         onChange={(e) => setBookMeta({ ...bookMeta, fullName: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500 uppercase font-bold"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545] uppercase font-bold"
                         required
                       />
                     </div>
@@ -848,7 +848,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                         type="date"
                         value={bookMeta.dateOfBirth}
                         onChange={(e) => setBookMeta({ ...bookMeta, dateOfBirth: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545]"
                       />
                     </div>
                     <div>
@@ -856,7 +856,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                       <select
                         value={bookMeta.sex}
                         onChange={(e) => setBookMeta({ ...bookMeta, sex: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545]"
                       >
                         <option value="Nam / Male">Nam / Male</option>
                         <option value="Nữ / Female">Nữ / Female</option>
@@ -869,7 +869,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                         placeholder="cm"
                         value={bookMeta.height}
                         onChange={(e) => setBookMeta({ ...bookMeta, height: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545]"
                       />
                     </div>
                   </div>
@@ -881,7 +881,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                         type="text"
                         value={bookMeta.placeOfBirth}
                         onChange={(e) => setBookMeta({ ...bookMeta, placeOfBirth: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545]"
                       />
                     </div>
                     <div>
@@ -890,7 +890,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                         type="text"
                         value={bookMeta.nationality}
                         onChange={(e) => setBookMeta({ ...bookMeta, nationality: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545]"
                       />
                     </div>
                   </div>
@@ -902,7 +902,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                         type="text"
                         value={bookMeta.idCardNo}
                         onChange={(e) => setBookMeta({ ...bookMeta, idCardNo: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500 font-mono"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545] font-mono"
                       />
                     </div>
                     <div>
@@ -911,7 +911,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                         type="text"
                         value={bookMeta.eyeColor}
                         onChange={(e) => setBookMeta({ ...bookMeta, eyeColor: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545]"
                       />
                     </div>
                   </div>
@@ -922,7 +922,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                       type="text"
                       value={bookMeta.distinguishingMarks}
                       onChange={(e) => setBookMeta({ ...bookMeta, distinguishingMarks: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545]"
                     />
                   </div>
                 </div>
@@ -936,7 +936,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                       type="text"
                       value={bookMeta.issuingAuthority}
                       onChange={(e) => setBookMeta({ ...bookMeta, issuingAuthority: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500 uppercase font-bold"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545] uppercase font-bold"
                     />
                   </div>
 
@@ -947,7 +947,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                         type="text"
                         value={bookMeta.placeOfIssue}
                         onChange={(e) => setBookMeta({ ...bookMeta, placeOfIssue: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545]"
                       />
                     </div>
                     <div>
@@ -956,7 +956,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                         type="date"
                         value={bookMeta.issueDate}
                         onChange={(e) => setBookMeta({ ...bookMeta, issueDate: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545]"
                       />
                     </div>
                     <div>
@@ -965,7 +965,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                         type="date"
                         value={bookMeta.expiryDate}
                         onChange={(e) => setBookMeta({ ...bookMeta, expiryDate: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545]"
                       />
                     </div>
                   </div>
@@ -977,7 +977,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                         type="text"
                         value={bookMeta.authoritySignerName}
                         onChange={(e) => setBookMeta({ ...bookMeta, authoritySignerName: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545]"
                       />
                     </div>
                     <div>
@@ -986,7 +986,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                         type="text"
                         value={bookMeta.authoritySignerTitle}
                         onChange={(e) => setBookMeta({ ...bookMeta, authoritySignerTitle: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545]"
                       />
                     </div>
                   </div>
@@ -1006,7 +1006,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                         type="text"
                         value={bookMeta.nokName}
                         onChange={(e) => setBookMeta({ ...bookMeta, nokName: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500 uppercase font-bold"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545] uppercase font-bold"
                       />
                     </div>
                     <div>
@@ -1016,7 +1016,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                         placeholder="Vợ, Chồng, Bố, Mẹ, Con..."
                         value={bookMeta.nokRelation}
                         onChange={(e) => setBookMeta({ ...bookMeta, nokRelation: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545]"
                       />
                     </div>
                   </div>
@@ -1027,7 +1027,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                       type="text"
                       value={bookMeta.nokPhone}
                       onChange={(e) => setBookMeta({ ...bookMeta, nokPhone: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500 font-mono font-bold"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545] font-mono font-bold"
                     />
                   </div>
 
@@ -1037,7 +1037,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                       value={bookMeta.nokAddress}
                       onChange={(e) => setBookMeta({ ...bookMeta, nokAddress: e.target.value })}
                       rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500 resize-none font-medium"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545] resize-none font-medium"
                     />
                   </div>
                 </div>
@@ -1050,7 +1050,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                     value={bookMeta.extensionsAndRemarks}
                     onChange={(e) => setBookMeta({ ...bookMeta, extensionsAndRemarks: e.target.value })}
                     rows={8}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500 resize-none font-serif text-sm italic leading-relaxed text-teal-950 bg-stone-50"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545] resize-none font-serif text-sm italic leading-relaxed text-[#0b2545] bg-stone-50"
                   />
                 </div>
               )}
@@ -1070,7 +1070,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-lg shadow flex items-center gap-1.5 text-[11px]"
+                    className="px-5 py-2 bg-[#0b2545] hover:bg-[#16375f] text-white font-semibold rounded-lg shadow flex items-center gap-1.5 text-[11px]"
                     disabled={savingMeta}
                   >
                     {savingMeta ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
@@ -1089,7 +1089,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl border border-gray-150 flex flex-col max-h-[90vh]">
             
-            <div className="px-6 py-4 border-b border-gray-100 bg-teal-600 text-white rounded-t-2xl flex items-center justify-between">
+            <div className="px-6 py-4 border-b border-gray-100 bg-[#0b2545] text-white rounded-t-2xl flex items-center justify-between">
               <h3 className="text-base font-bold">
                 {editingService ? 'Cập nhật Quá trình công tác' : 'Khai báo Quá trình đi biển (Record of Sea Service)'}
               </h3>
@@ -1106,7 +1106,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                     placeholder="VD: Tàu MV VINALINES VIGOR"
                     value={serviceFormData.title}
                     onChange={(e) => setServiceFormData({ ...serviceFormData, title: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500 uppercase font-bold"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545] uppercase font-bold"
                     required
                   />
                 </div>
@@ -1117,7 +1117,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                     placeholder="VD: 3WKD9"
                     value={serviceFormData.callSign}
                     onChange={(e) => setServiceFormData({ ...serviceFormData, callSign: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500 uppercase font-mono"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545] uppercase font-mono"
                   />
                 </div>
               </div>
@@ -1130,7 +1130,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                     placeholder="VD: IMO 9568762"
                     value={serviceFormData.imoNumber}
                     onChange={(e) => setServiceFormData({ ...serviceFormData, imoNumber: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500 font-mono"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545] font-mono"
                   />
                 </div>
                 <div>
@@ -1139,7 +1139,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                     type="text"
                     value={serviceFormData.flagState}
                     onChange={(e) => setServiceFormData({ ...serviceFormData, flagState: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500 uppercase"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545] uppercase"
                   />
                 </div>
                 <div>
@@ -1149,7 +1149,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                     placeholder="VD: 20,854 GT"
                     value={serviceFormData.grossTonnage}
                     onChange={(e) => setServiceFormData({ ...serviceFormData, grossTonnage: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545]"
                   />
                 </div>
               </div>
@@ -1162,7 +1162,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                     placeholder="VD: 6,480 kW"
                     value={serviceFormData.enginePower}
                     onChange={(e) => setServiceFormData({ ...serviceFormData, enginePower: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545]"
                   />
                 </div>
                 <div>
@@ -1172,14 +1172,14 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                     placeholder="VD: Thủy thủ trực ca / OS"
                     value={serviceFormData.rank}
                     onChange={(e) => setServiceFormData({ ...serviceFormData, rank: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545]"
                     required
                   />
                 </div>
               </div>
 
               <div className="border-t border-gray-100 pt-3">
-                <span className="font-bold text-teal-700 block mb-2">Thông tin Sign-on (Lên tàu)</span>
+                <span className="font-bold text-[#0b2545] block mb-2">Thông tin Sign-on (Lên tàu)</span>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Ngày Sign-on *</label>
@@ -1187,7 +1187,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                       type="date"
                       value={serviceFormData.signOnDate}
                       onChange={(e) => setServiceFormData({ ...serviceFormData, signOnDate: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545]"
                       required
                     />
                   </div>
@@ -1198,7 +1198,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                       placeholder="VD: Hải Phòng, Việt Nam"
                       value={serviceFormData.signOnPort}
                       onChange={(e) => setServiceFormData({ ...serviceFormData, signOnPort: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545]"
                       required
                     />
                   </div>
@@ -1214,7 +1214,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                       type="date"
                       value={serviceFormData.signOffDate}
                       onChange={(e) => setServiceFormData({ ...serviceFormData, signOffDate: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545]"
                     />
                   </div>
                   <div>
@@ -1224,7 +1224,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                       placeholder="VD: Rotterdam, Hà Lan"
                       value={serviceFormData.signOffPort}
                       onChange={(e) => setServiceFormData({ ...serviceFormData, signOffPort: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545]"
                     />
                   </div>
                 </div>
@@ -1237,7 +1237,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                     <select
                       value={serviceFormData.conduct}
                       onChange={(e) => setServiceFormData({ ...serviceFormData, conduct: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545]"
                     >
                       <option value="Xuất sắc / Excellent">Xuất sắc / Excellent</option>
                       <option value="Tốt / Good">Tốt / Good</option>
@@ -1251,7 +1251,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                       placeholder="VD: Hoàn thành tốt hợp đồng đi ca / Thuyền trưởng đánh giá cao"
                       value={serviceFormData.description}
                       onChange={(e) => setServiceFormData({ ...serviceFormData, description: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-teal-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#0b2545]"
                     />
                   </div>
                 </div>
@@ -1268,7 +1268,7 @@ export const CrewLogbookSection: React.FC<CrewLogbookSectionProps> = ({ crewMemb
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-lg shadow flex items-center gap-1.5"
+                  className="px-5 py-2 bg-[#0b2545] hover:bg-[#16375f] text-white font-semibold rounded-lg shadow flex items-center gap-1.5"
                   disabled={submittingService}
                 >
                   {submittingService ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}

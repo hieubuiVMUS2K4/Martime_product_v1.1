@@ -284,21 +284,12 @@ export class MaritimeService {
     getById: (id: number) => this.request<Certificate>(`/certificates/${id}`),
     getWithCrewCount: () => this.request<(Certificate & { crewCount: number })[]>('/certificates/with-crew-count'),
     getCertificateCountries: (certificateId: number) => this.request<Country[]>(`/certificates/${certificateId}/countries`),
-    create: (data: {
-      certificateCode: string
-      certificateName: string
-      category: string
-      validityPeriodMonths?: number | null
-      description?: string
-      isMandatory: boolean
-      isActive: boolean
-      stcwReference?: string
-      issuingAuthority?: string
-    }) => this.request<{ id: number; certificateCode: string; certificateName: string; message: string }>('/certificates', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    }),
-    getCrewCertificates: (certificateId: number) => 
+    // Chức danh (STCW) bắt buộc phải có loại chứng chỉ này — bảng nối rank_certificates.
+    getCertificateRanks: (certificateId: number) =>
+      this.request<any[]>(`/rank-certificates/certificate/${certificateId}`),
+    // Không có create/update/delete LOẠI chứng chỉ: danh mục do bờ làm chủ và phát xuống
+    // mọi tàu qua đồng bộ. Tàu chỉ đọc, dùng làm khoá ngoại khi gán chứng chỉ cho thuyền viên.
+    getCrewCertificates: (certificateId: number) =>
       this.request<CrewCertificate[]>(`/certificates/${certificateId}/crew-certificates`),
     getCrewCertificatesByCrewId: (crewId: string) =>
       this.request<CrewCertificate[]>(`/certificates/crew/${crewId}`),

@@ -2,7 +2,7 @@ import { ENV } from '../config/env';
 import { buildAuthHeaders } from './api.client';
 import type {
   CrewMember, CrewDetail, CrewCertificate, CrewDocument, ServiceRecord,
-  CertificateType, Rank, Country, ComplianceReport,
+  CertificateType, Rank, Country, ComplianceReport, ComplianceMatrix,
   CreateCrewRequest, UpdateCrewRequest, CrewCertificateRequest,
   CreateServiceRecordRequest, CreateDocumentRequest,
   PaginatedResponse, VesselSimple, CrewLogbookEntry,
@@ -318,6 +318,13 @@ export const certificateApi = {
   /** Get rank IDs mapped to a certificate type */
   getCertificateRanks: (certId: number): Promise<number[]> =>
     request(`${BASE}/certificates/${certId}/ranks`),
+
+  /**
+   * Ma trận tuân thủ xoay theo LOẠI chứng chỉ: mỗi loại cho biết ai đang thiếu,
+   * kèm tổng hợp theo chức danh. Một lần gọi cho cả hai góc nhìn.
+   */
+  getComplianceMatrix: (onboardOnly = false): Promise<ComplianceMatrix> =>
+    request(`${BASE}/certificates/compliance/matrix?onboardOnly=${onboardOnly}`),
 
   // --- Crew Certificates ---
 

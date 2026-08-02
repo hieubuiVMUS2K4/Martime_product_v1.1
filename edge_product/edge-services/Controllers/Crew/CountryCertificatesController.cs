@@ -56,105 +56,10 @@ public class CountryCertificatesController : ControllerBase
                 .ToListAsync();
         }
 
-        // POST: api/country-certificates
-        [HttpPost]
-        public async Task<ActionResult<CountryCertificate>> PostCountryCertificate(CountryCertificate countryCertificate)
-        {
-            countryCertificate.CreatedAt = DateTime.UtcNow;
-            countryCertificate.UpdatedAt = DateTime.UtcNow;
-
-            _context.CountryCertificates.Add(countryCertificate);
-            
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateException)
-            {
-                // Check if already exists (unique constraint violation)
-                if (CountryCertificateExists(countryCertificate.CountryId, countryCertificate.CertificateId))
-                {
-                    return Conflict("This country-certificate association already exists.");
-                }
-                throw;
-            }
-
-            return CreatedAtAction(nameof(GetCountryCertificates), new { id = countryCertificate.Id }, countryCertificate);
-        }
-
-        // POST: api/country-certificates/batch
-        [HttpPost("batch")]
-        public async Task<ActionResult> PostCountryCertificatesBatch(List<CountryCertificateDto> countryCertificates)
-        {
-            var now = DateTime.UtcNow;
-            foreach (var dto in countryCertificates)
-            {
-                // Check if already exists
-                if (!CountryCertificateExists(dto.CountryId, dto.CertificateId))
-                {
-                    var cc = new CountryCertificate
-                    {
-                        CountryId = dto.CountryId,
-                        CertificateId = dto.CertificateId,
-                        CreatedAt = now,
-                        UpdatedAt = now
-                    };
-                    _context.CountryCertificates.Add(cc);
-                }
-            }
-
-            await _context.SaveChangesAsync();
-            return Ok(new { message = "Country certificates created successfully", count = countryCertificates.Count });
-        }
-
-        // DELETE: api/country-certificates/5
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteCountryCertificate(int id)
-        {
-            var countryCertificate = await _context.CountryCertificates.FindAsync(id);
-            if (countryCertificate == null)
-            {
-                return NotFound();
-            }
-
-            _context.CountryCertificates.Remove(countryCertificate);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
-        }
-
-        // DELETE: api/country-certificates/by-certificate/5
-        [HttpDelete("by-certificate/{certificateId}")]
-        public async Task<IActionResult> DeleteByCertificate(int certificateId)
-        {
-            var associations = await _context.CountryCertificates
-                .Where(cc => cc.CertificateId == certificateId)
-                .ToListAsync();
-
-            _context.CountryCertificates.RemoveRange(associations);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Country certificates deleted successfully", count = associations.Count });
-        }
-
-        // DELETE: api/country-certificates/certificate/5 (alias for frontend compatibility)
-        [HttpDelete("certificate/{certificateId}")]
-        public async Task<IActionResult> DeleteByCertificateAlias(int certificateId)
-        {
-            var associations = await _context.CountryCertificates
-                .Where(cc => cc.CertificateId == certificateId)
-                .ToListAsync();
-
-            _context.CountryCertificates.RemoveRange(associations);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Country certificates deleted successfully", count = associations.Count });
-        }
-
-        private bool CountryCertificateExists(int countryId, int certificateId)
-        {
-            return _context.CountryCertificates.Any(cc => cc.CountryId == countryId && cc.CertificateId == certificateId);
-        }
+        // ────────────────────────────────────────────────────────────────
+        // Chỉ đọc. Bảng nối chứng chỉ–quốc tịch do BỜ làm chủ, phát xuống
+        // mọi tàu kèm loại chứng chỉ tương ứng. Xem ghi chú ở CertificatesController.
+        // ────────────────────────────────────────────────────────────────
     }
 
 // DTO for batch creating country-certificate associations

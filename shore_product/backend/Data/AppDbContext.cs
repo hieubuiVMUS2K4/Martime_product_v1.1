@@ -70,7 +70,6 @@ namespace ProductApi.Data
         public DbSet<RankCertificate> RankCertificates { get; set; } = null!;
         public DbSet<CountryCertificate> CountryCertificates { get; set; } = null!;
         public DbSet<ServiceRecord> ServiceRecords { get; set; } = null!;
-        public DbSet<VesselCertificateAssignment> VesselCertificateAssignments { get; set; } = null!;
         public DbSet<CrewLogbookEntry> CrewLogbookEntries { get; set; } = null!;
 
         // Crew Documents
@@ -939,19 +938,8 @@ namespace ProductApi.Data
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
-            // Configure VesselCertificateAssignment
-            modelBuilder.Entity<VesselCertificateAssignment>(entity =>
-            {
-                entity.ToTable("vessel_certificate_assignments");
-                entity.HasKey(e => e.Id);
-                entity.HasIndex(e => new { e.VesselId, e.CertificateId }).IsUnique();
-                entity.HasIndex(e => e.IsSynced);
-
-                entity.HasOne(e => e.Certificate)
-                    .WithMany()
-                    .HasForeignKey(e => e.CertificateId)
-                    .OnDelete(DeleteBehavior.Cascade);
-            });
+            // VesselCertificateAssignment đã bị bỏ: danh mục loại chứng chỉ do bờ làm chủ và
+            // phát xuống mọi tàu, không còn khái niệm gán loại chứng chỉ cho từng tàu.
 
             // Configure ServiceRecord
             modelBuilder.Entity<ServiceRecord>(entity =>

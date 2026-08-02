@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Award, Save, Upload, Trash2, X } from 'lucide-react';
 import { certificateApi, referenceApi } from '../../services/crew.service';
 import type { CertificateType, Country, CrewCertificate, CrewCertificateRequest } from '../../types/crew.types';
+import './CrewModalShell.css';
 import './AddCrewCertificateModal.css';
 
 interface Props {

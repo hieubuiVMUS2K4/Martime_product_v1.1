@@ -345,94 +345,22 @@ public class CertificatesController : ControllerBase
         }
     }
 
-    // POST: api/certificates
-    [HttpPost]
-    public async Task<IActionResult> CreateCertificate([FromBody] CreateCertificateRequest request)
-    {
-        try
-        {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
-            var certificate = new Certificate
-            {
-                CertificateCode = request.CertificateCode,
-                CertificateName = request.CertificateName,
-                Category = request.Category,
-                ValidityPeriodMonths = request.ValidityPeriodMonths,
-                Description = request.Description,
-                IsMandatory = request.IsMandatory,
-                IsActive = request.IsActive,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-
-            _context.Certificates.Add(certificate);
-            await _context.SaveChangesAsync();
-
-            _logger.LogInformation("Certificate {CertificateCode} created with ID {CertificateId}", 
-                certificate.CertificateCode, certificate.Id);
-
-            return Ok(new { 
-                id = certificate.Id,
-                certificateCode = certificate.CertificateCode,
-                certificateName = certificate.CertificateName,
-                message = "Certificate created successfully"
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error creating certificate");
-            return StatusCode(500, new { message = "Error creating certificate" });
-        }
-    }
-
-    // PUT: api/certificates/{id}
-    [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateCertificate(int id, [FromBody] CreateCertificateRequest request)
-    {
-        try
-        {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
-            var certificate = await _context.Certificates.FindAsync(id);
-            if (certificate == null)
-            {
-                return NotFound(new { message = $"Certificate with ID {id} not found" });
-            }
-
-            certificate.CertificateCode = request.CertificateCode;
-            certificate.CertificateName = request.CertificateName;
-            if (request.Category != null) certificate.Category = request.Category;
-            if (request.ValidityPeriodMonths.HasValue) certificate.ValidityPeriodMonths = request.ValidityPeriodMonths;
-            if (request.Description != null) certificate.Description = request.Description;
-            certificate.IsMandatory = request.IsMandatory;
-            certificate.IsActive = request.IsActive;
-            certificate.UpdatedAt = DateTime.UtcNow;
-
-            await _context.SaveChangesAsync();
-
-            _logger.LogInformation("Certificate {CertificateCode} updated with ID {CertificateId}", 
-                certificate.CertificateCode, certificate.Id);
-
-            return Ok(new { 
-                id = certificate.Id,
-                certificateCode = certificate.CertificateCode,
-                certificateName = certificate.CertificateName,
-                message = "Certificate updated successfully"
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error updating certificate");
-            return StatusCode(500, new { message = "Error updating certificate" });
-        }
-    }
+    // ────────────────────────────────────────────────────────────────────────
+    // KHÔNG có endpoint tạo/sửa/xoá LOẠI chứng chỉ ở tàu.
+    //
+    // Danh mục loại chứng chỉ do BỜ làm chủ và phát xuống mọi tàu qua sync
+    // (bảng "certificate" nằm trong _masterDataTables của SyncConflictHandler:
+    // bờ luôn thắng, ghi đè toàn bộ). Tàu chỉ đọc và dùng làm khoá ngoại khi
+    // gán chứng chỉ cho thuyền viên — giống hệt cách danh mục vật tư
+    // (material_item_catalog) được dùng ở tàu.
+    //
+    // Trước đây tàu tự tạo được loại chứng chỉ, sinh ra Id đụng với dải Id của
+    // bờ; mà chiều bờ→tàu copy thẳng CertificateId không ánh xạ lại, nên chứng
+    // chỉ của thuyền viên hiển thị sai loại. Cần loại chứng chỉ mới thì bờ thêm
+    // vào danh mục, tàu sẽ nhận được qua đợt đồng bộ kế tiếp.
+    //
+    // Phần tàu VẪN được sửa là crew-certificates ở bên dưới.
+    // ────────────────────────────────────────────────────────────────────────
 
     // POST: api/certificates/crew-certificates
     [HttpPost("crew-certificates")]
