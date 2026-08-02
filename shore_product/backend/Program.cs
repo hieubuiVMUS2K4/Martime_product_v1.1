@@ -513,6 +513,24 @@ if (autoMigrateDatabase)
                     CONSTRAINT ""FK_sms_filled_records_sms_form_templates"" FOREIGN KEY (""SmsFormTemplateId"") REFERENCES sms_form_templates (""Id"") ON DELETE CASCADE
                 );
 
+                -- Bổ sung cột metadata đồng bộ cho các bảng SMS.
+                -- Model khai báo IsSynced/OriginNode (và CreatedAt/UpdatedAt ở ism_elements)
+                -- nhưng phần CREATE TABLE ở trên thiếu, nên SmsSeedData chèn dữ liệu là gãy với
+                -- lỗi 42703 column CreatedAt does not exist. CREATE TABLE IF NOT EXISTS không
+                -- sửa được bảng đã tồn tại, phải ALTER riêng thì DB cũ mới có đủ cột.
+                ALTER TABLE ism_elements                   ADD COLUMN IF NOT EXISTS ""IsSynced"" boolean NOT NULL DEFAULT false;
+                ALTER TABLE ism_elements                   ADD COLUMN IF NOT EXISTS ""OriginNode"" character varying(50) NOT NULL DEFAULT 'SHORE';
+                ALTER TABLE ism_elements                   ADD COLUMN IF NOT EXISTS ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT now();
+                ALTER TABLE ism_elements                   ADD COLUMN IF NOT EXISTS ""UpdatedAt"" timestamp with time zone NOT NULL DEFAULT now();
+                ALTER TABLE sms_procedures                 ADD COLUMN IF NOT EXISTS ""IsSynced"" boolean NOT NULL DEFAULT false;
+                ALTER TABLE sms_procedures                 ADD COLUMN IF NOT EXISTS ""OriginNode"" character varying(50) NOT NULL DEFAULT 'SHORE';
+                ALTER TABLE sms_procedure_acknowledgements ADD COLUMN IF NOT EXISTS ""IsSynced"" boolean NOT NULL DEFAULT false;
+                ALTER TABLE sms_procedure_acknowledgements ADD COLUMN IF NOT EXISTS ""OriginNode"" character varying(50) NOT NULL DEFAULT 'SHORE';
+                ALTER TABLE sms_form_templates             ADD COLUMN IF NOT EXISTS ""IsSynced"" boolean NOT NULL DEFAULT false;
+                ALTER TABLE sms_form_templates             ADD COLUMN IF NOT EXISTS ""OriginNode"" character varying(50) NOT NULL DEFAULT 'SHORE';
+                ALTER TABLE sms_filled_records             ADD COLUMN IF NOT EXISTS ""IsSynced"" boolean NOT NULL DEFAULT false;
+                ALTER TABLE sms_filled_records             ADD COLUMN IF NOT EXISTS ""OriginNode"" character varying(50) NOT NULL DEFAULT 'SHORE';
+
                 -- Fix existing sms_filled_records: add defaults to denormalized columns
                 -- so Edge-synced rows (which omit these fields) insert successfully.
                 ALTER TABLE sms_filled_records ALTER COLUMN ""FormTitle"" SET DEFAULT '';
