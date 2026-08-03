@@ -11,30 +11,6 @@ export default defineConfig({
   },
   build: {
     chunkSizeWarningLimit: 1000,
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom') || id.includes('zustand')) {
-              return 'vendor-react';
-            }
-            if (id.includes('leaflet') || id.includes('@vietmap')) {
-              return 'vendor-maps';
-            }
-            if (id.includes('recharts')) {
-              return 'vendor-charts';
-            }
-            if (id.includes('exceljs') || id.includes('jspdf') || id.includes('docx-preview') || id.includes('xlsx')) {
-              return 'vendor-docs';
-            }
-            if (id.includes('@radix-ui') || id.includes('@dnd-kit') || id.includes('@tiptap') || id.includes('lucide-react')) {
-              return 'vendor-ui';
-            }
-            return 'vendor';
-          }
-        },
-      },
-    },
   },
   server: {
     port: 3002,
