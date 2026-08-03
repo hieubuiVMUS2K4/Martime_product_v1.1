@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
@@ -31,6 +32,16 @@ builder.Services.AddControllers()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddMemoryCache();
+
+var dataProtectionKeysPath = configuration["DataProtection:KeysPath"] ?? "/root/.aspnet/DataProtection-Keys";
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath))
+    .SetApplicationName("MaritimeShoreProduct");
+
+builder.Services.AddHttpsRedirection(options =>
+{
+    options.HttpsPort = configuration.GetValue<int?>("Security:HttpsPort") ?? 443;
+});
 
 // DbContext
 var conn = configuration.GetConnectionString("DefaultConnection");

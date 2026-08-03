@@ -964,7 +964,7 @@ namespace ProductApi.Data
                 entity.HasIndex(e => e.IsSynced);
 
                 entity.HasOne(e => e.CrewMember)
-                    .WithMany()
+                    .WithMany(c => c.ServiceRecords)
                     .HasForeignKey(e => e.CrewMemberId)
                     .OnDelete(DeleteBehavior.Cascade);
 

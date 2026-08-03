@@ -141,6 +141,12 @@ public class EdgeRuntimeConfigService : IEdgeRuntimeConfigService
                 $"EdgeProvisioningProfile #{profile.Id} không có NodeApiToken hợp lệ sau khi giải mã.");
         }
 
+        if (profile.SecurityEnabled && string.IsNullOrWhiteSpace(signingKey))
+        {
+            throw new ConfigInvalidException(
+                $"EdgeProvisioningProfile #{profile.Id} bật sync signing nhưng không có SigningKey hợp lệ sau khi giải mã.");
+        }
+
         return new EdgeSyncConfig
         {
             NodeId = profile.NodeId!,
@@ -187,7 +193,9 @@ public class EdgeRuntimeConfigService : IEdgeRuntimeConfigService
             SigningKey = signingKey ?? string.Empty,
             KeyVersion = int.TryParse(_configuration["SyncSecurity:KeyVersion"], out var kv) ? kv : 1,
             ProtocolVersion = _configuration["SyncSecurity:ProtocolVersion"] ?? "2",
-            SecurityEnabled = bool.TryParse(_configuration["SyncSecurity:Enabled"], out var enabled) && enabled,
+            SecurityEnabled = bool.TryParse(_configuration["SyncSecurity:Enabled"], out var enabled) &&
+                              enabled &&
+                              !string.IsNullOrWhiteSpace(signingKey),
             ShoreVesselId = shoreVesselId,
             VesselImo = _configuration["Vessel:IMO"],
             VesselName = _configuration["Vessel:Name"],

@@ -49,7 +49,14 @@ public class SyncBackgroundWorker : BackgroundService
                     }
                     catch (Exception ex) when (ex is ProvisioningRequiredException or ConfigInvalidException)
                     {
+                        var message = ex is ProvisioningRequiredException
+                            ? "Sync paused until an EdgeProvisioningProfile is imported and activated."
+                            : "Sync paused because the active provisioning configuration is invalid.";
+
+                        _logger.LogWarning(ex, "{Message}", message);
                         defaultPushInterval = configDefaultPushInterval;
+                        await Task.Delay(defaultPushInterval, stoppingToken);
+                        continue;
                     }
 
                     var network = await syncService.GetCurrentNetworkStatusAsync();
