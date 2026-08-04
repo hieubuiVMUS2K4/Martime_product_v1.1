@@ -527,6 +527,8 @@ export const VesselsPage: React.FC = () => {
           vesselId={provisionTarget.id}
           vesselName={provisionTarget.name}
           imo={provisionTarget.imo}
+          provisioningStatus={provisionTarget.provisioningStatus}
+          onChanged={fetchData}
           onClose={() => setProvisionTarget(null)}
         />
       )}

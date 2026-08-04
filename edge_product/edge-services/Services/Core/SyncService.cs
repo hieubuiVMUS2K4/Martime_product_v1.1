@@ -420,10 +420,25 @@ public class SyncService : ISyncService
                 if (!response.IsSuccessStatusCode)
                 {
                     _logger.LogWarning("Shore pull failed: {Status}", response.StatusCode);
-                    UpdateShoreReachability(false, nodeId, retryPolicy, $"Pull failed: HTTP {(int)response.StatusCode}");
+                    var error = $"Pull failed: HTTP {(int)response.StatusCode}";
+                    UpdateShoreReachability(false, nodeId, retryPolicy, error);
+                    await UpdateActiveProvisioningStatusAsync(
+                        context,
+                        nodeId,
+                        success: false,
+                        error,
+                        response.StatusCode,
+                        cancellationToken);
                     break;
                 }
                 UpdateShoreReachability(true, nodeId, retryPolicy);
+                await UpdateActiveProvisioningStatusAsync(
+                    context,
+                    nodeId,
+                    success: true,
+                    error: null,
+                    statusCode: response.StatusCode,
+                    cancellationToken);
 
                 var pullResponse = await JsonSerializer.DeserializeAsync<Maritime.Shared.DTOs.Sync.SyncPullResponse>(
                     await response.Content.ReadAsStreamAsync(cancellationToken), _jsonOptions, cancellationToken);
@@ -545,11 +560,26 @@ public class SyncService : ISyncService
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogWarning("Signed heartbeat failed with status {Status}", response.StatusCode);
-            UpdateShoreReachability(false, nodeId, LoadRetryPolicyConfig(), $"Heartbeat failed: HTTP {(int)response.StatusCode}");
+            var error = $"Heartbeat failed: HTTP {(int)response.StatusCode}";
+            UpdateShoreReachability(false, nodeId, LoadRetryPolicyConfig(), error);
+            await UpdateActiveProvisioningStatusAsync(
+                context,
+                nodeId,
+                success: false,
+                error,
+                response.StatusCode,
+                cancellationToken);
             return;
         }
 
         UpdateShoreReachability(true, nodeId, LoadRetryPolicyConfig());
+        await UpdateActiveProvisioningStatusAsync(
+            context,
+            nodeId,
+            success: true,
+            error: null,
+            statusCode: response.StatusCode,
+            cancellationToken);
     }
 
     // ============================================================
@@ -791,7 +821,15 @@ public class SyncService : ISyncService
             else
             {
                 _logger.LogWarning("Shore API returned {Status}", response.StatusCode);
-                UpdateShoreReachability(isReachable: false, nodeId: nodeId, retryPolicy: retryPolicy);
+                var error = $"Push failed: HTTP {(int)response.StatusCode}";
+                UpdateShoreReachability(isReachable: false, nodeId: nodeId, retryPolicy: retryPolicy, error);
+                await UpdateActiveProvisioningStatusAsync(
+                    context,
+                    nodeId,
+                    success: false,
+                    error,
+                    response.StatusCode,
+                    cancellationToken);
                 // Retry all items
                 foreach (var item in items)
                 {
@@ -984,6 +1022,43 @@ public class SyncService : ISyncService
                 _warmupUntilUtc = DateTime.MinValue;
             }
         }
+    }
+
+    private static async Task UpdateActiveProvisioningStatusAsync(
+        EdgeDbContext context,
+        string nodeId,
+        bool success,
+        string? error,
+        System.Net.HttpStatusCode statusCode,
+        CancellationToken cancellationToken)
+    {
+        var profile = await context.EdgeProvisioningProfiles
+            .FirstOrDefaultAsync(p => p.IsActive && p.NodeId == nodeId, cancellationToken);
+
+        if (profile == null)
+            return;
+
+        profile.LastHandshakeAt = DateTime.UtcNow;
+
+        if (success)
+        {
+            profile.HandshakeStatus = "success";
+            profile.LastHandshakeError = null;
+        }
+        else
+        {
+            profile.HandshakeStatus = "failed";
+            profile.LastHandshakeError = IsCredentialFailure(statusCode)
+                ? $"{error}. Profile credential is no longer accepted by Shore; re-import the latest Provisioning Package."
+                : error;
+        }
+
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    private static bool IsCredentialFailure(System.Net.HttpStatusCode statusCode)
+    {
+        return statusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden;
     }
 
     private async Task<bool> TryEnterPushGateAsync(int maxInFlight, CancellationToken cancellationToken)

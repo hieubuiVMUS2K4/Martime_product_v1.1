@@ -105,6 +105,9 @@ export function ShoreConfigModal({ onClose }: ShoreConfigModalProps) {
     })
   }
 
+  const isFailed = (handshakeStatus?: string) => handshakeStatus?.toLowerCase() === 'failed'
+  const activeProfileNeedsReimport = status?.isActive && isFailed(status.handshakeStatus)
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
@@ -143,11 +146,24 @@ export function ShoreConfigModal({ onClose }: ShoreConfigModalProps) {
                 </h3>
                 <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm">
                   {status?.isActive ? (
-                    <div className="grid grid-cols-2 gap-2">
-                      <div><span className="text-gray-500">Node ID:</span> <span className="font-medium">{status.nodeId}</span></div>
-                      <div><span className="text-gray-500">Shore URL:</span> <span className="font-medium">{status.shoreUrl}</span></div>
-                      <div><span className="text-gray-500">Handshake:</span> <span className="font-medium">{status.handshakeStatus ?? '—'}</span></div>
-                      <div><span className="text-gray-500">Lần cuối:</span> <span className="font-medium">{formatTime(status.lastHandshake)}</span></div>
+                    <div className="space-y-3">
+                      {activeProfileNeedsReimport && (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 flex items-start gap-2">
+                          <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <div className="font-medium">Profile đang dùng không còn hợp lệ. Hãy tải Provisioning Package mới từ Shore rồi import lại.</div>
+                            {status.lastHandshakeError && (
+                              <div className="text-xs mt-1 text-red-600">{status.lastHandshakeError}</div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div><span className="text-gray-500">Node ID:</span> <span className="font-medium">{status.nodeId}</span></div>
+                        <div><span className="text-gray-500">Shore URL:</span> <span className="font-medium">{status.shoreUrl}</span></div>
+                        <div><span className="text-gray-500">Handshake:</span> <span className={`font-medium ${activeProfileNeedsReimport ? 'text-red-600' : ''}`}>{status.handshakeStatus ?? '—'}</span></div>
+                        <div><span className="text-gray-500">Lần cuối:</span> <span className="font-medium">{formatTime(status.lastHandshake)}</span></div>
+                      </div>
                     </div>
                   ) : (
                     <span className="text-amber-600 flex items-center gap-2">
@@ -201,8 +217,11 @@ export function ShoreConfigModal({ onClose }: ShoreConfigModalProps) {
                           <div>
                             <span className="font-medium">{item.vesselName}</span>{' '}
                             <span className="text-gray-400">({item.nodeId})</span>
-                            {item.isActive && (
+                            {item.isActive && !isFailed(item.handshakeStatus) && (
                               <span className="ml-2 bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full">ĐANG DÙNG</span>
+                            )}
+                            {item.isActive && isFailed(item.handshakeStatus) && (
+                              <span className="ml-2 bg-red-600 text-white text-[10px] px-2 py-0.5 rounded-full">CẦN IMPORT LẠI</span>
                             )}
                           </div>
                           <span className="text-xs text-gray-400">{formatTime(item.importedAt)}</span>
@@ -210,6 +229,12 @@ export function ShoreConfigModal({ onClose }: ShoreConfigModalProps) {
                         <div className="text-xs text-gray-500 mt-1">
                           Shore: {item.shoreBaseUrl} · Key v{item.keyVersion} · Handshake: {item.handshakeStatus ?? 'never'}
                         </div>
+                        {item.isActive && isFailed(item.handshakeStatus) && item.lastHandshakeError && (
+                          <div className="mt-2 text-xs text-red-600 flex items-start gap-1">
+                            <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                            {item.lastHandshakeError}
+                          </div>
+                        )}
 
                         {testResult?.id === item.id && (
                           <div className={`mt-2 text-xs flex items-center gap-1 ${testResult.success ? 'text-emerald-600' : 'text-red-600'}`}>

@@ -778,6 +778,7 @@ export interface EdgeProvisioningStatus {
   shoreUrl?: string
   lastHandshake?: string
   handshakeStatus?: string
+  lastHandshakeError?: string
   source: string
 }
 
@@ -807,6 +808,7 @@ export interface EdgeProvisioningHistoryItem {
   activatedAt?: string
   lastHandshakeAt?: string
   handshakeStatus?: string
+  lastHandshakeError?: string
 }
 
 export const provisioningService = {

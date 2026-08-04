@@ -60,6 +60,7 @@ public class EdgeProvisioningController : ControllerBase
                 shoreUrl = (string?)null,
                 lastHandshake = (DateTime?)null,
                 handshakeStatus = (string?)null,
+                lastHandshakeError = (string?)null,
                 source = "none"
             });
         }
@@ -72,6 +73,7 @@ public class EdgeProvisioningController : ControllerBase
             shoreUrl = active.ShoreBaseUrl,
             lastHandshake = active.LastHandshakeAt,
             handshakeStatus = active.HandshakeStatus,
+            lastHandshakeError = active.LastHandshakeError,
             source = "db"
         });
     }
@@ -328,7 +330,8 @@ public class EdgeProvisioningController : ControllerBase
                 p.ImportedFrom,
                 p.ActivatedAt,
                 p.LastHandshakeAt,
-                p.HandshakeStatus
+                p.HandshakeStatus,
+                p.LastHandshakeError
             })
             .ToListAsync();
 

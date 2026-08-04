@@ -9,18 +9,26 @@ interface ProvisioningModalProps {
   vesselId: string;
   vesselName: string;
   imo: string;
+  provisioningStatus?: string;
+  onChanged?: () => void;
   onClose: () => void;
 }
 
 type ActionState = 'idle' | 'loading' | 'success' | 'error';
 
-export const ProvisioningModal: React.FC<ProvisioningModalProps> = ({ vesselId, vesselName, imo, onClose }) => {
+export const ProvisioningModal: React.FC<ProvisioningModalProps> = ({ vesselId, vesselName, imo, provisioningStatus, onChanged, onClose }) => {
   const [provisionState, setProvisionState] = useState<ActionState>('idle');
   const [rotateState, setRotateState] = useState<ActionState>('idle');
   const [downloadState, setDownloadState] = useState<ActionState>('idle');
   const [message, setMessage] = useState<string | null>(null);
   const [lastNodeId, setLastNodeId] = useState<string | null>(null);
   const [lastKeyVersion, setLastKeyVersion] = useState<number | null>(null);
+  const [currentStatus, setCurrentStatus] = useState(provisioningStatus ?? 'Unknown');
+
+  const hasSecrets = !['Unknown', 'Revoked', 'Disabled'].includes(currentStatus);
+  const isBusy = provisionState === 'loading' || rotateState === 'loading' || downloadState === 'loading';
+  const canProvision = !hasSecrets && provisionState !== 'loading';
+  const canExportSecrets = hasSecrets;
 
   const handleProvision = async () => {
     setProvisionState('loading'); setMessage(null);
@@ -34,8 +42,10 @@ export const ProvisioningModal: React.FC<ProvisioningModalProps> = ({ vesselId, 
       const data = await res.json();
       setLastNodeId(data.nodeId);
       setLastKeyVersion(data.keyVersion);
+      setCurrentStatus(data.status ?? 'Provisioned');
       setMessage(data.message ?? 'Secrets đã được sinh thành công.');
       setProvisionState('success');
+      onChanged?.();
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Provision thất bại');
       setProvisionState('error');
@@ -57,8 +67,10 @@ export const ProvisioningModal: React.FC<ProvisioningModalProps> = ({ vesselId, 
       const data = await res.json();
       setLastNodeId(data.nodeId);
       setLastKeyVersion(data.newKeyVersion);
+      setCurrentStatus(data.status ?? 'Downloaded');
       setMessage(data.message ?? 'Key mới đã được sinh.');
       setRotateState('success');
+      onChanged?.();
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Rotate key thất bại');
       setRotateState('error');
@@ -81,7 +93,9 @@ export const ProvisioningModal: React.FC<ProvisioningModalProps> = ({ vesselId, 
       a.href = url; a.download = fileName;
       document.body.appendChild(a); a.click(); a.remove();
       window.URL.revokeObjectURL(url);
+      setCurrentStatus(prev => (prev === 'Provisioned' ? 'Downloaded' : prev));
       setDownloadState('success');
+      onChanged?.();
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Tải Provisioning Package thất bại');
       setDownloadState('error');
@@ -103,18 +117,20 @@ export const ProvisioningModal: React.FC<ProvisioningModalProps> = ({ vesselId, 
             </div>
           )}
 
-          {(lastNodeId || lastKeyVersion) && (
+          {hasSecrets && (
             <div style={{ fontSize: 13, color: '#475569' }}>
               {lastNodeId && <div>Node ID: <strong>{lastNodeId}</strong></div>}
               {lastKeyVersion != null && <div>Key version: <strong>{lastKeyVersion}</strong></div>}
+              <div>Status: <strong>{currentStatus}</strong></div>
             </div>
           )}
 
           <button
             className="vp-btn vp-btn--primary"
             onClick={handleProvision}
-            disabled={provisionState === 'loading'}
+            disabled={!canProvision || isBusy}
             style={{ justifyContent: 'flex-start' }}
+            title={hasSecrets ? 'Secrets đã được tạo. Hãy tải package hoặc rotate key nếu cần.' : undefined}
           >
             {provisionState === 'loading' ? <Loader2 size={14} className="spin" /> : <ShieldCheck size={14} />}
             Generate Secrets (Provision)
@@ -123,8 +139,9 @@ export const ProvisioningModal: React.FC<ProvisioningModalProps> = ({ vesselId, 
           <button
             className="vp-btn"
             onClick={handleDownload}
-            disabled={downloadState === 'loading'}
+            disabled={!canExportSecrets || isBusy}
             style={{ justifyContent: 'flex-start' }}
+            title={!canExportSecrets ? 'Cần Generate Secrets trước khi tải package.' : undefined}
           >
             {downloadState === 'loading' ? <Loader2 size={14} className="spin" /> : <Download size={14} />}
             Tải Provisioning Package (.zip)
@@ -133,8 +150,9 @@ export const ProvisioningModal: React.FC<ProvisioningModalProps> = ({ vesselId, 
           <button
             className="vp-btn vp-btn--danger"
             onClick={handleRotate}
-            disabled={rotateState === 'loading'}
+            disabled={!canExportSecrets || isBusy}
             style={{ justifyContent: 'flex-start' }}
+            title={!canExportSecrets ? 'Cần Generate Secrets trước khi rotate key.' : undefined}
           >
             {rotateState === 'loading' ? <Loader2 size={14} className="spin" /> : <Key size={14} />}
             Rotate Key
