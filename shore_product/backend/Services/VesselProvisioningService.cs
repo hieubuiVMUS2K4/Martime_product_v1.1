@@ -209,7 +209,7 @@ namespace ProductApi.Services
             var envShoreSync = BuildEnvShoreSyncContent(vessel, node, normalizedBaseUrl, nodeApiToken, signingKey, generatedAt, downloadCountForHeader);
             var readme = BuildReadmeContent();
 
-            var safeVesselName = string.Concat(vessel.Name.Split(Path.GetInvalidFileNameChars())).Replace(' ', '-');
+            var safeVesselName = NormalizeProvisioningFileNamePart(vessel.Name);
             var fileName = $"edge-provisioning-{safeVesselName}-{vessel.IMO}-{generatedAt:yyyyMMdd}.zip";
 
             using var memoryStream = new MemoryStream();
@@ -239,6 +239,28 @@ namespace ProductApi.Services
                 ZipContent = memoryStream.ToArray(),
                 FileName = fileName
             };
+        }
+
+        private static string NormalizeProvisioningFileNamePart(string value)
+        {
+            var builder = new StringBuilder(value.Length);
+            var lastWasDash = false;
+
+            foreach (var c in value.Trim().ToLowerInvariant())
+            {
+                if (char.IsLetterOrDigit(c))
+                {
+                    builder.Append(c);
+                    lastWasDash = false;
+                }
+                else if (!lastWasDash)
+                {
+                    builder.Append('-');
+                    lastWasDash = true;
+                }
+            }
+
+            return builder.ToString().Trim('-');
         }
 
         public async Task<NodeProvisioningResult> RotateKeyAsync(Guid vesselId, string rotatedBy, string? clientIp)

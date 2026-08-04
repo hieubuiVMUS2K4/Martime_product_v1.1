@@ -5,6 +5,27 @@ import { buildAuthHeaders } from '../../services/api.client';
 
 const BASE = ENV.API_BASE_URL;
 
+function parseDownloadFileName(disposition: string | null, fallback: string) {
+  if (!disposition) return fallback;
+
+  const utf8Match = /filename\*=UTF-8''([^;]+)/i.exec(disposition);
+  if (utf8Match?.[1]) {
+    return decodeURIComponent(utf8Match[1].trim().replace(/^"|"$/g, ''));
+  }
+
+  const quotedMatch = /filename="([^"]+)"/i.exec(disposition);
+  if (quotedMatch?.[1]) {
+    return quotedMatch[1].trim();
+  }
+
+  const plainMatch = /filename=([^;]+)/i.exec(disposition);
+  if (plainMatch?.[1]) {
+    return plainMatch[1].trim().replace(/^"|"$/g, '');
+  }
+
+  return fallback;
+}
+
 interface ProvisioningModalProps {
   vesselId: string;
   vesselName: string;
@@ -15,6 +36,25 @@ interface ProvisioningModalProps {
 }
 
 type ActionState = 'idle' | 'loading' | 'success' | 'error';
+
+const STATUS_LABELS: Record<string, string> = {
+  Unknown: 'Chưa tạo secrets',
+  Provisioned: 'Đã tạo secrets, chờ tải package',
+  Downloaded: 'Đã tải package, tàu cần import lại',
+  PendingFirstContact: 'Đang chờ Edge liên hệ',
+  Registered: 'Edge đã đăng ký',
+  Active: 'Đang hoạt động',
+  Revoked: 'Đã thu hồi',
+  Disabled: 'Đã vô hiệu hóa',
+};
+
+const STATUS_HINTS: Record<string, string> = {
+  Provisioned: 'Bước tiếp theo: tải Provisioning Package rồi import vào Edge.',
+  Downloaded: 'Bước tiếp theo: import package mới vào Edge, Test Connection, rồi Activate.',
+  PendingFirstContact: 'Edge đã activate profile, đang chờ lần liên hệ/sync đầu tiên.',
+  Registered: 'Edge đã xác thực thành công với Shore.',
+  Active: 'Profile đang hợp lệ. Chỉ rotate key khi cần cấp lại secrets.',
+};
 
 export const ProvisioningModal: React.FC<ProvisioningModalProps> = ({ vesselId, vesselName, imo, provisioningStatus, onChanged, onClose }) => {
   const [provisionState, setProvisionState] = useState<ActionState>('idle');
@@ -29,6 +69,8 @@ export const ProvisioningModal: React.FC<ProvisioningModalProps> = ({ vesselId, 
   const isBusy = provisionState === 'loading' || rotateState === 'loading' || downloadState === 'loading';
   const canProvision = !hasSecrets && provisionState !== 'loading';
   const canExportSecrets = hasSecrets;
+  const statusLabel = STATUS_LABELS[currentStatus] ?? currentStatus;
+  const statusHint = STATUS_HINTS[currentStatus];
 
   const handleProvision = async () => {
     setProvisionState('loading'); setMessage(null);
@@ -86,8 +128,7 @@ export const ProvisioningModal: React.FC<ProvisioningModalProps> = ({ vesselId, 
       if (!res.ok) throw new Error(await res.text());
       const blob = await res.blob();
       const disposition = res.headers.get('Content-Disposition') ?? '';
-      const match = /filename="?([^"]+)"?/.exec(disposition);
-      const fileName = match?.[1] ?? `edge-provisioning-${imo}.zip`;
+      const fileName = parseDownloadFileName(disposition, `edge-provisioning-${imo}.zip`);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url; a.download = fileName;
@@ -117,13 +158,30 @@ export const ProvisioningModal: React.FC<ProvisioningModalProps> = ({ vesselId, 
             </div>
           )}
 
-          {hasSecrets && (
-            <div style={{ fontSize: 13, color: '#475569' }}>
-              {lastNodeId && <div>Node ID: <strong>{lastNodeId}</strong></div>}
-              {lastKeyVersion != null && <div>Key version: <strong>{lastKeyVersion}</strong></div>}
-              <div>Status: <strong>{currentStatus}</strong></div>
+          <div className={`vp-provision-profile ${hasSecrets ? 'vp-provision-profile--ready' : 'vp-provision-profile--empty'}`}>
+            <div className="vp-provision-profile__head">
+              <ShieldCheck size={15} />
+              <span>Hồ sơ cấu hình hiện tại</span>
             </div>
-          )}
+            <div className="vp-provision-profile__grid">
+              <span>Trạng thái</span>
+              <strong>{statusLabel}</strong>
+              {lastNodeId && (
+                <>
+                  <span>Node ID</span>
+                  <strong>{lastNodeId}</strong>
+                </>
+              )}
+              {lastKeyVersion != null && (
+                <>
+                  <span>Key version</span>
+                  <strong>v{lastKeyVersion}</strong>
+                </>
+              )}
+            </div>
+            {statusHint && <div className="vp-provision-profile__hint">{statusHint}</div>}
+            {!hasSecrets && <div className="vp-provision-profile__hint">Bấm Generate Secrets để tạo token/key đầu tiên cho Edge.</div>}
+          </div>
 
           <button
             className="vp-btn vp-btn--primary"
