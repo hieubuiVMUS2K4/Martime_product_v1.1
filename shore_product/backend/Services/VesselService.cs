@@ -35,6 +35,7 @@ namespace ProductApi.Services
         {
             var vessels = await _context.Vessels
                 .AsNoTracking()
+                .Where(v => v.IsActive)
                 .Include(v => v.Positions.OrderByDescending(p => p.Timestamp).Take(1))
                 .AsSplitQuery()
                 .ToListAsync();
@@ -90,7 +91,7 @@ namespace ProductApi.Services
                 .Include(v => v.PortCalls.OrderByDescending(p => p.ArrivalTime).Take(50))
                 .Include(v => v.Alerts.Where(a => !a.IsAcknowledged))
                 .AsSplitQuery()
-                .FirstOrDefaultAsync(v => v.Id == id);
+                .FirstOrDefaultAsync(v => v.Id == id && v.IsActive);
 
             return vessel != null ? MapToDto(vessel) : null;
         }
@@ -100,7 +101,7 @@ namespace ProductApi.Services
             var vessel = await _context.Vessels
                 .AsNoTracking()
                 .Include(v => v.Positions.OrderByDescending(p => p.Timestamp).Take(1))
-                .FirstOrDefaultAsync(v => v.IMO == imo);
+                .FirstOrDefaultAsync(v => v.IMO == imo && v.IsActive);
 
             return vessel != null ? MapToDto(vessel) : null;
         }

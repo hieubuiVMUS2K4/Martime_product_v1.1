@@ -187,6 +187,7 @@ namespace ProductApi.Controllers
                         NodeId = $"pending-{vessel.IMO}",
                         ShipName = vessel.Name,
                         ImoNumber = vessel.IMO,
+                        VesselId = vessel.Id,
                         IsRegistered = false,
                         IsRevoked = false,
                         ProvisioningStatus = "Unknown",

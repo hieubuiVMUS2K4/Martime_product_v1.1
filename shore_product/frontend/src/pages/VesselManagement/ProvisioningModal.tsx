@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, AlertTriangle, Loader2, Download, Key, ShieldCheck, RefreshCw } from 'lucide-react';
 import { ENV } from '../../config/env';
 import { buildAuthHeaders } from '../../services/api.client';
@@ -64,6 +64,10 @@ export const ProvisioningModal: React.FC<ProvisioningModalProps> = ({ vesselId, 
   const [lastNodeId, setLastNodeId] = useState<string | null>(null);
   const [lastKeyVersion, setLastKeyVersion] = useState<number | null>(null);
   const [currentStatus, setCurrentStatus] = useState(provisioningStatus ?? 'Unknown');
+
+  useEffect(() => {
+    setCurrentStatus(provisioningStatus ?? 'Unknown');
+  }, [provisioningStatus]);
 
   const hasSecrets = !['Unknown', 'Revoked', 'Disabled'].includes(currentStatus);
   const isBusy = provisionState === 'loading' || rotateState === 'loading' || downloadState === 'loading';

@@ -1240,6 +1240,8 @@ public class EdgeDbContext : DbContext
             entity.ToTable("edge_provisioning_profile");
 
             entity.HasIndex(e => e.IsActive)
+                .IsUnique()
+                .HasFilter("is_active = true")
                 .HasDatabaseName("idx_epp_is_active");
         });
 
@@ -2711,17 +2713,18 @@ public class EdgeDbContext : DbContext
         });
 
         // ========== RANKS SEED DATA ==========
+        var rankSeedTimestamp = new DateTime(2026, 7, 28, 9, 34, 37, 607, DateTimeKind.Utc);
         modelBuilder.Entity<Rank>().HasData(
-            new Rank { Id = 1, RankCode = "MAST", RankName = "Master (Captain)", IsActive = true },
-            new Rank { Id = 2, RankCode = "C/O", RankName = "Chief Officer", IsActive = true },
-            new Rank { Id = 3, RankCode = "2/O", RankName = "Second Officer", IsActive = true },
-            new Rank { Id = 4, RankCode = "3/O", RankName = "Third Officer", IsActive = true },
-            new Rank { Id = 5, RankCode = "C/E", RankName = "Chief Engineer", IsActive = true },
-            new Rank { Id = 6, RankCode = "2/E", RankName = "Second Engineer", IsActive = true },
-            new Rank { Id = 7, RankCode = "BOSN", RankName = "Bosun", IsActive = true },
-            new Rank { Id = 8, RankCode = "AB", RankName = "Able Seaman", IsActive = true },
-            new Rank { Id = 9, RankCode = "OILR", RankName = "Oiler", IsActive = true },
-            new Rank { Id = 10, RankCode = "COOK", RankName = "Chief Cook", IsActive = true }
+            new Rank { Id = 1, RankCode = "MAST", RankName = "Master (Captain)", IsActive = true, CreatedAt = rankSeedTimestamp.AddTicks(3117), UpdatedAt = rankSeedTimestamp.AddTicks(3121) },
+            new Rank { Id = 2, RankCode = "C/O", RankName = "Chief Officer", IsActive = true, CreatedAt = rankSeedTimestamp.AddTicks(3126), UpdatedAt = rankSeedTimestamp.AddTicks(3127) },
+            new Rank { Id = 3, RankCode = "2/O", RankName = "Second Officer", IsActive = true, CreatedAt = rankSeedTimestamp.AddTicks(3128), UpdatedAt = rankSeedTimestamp.AddTicks(3128) },
+            new Rank { Id = 4, RankCode = "3/O", RankName = "Third Officer", IsActive = true, CreatedAt = rankSeedTimestamp.AddTicks(3129), UpdatedAt = rankSeedTimestamp.AddTicks(3129) },
+            new Rank { Id = 5, RankCode = "C/E", RankName = "Chief Engineer", IsActive = true, CreatedAt = rankSeedTimestamp.AddTicks(3130), UpdatedAt = rankSeedTimestamp.AddTicks(3130) },
+            new Rank { Id = 6, RankCode = "2/E", RankName = "Second Engineer", IsActive = true, CreatedAt = rankSeedTimestamp.AddTicks(3131), UpdatedAt = rankSeedTimestamp.AddTicks(3132) },
+            new Rank { Id = 7, RankCode = "BOSN", RankName = "Bosun", IsActive = true, CreatedAt = rankSeedTimestamp.AddTicks(3133), UpdatedAt = rankSeedTimestamp.AddTicks(3134) },
+            new Rank { Id = 8, RankCode = "AB", RankName = "Able Seaman", IsActive = true, CreatedAt = rankSeedTimestamp.AddTicks(3134), UpdatedAt = rankSeedTimestamp.AddTicks(3135) },
+            new Rank { Id = 9, RankCode = "OILR", RankName = "Oiler", IsActive = true, CreatedAt = rankSeedTimestamp.AddTicks(3135), UpdatedAt = rankSeedTimestamp.AddTicks(3136) },
+            new Rank { Id = 10, RankCode = "COOK", RankName = "Chief Cook", IsActive = true, CreatedAt = rankSeedTimestamp.AddTicks(3136), UpdatedAt = rankSeedTimestamp.AddTicks(3137) }
         );
 
         // ===================================================================

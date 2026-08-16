@@ -775,6 +775,9 @@ export interface EdgeProvisioningStatus {
   isActive: boolean
   profileId?: number
   nodeId?: string
+  vesselImo?: string
+  vesselName?: string
+  shoreVesselId?: string
   shoreUrl?: string
   lastHandshake?: string
   handshakeStatus?: string
@@ -801,6 +804,7 @@ export interface EdgeProvisioningHistoryItem {
   nodeId: string
   vesselImo: string
   vesselName: string
+  shoreVesselId: string
   shoreBaseUrl: string
   keyVersion: number
   importedAt: string

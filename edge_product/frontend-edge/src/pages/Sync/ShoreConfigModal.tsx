@@ -160,7 +160,9 @@ export function ShoreConfigModal({ onClose }: ShoreConfigModalProps) {
                       )}
                       <div className="grid grid-cols-2 gap-2">
                         <div><span className="text-gray-500">Node ID:</span> <span className="font-medium">{status.nodeId}</span></div>
+                        <div><span className="text-gray-500">Tàu:</span> <span className="font-medium">{status.vesselName} (IMO {status.vesselImo})</span></div>
                         <div><span className="text-gray-500">Shore URL:</span> <span className="font-medium">{status.shoreUrl}</span></div>
+                        <div className="col-span-2 break-all"><span className="text-gray-500">Shore Vessel ID:</span> <span className="font-medium">{status.shoreVesselId}</span></div>
                         <div><span className="text-gray-500">Handshake:</span> <span className={`font-medium ${activeProfileNeedsReimport ? 'text-red-600' : ''}`}>{status.handshakeStatus ?? '—'}</span></div>
                         <div><span className="text-gray-500">Lần cuối:</span> <span className="font-medium">{formatTime(status.lastHandshake)}</span></div>
                       </div>
@@ -229,6 +231,9 @@ export function ShoreConfigModal({ onClose }: ShoreConfigModalProps) {
                         <div className="text-xs text-gray-500 mt-1">
                           Shore: {item.shoreBaseUrl} · Key v{item.keyVersion} · Handshake: {item.handshakeStatus ?? 'never'}
                         </div>
+                        <div className="text-xs text-gray-500 mt-1 break-all">
+                          IMO: {item.vesselImo} · Shore Vessel ID: {item.shoreVesselId}
+                        </div>
                         {item.isActive && isFailed(item.handshakeStatus) && item.lastHandshakeError && (
                           <div className="mt-2 text-xs text-red-600 flex items-start gap-1">
                             <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5" />
@@ -255,8 +260,9 @@ export function ShoreConfigModal({ onClose }: ShoreConfigModalProps) {
                             </button>
                             <button
                               onClick={() => handleActivate(item.id)}
-                              disabled={activatingId === item.id}
-                              className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs hover:bg-blue-700 disabled:opacity-50"
+                              disabled={activatingId === item.id || item.handshakeStatus !== 'success'}
+                              title={item.handshakeStatus === 'success' ? 'Activate profile' : 'Test Connection thành công trước khi Activate'}
+                              className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
                             >
                               {activatingId === item.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3 h-3" />}
                               Activate

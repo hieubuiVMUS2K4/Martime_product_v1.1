@@ -314,8 +314,17 @@ public class CrewSyncOrchestrator : ICrewSyncOrchestrator
         }
         else if ((shipName != null && node.ShipName != shipName) || (imo != null && node.ImoNumber != imo))
         {
+            if (node.VesselId.HasValue &&
+                !string.IsNullOrWhiteSpace(imo) &&
+                !string.Equals(node.ImoNumber, imo, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"Provisioned node {node.NodeId} cannot change vessel IMO from {node.ImoNumber} to {imo}.");
+            }
+
             node.ShipName = shipName;
-            node.ImoNumber = imo ?? node.ImoNumber;
+            if (!node.VesselId.HasValue)
+                node.ImoNumber = imo ?? node.ImoNumber;
             node.UpdatedAt = DateTime.UtcNow;
         }
 

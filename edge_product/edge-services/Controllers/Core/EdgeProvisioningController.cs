@@ -57,6 +57,9 @@ public class EdgeProvisioningController : ControllerBase
             {
                 isActive = false,
                 nodeId = (string?)null,
+                vesselImo = (string?)null,
+                vesselName = (string?)null,
+                shoreVesselId = (Guid?)null,
                 shoreUrl = (string?)null,
                 lastHandshake = (DateTime?)null,
                 handshakeStatus = (string?)null,
@@ -70,6 +73,9 @@ public class EdgeProvisioningController : ControllerBase
             isActive = true,
             profileId = active.Id,
             nodeId = active.NodeId,
+            vesselImo = active.VesselImo,
+            vesselName = active.VesselName,
+            shoreVesselId = active.VesselId,
             shoreUrl = active.ShoreBaseUrl,
             lastHandshake = active.LastHandshakeAt,
             handshakeStatus = active.HandshakeStatus,
@@ -228,6 +234,7 @@ public class EdgeProvisioningController : ControllerBase
             {
                 nodeId = profile.NodeId,
                 vesselImo = profile.VesselImo,
+                shoreVesselId = profile.VesselId,
                 edgeVersion = "3.0",
                 networkType = profile.NetworkType ?? "Shore_WiFi"
             });
@@ -246,6 +253,16 @@ public class EdgeProvisioningController : ControllerBase
                 await _context.SaveChangesAsync();
 
                 return Ok(new { success = false, message = profile.LastHandshakeError });
+            }
+
+            var identityError = ValidateHandshakeResponseIdentity(responseBody, profile);
+            if (identityError != null)
+            {
+                profile.HandshakeStatus = "failed";
+                profile.LastHandshakeError = identityError;
+                profile.LastHandshakeAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+                return Ok(new { success = false, message = identityError });
             }
 
             profile.HandshakeStatus = "success";
@@ -278,6 +295,19 @@ public class EdgeProvisioningController : ControllerBase
         if (profile == null)
             return NotFound(new { error = $"Không tìm thấy profile #{request.ProfileId}." });
 
+        if (!string.Equals(profile.HandshakeStatus, "success", StringComparison.OrdinalIgnoreCase) ||
+            !profile.LastHandshakeAt.HasValue)
+        {
+            return BadRequest(new { error = "Profile must pass Test Connection before activation." });
+        }
+
+        if (string.IsNullOrWhiteSpace(profile.NodeId) ||
+            string.IsNullOrWhiteSpace(profile.VesselImo) ||
+            !profile.VesselId.HasValue)
+        {
+            return BadRequest(new { error = "Profile is missing its node/vessel identity binding." });
+        }
+
         await using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
@@ -289,6 +319,8 @@ public class EdgeProvisioningController : ControllerBase
 
             foreach (var p in previouslyActive)
                 p.IsActive = false;
+
+            await _context.SaveChangesAsync();
 
             profile.IsActive = true;
             profile.ActivatedAt = DateTime.UtcNow;
@@ -324,6 +356,7 @@ public class EdgeProvisioningController : ControllerBase
                 p.NodeId,
                 p.VesselImo,
                 p.VesselName,
+                shoreVesselId = p.VesselId,
                 p.ShoreBaseUrl,
                 p.KeyVersion,
                 p.ImportedAt,
@@ -397,6 +430,9 @@ public class EdgeProvisioningController : ControllerBase
 
         parsed.VesselImo = vessel.TryGetProperty("imo", out var imo) ? imo.GetString() : null;
         parsed.VesselName = vessel.TryGetProperty("name", out var name) ? name.GetString() : null;
+        if (string.IsNullOrWhiteSpace(parsed.VesselImo) || string.IsNullOrWhiteSpace(parsed.VesselName))
+            return "vessel.imo and vessel.name are required.";
+
         parsed.VesselCallSign = vessel.TryGetProperty("callSign", out var callSign) ? callSign.GetString() : null;
         parsed.VesselType = vessel.TryGetProperty("vesselType", out var vesselType) ? vesselType.GetString() : null;
         parsed.VesselFlag = vessel.TryGetProperty("flag", out var flag) ? flag.GetString() : null;
@@ -460,6 +496,38 @@ public class EdgeProvisioningController : ControllerBase
 
     private static string Truncate(string value, int maxLength) =>
         value.Length <= maxLength ? value : value[..maxLength];
+
+    private static string? ValidateHandshakeResponseIdentity(string responseBody, EdgeProvisioningProfile profile)
+    {
+        try
+        {
+            using var responseJson = JsonDocument.Parse(responseBody);
+            var root = responseJson.RootElement;
+
+            var accepted = root.TryGetProperty("accepted", out var acceptedElement) &&
+                           acceptedElement.ValueKind == JsonValueKind.True;
+            var nodeId = root.TryGetProperty("nodeId", out var nodeElement) ? nodeElement.GetString() : null;
+            var vesselImo = root.TryGetProperty("vesselImo", out var imoElement) ? imoElement.GetString() : null;
+            Guid shoreVesselId = Guid.Empty;
+            var hasVesselId = root.TryGetProperty("shoreVesselId", out var vesselIdElement) &&
+                              vesselIdElement.TryGetGuid(out shoreVesselId);
+
+            if (!accepted ||
+                !string.Equals(nodeId, profile.NodeId, StringComparison.Ordinal) ||
+                !string.Equals(vesselImo, profile.VesselImo, StringComparison.OrdinalIgnoreCase) ||
+                !hasVesselId ||
+                shoreVesselId != profile.VesselId)
+            {
+                return "Shore accepted the request but returned a different node/vessel identity.";
+            }
+
+            return null;
+        }
+        catch (JsonException)
+        {
+            return "Shore handshake response is not valid JSON.";
+        }
+    }
 
     private async Task UpsertShipDataFromProvisioningAsync(ParsedProvisioningJson parsed)
     {

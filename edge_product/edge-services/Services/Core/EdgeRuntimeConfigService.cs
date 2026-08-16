@@ -114,7 +114,9 @@ public class EdgeRuntimeConfigService : IEdgeRuntimeConfigService
     {
         if (string.IsNullOrWhiteSpace(profile.NodeId) ||
             string.IsNullOrWhiteSpace(profile.ShoreBaseUrl) ||
-            string.IsNullOrWhiteSpace(profile.NodeApiToken))
+            string.IsNullOrWhiteSpace(profile.NodeApiToken) ||
+            string.IsNullOrWhiteSpace(profile.VesselImo) ||
+            !profile.VesselId.HasValue)
         {
             throw new ConfigInvalidException(
                 $"EdgeProvisioningProfile #{profile.Id} thiếu trường bắt buộc (NodeId/ShoreBaseUrl/NodeApiToken).");

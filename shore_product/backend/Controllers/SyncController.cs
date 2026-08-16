@@ -57,6 +57,13 @@ public class SyncController : ControllerBase
     [HttpPost("handshake")]
     public async Task<IActionResult> Handshake([FromBody] SyncHandshakeDto handshake)
     {
+        if (string.IsNullOrWhiteSpace(handshake.NodeId) ||
+            string.IsNullOrWhiteSpace(handshake.VesselImo) ||
+            !handshake.ShoreVesselId.HasValue)
+        {
+            return BadRequest(new { error = "nodeId, vesselImo and shoreVesselId are required." });
+        }
+
         var rawToken = Request.Headers[NodeApiTokenMiddleware.NodeApiTokenHeader].FirstOrDefault();
         if (string.IsNullOrWhiteSpace(rawToken))
         {
@@ -69,11 +76,18 @@ public class SyncController : ControllerBase
             return Unauthorized(new { error = "Invalid or revoked node API token." });
         }
 
-        if (!string.IsNullOrWhiteSpace(handshake.NodeId) &&
-            !string.Equals(node.NodeId, handshake.NodeId, StringComparison.Ordinal))
+        if (!string.Equals(node.NodeId, handshake.NodeId, StringComparison.Ordinal) ||
+            !string.Equals(node.ImoNumber, handshake.VesselImo, StringComparison.OrdinalIgnoreCase) ||
+            node.VesselId != handshake.ShoreVesselId)
         {
-            return BadRequest(new { error = "Token does not belong to the specified nodeId." });
+            return Unauthorized(new { error = "Provisioning credentials do not belong to the specified vessel identity." });
         }
+
+        var vesselBindingExists = await _context.Vessels
+            .AsNoTracking()
+            .AnyAsync(v => v.Id == node.VesselId && v.IMO == node.ImoNumber);
+        if (!vesselBindingExists)
+            return Unauthorized(new { error = "Provisioning credentials are not bound to an existing Shore vessel." });
 
         var trackedNode = await _context.SyncNodeTrackers.AsTracking().FirstAsync(n => n.Id == node.Id);
         var now = DateTime.UtcNow;
@@ -101,6 +115,7 @@ public class SyncController : ControllerBase
             serverTime = now,
             nodeId = trackedNode.NodeId,
             vesselImo = trackedNode.ImoNumber,
+            shoreVesselId = trackedNode.VesselId,
             provisioningStatus = trackedNode.ProvisioningStatus
         });
     }
@@ -116,6 +131,20 @@ public class SyncController : ControllerBase
             return Ok(new { message = "No items to sync", succeeded = 0, failed = 0 });
 
         var verifiedNodeId = HttpContext.Items[VerifiedNodeIdItemKey] as string;
+        if (!string.IsNullOrWhiteSpace(verifiedNodeId))
+        {
+            var hasValidVesselBinding = await _context.SyncNodeTrackers
+                .AsNoTracking()
+                .AnyAsync(n =>
+                    n.NodeId == verifiedNodeId &&
+                    n.IsRegistered &&
+                    !n.IsRevoked &&
+                    n.VesselId != null &&
+                    n.ImoNumber != null);
+            if (!hasValidVesselBinding)
+                return Unauthorized(new { error = "Sync node is not bound to a vessel." });
+        }
+
         var distinctOriginNodes = items
             .Select(i => i.OriginNode)
             .Where(i => !string.IsNullOrWhiteSpace(i))
@@ -201,14 +230,34 @@ public class SyncController : ControllerBase
             return BadRequest(new { error = "Signed node identity does not match heartbeat node." });
         }
 
+        SyncNodeTracker? verifiedNode = null;
         if (!string.IsNullOrWhiteSpace(verifiedNodeId))
         {
+            verifiedNode = await _context.SyncNodeTrackers
+                .AsTracking()
+                .FirstOrDefaultAsync(n =>
+                    n.NodeId == verifiedNodeId &&
+                    n.IsRegistered &&
+                    !n.IsRevoked &&
+                    n.VesselId != null &&
+                    n.ImoNumber != null);
+            if (verifiedNode == null)
+                return Unauthorized(new { error = "Sync node is not bound to a vessel." });
+
+            if (!string.Equals(verifiedNode.ImoNumber, heartbeat.ImoNumber, StringComparison.OrdinalIgnoreCase) ||
+                verifiedNode.VesselId != heartbeat.ShoreVesselId)
+            {
+                return BadRequest(new { error = "Heartbeat vessel identity does not match the provisioned node." });
+            }
+
             heartbeat.NodeId = verifiedNodeId;
+            heartbeat.ImoNumber = verifiedNode.ImoNumber;
+            heartbeat.ShoreVesselId = verifiedNode.VesselId;
         }
 
         try
         {
-            var node = await _crewSync.GetOrCreateNodeAsync(
+            var node = verifiedNode ?? await _crewSync.GetOrCreateNodeAsync(
                 heartbeat.NodeId, heartbeat.ShipName, heartbeat.ImoNumber);
 
             var receivedAt = DateTime.UtcNow;
@@ -837,6 +886,7 @@ public class SyncHeartbeatDto
     public string NodeId { get; set; } = string.Empty;
     public string? ShipName { get; set; }
     public string? ImoNumber { get; set; }
+    public Guid? ShoreVesselId { get; set; }
     public string? NetworkType { get; set; }
     public int PendingSyncItems { get; set; }
     /// <summary>UTC timestamp set by Edge just before sending — used to compute one-way latency.</summary>
@@ -848,6 +898,7 @@ public class SyncHandshakeDto
 {
     public string? NodeId { get; set; }
     public string? VesselImo { get; set; }
+    public Guid? ShoreVesselId { get; set; }
     public string? EdgeVersion { get; set; }
     public string? NetworkType { get; set; }
 }

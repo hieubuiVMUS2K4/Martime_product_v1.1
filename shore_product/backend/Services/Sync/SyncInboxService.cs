@@ -3163,14 +3163,26 @@ public class SyncInboxService : ISyncInboxService
             return null;
         }
 
-        // Extract IMO - required field
-        var imo = GetStr("imoNumber", "ImoNumber", "imo_number", "IMO");
-        if (string.IsNullOrWhiteSpace(imo))
+        // The payload IMO is untrusted. In Managed Mode, bind it to the IMO owned by
+        // the authenticated OriginNode so one vessel credential cannot update another vessel.
+        var payloadImo = GetStr("imoNumber", "ImoNumber", "imo_number", "IMO");
+        if (string.IsNullOrWhiteSpace(payloadImo))
         {
             _logger.LogWarning("ship_data missing IMO for key {Key}", item.RecordKey);
             await LogSyncOperation(item, "FAILED", "Missing IMO");
             return;
         }
+
+        var originBindings = await ResolveOriginNodesToImosAsync(new[] { item.OriginNode });
+        var hasProvisionedBinding = originBindings.TryGetValue(item.OriginNode, out var provisionedImo);
+        if (hasProvisionedBinding &&
+            !string.Equals(payloadImo, provisionedImo, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"ship_data IMO {payloadImo} does not match provisioned node vessel IMO {provisionedImo}.");
+        }
+
+        var imo = hasProvisionedBinding ? provisionedImo! : payloadImo;
 
         // Upsert: find by IMO or create new
         // AsTracking() needed because DbContext default is NoTracking — without it,

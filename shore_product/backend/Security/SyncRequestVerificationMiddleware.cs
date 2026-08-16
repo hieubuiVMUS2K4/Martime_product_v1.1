@@ -152,6 +152,21 @@ public sealed class SyncRequestVerificationMiddleware : IMiddleware
             return;
         }
 
+        var tokenNodeId = context.Items[NodeApiTokenMiddleware.VerifiedNodeIdItemKey] as string;
+        if (!string.IsNullOrWhiteSpace(tokenNodeId) &&
+            !string.Equals(tokenNodeId, nodeId, StringComparison.Ordinal))
+        {
+            await RejectAndAuditAsync(
+                context,
+                StatusCodes.Status401Unauthorized,
+                "Node API token and signed node identity do not match.",
+                "credential_identity_mismatch",
+                nodeId,
+                nonce,
+                protocol);
+            return;
+        }
+
         var replayCacheKey = $"sync-nonce:{nodeId}:{nonce}";
         if (_memoryCache.TryGetValue(replayCacheKey, out _))
         {
@@ -163,7 +178,10 @@ public sealed class SyncRequestVerificationMiddleware : IMiddleware
             .AsTracking()
             .FirstOrDefaultAsync(n => n.NodeId == nodeId);
 
-        if (node == null || !node.IsRegistered)
+        if (node == null ||
+            !node.IsRegistered ||
+            !node.VesselId.HasValue ||
+            string.IsNullOrWhiteSpace(node.ImoNumber))
         {
             _logger.LogWarning("Denied signed sync request because node {NodeId} is not provisioned in Shore registry", nodeId);
             await RejectAndAuditAsync(context, StatusCodes.Status401Unauthorized, "Unknown sync node.", "unknown_node", nodeId, nonce, protocol);

@@ -25,6 +25,9 @@ public class SyncNodeTracker
     [MaxLength(20)]
     public string? ImoNumber { get; set; }
 
+    /// <summary>Shore vessel that exclusively owns this node and its credentials.</summary>
+    public Guid? VesselId { get; set; }
+
     /// <summary>True when node identity has been explicitly provisioned on Shore.</summary>
     public bool IsRegistered { get; set; }
 

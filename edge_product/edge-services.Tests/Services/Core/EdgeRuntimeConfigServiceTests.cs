@@ -150,6 +150,29 @@ public class EdgeRuntimeConfigServiceTests
     }
 
     [Fact]
+    public async Task GetSyncConfigAsync_ActiveProfileMissingVesselBinding_ThrowsConfigInvalid()
+    {
+        using var db = CreateInMemoryContext();
+        db.EdgeProvisioningProfiles.Add(new EdgeProvisioningProfile
+        {
+            IsActive = true,
+            NodeId = "edge-9292929-main",
+            ShoreBaseUrl = "https://shore.example",
+            NodeApiToken = "plaintext-token",
+            SigningKey = "plaintext-signing-key",
+            VesselImo = null,
+            VesselId = null
+        });
+        await db.SaveChangesAsync();
+
+        var service = new EdgeRuntimeConfigService(
+            db, CreatePassthroughEncryptionMock().Object, CreateConfiguration(),
+            NullLogger<EdgeRuntimeConfigService>.Instance);
+
+        await Assert.ThrowsAsync<ConfigInvalidException>(() => service.GetSyncConfigAsync());
+    }
+
+    [Fact]
     public async Task GetSyncConfigAsync_ActiveProfileDecryptFails_ThrowsConfigInvalid_NoFallback()
     {
         // Test case 5 — Fail-Closed khi decrypt lỗi (VD: EDGE_DATA_PROTECTION_KEY sai/bị đổi).

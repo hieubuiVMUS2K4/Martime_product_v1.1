@@ -16,6 +16,9 @@ public sealed class NodeApiTokenMiddleware : IMiddleware
 {
     public const string NodeApiTokenHeader = "X-Node-Api-Token";
     public const string VerifiedNodeIdItemKey = "VerifiedNodeApiTokenNodeId";
+    public const string VerifiedSyncNodeIdItemKey = "VerifiedSyncNodeId";
+    public const string VerifiedVesselIdItemKey = "VerifiedNodeApiTokenVesselId";
+    public const string VerifiedVesselImoItemKey = "VerifiedNodeApiTokenVesselImo";
 
     private readonly IVesselProvisioningService _provisioningService;
     private readonly IConfiguration _configuration;
@@ -42,6 +45,9 @@ public sealed class NodeApiTokenMiddleware : IMiddleware
             if (node != null)
             {
                 context.Items[VerifiedNodeIdItemKey] = node.NodeId;
+                context.Items[VerifiedSyncNodeIdItemKey] = node.NodeId;
+                context.Items[VerifiedVesselIdItemKey] = node.VesselId;
+                context.Items[VerifiedVesselImoItemKey] = node.ImoNumber;
             }
             else
             {

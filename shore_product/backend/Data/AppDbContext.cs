@@ -325,10 +325,18 @@ namespace ProductApi.Data
             {
                 entity.ToTable("sync_node_trackers");
                 entity.HasIndex(e => e.NodeId).IsUnique();
+                entity.HasIndex(e => e.VesselId)
+                    .IsUnique()
+                    .HasFilter("\"VesselId\" IS NOT NULL");
+                entity.HasIndex(e => e.ImoNumber)
+                    .IsUnique()
+                    .HasFilter("\"ImoNumber\" IS NOT NULL");
                 entity.HasIndex(e => e.IsOnline);
                 entity.HasIndex(e => e.IsRegistered);
                 entity.HasIndex(e => e.IsRevoked);
-                entity.HasIndex(e => e.NodeApiTokenHash);
+                entity.HasIndex(e => e.NodeApiTokenHash)
+                    .IsUnique()
+                    .HasFilter("\"NodeApiTokenHash\" IS NOT NULL");
                 entity.HasIndex(e => e.ProvisioningStatus);
                 entity.Property(e => e.SigningKey).HasMaxLength(500);
                 entity.Property(e => e.PreviousSigningKey).HasMaxLength(500);

@@ -77,9 +77,18 @@ namespace ProductApi.Services
             if (vessel == null)
                 throw new InvalidOperationException($"Vessel {vesselId} not found.");
 
-            var node = await _context.SyncNodeTrackers
+            var matchingNodes = await _context.SyncNodeTrackers
                 .AsTracking()
-                .FirstOrDefaultAsync(n => n.ImoNumber == vessel.IMO);
+                .Where(n => n.VesselId == vessel.Id || n.ImoNumber == vessel.IMO)
+                .ToListAsync();
+
+            if (matchingNodes.Count > 1)
+            {
+                throw new InvalidOperationException(
+                    $"Provisioning registry contains multiple nodes for vessel {vessel.Id} / IMO {vessel.IMO}.");
+            }
+
+            var node = matchingNodes.SingleOrDefault();
 
             if (node == null)
             {
@@ -91,6 +100,7 @@ namespace ProductApi.Services
                     NodeId = $"edge-{vessel.IMO}-main",
                     ShipName = vessel.Name,
                     ImoNumber = vessel.IMO,
+                    VesselId = vessel.Id,
                     IsRegistered = false,
                     IsRevoked = false,
                     ProvisioningStatus = "Unknown",
@@ -101,6 +111,21 @@ namespace ProductApi.Services
                 };
                 _context.SyncNodeTrackers.Add(node);
                 await _context.SaveChangesAsync();
+            }
+            else
+            {
+                if (node.VesselId.HasValue && node.VesselId.Value != vessel.Id)
+                    throw new InvalidOperationException($"Node {node.NodeId} is already bound to another vessel.");
+
+                if (!string.IsNullOrWhiteSpace(node.ImoNumber) &&
+                    !string.Equals(node.ImoNumber, vessel.IMO, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException($"Node {node.NodeId} is already bound to another vessel IMO.");
+                }
+
+                node.VesselId = vessel.Id;
+                node.ImoNumber = vessel.IMO;
+                node.ShipName = vessel.Name;
             }
 
             return (vessel, node);
@@ -114,6 +139,12 @@ namespace ProductApi.Services
                 throw new InvalidOperationException($"Node {node.NodeId} is {node.ProvisioningStatus} and cannot be (re-)provisioned. Un-revoke it first.");
 
             var nodeId = string.IsNullOrWhiteSpace(nodeIdOverride) ? $"edge-{vessel.IMO}-main" : nodeIdOverride.Trim();
+            var nodeIdInUse = await _context.SyncNodeTrackers
+                .AsNoTracking()
+                .AnyAsync(n => n.Id != node.Id && n.NodeId == nodeId);
+            if (nodeIdInUse)
+                throw new InvalidOperationException($"NodeId '{nodeId}' is already bound to another vessel.");
+
             var nodeApiToken = GenerateRandomHex(32); // 64 hex chars
             var signingKey = GenerateRandomHex(32);
             var now = DateTime.UtcNow;
@@ -121,6 +152,7 @@ namespace ProductApi.Services
             node.NodeId = nodeId;
             node.ShipName = vessel.Name;
             node.ImoNumber = vessel.IMO;
+            node.VesselId = vessel.Id;
             node.NodeApiToken = _encryption.Encrypt(nodeApiToken);
             node.NodeApiTokenHash = Sha256Hex(nodeApiToken);
             node.NodeApiTokenVersion = 1;
@@ -315,9 +347,20 @@ namespace ProductApi.Services
             var tokenHash = Sha256Hex(rawToken);
             var node = await _context.SyncNodeTrackers
                 .AsNoTracking()
-                .FirstOrDefaultAsync(n => n.NodeApiTokenHash == tokenHash);
+                .FirstOrDefaultAsync(n =>
+                    n.NodeApiTokenHash == tokenHash &&
+                    n.VesselId != null &&
+                    n.ImoNumber != null &&
+                    n.ProvisioningStatus != "Revoked" &&
+                    n.ProvisioningStatus != "Disabled");
 
             if (node == null || node.IsRevoked)
+                return null;
+
+            var vesselBindingExists = await _context.Vessels
+                .AsNoTracking()
+                .AnyAsync(v => v.Id == node.VesselId && v.IMO == node.ImoNumber);
+            if (!vesselBindingExists)
                 return null;
 
             return node;

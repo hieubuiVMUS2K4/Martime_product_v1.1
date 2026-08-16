@@ -543,6 +543,7 @@ public class SyncService : ISyncService
             NodeId = nodeId,
             ShipName = syncConfig.VesselName ?? _configuration["Vessel:Name"],
             ImoNumber = syncConfig.VesselImo ?? _configuration["Vessel:IMO"],
+            ShoreVesselId = syncConfig.ShoreVesselId,
             NetworkType = networkType.ToString(),
             PendingSyncItems = pendingSyncItems,
             SentAt = DateTime.UtcNow
@@ -2717,6 +2718,7 @@ public sealed class SyncHeartbeatRequest
     public string NodeId { get; set; } = string.Empty;
     public string? ShipName { get; set; }
     public string? ImoNumber { get; set; }
+    public Guid? ShoreVesselId { get; set; }
     public string? NetworkType { get; set; }
     public int PendingSyncItems { get; set; }
     public DateTime? SentAt { get; set; }
