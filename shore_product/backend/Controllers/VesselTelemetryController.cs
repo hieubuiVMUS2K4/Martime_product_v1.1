@@ -57,32 +57,16 @@ namespace ProductApi.Controllers
             try
             {
                 // Resolve vessel: vesselId có thể là GUID (từ /api/vessels) hoặc IMO/NodeId (từ sync)
-                string? originNode = vesselId;
-
-                // Nếu vesselId là GUID, tra IMO từ bảng Vessels
-                if (Guid.TryParse(vesselId, out var vesselGuid))
-                {
-                    var vessel = await _dbContext.Vessels
-                        .AsNoTracking()
-                        .Where(v => v.Id == vesselGuid)
-                        .Select(v => new { v.IMO })
-                        .FirstOrDefaultAsync();
-
-                    if (vessel != null && !string.IsNullOrEmpty(vessel.IMO))
-                    {
-                        originNode = vessel.IMO;
-                    }
-                }
+                var originNodes = await ResolveTelemetryOriginNodesAsync(vesselId);
 
                 var since = DateTime.UtcNow.AddHours(-hours);
                 var query = _dbContext.PositionData
                     .AsNoTracking()
                     .Where(p => p.Timestamp >= since);
 
-                // Lọc theo originNode (IMO number từ vessel hoặc nodeId trực tiếp)
-                if (!string.IsNullOrEmpty(originNode))
+                if (originNodes.Count > 0)
                 {
-                    query = query.Where(p => p.OriginNode == originNode);
+                    query = query.Where(p => originNodes.Contains(p.OriginNode));
                 }
 
                 var positions = await query
@@ -131,7 +115,7 @@ namespace ProductApi.Controllers
                 {
                     var latestEngine = await _dbContext.EngineData
                         .AsNoTracking()
-                        .Where(e => e.OriginNode == originNode)
+                        .Where(e => originNodes.Contains(e.OriginNode))
                         .OrderByDescending(e => e.Timestamp)
                         .FirstOrDefaultAsync();
 
@@ -196,6 +180,65 @@ namespace ProductApi.Controllers
             }
         }
 
+        private async Task<List<string>> ResolveTelemetryOriginNodesAsync(string vesselId)
+        {
+            var nodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            if (!string.IsNullOrWhiteSpace(vesselId))
+            {
+                nodes.Add(vesselId.Trim());
+            }
+
+            Guid? vesselGuid = Guid.TryParse(vesselId, out var parsedGuid) ? parsedGuid : null;
+            string? vesselImo = null;
+
+            if (vesselGuid.HasValue)
+            {
+                vesselImo = await _dbContext.Vessels
+                    .AsNoTracking()
+                    .Where(v => v.Id == vesselGuid.Value)
+                    .Select(v => v.IMO)
+                    .FirstOrDefaultAsync();
+
+                if (!string.IsNullOrWhiteSpace(vesselImo))
+                {
+                    nodes.Add(vesselImo.Trim());
+                }
+            }
+
+            var trackerQuery = _dbContext.SyncNodeTrackers
+                .AsNoTracking()
+                .Where(t => t.ProvisioningStatus != "Revoked" && t.ProvisioningStatus != "Disabled");
+
+            if (vesselGuid.HasValue)
+            {
+                trackerQuery = trackerQuery.Where(t =>
+                    t.VesselId == vesselGuid.Value ||
+                    t.NodeId == vesselId ||
+                    (!string.IsNullOrWhiteSpace(vesselImo) && t.ImoNumber == vesselImo));
+            }
+            else
+            {
+                trackerQuery = trackerQuery.Where(t =>
+                    t.NodeId == vesselId ||
+                    t.ImoNumber == vesselId);
+            }
+
+            var trackerNodes = await trackerQuery
+                .Select(t => new { t.NodeId, t.ImoNumber })
+                .ToListAsync();
+
+            foreach (var tracker in trackerNodes)
+            {
+                if (!string.IsNullOrWhiteSpace(tracker.NodeId))
+                    nodes.Add(tracker.NodeId.Trim());
+                if (!string.IsNullOrWhiteSpace(tracker.ImoNumber))
+                    nodes.Add(tracker.ImoNumber.Trim());
+            }
+
+            return nodes.ToList();
+        }
+
         private static double ToRad(double deg) => deg * Math.PI / 180.0;
 
         [HttpPost("alert")]
@@ -214,22 +257,11 @@ namespace ProductApi.Controllers
         {
             try
             {
-                string? originNode = vesselId;
-
-                if (Guid.TryParse(vesselId, out var vesselGuid))
-                {
-                    var vessel = await _dbContext.Vessels
-                        .AsNoTracking()
-                        .Where(v => v.Id == vesselGuid)
-                        .Select(v => new { v.IMO })
-                        .FirstOrDefaultAsync();
-                    if (vessel != null && !string.IsNullOrEmpty(vessel.IMO))
-                        originNode = vessel.IMO;
-                }
+                var originNodes = await ResolveTelemetryOriginNodesAsync(vesselId);
 
                 var query = _dbContext.SafetyAlarms
                     .AsNoTracking()
-                    .Where(a => a.OriginNode == originNode);
+                    .Where(a => originNodes.Contains(a.OriginNode));
 
                 if (activeOnly)
                 {
@@ -287,23 +319,12 @@ namespace ProductApi.Controllers
         {
             try
             {
-                string? originNode = vesselId;
-
-                if (Guid.TryParse(vesselId, out var vesselGuid))
-                {
-                    var vessel = await _dbContext.Vessels
-                        .AsNoTracking()
-                        .Where(v => v.Id == vesselGuid)
-                        .Select(v => new { v.IMO })
-                        .FirstOrDefaultAsync();
-                    if (vessel != null && !string.IsNullOrEmpty(vessel.IMO))
-                        originNode = vessel.IMO;
-                }
+                var originNodes = await ResolveTelemetryOriginNodesAsync(vesselId);
 
                 var since = DateTime.UtcNow.AddHours(-hours);
                 var events = await _dbContext.EngineEvents
                     .AsNoTracking()
-                    .Where(e => e.OriginNode == originNode && e.Timestamp >= since)
+                    .Where(e => originNodes.Contains(e.OriginNode) && e.Timestamp >= since)
                     .OrderByDescending(e => e.Timestamp)
                     .ToListAsync();
 
@@ -343,54 +364,43 @@ namespace ProductApi.Controllers
         {
             try
             {
-                string? originNode = vesselId;
-
-                if (Guid.TryParse(vesselId, out var vesselGuid))
-                {
-                    var vessel = await _dbContext.Vessels
-                        .AsNoTracking()
-                        .Where(v => v.Id == vesselGuid)
-                        .Select(v => new { v.IMO })
-                        .FirstOrDefaultAsync();
-                    if (vessel != null && !string.IsNullOrEmpty(vessel.IMO))
-                        originNode = vessel.IMO;
-                }
+                var originNodes = await ResolveTelemetryOriginNodesAsync(vesselId);
 
                 var last24h = DateTime.UtcNow.AddHours(-24);
 
                 var activeAlerts = await _dbContext.SafetyAlarms
                     .AsNoTracking()
-                    .Where(a => a.OriginNode == originNode && !a.IsResolved)
+                    .Where(a => originNodes.Contains(a.OriginNode) && !a.IsResolved)
                     .GroupBy(a => new { a.Timestamp, a.AlarmType })
                     .CountAsync();
 
                 var alertsLast24h = await _dbContext.SafetyAlarms
                     .AsNoTracking()
-                    .Where(a => a.OriginNode == originNode && a.Timestamp >= last24h)
+                    .Where(a => originNodes.Contains(a.OriginNode) && a.Timestamp >= last24h)
                     .GroupBy(a => new { a.Timestamp, a.AlarmType })
                     .CountAsync();
 
                 var criticalAlerts = await _dbContext.SafetyAlarms
                     .AsNoTracking()
-                    .Where(a => a.OriginNode == originNode && a.Severity == "CRITICAL" && !a.IsResolved)
+                    .Where(a => originNodes.Contains(a.OriginNode) && a.Severity == "CRITICAL" && !a.IsResolved)
                     .GroupBy(a => new { a.Timestamp, a.AlarmType })
                     .CountAsync();
 
                 var engineStarts = await _dbContext.EngineEvents
                     .AsNoTracking()
-                    .Where(e => e.OriginNode == originNode && e.EventType == "START" && e.Timestamp >= last24h)
+                    .Where(e => originNodes.Contains(e.OriginNode) && e.EventType == "START" && e.Timestamp >= last24h)
                     .GroupBy(e => new { e.Timestamp, e.EngineId })
                     .CountAsync();
 
                 var engineStops = await _dbContext.EngineEvents
                     .AsNoTracking()
-                    .Where(e => e.OriginNode == originNode && e.EventType == "STOP" && e.Timestamp >= last24h)
+                    .Where(e => originNodes.Contains(e.OriginNode) && e.EventType == "STOP" && e.Timestamp >= last24h)
                     .GroupBy(e => new { e.Timestamp, e.EngineId })
                     .CountAsync();
 
                 var lastEngineEvent = await _dbContext.EngineEvents
                     .AsNoTracking()
-                    .Where(e => e.OriginNode == originNode)
+                    .Where(e => originNodes.Contains(e.OriginNode))
                     .OrderByDescending(e => e.Timestamp)
                     .FirstOrDefaultAsync();
 

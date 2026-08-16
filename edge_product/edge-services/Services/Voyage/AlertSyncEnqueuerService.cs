@@ -58,8 +58,8 @@ public class AlertSyncEnqueuerService : BackgroundService
 
         await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
 
-        _vesselImo = await ResolveNodeIdAsync();
-        _logger.LogInformation("Alert Sync Enqueuer using OriginNode: {NodeId}", _vesselImo);
+        _vesselImo = await ResolveVesselImoAsync();
+        _logger.LogInformation("Alert Sync Enqueuer using VesselIMO: {VesselImo}", _vesselImo);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -155,23 +155,25 @@ public class AlertSyncEnqueuerService : BackgroundService
     /// Managed profile, which is acceptable since profile activation is an admin action, not a
     /// per-request concern. Falls back to "UNKNOWN" (does not throw) on Fail-Closed conditions.
     /// </summary>
-    private async Task<string> ResolveNodeIdAsync()
+    private async Task<string> ResolveVesselImoAsync()
     {
         try
         {
             using var scope = _serviceProvider.CreateScope();
             var runtimeConfigService = scope.ServiceProvider.GetRequiredService<IEdgeRuntimeConfigService>();
             var syncConfig = await runtimeConfigService.GetSyncConfigAsync();
-            return syncConfig?.NodeId ?? "UNKNOWN";
+            return string.IsNullOrWhiteSpace(syncConfig?.VesselImo)
+                ? "UNKNOWN"
+                : syncConfig!.VesselImo!;
         }
         catch (ProvisioningRequiredException ex)
         {
-            _logger.LogWarning("Alert Sync Enqueuer: NodeId unavailable — {Message}", ex.Message);
+            _logger.LogWarning("Alert Sync Enqueuer: VesselIMO unavailable — {Message}", ex.Message);
             return "UNKNOWN";
         }
         catch (ConfigInvalidException ex)
         {
-            _logger.LogError("Alert Sync Enqueuer: NodeId unavailable — {Message}", ex.Message);
+            _logger.LogError("Alert Sync Enqueuer: VesselIMO unavailable — {Message}", ex.Message);
             return "UNKNOWN";
         }
     }

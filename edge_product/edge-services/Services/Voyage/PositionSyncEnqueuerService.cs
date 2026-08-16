@@ -60,8 +60,8 @@ public class PositionSyncEnqueuerService : BackgroundService
         // Warmup delay
         await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
 
-        _vesselImo = await ResolveNodeIdAsync();
-        _logger.LogInformation("Position Sync Enqueuer using OriginNode: {NodeId}", _vesselImo);
+        _vesselImo = await ResolveVesselImoAsync();
+        _logger.LogInformation("Position Sync Enqueuer using VesselIMO: {VesselImo}", _vesselImo);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -115,9 +115,9 @@ public class PositionSyncEnqueuerService : BackgroundService
         foreach (var pos in unsynced)
         {
             // Serialize PositionData thành JSON payload
-            // QUAN TRỌNG: Ghi đè originNode bằng IMO thực từ config (_vesselImo)
-            // để khớp với Shore filter (VesselTelemetryController filter theo IMO).
-            // pos.OriginNode mặc định là "SHIP_01" → không khớp → Shore không tìm thấy dữ liệu.
+            // QUAN TRỌNG: Ghi đè originNode bằng IMO thật của tàu
+            // để khớp với Shore filter (VesselTelemetryController lọc theo IMO).
+            // NodeId chỉ dùng cho provisioning/sync identity, không dùng cho telemetry.
             var payload = JsonSerializer.Serialize(new
             {
                 id = pos.Id,
@@ -137,7 +137,7 @@ public class PositionSyncEnqueuerService : BackgroundService
                 originNode = _vesselImo
             }, _jsonOptions);
 
-            // Cập nhật luôn OriginNode trong DB để đồng bộ về sau
+            // Cập nhật luôn OriginNode trong DB bằng IMO thật để đồng bộ về sau
             pos.OriginNode = _vesselImo;
 
             syncQueueItems.Add(new SyncQueue
@@ -174,23 +174,25 @@ public class PositionSyncEnqueuerService : BackgroundService
     /// Managed profile, which is acceptable since profile activation is an admin action, not a
     /// per-request concern. Falls back to "UNKNOWN" (does not throw) on Fail-Closed conditions.
     /// </summary>
-    private async Task<string> ResolveNodeIdAsync()
+    private async Task<string> ResolveVesselImoAsync()
     {
         try
         {
             using var scope = _serviceProvider.CreateScope();
             var runtimeConfigService = scope.ServiceProvider.GetRequiredService<IEdgeRuntimeConfigService>();
             var syncConfig = await runtimeConfigService.GetSyncConfigAsync();
-            return syncConfig?.NodeId ?? "UNKNOWN";
+            return string.IsNullOrWhiteSpace(syncConfig?.VesselImo)
+                ? "UNKNOWN"
+                : syncConfig!.VesselImo!;
         }
         catch (ProvisioningRequiredException ex)
         {
-            _logger.LogWarning("Position Sync Enqueuer: NodeId unavailable — {Message}", ex.Message);
+            _logger.LogWarning("Position Sync Enqueuer: VesselIMO unavailable — {Message}", ex.Message);
             return "UNKNOWN";
         }
         catch (ConfigInvalidException ex)
         {
-            _logger.LogError("Position Sync Enqueuer: NodeId unavailable — {Message}", ex.Message);
+            _logger.LogError("Position Sync Enqueuer: VesselIMO unavailable — {Message}", ex.Message);
             return "UNKNOWN";
         }
     }

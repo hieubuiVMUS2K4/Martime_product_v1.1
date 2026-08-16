@@ -76,8 +76,8 @@ public class GpsCollectorService : BackgroundService
         // Warmup delay
         await Task.Delay(TimeSpan.FromSeconds(3), stoppingToken);
 
-        _vesselImo = await ResolveNodeIdAsync();
-        _logger.LogInformation("GPS Collector Service using OriginNode: {NodeId}", _vesselImo);
+        _vesselImo = await ResolveVesselImoAsync();
+        _logger.LogInformation("GPS Collector Service using VesselIMO: {VesselImo}", _vesselImo);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -406,23 +406,25 @@ public class GpsCollectorService : BackgroundService
     /// value; resolving per-sentence would add unnecessary DB load. Falls back to "UNKNOWN" (does not
     /// throw) on Fail-Closed conditions.
     /// </summary>
-    private async Task<string> ResolveNodeIdAsync()
+    private async Task<string> ResolveVesselImoAsync()
     {
         try
         {
             using var scope = _serviceProvider.CreateScope();
             var runtimeConfigService = scope.ServiceProvider.GetRequiredService<IEdgeRuntimeConfigService>();
             var syncConfig = await runtimeConfigService.GetSyncConfigAsync();
-            return syncConfig?.NodeId ?? "UNKNOWN";
+            return string.IsNullOrWhiteSpace(syncConfig?.VesselImo)
+                ? "UNKNOWN"
+                : syncConfig!.VesselImo!;
         }
         catch (ProvisioningRequiredException ex)
         {
-            _logger.LogWarning("GPS Collector Service: NodeId unavailable — {Message}", ex.Message);
+            _logger.LogWarning("GPS Collector Service: VesselIMO unavailable — {Message}", ex.Message);
             return "UNKNOWN";
         }
         catch (ConfigInvalidException ex)
         {
-            _logger.LogError("GPS Collector Service: NodeId unavailable — {Message}", ex.Message);
+            _logger.LogError("GPS Collector Service: VesselIMO unavailable — {Message}", ex.Message);
             return "UNKNOWN";
         }
     }

@@ -68,8 +68,8 @@ public class NmeaPlaybackService : BackgroundService
         // ── RESUME LOGIC: Tìm dòng NMEA gần nhất với vị trí cuối trong DB ──
         int currentLine = await FindResumeLineAsync(allLines);
 
-        _vesselImo = await ResolveNodeIdAsync();
-        _logger.LogInformation("NMEA Playback Service using OriginNode: {NodeId}", _vesselImo);
+        _vesselImo = await ResolveVesselImoAsync();
+        _logger.LogInformation("NMEA Playback Service using VesselIMO: {VesselImo}", _vesselImo);
 
         if (currentLine > 0)
         {
@@ -211,23 +211,25 @@ public class NmeaPlaybackService : BackgroundService
     /// (BackgroundService is Singleton) — a service restart is needed to pick up a newly activated
     /// Managed profile. Falls back to "UNKNOWN" (does not throw) on Fail-Closed conditions.
     /// </summary>
-    private async Task<string> ResolveNodeIdAsync()
+    private async Task<string> ResolveVesselImoAsync()
     {
         try
         {
             using var scope = _serviceProvider.CreateScope();
             var runtimeConfigService = scope.ServiceProvider.GetRequiredService<IEdgeRuntimeConfigService>();
             var syncConfig = await runtimeConfigService.GetSyncConfigAsync();
-            return syncConfig?.NodeId ?? "UNKNOWN";
+            return string.IsNullOrWhiteSpace(syncConfig?.VesselImo)
+                ? "UNKNOWN"
+                : syncConfig!.VesselImo!;
         }
         catch (ProvisioningRequiredException ex)
         {
-            _logger.LogWarning("NMEA Playback Service: NodeId unavailable — {Message}", ex.Message);
+            _logger.LogWarning("NMEA Playback Service: VesselIMO unavailable — {Message}", ex.Message);
             return "UNKNOWN";
         }
         catch (ConfigInvalidException ex)
         {
-            _logger.LogError("NMEA Playback Service: NodeId unavailable — {Message}", ex.Message);
+            _logger.LogError("NMEA Playback Service: VesselIMO unavailable — {Message}", ex.Message);
             return "UNKNOWN";
         }
     }

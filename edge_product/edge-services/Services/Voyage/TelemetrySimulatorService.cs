@@ -57,8 +57,8 @@ namespace MaritimeEdge.Services.Voyage;
         // Wait 10 seconds before starting simulation
         await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
 
-        _vesselImo = await ResolveNodeIdAsync();
-        _logger.LogInformation("Telemetry Simulator using OriginNode: {NodeId}", _vesselImo);
+        _vesselImo = await ResolveVesselImoAsync();
+        _logger.LogInformation("Telemetry Simulator using VesselIMO: {VesselImo}", _vesselImo);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -330,23 +330,25 @@ namespace MaritimeEdge.Services.Voyage;
     /// (BackgroundService is Singleton) — a service restart is needed to pick up a newly activated
     /// Managed profile. Falls back to "UNKNOWN" (does not throw) on Fail-Closed conditions.
     /// </summary>
-    private async Task<string> ResolveNodeIdAsync()
+    private async Task<string> ResolveVesselImoAsync()
     {
         try
         {
             using var scope = _serviceProvider.CreateScope();
             var runtimeConfigService = scope.ServiceProvider.GetRequiredService<IEdgeRuntimeConfigService>();
             var syncConfig = await runtimeConfigService.GetSyncConfigAsync();
-            return syncConfig?.NodeId ?? "UNKNOWN";
+            return string.IsNullOrWhiteSpace(syncConfig?.VesselImo)
+                ? "UNKNOWN"
+                : syncConfig!.VesselImo!;
         }
         catch (ProvisioningRequiredException ex)
         {
-            _logger.LogWarning("Telemetry Simulator: NodeId unavailable — {Message}", ex.Message);
+            _logger.LogWarning("Telemetry Simulator: VesselIMO unavailable — {Message}", ex.Message);
             return "UNKNOWN";
         }
         catch (ConfigInvalidException ex)
         {
-            _logger.LogError("Telemetry Simulator: NodeId unavailable — {Message}", ex.Message);
+            _logger.LogError("Telemetry Simulator: VesselIMO unavailable — {Message}", ex.Message);
             return "UNKNOWN";
         }
     }
